@@ -1,58 +1,58 @@
-# Feature Specification: Dar de Baja Habitación
+# Especificación de Funcionalidad: Dar de Baja Habitación
 
-**Created**: 2026-09-04
+**Creado**: 2026-09-04
 
-## User Scenarios & Testing *(mandatory)*
+## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### User Story 1 - Retirar una habitación del inventario activo (Priority: P1)
+### Historia de Usuario 1 - Retirar una habitación del inventario activo (Prioridad: P1)
 
 Como Administrador, quiero dar de baja una habitación existente en el inventario, para excluirla de futuras reservas cuando ya no está disponible para operar (por ejemplo, por remodelación permanente, cierre definitivo de un ala o decisión administrativa), sin perder el historial de reservas y consumos ya asociado a ella.
 
-**Why this priority**: Es una operación esencial del ciclo de vida de la habitación dentro del Módulo 1 (Gestión de Habitaciones e Inventario). Sin ella, habitaciones que ya no deben operar seguirían apareciendo como reservables, generando reservas inválidas y afectando la integridad del inventario. Corresponde directamente al caso de uso "Dar de baja habitación" del diagrama oficial.
+**Por qué esta prioridad**: Es una operación esencial del ciclo de vida de la habitación dentro del Módulo 1 (Gestión de Habitaciones e Inventario). Sin ella, habitaciones que ya no deben operar seguirían apareciendo como reservables, generando reservas inválidas y afectando la integridad del inventario. Corresponde directamente al caso de uso "Dar de baja habitación" del diagrama oficial.
 
-**Independent Test**: Puede probarse de forma independiente iniciando sesión como Administrador, seleccionando una habitación sin reservas activas ni huéspedes actuales, confirmando la baja, y verificando que la habitación deje de aparecer en los resultados de disponibilidad para nuevas reservas.
+**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador, seleccionando una habitación sin reservas activas ni huéspedes actuales, confirmando la baja, y verificando que la habitación deje de aparecer en los resultados de disponibilidad para nuevas reservas.
 
-**Acceptance Scenarios**:
+**Escenarios de Aceptación**:
 
-1. **Scenario**: Baja exitosa de una habitación sin actividad pendiente
-   - **Given** una habitación existe en estado "Disponible" y no tiene reservas activas ni futuras confirmadas
-   - **When** el Administrador selecciona la habitación y confirma la acción de dar de baja
-   - **Then** el sistema cambia el estado de la habitación a "Inactiva", la excluye de los resultados de disponibilidad y conserva su historial
+1. **Escenario**: Baja exitosa de una habitación sin actividad pendiente
+   - **Dado** una habitación existe en estado "Disponible" y no tiene reservas activas ni futuras confirmadas
+   - **Cuando** el Administrador selecciona la habitación y confirma la acción de dar de baja
+   - **Entonces** el sistema cambia el estado de la habitación a "Inactiva", la excluye de los resultados de disponibilidad y conserva su historial
 
-2. **Scenario**: Intento de baja sobre una habitación ocupada
-   - **Given** una habitación se encuentra en estado "Ocupada" (huésped en sitio)
-   - **When** el Administrador intenta darla de baja
-   - **Then** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Disponible" (según documentos/SPEC/referencias/maquina-estados-habitacion.md) y sin reservas vigentes o futuras confirmadas.
+2. **Escenario**: Intento de baja sobre una habitación ocupada
+   - **Dado** una habitación se encuentra en estado "Ocupada" (huésped en sitio)
+   - **Cuando** el Administrador intenta darla de baja
+   - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Disponible" (según documentos/SPEC/referencias/maquina-estados-habitacion.md) y sin reservas vigentes o futuras confirmadas.
 
-3. **Scenario**: Intento de baja sobre una habitación con reserva confirmada a futuro
-   - **Given** una habitación se encuentra en estado "Disponible" pero tiene asociada una reserva confirmada para una fecha próxima (una reserva es un dato independiente del estado físico de la habitación, no un estado en sí mismo)
-   - **When** el Administrador intenta darla de baja
-   - **Then** el sistema rechaza la operación y muestra un mensaje indicando que existe una reserva vigente asociada a la habitación, validando que debe estar sin reservas vigentes o futuras confirmadas.
+3. **Escenario**: Intento de baja sobre una habitación con reserva confirmada a futuro
+   - **Dado** una habitación se encuentra en estado "Disponible" pero tiene asociada una reserva confirmada para una fecha próxima (una reserva es un dato independiente del estado físico de la habitación, no un estado en sí mismo)
+   - **Cuando** el Administrador intenta darla de baja
+   - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que existe una reserva vigente asociada a la habitación, validando que debe estar sin reservas vigentes o futuras confirmadas.
 
-4. **Scenario**: Reactivación de una habitación dada de baja
-   - **Given** una habitación se encuentra en estado "Inactiva"
-   - **When** el Administrador ejecuta el caso de uso "Marcar habitación como disponible" para revertir la baja
-   - **Then** el sistema cambia el estado de la habitación directamente de "Inactiva" a "Disponible"
+4. **Escenario**: Reactivación de una habitación dada de baja
+   - **Dado** una habitación se encuentra en estado "Inactiva"
+   - **Cuando** el Administrador ejecuta el caso de uso "Marcar habitación como disponible" para revertir la baja
+   - **Entonces** el sistema cambia el estado de la habitación directamente de "Inactiva" a "Disponible"
 
-5. **Scenario**: Confirmación explícita antes de ejecutar la baja
-   - **Given** el Administrador ha seleccionado una habitación elegible para ser dada de baja
-   - **When** inicia la acción de dar de baja
-   - **Then** el sistema solicita una confirmación explícita antes de aplicar el cambio, dado el impacto de la operación sobre el inventario
+5. **Escenario**: Confirmación explícita antes de ejecutar la baja
+   - **Dado** el Administrador ha seleccionado una habitación elegible para ser dada de baja
+   - **Cuando** inicia la acción de dar de baja
+   - **Entonces** el sistema solicita una confirmación explícita antes de aplicar el cambio, dado el impacto de la operación sobre el inventario
 
 ---
 
-### Edge Cases
+### Casos Borde
 
-### Edge Cases
+### Casos Borde
 
 - Habitación ya dada de baja: el sistema no muestra la opción de dar de baja para habitaciones que ya están en estado "Inactiva".
 - Reactivación de una habitación: el Administrador puede revertir la baja y devolver la habitación al estado "Disponible" mediante el caso de uso "Marcar habitación como disponible".
 - Pérdida de conexión o fallo del proceso tras confirmar: la transacción se cancela, evitando que la habitación quede en un estado intermedio inconsistente.
 - Visibilidad tras la baja: la habitación desaparece de los listados de disponibilidad para reservas, pero permanece visible en los listados de inventario como inactiva.
 
-## Requirements *(mandatory)*
+## Requisitos *(obligatorio)*
 
-### Functional Requirements
+### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" dar de baja habitaciones del inventario.
 - **FR-002**: El sistema DEBE validar como precondición que la habitación se encuentre en estado "Disponible" (según documentos/SPEC/referencias/maquina-estados-habitacion.md) y sin reservas vigentes o futuras confirmadas antes de permitir la baja.
@@ -67,14 +67,14 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - **FR-010**: El sistema DEBE permitir registrar un motivo de baja mediante la selección obligatoria de una categoría predefinida (por ejemplo: remodelación permanente, cierre definitivo de ala/piso, decisión administrativa, otro), pudiendo complementarse opcionalmente con un campo de texto libre para detalles adicionales.
 - **FR-011**: El sistema DEBE permitir al Administrador revertir una baja, llevando la habitación del estado "Inactiva" directamente al estado "Disponible" mediante el caso de uso "Marcar habitación como disponible", como una asociación directa del Administrador sin relación `<<extend>>`.
 
-### Key Entities *(include if feature involves data)*
+### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Para este caso de uso, la entidad transita al estado **"Inactiva"**, uno de los 7 estados vigentes de su ciclo de vida (Disponible, Ocupada, Pendiente de limpieza, En Limpieza, Bloqueo Técnico, Inhabilitada por reparaciones, Inactiva), además de los atributos ya definidos (ID único, número, piso/ala, tipo, capacidad máxima, tarifa base).
 - **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su baja.
 
-## Success Criteria *(mandatory)*
+## Criterios de Éxito *(obligatorio)*
 
-### Measurable Outcomes
+### Resultados Medibles
 
 - **SC-001**: El Administrador puede completar la baja de una habitación elegible en menos de 1 minuto.
 - **SC-002**: El 100% de los intentos de baja sobre habitaciones que no estén en estado "Disponible", o que tengan reservas vigentes, son rechazados por el sistema.

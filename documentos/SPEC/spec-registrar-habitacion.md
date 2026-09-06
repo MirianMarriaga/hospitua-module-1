@@ -1,51 +1,51 @@
-# Feature Specification: Registrar Habitación
+# Especificación de Funcionalidad: Registrar Habitación
 
-**Created**: 2026-08-29
+**Creado**: 2026-08-29
 
-## User Scenarios & Testing *(mandatory)*
+## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### User Story 1 - Creación de una nueva habitación en el inventario (Priority: P1)
+### Historia de Usuario 1 - Creación de una nueva habitación en el inventario (Prioridad: P1)
 
 Como Administrador, quiero registrar una nueva habitación en la plataforma indicando sus datos de identificación, categorización y comerciales, para que quede disponible en el inventario del hotel y pueda empezar a ser reservada por el personal de recepción o a través de los canales de venta configurados.
 
-**Why this priority**: Es la operación fundacional del Módulo 1 (Gestión de Habitaciones e Inventario). Sin la capacidad de crear habitaciones, ningún otro caso de uso del módulo (editar, dar de baja, bloquear, marcar estados, generar reportes) tiene datos sobre los cuales operar. Es la base de datos central del sistema.
+**Por qué esta prioridad**: Es la operación fundacional del Módulo 1 (Gestión de Habitaciones e Inventario). Sin la capacidad de crear habitaciones, ningún otro caso de uso del módulo (editar, dar de baja, bloquear, marcar estados, generar reportes) tiene datos sobre los cuales operar. Es la base de datos central del sistema.
 
-**Independent Test**: Puede probarse de forma independiente iniciando sesión como Administrador del sistema, completando el formulario de registro con todos los datos (identificación, categorización y comerciales) y verificando que la habitación aparezca en el inventario con estado "Disponible", con un identificador único asignado y con su tarifa base.
+**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador del sistema, completando el formulario de registro con todos los datos (identificación, categorización y comerciales) y verificando que la habitación aparezca en el inventario con estado "Disponible", con un identificador único asignado y con su tarifa base.
 
-**Acceptance Scenarios**:
+**Escenarios de Aceptación**:
 
-1. **Scenario**: Registro exitoso con datos completos y válidos
-   - **Given** el Administrador del sistema ha iniciado sesión y se encuentra en la sección de Inventario de Habitaciones
-   - **When** completa el formulario de registro con número de habitación, piso/ala, tipo, capacidad máxima, tarifa base, y confirma la creación
-   - **Then** el sistema crea la habitación con un ID único (UUID), la asigna al estado "Disponible", almacena la tarifa base y la muestra en el listado de inventario
+1. **Escenario**: Registro exitoso con datos completos y válidos
+   - **Dado** el Administrador del sistema ha iniciado sesión y se encuentra en la sección de Inventario de Habitaciones
+   - **Cuando** completa el formulario de registro con número de habitación, piso/ala, tipo, capacidad máxima, tarifa base, y confirma la creación
+   - **Entonces** el sistema crea la habitación con un ID único (UUID), la asigna al estado "Disponible", almacena la tarifa base y la muestra en el listado de inventario
 
-2. **Scenario**: Intento de registro con número de habitación duplicado
-   - **Given** ya existe una habitación registrada con el número "204"
-   - **When** el Administrador intenta registrar una nueva habitación usando el mismo número "204"
-   - **Then** el sistema rechaza la operación y muestra un mensaje indicando que el número de habitación ya existe
+2. **Escenario**: Intento de registro con número de habitación duplicado
+   - **Dado** ya existe una habitación registrada con el número "204"
+   - **Cuando** el Administrador intenta registrar una nueva habitación usando el mismo número "204"
+   - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que el número de habitación ya existe
 
-3. **Scenario**: Intento de registro con campos obligatorios incompletos
-   - **Given** el Administrador está completando el formulario de registro
-   - **When** intenta confirmar la creación sin diligenciar uno o más campos obligatorios (por ejemplo, tipo de habitación o capacidad máxima)
-   - **Then** el sistema impide el guardado y señala los campos pendientes por completar
+3. **Escenario**: Intento de registro con campos obligatorios incompletos
+   - **Dado** el Administrador está completando el formulario de registro
+   - **Cuando** intenta confirmar la creación sin diligenciar uno o más campos obligatorios (por ejemplo, tipo de habitación o capacidad máxima)
+   - **Entonces** el sistema impide el guardado y señala los campos pendientes por completar
 
-4. **Scenario**: Intento de registro con tarifa base negativa o igual a cero
-   - **Given** el Administrador está completando el formulario de registro
-   - **When** ingresa una tarifa base menor o igual a cero
-   - **Then** el sistema rechaza el valor y solicita ingresar una tarifa base válida (mayor a cero)
+4. **Escenario**: Intento de registro con tarifa base negativa o igual a cero
+   - **Dado** el Administrador está completando el formulario de registro
+   - **Cuando** ingresa una tarifa base menor o igual a cero
+   - **Entonces** el sistema rechaza el valor y solicita ingresar una tarifa base válida (mayor a cero)
 
 ---
 
-### Edge Cases
+### Casos Borde
 
 - Capacidad máxima de personas igual a cero o negativa: el sistema rechaza el valor y solicita un número entero positivo (FR-006).
 - Número de habitación duplicado en pisos/alas diferentes: el sistema rechaza el registro, ya que el número de habitación debe ser único en todo el inventario (FR-004).
 - Tipo de habitación no predefinido: el sistema restringe la selección a las categorías predefinidas, impidiendo el registro de otros tipos (FR-005).
 - Pérdida de conexión o fallo de guardado a mitad del registro: la transacción se cancela, evitando la creación de una habitación en estado inconsistente o parcialmente creada.
 
-## Requirements *(mandatory)*
+## Requisitos *(obligatorio)*
 
-### Functional Requirements
+### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" registrar nuevas habitaciones en el inventario.
 - **FR-002**: El sistema DEBE generar automáticamente un identificador único (UUID) para cada habitación registrada, sin intervención manual del usuario.
@@ -59,14 +59,14 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 - **FR-010**: El sistema DEBE registrar la fecha y el usuario responsable de la creación de cada habitación, para efectos de trazabilidad.
 
 
-### Key Entities *(include if feature involves data)*
+### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Disponible" al ser creada). Se relaciona con el Módulo 2 a través del caso de uso Consultar habitación, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
 - **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
 
-## Success Criteria *(mandatory)*
+## Criterios de Éxito *(obligatorio)*
 
-### Measurable Outcomes
+### Resultados Medibles
 
 - **SC-001**: El Administrador del sistema puede completar el registro de una nueva habitación en menos de 5 minutos.
 - **SC-002**: El 100% de las habitaciones registradas exitosamente quedan en estado "Disponible" y visibles en el inventario de forma inmediata (sin recarga manual).
