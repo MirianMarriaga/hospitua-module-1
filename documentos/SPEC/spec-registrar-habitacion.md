@@ -38,10 +38,10 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 
 ### Edge Cases
 
-- ¿Qué sucede si el Administrador intenta registrar una habitación con capacidad máxima de personas igual a cero o negativa?
-- ¿Qué sucede si el Administrador intenta registrar dos habitaciones con el mismo número pero en pisos/alas diferentes?
-- ¿Cómo maneja el sistema el registro de un tipo de habitación que no está dentro de las categorías predefinidas (Sencilla, Doble, Suite, Boutique)?
-- ¿Qué sucede si se pierde la conexión o falla el guardado a mitad del registro? ¿Queda una habitación en estado inconsistente o parcialmente creada?
+- Capacidad máxima de personas igual a cero o negativa: el sistema rechaza el valor y solicita un número entero positivo (FR-006).
+- Número de habitación duplicado en pisos/alas diferentes: el sistema rechaza el registro, ya que el número de habitación debe ser único en todo el inventario (FR-004).
+- Tipo de habitación no predefinido: el sistema restringe la selección a las categorías predefinidas, impidiendo el registro de otros tipos (FR-005).
+- Pérdida de conexión o fallo de guardado a mitad del registro: la transacción se cancela, evitando la creación de una habitación en estado inconsistente o parcialmente creada.
 
 ## Requirements *(mandatory)*
 
@@ -61,8 +61,8 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 
 ### Key Entities *(include if feature involves data)*
 
-- **Habitación**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Disponible" al ser creada). Se relaciona con el Módulo 2 (Reservas) al ser consultada para verificar disponibilidad, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
-- **Administrador**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
+- **Room**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Disponible" al ser creada). Se relaciona con el Módulo 2 a través del caso de uso Consultar habitación, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
+- **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
 
 ## Success Criteria *(mandatory)*
 
