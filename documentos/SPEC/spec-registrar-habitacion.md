@@ -17,7 +17,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 1. **Escenario**: Registro exitoso con datos completos y válidos
    - **Dado** el Administrador del sistema ha iniciado sesión y se encuentra en la sección de Inventario de Habitaciones
    - **Cuando** completa el formulario de registro con número de habitación, piso/ala, tipo, capacidad máxima, tarifa base, y confirma la creación
-   - **Entonces** el sistema crea la habitación con un ID único (UUID), la asigna al estado "Disponible", almacena la tarifa base y la muestra en el listado de inventario
+   - **Entonces** el sistema crea la habitación con un ID único (UUID), la asigna al estado "Available", almacena la tarifa base y la muestra en el listado de inventario
 
 2. **Escenario**: Intento de registro con número de habitación duplicado
    - **Dado** ya existe una habitación registrada con el número "204"
@@ -54,14 +54,14 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 - **FR-005**: El sistema DEBE restringir el campo "Tipo" a las categorías predefinidas: Sencilla, Doble, Suite, Boutique.
 - **FR-006**: El sistema DEBE validar que la capacidad máxima de personas sea un número entero positivo (mayor a cero).
 - **FR-007**: El sistema DEBE validar que la tarifa base ingresada sea un valor numérico positivo (mayor a cero).
-- **FR-008**: El sistema DEBE asignar automáticamente el estado "Disponible" a toda habitación recién registrada.
+- **FR-008**: El sistema DEBE asignar automáticamente el estado "Available" a toda habitación recién registrada.
 - **FR-009**: El sistema DEBE persistir la habitación registrada de forma que quede visible de inmediato en el listado de inventario de habitaciones.
 - **FR-010**: El sistema DEBE registrar la fecha y el usuario responsable de la creación de cada habitación, para efectos de trazabilidad.
 
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Disponible" al ser creada). Se relaciona con el Módulo 2 a través del caso de uso Consultar habitación, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
+- **Room**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Available" al ser creada). Se relaciona con el Módulo 2 a través del caso de uso Consultar habitación, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
 - **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
 
 ## Criterios de Éxito *(obligatorio)*
@@ -69,6 +69,6 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 ### Resultados Medibles
 
 - **SC-001**: El Administrador del sistema puede completar el registro de una nueva habitación en menos de 5 minutos.
-- **SC-002**: El 100% de las habitaciones registradas exitosamente quedan en estado "Disponible" y visibles en el inventario de forma inmediata (sin recarga manual).
+- **SC-002**: El 100% de las habitaciones registradas exitosamente quedan en estado "Available" y visibles en el inventario de forma inmediata (sin recarga manual).
 - **SC-003**: El sistema rechaza el 100% de los intentos de registro con número de habitación duplicado o con campos obligatorios faltantes, mostrando un mensaje de error claro.
 - **SC-004**: Cero habitaciones quedan registradas sin ID único o sin estado inicial asignado tras el proceso de alta.
