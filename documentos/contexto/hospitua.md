@@ -18,14 +18,18 @@ Cada unidad habitacional debe estar indexada con los siguientes metadatos:
 *   **Tarifa base:** Tarifa base, Estado de minibar (stock actual), Servicios incluidos.
 
 #### 1.2. Ciclo de Vida y Estados de la Habitación
-El sistema gestiona la transición de estados para garantizar la integridad operativa:
-1.  **Disponible:** Lista para check-in o para pasar a mantenimiento.
-2.  **Ocupada:** Huésped en sitio (Check-in realizado).
-3.  **Pendiente de limpieza:** Liberada tras el Check-out (o tras una reparación finalizada), en espera de ser tomada por el Personal de limpieza.
-4.  **En Limpieza:** El Personal de limpieza está realizando el aseo.
-5.  **Inhabilitada por reparaciones:** Fuera de servicio por daños físicos.
-6.  **Bloqueo Técnico:** Reservada para mantenimiento preventivo.
-7.  **Inactiva:** Dada de baja del inventario operativo por el Administrador.
+El sistema gestiona la transición de estados para garantizar la integridad operativa. El
+nombre canónico de cada estado (usado en SPECs y código) va en inglés; el nombre en
+español entre paréntesis es de referencia para los diagramas del equipo:
+1.  **Available** (Disponible): Lista para check-in o para pasar a mantenimiento.
+2.  **Occupied** (Ocupada): Huésped en sitio (Check-in realizado).
+3.  **PendingCleaning** (Pendiente de limpieza): Liberada tras el Check-out o tras una intervención de mantenimiento finalizada, en espera de ser tomada por el Personal de limpieza.
+4.  **InCleaning** (En Limpieza): El Personal de limpieza está realizando el aseo.
+5.  **DisabledForRepairs** (Inhabilitada por reparaciones): Fuera de servicio por daños físicos.
+6.  **TechnicalBlock** (Bloqueo Técnico): Reservada para mantenimiento preventivo.
+7.  **Inactive** (Inactiva): Dada de baja del inventario operativo por el Administrador.
+
+> Ver documentos/SPEC/referencias/maquina-estados-habitacion.md para la tabla completa de transiciones entre estados.
 
 ---
 
