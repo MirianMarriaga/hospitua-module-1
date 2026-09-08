@@ -4,7 +4,8 @@
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-- **Historia de Usuario 1 - Marcar una habitación como en proceso de limpieza (Prioridad: P1)**
+
+### Historia de Usuario 1 - Marcar una habitación como en proceso de limpieza (Prioridad: P1)
 
 Como Personal de limpieza, quiero marcar una habitación como "En Limpieza" para indicar que se está realizando la limpieza, de modo que la habitación no pueda ser asignada a otro huésped ni aparezca como disponible mientras dure el proceso.
 
@@ -84,7 +85,7 @@ Como Personal de limpieza, quiero que al marcar una habitación como "InCleaning
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Para este caso de uso, transita al estado "InCleaning" (ya definido en el ciclo de vida original del proyecto), quedando temporalmente excluida de la disponibilidad hasta que se confirme el fin de la limpieza.
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida: Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
 - **CleaningStaff**: Actor responsable de ejecutar y confirmar la limpieza de las habitaciones, incluyendo el marcado manual de inicio de limpieza.
 
 ## Criterios de Éxito *(obligatorio)*
