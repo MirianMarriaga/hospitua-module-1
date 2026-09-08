@@ -52,12 +52,12 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - **FR-003**: El sistema DEBE impedir dar de baja una habitación que no se encuentre en estado "Available" (por ejemplo, "Occupied", "InCleaning", "TechnicalBlock" o "DisabledForRepairs"), independientemente de la causa que originó ese estado.
 
 - **FR-005**: El sistema DEBE solicitar una confirmación explícita del Administrador antes de ejecutar la baja.
-- **FR-006**: El sistema DEBE cambiar el estado de la habitación al nuevo estado formal **"Inactive"** tras la confirmación de la baja, sin eliminar físicamente el registro de la habitación. "Inactive" es uno de los 7 estados vigentes del ciclo de vida de la habitación (Available, Occupied, PendingCleaning, InCleaning, TechnicalBlock, DisabledForRepairs, Inactive). Solo se permite la transición hacia "Inactive" desde el estado "Available".
 
+- **FR-006**: El sistema DEBE cambiar el estado de la habitación a "Inactive" tras confirmar la baja.
 
-- **FR-009**: El sistema DEBE registrar el usuario responsable y la fecha/hora en que se ejecutó la baja, para efectos de trazabilidad.
-- **FR-010**: El sistema DEBE permitir registrar un motivo de baja mediante la selección obligatoria de una categoría predefinida (por ejemplo: remodelación permanente, cierre definitivo de ala/piso, decisión administrativa, otro), pudiendo complementarse opcionalmente con un campo de texto libre para detalles adicionales.
-- **FR-011**: El sistema DEBE permitir al Administrador revertir una baja, llevando la habitación del estado "Inactive" directamente al estado "Available" mediante el caso de uso "Marcar habitación como disponible", como una asociación directa del Administrador sin relación `<<extend>>`.
+- **FR-007**: El sistema DEBE registrar el usuario responsable y la fecha/hora en que se ejecutó la baja, para efectos de trazabilidad.
+
+- **FR-008**: El sistema DEBE permitir registrar un motivo de baja mediante la selección obligatoria de una categoría predefinida (por ejemplo: remodelación permanente, cierre definitivo de ala/piso, decisión administrativa, otro), pudiendo complementarse opcionalmente con un campo de texto libre para detalles adicionales.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 

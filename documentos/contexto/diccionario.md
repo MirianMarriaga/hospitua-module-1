@@ -52,7 +52,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 
 ### Tarifas
 
-* **Temporada / Temporada alta**: Clasificación de una fecha según reglas de estacionalidad, que determina si se aplica un ajuste dinámico sobre la tarifa base.
+* **Temporada (baja / regular / alta)**: Clasificación de una fecha según reglas de estacionalidad, en una de tres categorías — temporada baja, regular o alta — que determina el sentido del ajuste dinámico aplicado sobre la tarifa base (alta = incremento, baja = decremento, regular = ajuste neutro).
 * **Tarifa dinámica**: Resultado de ajustar la tarifa base según la regla de temporada aplicable a cada noche.
 * **Valor de hospedaje (bruto)**: Suma de las tarifas dinámicas de todas las noches de la estancia, antes de descontar comisión OTA. Es la base que la liquidación reutiliza sin recalcular.
 

@@ -6,11 +6,11 @@
 
 ### Historia de Usuario 1 - Creación de una nueva habitación en el inventario (Prioridad: P1)
 
-Como Administrador, quiero registrar una nueva habitación en la plataforma indicando sus datos de identificación, categorización y tarifa base, para que quede disponible en el inventario del hotel y pueda empezar a ser reservada por el personal de recepción o a través de los canales de venta configurados.
+Como Administrador, quiero registrar una nueva habitación en la plataforma indicando sus datos de identificación (UUID, número, piso/ala), categorización (tipo, capacidad máxima) y tarifa base, para que quede disponible en el inventario del hotel y pueda empezar a ser reservada por el personal de recepción o a través de los canales de venta configurados.
 
 **Por qué esta prioridad**: Es la operación fundacional del Módulo 1 (Gestión de Habitaciones e Inventario). Sin la capacidad de crear habitaciones, ningún otro caso de uso del módulo (editar, dar de baja, bloquear, marcar estados, generar reportes) tiene datos sobre los cuales operar. Es la base de datos central del sistema.
 
-**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador del sistema, completando el formulario de registro con todos los datos (identificación, categorización y tarifa base) y verificando que la habitación aparezca en el inventario con estado "Disponible", con un identificador único asignado y con su tarifa base.
+**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador del sistema, completando el formulario de registro con todos los datos (identificación (UUID, número, piso/ala), categorización (tipo, capacidad máxima) y tarifa base) y verificando que la habitación aparezca en el inventario con estado "Available", con un identificador único asignado.
 
 **Escenarios de Aceptación**:
 

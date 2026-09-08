@@ -66,7 +66,7 @@ Como Personal de limpieza, quiero que al marcar una habitación como "InCleaning
 ### Casos Borde
 
 - Habitación en estado diferente a PendingCleaning (ej. DisabledForRepairs o TechnicalBlock): el sistema rechaza la transición, validando que debe estar estrictamente en estado PendingCleaning (FR-005).
-- Habitación con reserva confirmada para el mismo día: la transición procede normalmente, ya que la reserva es un dato independiente y no impide el aseo físico de la habitación.
+- Habitación con reserva confirmada para el mismo día: la transición procede normalmente, ya que la reserva es un dato independiente y no impide la limpieza de la habitación.
 - Intentos simultáneos de marcar la misma habitación: el primer intento cambia el estado a InCleaning, y el segundo es rechazado porque la habitación ya se encuentra en ese estado (FR-003).
 - Fallo de red al marcar la habitación: la transacción se cancela y la habitación permanece en estado PendingCleaning.
 
@@ -81,7 +81,6 @@ Como Personal de limpieza, quiero que al marcar una habitación como "InCleaning
 - **FR-005**: El sistema DEBE permitir la transición a "InCleaning" únicamente desde los estados "PendingCleaning" **o** "Available", rechazando la transición si la habitación se encuentra en cualquier otro estado.
 - **FR-006**: El sistema DEBE registrar el usuario responsable (Personal de limpieza) y la fecha/hora en que se marcó la habitación como "InCleaning".
 - **FR-007**: El sistema DEBE registrar la transición a "InCleaning" como una acción manual para efectos de trazabilidad.
-- **FR-008**: El sistema DEBE permitir que la habitación transite fuera del estado "InCleaning" únicamente a través del caso de uso "Confirmar fin de limpieza de habitación".
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 

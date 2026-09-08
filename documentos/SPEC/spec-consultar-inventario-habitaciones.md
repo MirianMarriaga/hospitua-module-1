@@ -10,7 +10,7 @@ Como Gerente, Administrador o Módulo 2,quiero consultar las habitaciones del ho
 
 **Por qué esta prioridad**: Permite a la gerencia auditar el inventario completo y es el único punto de consulta de lectura del módulo, fundamental para que otros procesos (como los del Módulo 2) validen información sin modificar datos.
 
-**Prueba Independiente**: Puede probarse iniciando sesión como Gerente, accediendo al listado general de habitaciones, comprobando que se incluyan todos los atributos clave y validando el correcto funcionamiento de los filtros y el ordenamiento.
+**Prueba Independiente**: Puede probarse iniciando sesión como Gerente, Administrador o Módulo 2, accediendo al listado general de habitaciones, comprobando que se incluyan todos los atributos clave y validando el correcto funcionamiento de los filtros y el ordenamiento.
 
 **Escenarios de Aceptación**:
 
