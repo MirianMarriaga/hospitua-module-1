@@ -6,9 +6,9 @@
 
 ### Historia de Usuario 1 - Consulta del inventario general (Prioridad: P1)
 
-Como Gerente, quiero listar todas las habitaciones del hotel con sus atributos actuales completos (identificación, categorización, tarifa base, estado actual), para tener una visión detallada de cada unidad habitacional y poder auditar la oferta.
+Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del hotel con sus atributos actuales completos (identificación, categorización, tarifa base, estado actual), para tener una visión detallada de cada unidad habitacional, poder auditar la oferta o validar datos para otros procesos operativos.
 
-**Por qué esta prioridad**: Permite a la gerencia auditar el inventario completo. Se diferencia de "Consultar habitación", que es una consulta puntual o reducida de solo uso interno para el Módulo 2. Esta consulta está orientada a la revisión general humana (del Gerente) y no modifica datos.
+**Por qué esta prioridad**: Permite a la gerencia auditar el inventario completo y es el único punto de consulta de lectura del módulo, fundamental para que otros procesos (como los del Módulo 2) validen información sin modificar datos.
 
 **Prueba Independiente**: Puede probarse iniciando sesión como Gerente, accediendo al listado general de habitaciones, comprobando que se incluyan todos los atributos clave y validando el correcto funcionamiento de los filtros y el ordenamiento.
 
@@ -29,28 +29,35 @@ Como Gerente, quiero listar todas las habitaciones del hotel con sus atributos a
    - **Cuando** selecciona un criterio de ordenamiento (ej. por número de habitación ascendente)
    - **Entonces** el sistema reordena el listado en base al criterio seleccionado sin alterar los filtros aplicados
 
+4. **Escenario**: Consulta puntual por Módulo 2
+   - **Dado** un identificador único (ID) de habitación válido
+   - **Cuando** el Módulo 2 consulta filtrando por ese ID
+   - **Entonces** el sistema retorna únicamente esa habitación con sus atributos completos y estado actual
+
 ---
 
 ### Casos Borde
 
 - Inventario vacío (hotel recién configurado): el sistema muestra la estructura del listado (cabeceras) acompañada de un mensaje claro indicando que no hay habitaciones registradas.
 - Consulta con filtros que no arrojan resultados: el sistema no produce un error, sino que presenta una lista vacía con un mensaje informativo de que ninguna habitación cumple los criterios actuales.
+- Consulta por un ID de habitación inexistente: el sistema retorna un resultado vacío, no un error.
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir al actor "Manager" consultar el listado completo de habitaciones del inventario.
+- **FR-001**: El sistema DEBE permitir a los actores "Administrator", "Manager" y "Módulo 2" consultar el listado completo de habitaciones del inventario.
 - **FR-002**: El sistema DEBE mostrar para cada habitación sus atributos completos: ID único, número, piso/ala, tipo, capacidad máxima, tarifa base y estado actual (citando documentos/SPEC/referencias/maquina-estados-habitacion.md).
 - **FR-003**: El sistema DEBE incluir por defecto en el listado todas las habitaciones, incluso aquellas que se encuentran en estado "Inactive", a menos que se filtre explícitamente para excluirlas.
-- **FR-004**: El sistema DEBE permitir filtrar el listado por tipo, por piso/ala y por estado.
+- **FR-004**: El sistema DEBE permitir filtrar el listado por identificador único (ID), por tipo, por piso/ala y por estado. Una consulta filtrada por ID devuelve como máximo un resultado.
 - **FR-005**: El sistema DEBE permitir ordenar el listado de resultados (por ejemplo, por número de habitación, por tarifa o por estado).
 - **FR-006**: El sistema NO DEBE modificar ningún dato ni ejecutar transiciones de estado como parte de esta consulta.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Representa una unidad habitacional del hotel y contiene todos los datos a ser expuestos. Los estados expuestos (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) provienen del ciclo de vida documentado en maquina-estados-habitacion.md.
-- **Manager**: Actor que realiza la consulta del inventario para propósitos de auditoría y revisión operativa.
+- **Administrator**: Actor que puede realizar la consulta del inventario para su gestión y revisión operativa.
+- **Manager**: Actor que realiza la consulta del inventario para propósitos de auditoría y revisión general.
 
 ## Criterios de Éxito *(obligatorio)*
 
