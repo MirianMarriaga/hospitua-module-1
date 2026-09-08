@@ -61,7 +61,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Representa una unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo (Sencilla, Doble, Suite, Boutique), capacidad máxima de personas, tarifa base, y estado actual (por defecto "Available" al ser creada). Se relaciona con el Módulo 2 a través del caso de uso Consultar inventario de habitaciones, y con el Módulo 3 (Facturación) a través de la consulta de su tarifa base.
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida: Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
 - **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
 
 ## Criterios de Éxito *(obligatorio)*
