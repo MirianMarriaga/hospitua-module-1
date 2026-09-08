@@ -4,59 +4,63 @@
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Visualización del reporte de estados (Prioridad: P1)
+### Historia de Usuario 1 - Generar reporte de historial de estados de una habitación (Prioridad: P1)
 
-Como Gerente, quiero generar un resumen del inventario de habitaciones agrupado por cada uno de los 7 estados de la máquina de estados, para tener una revisión operativa del momento y tomar decisiones basadas en la disponibilidad general.
+Como **Gerente**, quiero generar un reporte que muestre la evolución histórica de los estados de una habitación a lo largo del tiempo, para analizar tendencias operativas y tomar decisiones basadas en el comportamiento pasado.
 
-**Por qué esta prioridad**: Es fundamental para la dirección del hotel conocer en tiempo real la situación global de su inventario, permitiendo identificar cuellos de botella (ej. muchas habitaciones en mantenimiento o limpieza). No modifica ningún dato ni ejecuta transiciones; es una vista agregada de solo lectura.
+**Por qué esta prioridad**: Conocer el historial de estados permite detectar cuellos de botella, períodos de inactividad o problemas recurrentes en limpieza y mantenimiento. El reporte es de solo lectura y no afecta la operación del sistema.
 
-**Prueba Independiente**: Puede probarse iniciando sesión como Gerente y accediendo a la sección de reportes para solicitar el reporte de estados, verificando que la información se despliegue con precisión según los datos actuales.
+**Prueba Independiente**: Iniciar sesión como Gerente, solicitar el reporte del historial para la habitación 203 y verificar que se muestra la secuencia de estados con sus rangos temporales.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Generación de reporte exitoso sin filtros
-   - **Dado** que hay habitaciones en diversos estados en el sistema
-   - **Cuando** el Gerente solicita el reporte general de estados
-   - **Entonces** el sistema muestra un reporte agrupado por los 7 estados posibles, con el conteo respectivo de habitaciones para cada estado
+1. **Escenario**: Generación de reporte completo para una habitación específica
+   - **Dado** que la habitación 203 tiene múltiples transiciones registradas
+   - **Cuando** el Gerente solicita el reporte del historial para la habitación 203
+   - **Entonces** el sistema muestra una tabla con cada estado, fecha/hora de inicio y de finalización (cuando exista), ordenados cronológicamente.
 
-2. **Escenario**: Estado sin habitaciones
-   - **Dado** que en el sistema no hay ninguna habitación en el estado "DisabledForRepairs"
-   - **Cuando** el Gerente solicita el reporte
-   - **Entonces** el sistema muestra el estado "DisabledForRepairs" con un conteo de cero, asegurando que los 7 estados siempre estén presentes en el reporte
-
-3. **Escenario**: Filtrado por tipo de habitación
-   - **Dado** que el Gerente desea ver la distribución de estados solo para las habitaciones tipo "Suite"
-   - **Cuando** solicita el reporte indicando el filtro por tipo de habitación
-   - **Entonces** el sistema genera el reporte agrupado por los 7 estados contemplando exclusivamente las habitaciones que coinciden con el filtro
+2. **Escenario**: Aplicación de filtros al reporte
+   - **Dado** que el Gerente desea ver solo transiciones del estado **"InCleaning"** entre el 01/01/2026 y el 31/01/2026
+   - **Cuando** solicita el reporte con dichos filtros
+   - **Entonces** el sistema devuelve únicamente las transiciones que cumplan los criterios, mostrando el mismo formato de tabla.
 
 ---
 
 ### Casos Borde
 
-- Reporte generado con inventario vacío (hotel recién configurado): el sistema muestra el reporte con los 7 estados listados y todos los conteos en cero, de forma consistente.
-- Generación mientras hay transiciones de estado ocurriendo simultáneamente en otras habitaciones: el reporte toma una foto (snapshot) consistente de la base de datos en el momento exacto de la generación, sin bloquear las otras operaciones en curso ni presentar estados inconsistentes.
+- **Historial vacío**: La habitación nunca ha cambiado de estado (solo está en "Available"). El reporte muestra una única fila con estado "Available" y sin fecha de finalización.
+- **Transición sin fin**: La última transición está en curso (no tiene fecha de finalización). El reporte indica "Actual" o deja el campo de fin vacío.
+- **Filtros sin resultados**: No existen transiciones que coincidan con los filtros aplicados; el reporte muestra mensaje "No se encontraron resultados".
+- **Gran rango de fechas**: El historial contiene miles de entradas; el sistema sigue generando el reporte en menos de 5 s.
+- **Concurrente**: Mientras se generan transiciones en otras habitaciones, el reporte se basa en una snapshot consistente y no bloquea esas operaciones.
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor "Manager" generar el reporte de estados.
-- **FR-002**: El sistema DEBE presentar la información obligatoriamente agrupada por los 7 estados del ciclo de vida de la habitación (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) definidos en documentos/SPEC/referencias/maquina-estados-habitacion.md.
-- **FR-003**: El sistema DEBE mostrar el conteo de habitaciones correspondiente a cada estado.
-- **FR-004**: El sistema DEBE incluir siempre los 7 estados en el reporte, mostrando un conteo de cero si no hay habitaciones en un estado particular, sin omitir la categoría.
-- **FR-005**: El sistema DEBE permitir filtrar opcionalmente el reporte por tipo de habitación.
-- **FR-006**: El sistema DEBE entregar el resultado visualizándolo en pantalla de forma clara, con la opción de exportarlo en formato PDF o Excel.
-- **FR-007**: El sistema NO DEBE modificar ningún dato ni ejecutar transiciones de estado al generar este reporte.
+- **FR-001**: El sistema DEBE permitir únicamente al actor **"Manager"** generar el reporte de historial de estados.
+- **FR-002**: El reporte DEBE basarse en la entidad **StateTransition** que registra cada cambio de estado de una habitación (roomId, fromState, toState, startTime, endTime).
+- **FR-003**: El sistema DEBE permitir filtrar el historial por:
+  - habitación (identificador o número)
+  - tipo de habitación
+  - estado
+  - rango de fechas (startTime / endTime).
+- **FR-004**: Cada fila del reporte DEBE mostrar: habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista).
+- **FR-005**: Cuando una transición no tiene fecha de finalización, el reporte DEBE marcarla como **"Actual"**.
+- **FR-006**: El reporte DEBE presentarse en pantalla de forma clara y ordenada cronológicamente.
+- **FR-007**: El reporte DEBE ser **solo lectura**; no debe modificar datos ni ejecutar transiciones de estado.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Representa una unidad habitacional del hotel. Sus estados (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive, según maquina-estados-habitacion.md) son agrupados y contabilizados.
-- **Manager**: Actor encargado de solicitar y visualizar el reporte.
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida).
+- **StateTransition**: Representa una transición de estado de una habitación. Atributos: roomId (FK a Room), fromState, toState, startTime, endTime (nullable para estado actual).
+- **Manager**: Actor que realiza la consulta y generación del reporte de historial de estados.
 
 ## Criterios de Éxito *(obligatorio)*
 
 ### Resultados Medibles
 
-- **SC-001**: El reporte se genera y visualiza en pantalla en menos de 5 segundos.
-- **SC-002**: El 100% de los reportes generados incluye obligatoriamente la lista completa de los 7 estados, independientemente de que su conteo sea mayor a cero.
-- **SC-003**: Cero interrupciones o bloqueos ocurren en operaciones de transición de estados mientras se ejecuta la generación del reporte.
+- **SC-001**: El reporte se genera y visualiza en pantalla en menos de **5 segundos** para cualquier combinación de filtros.
+- **SC-002**: El reporte incluye **todas** las transiciones del historial, ordenadas cronológicamente, y muestra correctamente los campos solicitados.
+- **SC-003**: Los filtros por habitación, tipo, estado y rango de fechas funcionan y devuelven únicamente los registros que cumplen los criterios.
+- **SC-005**: La generación del reporte no interfiere ni bloquea otras operaciones de transición de estado en el sistema.
