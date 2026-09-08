@@ -22,7 +22,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 2. **Escenario**: Intento de baja sobre una habitación ocupada
    - **Dado** una habitación se encuentra en estado "Occupied" (huésped en sitio)
    - **Cuando** el Administrador intenta darla de baja
-   - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Available" (según documentos/SPEC/referencias/maquina-estados-habitacion.md) y sin reservas vigentes o futuras confirmadas.
+   - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Available" y sin reservas vigentes o futuras confirmadas.
 
 3. **Escenario**: Intento de baja sobre una habitación con reserva confirmada a futuro
    - **Dado** una habitación se encuentra en estado "Available" pero tiene asociada una reserva confirmada para una fecha próxima (una reserva es un dato independiente del estado físico de la habitación, no un estado en sí mismo)
@@ -53,7 +53,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" dar de baja habitaciones del inventario.
-- **FR-002**: El sistema DEBE validar como precondición que la habitación se encuentre en estado "Available" (según documentos/SPEC/referencias/maquina-estados-habitacion.md) y sin reservas vigentes o futuras confirmadas antes de permitir la baja.
+- **FR-002**: El sistema DEBE validar como precondición que la habitación se encuentre en estado "Available" y sin reservas vigentes o futuras confirmadas antes de permitir la baja.
 - **FR-003**: El sistema DEBE impedir dar de baja una habitación que no se encuentre en estado "Available" (por ejemplo, "Occupied", "InCleaning", "TechnicalBlock" o "DisabledForRepairs"), independientemente de la causa que originó ese estado.
 - **FR-004**: El sistema DEBE impedir dar de baja una habitación que tenga al menos una reserva vigente o futura confirmada, verificada como un dato independiente del estado físico de la habitación (una habitación puede figurar como "Available" y aun así tener reservas futuras que la bloqueen para esta operación).
 - **FR-005**: El sistema DEBE solicitar una confirmación explícita del Administrador antes de ejecutar la baja.
