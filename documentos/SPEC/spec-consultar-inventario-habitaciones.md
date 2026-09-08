@@ -6,7 +6,7 @@
 
 ### Historia de Usuario 1 - Consulta del inventario general (Prioridad: P1)
 
-Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del hotel con sus atributos actuales completos (identificación, categorización, tarifa base, estado actual), para tener una visión detallada de cada unidad habitacional, poder auditar la oferta o validar datos para otros procesos operativos.
+Como Gerente, Administrador o Módulo 2,quiero consultar las habitaciones del hotel con sus atributos actuales completos (identificación, categorización, tarifa base, estado actual), para tener una visión detallada de cada unidad habitacional, poder auditar la oferta o validar datos para otros procesos operativos.
 
 **Por qué esta prioridad**: Permite a la gerencia auditar el inventario completo y es el único punto de consulta de lectura del módulo, fundamental para que otros procesos (como los del Módulo 2) validen información sin modificar datos.
 
@@ -25,7 +25,7 @@ Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del h
    - **Entonces** el sistema muestra únicamente las habitaciones que cumplen todos los criterios seleccionados
 
 3. **Escenario**: Ordenamiento del inventario
-   - **Dado** que el Gerente visualiza el listado de habitaciones
+   - **Dado** que el Administrador visualiza el listado de habitaciones
    - **Cuando** selecciona un criterio de ordenamiento (ej. por número de habitación ascendente)
    - **Entonces** el sistema reordena el listado en base al criterio seleccionado sin alterar los filtros aplicados
 
@@ -46,7 +46,7 @@ Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del h
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir a los actores "Administrator", "Manager" y "Módulo 2" consultar el listado completo de habitaciones del inventario.
+- **FR-001**: El sistema DEBE permitir a los actores "Gerente", "Módulo 2" y "Administrador" consultar el listado completo de habitaciones del inventario.
 - **FR-002**: El sistema DEBE mostrar para cada habitación sus atributos completos: ID único, número, piso/ala, tipo, capacidad máxima, tarifa base y estado actual.
 - **FR-003**: El sistema DEBE incluir por defecto en el listado todas las habitaciones, incluso aquellas que se encuentran en estado "Inactive", a menos que se filtre explícitamente para excluirlas.
 - **FR-004**: El sistema DEBE permitir filtrar el listado por identificador único (ID), por tipo, por piso/ala y por estado. Una consulta filtrada por ID devuelve como máximo un resultado.
@@ -55,13 +55,13 @@ Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del h
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Representa una unidad habitacional del hotel y contiene todos los datos a ser expuestos. Los estados expuestos (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) provienen del ciclo de vida definido.
-- **Administrator**: Actor que puede realizar la consulta del inventario para su gestión y revisión operativa.
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida: Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
+- **Administrator**: Actor responsable de gestionar el inventario de habitaciones, incluyendo su registro, edición y baja.
 - **Manager**: Actor que realiza la consulta del inventario para propósitos de auditoría y revisión general.
 
 ## Criterios de Éxito *(obligatorio)*
 
 ### Resultados Medibles
 
-- **SC-001**: El listado de habitaciones, con filtros u ordenamiento aplicados, se carga en menos de 3 segundos para inventarios de hasta 5000 unidades.
+- **SC-001**: El listado de habitaciones, con filtros u ordenamiento aplicados, se carga en menos de 5 segundos para inventarios de hasta 5000 unidades.
 - **SC-002**: El 100% de las consultas por defecto muestran habitaciones en estado "Inactive" junto con las operativas.
