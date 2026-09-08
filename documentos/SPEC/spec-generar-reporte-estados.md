@@ -29,9 +29,9 @@ Como **Gerente**, quiero generar un reporte que muestre la evolución histórica
 ### Casos Borde
 
 - **Historial vacío**: La habitación nunca ha cambiado de estado (solo está en "Available"). El reporte muestra una única fila con estado "Available" y sin fecha de finalización.
-- **Transición sin fin**: La última transición está en curso (no tiene fecha de finalización). El reporte indica "Actual" o deja el campo de fin vacío.
+- **Transición sin fin**: La última transición está en curso (no tiene fecha de finalización). El reporte deja el campo de fin como "En curso".
 - **Filtros sin resultados**: No existen transiciones que coincidan con los filtros aplicados; el reporte muestra mensaje "No se encontraron resultados".
-- **Gran rango de fechas**: El historial contiene miles de entradas; el sistema sigue generando el reporte en menos de 5 s.
+- **Gran rango de fechas**: El historial contiene miles de entradas; el sistema sigue generando el reporte en menos de 10 s.
 - **Concurrente**: Mientras se generan transiciones en otras habitaciones, el reporte se basa en una snapshot consistente y no bloquea esas operaciones.
 
 ## Requisitos *(obligatorio)*
@@ -39,21 +39,18 @@ Como **Gerente**, quiero generar un reporte que muestre la evolución histórica
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor **"Manager"** generar el reporte de historial de estados.
-- **FR-002**: El reporte DEBE basarse en la entidad **StateTransition** que registra cada cambio de estado de una habitación (roomId, fromState, toState, startTime, endTime).
-- **FR-003**: El sistema DEBE permitir filtrar el historial por:
+- **FR-002**: El sistema DEBE permitir filtrar el historial por:
   - habitación (identificador o número)
   - tipo de habitación
   - estado
   - rango de fechas (startTime / endTime).
-- **FR-004**: Cada fila del reporte DEBE mostrar: habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista).
-- **FR-005**: Cuando una transición no tiene fecha de finalización, el reporte DEBE marcarla como **"Actual"**.
-- **FR-006**: El reporte DEBE presentarse en pantalla de forma clara y ordenada cronológicamente.
-- **FR-007**: El reporte DEBE ser **solo lectura**; no debe modificar datos ni ejecutar transiciones de estado.
+- **FR-003**: Cada fila del reporte DEBE mostrar: habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista).
+- **FR-004**: Cuando una transición no tiene fecha de finalización, el reporte DEBE mostrar "En Curso" como fecha de finalización.
+- **FR-005**: El reporte DEBE ser **solo lectura**; no debe modificar datos ni ejecutar transiciones de estado.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida).
-- **StateTransition**: Representa una transición de estado de una habitación. Atributos: roomId (FK a Room), fromState, toState, startTime, endTime (nullable para estado actual).
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 6 estados del ciclo de vida).
 - **Manager**: Actor que realiza la consulta y generación del reporte de historial de estados.
 
 ## Criterios de Éxito *(obligatorio)*
