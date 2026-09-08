@@ -91,11 +91,11 @@ Como Administrador, quiero recibir retroalimentación clara cuando ingreso valor
 
 ### Casos Borde
 
-- ¿Puede el Administrador editar el número de habitación? ¿O este campo es inmutable tras el registro?
-- ¿Qué ocurre si el Administrador intenta editar una habitación que no existe en el sistema?
-- ¿Se deben registrar los cambios con historial de auditoría (valor anterior / valor nuevo / usuario / timestamp)?
-- ¿Qué ocurre si dos Administradores intentan editar la misma habitación simultáneamente?
-- ¿Puede editarse el piso/ala de una habitación? ¿Tiene restricciones adicionales?
+- **Número de habitación**: una vez creada la habitación, su número no puede modificarse. Si se intenta cambiarlo, el sistema muestra un mensaje indicando que ese dato es permanente.
+- **Habitación inexistente**: cuando se busca una habitación que no está registrada, el sistema informa que no se encontró ninguna habitación con ese identificador.
+- **Auditoría de cambios**: cada vez que se actualiza una habitación, se guarda un registro con el valor anterior y el nuevo, quién realizó la modificación y la fecha, de modo que se pueda consultar el historial.
+- **Ediciones simultáneas**: si dos usuarios intentan editar la misma habitación al mismo tiempo, la primera edición se guarda y la segunda recibe un aviso de que la información ya fue actualizada por otro usuario.
+- **Edición de piso/ala**: el piso o ala pueden modificarse siempre que el nuevo valor sea válido; si la combinación de número de habitación y piso/ala ya existe, el sistema avisa que esa combinación ya está ocupada.
 
 ## Requisitos *(obligatorio)*
 
