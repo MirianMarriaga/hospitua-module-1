@@ -47,7 +47,7 @@ Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del h
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir a los actores "Administrator", "Manager" y "Módulo 2" consultar el listado completo de habitaciones del inventario.
-- **FR-002**: El sistema DEBE mostrar para cada habitación sus atributos completos: ID único, número, piso/ala, tipo, capacidad máxima, tarifa base y estado actual (citando documentos/SPEC/referencias/maquina-estados-habitacion.md).
+- **FR-002**: El sistema DEBE mostrar para cada habitación sus atributos completos: ID único, número, piso/ala, tipo, capacidad máxima, tarifa base y estado actual.
 - **FR-003**: El sistema DEBE incluir por defecto en el listado todas las habitaciones, incluso aquellas que se encuentran en estado "Inactive", a menos que se filtre explícitamente para excluirlas.
 - **FR-004**: El sistema DEBE permitir filtrar el listado por identificador único (ID), por tipo, por piso/ala y por estado. Una consulta filtrada por ID devuelve como máximo un resultado.
 - **FR-005**: El sistema DEBE permitir ordenar el listado de resultados (por ejemplo, por número de habitación, por tarifa o por estado).
@@ -55,7 +55,7 @@ Como Administrador, Gerente o Módulo 2, quiero consultar las habitaciones del h
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Representa una unidad habitacional del hotel y contiene todos los datos a ser expuestos. Los estados expuestos (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) provienen del ciclo de vida documentado en maquina-estados-habitacion.md.
+- **Room**: Representa una unidad habitacional del hotel y contiene todos los datos a ser expuestos. Los estados expuestos (Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) provienen del ciclo de vida definido.
 - **Administrator**: Actor que puede realizar la consulta del inventario para su gestión y revisión operativa.
 - **Manager**: Actor que realiza la consulta del inventario para propósitos de auditoría y revisión general.
 
