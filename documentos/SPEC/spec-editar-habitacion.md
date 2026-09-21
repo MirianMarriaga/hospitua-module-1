@@ -1,4 +1,4 @@
- # Especificación de Funcionalidad: Editar Habitación
+# Especificación de Funcionalidad: Editar Habitación
 
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Administrador

@@ -68,13 +68,13 @@ Como sistema, quiero que cada invocación de "Marcar habitación como disponible
 
 **Por qué esta prioridad**: Al ser un caso de uso compartido por múltiples flujos, la validación de estado precondición debe ser contextual: cada flujo invocador espera un estado de origen distinto.
 
-**Prueba Independiente**: Puede probarse intentando invocar la transición a "Available" desde cada uno de los 7 estados posibles y verificando que solo se permiten las transiciones válidas según la máquina de estados.
+**Prueba Independiente**: Puede probarse intentando invocar la transición a "Available" desde cada uno de los 8 estados posibles y verificando que solo se permiten las transiciones válidas según la máquina de estados.
 
 **Escenarios de Aceptación**:
 
 8. **Escenario**: Transiciones válidas hacia Available según la máquina de estados
    - **Dado** que la máquina de estados define únicamente dos entradas al estado "Available" desde estados no operativos: "Inactive" (vía reactivación directa del Administrador) e "InCleaning" (vía confirmación de fin de limpieza)
-   - **Cuando** se invoca "Marcar habitación como disponible" desde cualquiera de los 7 estados
+   - **Cuando** se invoca "Marcar habitación como disponible" desde cualquiera de los 8 estados
    - **Entonces** el sistema permite la transición únicamente si el estado de origen es "Inactive" o "InCleaning", rechazando cualquier otro caso
 
 9. **Escenario**: Rechazo de transición desde estados Blocked u Occupied
@@ -107,7 +107,7 @@ Como sistema, quiero que cada invocación de "Marcar habitación como disponible
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Para este caso de uso, la entidad transita al estado **"Available"** desde "Inactive" o "InCleaning", dos de los 7 estados vigentes de su ciclo de vida. La transición no modifica atributos de la habitación; solo actualiza su estado y la integra (o reintegra) al inventario operativo.
+- **Room**: Unidad habitacional del hotel. Para este caso de uso, la entidad transita al estado **"Available"** desde "Inactive" o "InCleaning", dos de los 8 estados vigentes de su ciclo de vida. La transición no modifica atributos de la habitación; solo actualiza su estado y la integra (o reintegra) al inventario operativo.
 - **Administrator**: Actor que invoca directamente este caso de uso para revertir bajas desde el estado "Inactive".
 - **CleaningStaff**: Actor que invoca indirectamente este caso de uso mediante `<<include>>` desde "Confirmar fin de limpieza", transicionando desde "InCleaning".
 
