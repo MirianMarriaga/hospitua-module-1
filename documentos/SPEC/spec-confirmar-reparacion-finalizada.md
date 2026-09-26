@@ -80,7 +80,7 @@ Como Personal de mantenimiento, quiero confirmar en el sistema que he finalizado
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Para este caso de uso, transita del estado **"DisabledForRepairs"** o **"TechnicalBlock"** al estado **"PendingCleaning"**, cuatro de los 7 estados vigentes de su ciclo de vida.
+- **Room**: Unidad habitacional del hotel. Para este caso de uso, transita del estado **"DisabledForRepairs"** o **"TechnicalBlock"** al estado **"PendingCleaning"**, tres de los 8 estados vigentes de su ciclo de vida.
 - **MaintenanceStaff**: Actor responsable de ejecutar y confirmar la finalización de reparaciones y mantenimientos preventivos.
 
 ## Criterios de Éxito *(obligatorio)*

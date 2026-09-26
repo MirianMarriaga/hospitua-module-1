@@ -82,7 +82,7 @@ Como Personal de mantenimiento, quiero ser informado cuando intento marcar una h
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Para este caso de uso, transita del estado **"Available"** al estado **"DisabledForRepairs"**, dos de los 7 estados vigentes de su ciclo de vida.
+- **Room**: Unidad habitacional del hotel. Para este caso de uso, transita del estado **"Available"** al estado **"DisabledForRepairs"**, dos de los 8 estados vigentes de su ciclo de vida.
 - **MaintenanceStaff**: Actor responsable de reportar daños físicos en las habitaciones y gestionar su inhabilitación.
 
 ## Criterios de Éxito *(obligatorio)*

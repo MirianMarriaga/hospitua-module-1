@@ -13,12 +13,6 @@ Como Personal de limpieza, quiero marcar una habitación como "En Limpieza" para
 
 **Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Personal de limpieza, seleccionando una habitación en estado "PendingCleaning" y marcándola como "En Limpieza", verificando luego que la habitación quede excluida de los resultados de disponibilidad para nuevas reservas.
 
-Como Personal de limpieza, quiero marcar una habitación como "En Limpieza" para indicar que se está realizando la limpieza, de modo que la habitación no pueda ser asignada a otro huésped ni aparezca como disponible mientras dure el proceso.
-
-**Por qué esta prioridad**: Evita que recepción asigne o muestre como disponible una habitación que aún no ha sido limpiada, correspondiendo al mecanismo central que protege la calidad operativa del hotel.
-
-**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Personal de limpieza, seleccionando una habitación en estado "Pendiente de limpieza" y marcándola como "En Limpieza", verificando luego que la habitación quede excluida de los resultados de disponibilidad para nuevas reservas.
-
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Marcado manual exitoso de una habitación recién desocupada
@@ -84,7 +78,7 @@ Como Personal de limpieza, quiero que al marcar una habitación como "InCleaning
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 7 estados del ciclo de vida: Available, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
 - **CleaningStaff**: Actor responsable de ejecutar y confirmar la limpieza de las habitaciones, incluyendo el marcado manual de inicio de limpieza.
 
 ## Criterios de Éxito *(obligatorio)*

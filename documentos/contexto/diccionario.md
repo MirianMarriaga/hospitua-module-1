@@ -12,22 +12,25 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **Personal de limpieza**: Actor de Módulo 1 responsable de ejecutar el aseo de las habitaciones: marca el inicio de la limpieza y confirma su finalización, dejando la habitación lista para uso.
 * **Personal de mantenimiento**: Actor de Módulo 1 que inhabilita habitaciones por reparaciones o las pone en bloqueo técnico preventivo, y confirma cuando la intervención finaliza.
 * **Gerente**: Actor de Módulo 1 con acceso de solo lectura a reportes de estado y al inventario completo de habitaciones.
-* \*\*\*Recepcionista\*\*\*: Usuario interno encargado de la operación en el front-desk del hotel. Es el actor principal del Módulo 2, responsable de gestionar reservas directas, admitir huéspedes (Check-In), registrar consumos locales, formalizar salidas (Check-Out) y procesar cancelaciones.
-* Migración: Ente externo gubernamental (Migración Colombia). En el sistema, actúa como actor que ingresa de forma autenticada a una ventana de autogestión o portal exclusivo para filtrar por fechas y descargar de manera directa el archivo estructurado .TXT (SIRE) generado por el Módulo 2. El hotel no realiza envíos automáticos; la descarga asíncrona la realiza este actor.
+* **Recepcionista**: Usuario interno encargado de la operación en el front-desk del hotel. Es actor de **Módulo 1** para admitir huéspedes (Check-In) y formalizar salidas (Check-Out), y actor de **Módulo 2** para gestionar reservas directas y procesar cancelaciones.
+* **Migración**: Ente externo gubernamental (Migración Colombia). En el sistema, actúa como actor que ingresa de forma autenticada a una ventana de autogestión o portal exclusivo para filtrar por fechas y descargar de manera directa el archivo estructurado .TXT (SIRE) generado por el Módulo 2. El hotel no realiza envíos automáticos; la descarga asíncrona la realiza este actor.
 * **Módulo 1 (Gestión de Habitaciones e Inventario de Aforo)**: Digitaliza la infraestructura física del hotel y controla la disponibilidad en tiempo real.
-* **Módulo 2 (Operación de Reservas y Cumplimiento Legal)**: Procesa la entrada y salida de huéspedes, gestiona el origen de la reserva y el cumplimiento migratorio (SIRE). Es la fuente de todos los eventos y datos de reserva que consume Módulo 3.
-* **Módulo 3 (Facturación, Consumos y Liquidación)**: Traduce la estancia en datos financieros: hospedaje, comisión OTA e IVA, consolidados en la liquidación y la factura.
+* **Módulo 1 (Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out)**: Digitaliza la infraestructura física del hotel, controla la disponibilidad en tiempo real, y gestiona directamente la admisión y salida física de los huéspedes.
+* **Módulo 2 (Operación de Reservas y Cumplimiento Legal)**: Gestiona el ciclo de vida de la reserva, el origen de la reserva y el cumplimiento migratorio (SIRE). Es la fuente de los datos de reserva que consumen Módulo 1 y Módulo 3, y recibe de Módulo 1 las notificaciones de Check-In/Check-Out para actualizar el estado de sus reservas.
 * **OTA (Booking, Airbnb, Expedia)**: Intermediario externo que origina reservas con comisión pactada. Aparece como dato del canal de la reserva en casi todos los casos de uso de Módulo 3, y como actor que consulta directamente en "Consultar liquidación".
 * **Huésped**: Persona que se aloja en una habitación durante una estancia.
 * **Responsable de facturación (rol)**: Forma en que varias historias de Módulo 3 nombran a quien necesita el ingreso neto, la comisión y el IVA correctamente reflejados para conciliar; no es un actor propio del diagrama, sino el Administrador actuando en su función de facturación.
 
-## Módulo 1: Gestión de Habitaciones e Inventario de Aforo
+
+## Módulo 1: Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out
 
 * **Habitación**: Unidad de alojamiento con identificación (UUID, número, piso/ala), categorización (tipo, capacidad máxima) y tarifa base.
-* **Estado de habitación**: Situación operativa actual de una habitación (`Room.status`), con 7 valores vigentes: `Available` (Disponible), `Occupied` (Ocupada), `PendingCleaning` (Pendiente de limpieza), `InCleaning` (En limpieza), `DisabledForRepairs` (Inhabilitada por reparaciones), `TechnicalBlock` (Bloqueo técnico) e `Inactive` (Inactiva).
+* **Estado de habitación**: Situación operativa actual de una habitación (`Room.status`), con **8 valores vigentes**: `Available` (Disponible), `Reserved` (existe una reserva asociada en Módulo 2, aún no ocupada; se marca por evento de Módulo 2, no por consulta activa de Módulo 1), `Occupied` (Ocupada), `PendingCleaning` (Pendiente de limpieza), `InCleaning` (En limpieza), `DisabledForRepairs` (Inhabilitada por reparaciones), `TechnicalBlock` (Bloqueo técnico) e `Inactive` (Inactiva).
 * **Tarifa base**: Valor regular de una habitación, usado como punto de partida del cálculo de tarifa dinámica (Módulo 3).
-
-
+* **Check-in / Check-out**: Eventos gestionados directamente por **Módulo 1**, ejecutados por el Recepcionista.
+  * El **Check-In** transiciona la habitación de `Available` o `Reserved` a `Occupied`, de forma interna y síncrona. No genera ninguna liquidación ni interviene Módulo 3. Notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_IN`.
+  * El **Check-Out** transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Incluye el paso **"Consultar liquidación"**: envía a Módulo 3 las fechas reservadas y reales de la estancia para obtener la liquidación final, y notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_OUT`.
+  * Ningún fallo de integración con Módulo 2 o Módulo 3 bloquea la transición física de la habitación en ninguno de los dos eventos.
 
 ## Módulo 2: Operación de Reservas y Cumplimiento Legal
 
@@ -35,19 +38,17 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * Ciclo de Vida de la Reserva (Reservation.state): Estados de control lógico gobernados de manera estricta por el Módulo 2:
 
   * ACTIVE: Estado inicial por defecto de toda reserva (directa u OTA). Dado que el 100% de la estadía se liquida en el Check-Out, no se cobra garantía para canales directos, lo que permite inhabilitar el estado PENDING para este flujo.
-  * CHECKED\_IN: El huésped ha realizado el Check-In físico exitosamente en el front-desk.
-  * CHECKED\_OUT: El huésped ha realizado el Check-Out físico y ha liquidado el saldo financiero neto consolidado en Módulo 3.
-  * CANCELLED: Reserva anulada de forma logística. Libera el inventario local de la categoría de habitación en Módulo 2
+  * CHECKED\_IN: El huésped ha realizado el Check-In físico exitosamente en Módulo 1; el estado se actualiza en Módulo 2 mediante la notificación asíncrona que envía Módulo 1 al confirmarse.
+  * CHECKED\_OUT: El huésped ha realizado el Check-Out físico en Módulo 1 y ha liquidado el saldo financiero neto consolidado en Módulo 3; el estado se actualiza en Módulo 2 mediante la notificación asíncrona correspondiente.
+  * CANCELLED: Reserva anulada de forma logística. Libera el inventario local de la categoría de habitación en Módulo 2.
 * **Canal de origen**: Clasificación de la reserva como **Canal Directo** (recepción, teléfono, portal propio; 0% comisión) o **OTA** (intermediario con comisión pactada y código de confirmación externo). Sin canal registrado, se asume Canal Directo.
-* Desacoplamiento de Inventario ("Aforo Lógico"): Mecanismo mediante el cual el Módulo 2 calcula la disponibilidad de cupos de alojamiento para reservas y modificaciones. Se procesa de forma 100% local en la base de datos de reservas del Módulo 2, restando las reservas activas del aforo de la categoría, sin realizar consultas síncronas al Módulo
+* Desacoplamiento de Inventario ("Aforo Lógico"): Mecanismo mediante el cual el Módulo 2 calcula la disponibilidad de cupos de alojamiento para reservas y modificaciones. Se procesa de forma 100% local en la base de datos de reservas del Módulo 2, restando las reservas activas del aforo de la categoría, sin realizar consultas síncronas al Módulo 1.
 * **Código de confirmación externo**: Identificador que la OTA asigna a la reserva; obligatorio en canal OTA, usado para trazabilidad y para restringir que cada OTA solo consulte sus propias reservas.
-* **Check-in / Check-out**: Eventos que activan la generación de la liquidación (el check-in genera la liquidación `Preliminary`, el check-out genera la `Final`) y que también disparan transiciones automáticas sobre el estado de la habitación en Módulo 1: el check-in marca la habitación de `Available` a `Occupied`, y el check-out la marca de `Occupied` a `PendingCleaning`.
-* **SIRE (Validación Migratoria)**: Conjunto de datos obligatorios (documento de identidad, nacionalidad, tipo de visa, fechas de estancia) validado antes del check-in y exportado como archivo plano `.TXT` para las autoridades de migración.
+* **SIRE (Validación Migratoria)**: Conjunto de datos obligatorios (documento de identidad, nacionalidad, tipo de visa, fechas de estancia), capturados por Módulo 1 durante el Check-In y enviados a Módulo 2, quien los valida y exporta como archivo plano `.TXT` para las autoridades de migración.
 * Estado de Exportación SIRE (sireExportStatus): Atributo de control dentro de la validación migratoria (MigratoryValidation) del Módulo 2. Maneja únicamente dos estados:
 
-  * PENDING: Registro de extranjero validado en el Check-In y pendiente de 	ser exportado en el reporte .TXT.
+  * PENDING: Registro de extranjero validado en el Check-In y pendiente de ser exportado en el reporte .TXT.
   * EXPORTED: Registro ya descargado por el actor Migración en un archivo plano de reporte.
-
 ## Módulo 3: Facturación, Consumos y Liquidación
 
 ### Tarifas
@@ -69,9 +70,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 
 ### Liquidación
 
-* **Liquidación**: Resultado del proceso de liquidar una estancia. Incluye estado, valor de hospedaje, comisión OTA aplicada (si corresponde) e ingreso neto. Solo existe a partir de un evento de check-in o check-out.
-* **Estados de la liquidación**: 3 estados vigentes — `Preliminary` (Preliminar: check-in, visible como estimado, recalculable), `Final` (Definitivo: check-out, único por estancia, no se recalcula), `Cancelled` (Anulado: si se notifica la anulación del check-in antes del check-out; conserva el registro pero nunca deriva en un `Final`).
-
+* **Liquidación**: Resultado del proceso de liquidar una estancia. Incluye estado, valor de hospedaje, comisión OTA aplicada (si corresponde) e ingreso neto. Solo existe a partir de un evento de un check-out.
 * **Ingreso neto**: Valor de hospedaje menos la comisión OTA aplicable, sin incluir impuestos. Es el valor que reutiliza la generación de la factura final.
 * **Detalle / Desglose de liquidación**: Desglose que identifica el valor de hospedaje, el canal, la comisión aplicada y el ingreso neto de una liquidación específica.
 
