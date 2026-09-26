@@ -68,13 +68,13 @@ Como sistema, quiero que cada invocación de "Marcar pendiente a limpieza" valid
 
 **Por qué esta prioridad**: Al ser un caso de uso compartido por múltiples flujos (check-out, confirmar reparación), la validación de estado precondición debe asegurar que solo se permitan las transiciones declaradas en la máquina de estados.
 
-**Prueba Independiente**: Puede probarse intentando invocar la transición a "PendingCleaning" desde cada uno de los 8 estados posibles y verificando que solo se permiten las transiciones válidas.
+**Prueba Independiente**: Puede probarse intentando invocar la transición a "PendingCleaning" desde cada uno de los 7 estados posibles y verificando que solo se permiten las transiciones válidas.
 
 **Escenarios de Aceptación**:
 
 7. **Escenario**: Transiciones válidas hacia PendingCleaning según la máquina de estados
    - **Dado** que la máquina de estados define tres entradas al estado "PendingCleaning": "Occupied" (vía check-out, automática), "DisabledForRepairs" (vía confirmar reparación) y "TechnicalBlock" (vía confirmar reparación)
-   - **Cuando** se invoca "Marcar pendiente a limpieza" desde cualquiera de los 8 estados
+   - **Cuando** se invoca "Marcar pendiente a limpieza" desde cualquiera de los 7 estados
    - **Entonces** el sistema permite la transición únicamente si el estado de origen es "Occupied", "DisabledForRepairs" o "TechnicalBlock", rechazando cualquier otro caso
 
 8. **Escenario**: Rechazo de transición desde Available
@@ -105,7 +105,7 @@ Como sistema, quiero que cada invocación de "Marcar pendiente a limpieza" valid
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Para este caso de uso, la entidad transita al estado **"PendingCleaning"** desde "Occupied", "DisabledForRepairs" o "TechnicalBlock", cuatro de los 8 estados vigentes de su ciclo de vida según documentos/SPEC/referencias/maquina-estados-habitacion.md.
+- **Room**: Unidad habitacional del hotel. Para este caso de uso, la entidad transita al estado **"PendingCleaning"** desde "Occupied", "DisabledForRepairs" o "TechnicalBlock", cuatro de los 7 estados vigentes de su ciclo de vida según documentos/SPEC/referencias/maquina-estados-habitacion.md.
 - **ReceptionStaff / MaintenanceStaff**: Actores que disparan indirectamente este caso de uso mediante sus respectivos flujos (check-out y confirmar reparación).
 - **CleaningStaff**: Actor que recibe la habitación en estado "PendingCleaning" como insumo de su trabajo.
 
@@ -116,5 +116,5 @@ Como sistema, quiero que cada invocación de "Marcar pendiente a limpieza" valid
 - **SC-001**: El 100% de las transiciones Occupied → PendingCleaning se ejecutan de forma automática como postcondición del check-out, sin intervención manual.
 - **SC-002**: El 100% de las transiciones desde "DisabledForRepairs" o "TechnicalBlock" a "PendingCleaning" se ejecutan de forma inmediata tras la confirmación de reparación.
 - **SC-003**: Tras una transición exitosa, la habitación aparece como "PendingCleaning" en la lista visible para el Personal de limpieza sin demora perceptible.
-- **SC-004**: El 100% de los intentos de transición desde estados no permitidos ("Available", "Reserved", "PendingCleaning", "InCleaning", "Inactive") son rechazados por el sistema.
+- **SC-004**: El 100% de los intentos de transición desde estados no permitidos ("Available", "PendingCleaning", "InCleaning", "Inactive") son rechazados por el sistema.
 - **SC-005**: El 100% de las transiciones ejecutadas quedan registradas con flujo de origen y fecha/hora.

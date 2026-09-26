@@ -84,7 +84,7 @@ Como Personal de limpieza, quiero ser informado cuando intento confirmar el fin 
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. La confirmación del fin de limpieza transiciona su estado de **"InCleaning"** a **"Available"**, reintegrándola al inventario operativo. Son dos de los 8 estados vigentes de su ciclo de vida.
+- **Room**: Unidad habitacional del hotel. La confirmación del fin de limpieza transiciona su estado de **"InCleaning"** a **"Available"**, reintegrándola al inventario operativo. Son dos de los 7 estados vigentes de su ciclo de vida.
 - **CleaningStaff**: Actor responsable de ejecutar y confirmar el limpieza de las habitaciones.
 
 ## Criterios de Éxito *(obligatorio)*
