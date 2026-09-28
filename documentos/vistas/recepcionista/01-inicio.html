@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estancias — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152A4E; --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --due:#D14343;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  h1{font-family:'Inter',sans-serif; margin:0;}
+  .app{display:flex; min-height:100vh;}
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); padding:0 12px;}
+  .tab{background:none; border:none; font:inherit; font-size:17px; font-weight:600; color:var(--text-lo); padding:14px 24px; cursor:pointer; border-bottom:3px solid transparent; border-radius:8px 8px 0 0;}
+  .tab:hover{background:var(--paper-dim);}
+  .tab.active{color:var(--primary); background:#EAF1FF; border-bottom-color:var(--primary);}
+  .pagehead{margin:0;} .pagehead h1{font-size:21px; font-weight:700;}
+  .sub{color:var(--text-lo); font-size:14px; margin-top:3px;}
+  .content{max-width:1180px; margin:0 auto; padding:24px 26px;}
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px;}
+  .kpi-ic{width:44px; height:44px; flex:0 0 44px; border-radius:50%; background:#EAF1FF; color:var(--primary); display:flex; align-items:center; justify-content:center;}
+  .kpi .num{font-family:'Inter',sans-serif; font-size:26px; line-height:1;}
+  .kpi .lbl{color:var(--text-lo); font-size:13px; margin-top:5px;}
+  .kpi.due .num{color:var(--due);}
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .toolbar{display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .search,.filter{border:1px solid var(--line); border-radius:6px; padding:9px 12px; font:inherit; background:var(--paper-dim); color:var(--text-hi);}
+  .search{flex:1;} .search:focus{outline:none; border-color:var(--primary);}
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:left; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-lo); font-weight:600; padding:10px 16px; border-bottom:1px solid var(--line);}
+  td{padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFAF7;}
+  .room-num{font-family:'Inter',sans-serif; font-size:20px; font-weight:600;}
+  .name{font-weight:600;} .meta{color:var(--text-lo); font-size:13px; margin-top:1px;}
+  .late{color:var(--due); font-weight:600;} .late-sub{color:var(--due); font-size:13px; margin-top:1px;}
+  a.btn{text-decoration:none; display:inline-block;}
+  .btn{border:none; border-radius:6px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; white-space:nowrap;}
+  .btn.in{background:var(--primary); color:#fff;} .btn.out{background:var(--ink); color:#fff;}
+  .empty{padding:36px 16px; text-align:center; color:var(--text-lo);}
+
+  .hero{background:repeating-linear-gradient(135deg,#DCE2EB 0 14px,#D3DAE5 14px 28px); border-bottom:1px solid var(--line);}
+  .hero-inner{max-width:1180px; margin:0 auto; padding:30px 26px; min-height:130px; display:flex; justify-content:space-between; align-items:center; gap:16px;}
+  .ph-label{font-size:13px; color:var(--text-lo); border:1px dashed #9AA8BC; border-radius:6px; padding:6px 10px; background:rgba(255,255,255,.6); white-space:nowrap;}
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    table,thead,tbody,tr,td,th{display:block;} thead{display:none;}
+    tbody tr{padding:12px 16px; border-bottom:1px solid var(--line);}
+    td{border:none; padding:3px 0;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="main">
+    <header class="topbar">
+      <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Recepción</div></div></div>
+      <div class="user-chip"><div class="user-avatar">AR</div><div><div class="user-name">Ana Ramírez</div><div class="user-role">Recepcionista</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </header>
+    <section class="hero"><div class="hero-inner">
+      <div class="pagehead"><h1>Bienvenida, Ana Ramírez</h1><div class="sub">Estancias · llegadas y salidas del día</div></div>
+      <div class="ph-label">Imagen del hotel</div>
+    </div></section>
+    <div class="content">
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="num" id="kArr">0</div><div class="lbl">Llegadas de hoy</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div><div class="num" id="kDep">0</div><div class="lbl">Salidas de hoy</div></div></div>
+        <div class="kpi due"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="num" id="kDue">0</div><div class="lbl">Salidas vencidas</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v9"/><path d="M2 13h20"/><path d="M22 9v9"/><path d="M4 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"/><path d="M12 13V9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg></div><div><div class="num" id="kOcc">0</div><div class="lbl">Habitaciones ocupadas</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="in">Llegadas</button>
+          <button class="tab" data-tab="out">Salidas</button>
+        </div>
+        <div class="toolbar">
+          <input class="search" id="search" placeholder="Buscar por huésped, documento o referencia de reserva…">
+        </div>
+        <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const today = new Date(); today.setHours(0,0,0,0);
+const day = n => { const d = new Date(today); d.setDate(d.getDate()+n); return d; };
+const fmt = d => d.toLocaleDateString('es-CO',{day:'numeric',month:'short'});
+const off = (y,m,d) => Math.round((new Date(y,m,d)-today)/86400000); // fecha fija -> desplazamiento en días
+const nights = (a,b) => Math.round((b-a)/86400000);
+
+// Estado en Módulo 2: pending | active (por llegar) | in_progress (hospedado) | completed | cancelled | no_show
+// Solo se muestra el huésped titular (sin grupos ni familias)
+const res = [
+  {ref:'RES-12345', name:'María González', doc:'CC 1032456789', room:'304', tipo:'Doble', guests:2, src:'Directo', s:0, e:3, status:'active'},
+  {ref:'RES-2041', name:'Marta Londoño', doc:'CC 43208115', room:'204', tipo:'Boutique', guests:1, src:'OTA', s:0, e:3, status:'active'},
+  {ref:'RES-2042', name:'Camilo Arango', doc:'CC 1017223908', room:'205', tipo:'Boutique', guests:2, src:'OTA', s:0, e:3, status:'active'},
+  {ref:'RES-2043', name:'Julián Restrepo', doc:'CC 79665214', room:'118', tipo:'Sencilla', guests:1, src:'Directo', s:0, e:1, status:'active'},
+  {ref:'RES-2044', name:'Andrea Vélez', doc:'CE 1140552', room:'227', tipo:'Doble', guests:2, src:'Directo', s:0, e:2, status:'active'},
+  {ref:'RES-2045', name:'Ricardo Mejía', doc:'CC 71302940', room:'145', tipo:'Doble', guests:2, src:'OTA', s:0, e:2, status:'active'},
+  {ref:'RES-1990', name:'Carlos Peña', doc:'CC 80114552', room:'102', tipo:'Doble', guests:2, src:'Directo', s:-4, e:0, status:'in_progress'},
+  {ref:'RES-40001', name:'Miguel Ángel Ríos', doc:'CC 79845132', room:'411', tipo:'Suite', guests:3, src:'OTA', s:off(2026,8,21), e:off(2026,8,26), status:'in_progress'},
+  {ref:'RES-1981', name:'Marco Ferretti', doc:'PA AR3391027', room:'309', tipo:'Suite', guests:1, src:'Directo', s:-6, e:0, status:'in_progress'},
+  {ref:'RES-2010', name:'Diego Salazar', doc:'CC 10556221', room:'140', tipo:'Boutique', guests:2, src:'OTA', s:-1, e:0, status:'in_progress'},
+  {ref:'RES-1975', name:'Paola Duarte', doc:'CC 63220478', room:'318', tipo:'Sencilla', guests:1, src:'Directo', s:-5, e:-2, status:'in_progress'},
+  {ref:'RES-2005', name:'Sergio Ortiz', doc:'CC 98331070', room:'112', tipo:'Doble', guests:2, src:'OTA', s:-1, e:2, status:'in_progress'},
+];
+let tab = 'in';
+const $ = id => document.getElementById(id);
+
+
+const arrivals = () => res.filter(r => r.status==='active' && r.s===0);
+const departures = () => res.filter(r => r.status==='in_progress');
+
+function render(){
+  const q = $('search').value.trim().toLowerCase();
+  $('thead').innerHTML = tab==='in'
+    ? '<tr><th>Hab.</th><th>Huésped</th><th>Estadía</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>'
+    : '<tr><th>Hab.</th><th>Huésped</th><th>Fecha entrada</th><th>Fecha salida</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
+
+  let rows = (tab==='in' ? arrivals() : departures()).filter(r =>
+    !q || r.name.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q));
+
+  const tb = $('tbody'); tb.innerHTML = '';
+  if(!rows.length){ tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas que mostrar.</div></td></tr>`; return; }
+  rows.forEach(r=>{
+    const late = r.e<0;
+    const stay = tab==='in'
+      ? `<td>${nights(day(r.s),day(r.e))} noche${nights(day(r.s),day(r.e))>1?'s':''}</td>`
+      : `<td>${fmt(day(r.s))}</td>
+         <td><div class="${late?'late':''}">${fmt(day(r.e))}</div>${late?`<div class="late-sub">Vencida</div>`:''}</td>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="room-num">${r.room}</div></td>
+      <td><div class="name">${r.name}</div><div class="meta">${r.doc}</div></td>
+      ${stay}
+      <td>${r.guests}</td>
+      <td>${r.tipo}</td><td>${r.src}</td>
+      <td><a class="btn ${tab==='in'?'in':'out'}" href="${tab==='in'?'02-checkin-1-reserva.html':'07-checkout-1-reserva.html'}?ref=${encodeURIComponent(r.ref)}">${tab==='in'?'Check-in':'Check-out'}</a></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderAll(){
+  const dep = departures();
+  $('kArr').textContent = arrivals().length;
+  $('kDep').textContent = dep.filter(r=>r.e===0).length;
+  $('kDue').textContent = dep.filter(r=>r.e<0).length;
+  $('kOcc').textContent = dep.length;
+  render();
+}
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); tab = t.dataset.tab; $('search').value=''; render();
+});
+$('search').oninput = render;
+renderAll();
+</script>
+</body>
+</html>
