@@ -10,33 +10,33 @@
 
 ### Historia de Usuario 1 - Formalización de Check-Out y liberación de habitación (Prioridad: P1)
 
-Como Recepcionista, quiero formalizar la salida física del huésped consultando la liquidación informativa calculada por Módulo 3 (resumen para el huésped con valor de hospedaje, IVA y total a pagar; e información operativa con canal de origen, comisión OTA, ingreso neto y factura definitiva asociada) y confirmando la operación, para que la habitación transicione inmediatamente al estado "PendingCleaning" pasando a la bandeja del Personal de limpieza y se notifique de forma asíncrona al Módulo 2 para el cierre de la reserva.
+Como Recepcionista, quiero formalizar la salida física del huésped recorriendo el flujo de 5 pasos de la interfaz (Consultar reserva → Liquidación → Pago → Confirmación → Liberar habitación), localizando la estancia a partir de los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), consultando la liquidación informativa provista por Módulo 3 y confirmando la operación, para que la habitación transicione inmediatamente al estado "PendingCleaning" pasando a la bandeja del Personal de limpieza y se notifique mediante cola asíncrona al Módulo 2 para el cierre de la reserva a "COMPLETED".
 
-**Por qué esta prioridad**: Es la operación misional de cierre de la estancia física en el hotel. Garantiza que la habitación se libere de forma síncrona en el inventario hacia el personal de aseo (maximizando la rotación de cuartos limpios), muestra al huésped un resumen fidedigno de los rubros financieros provistos por Módulo 3 sin procesar cobros locales, y notifica asíncronamente a Módulo 2 la finalización de la estadía.
+**Por qué esta prioridad**: Es la operación misional de cierre de la estancia física en el hotel. Al alimentarse de los datos locales persistidos en la estancia (`Stay`, incluyendo el canal `source` y los ocupantes `RoomGuest`), Módulo 1 opera de forma 100% autónoma en el mostrador sin realizar peticiones previas a Módulo 2, liberando de forma síncrona la habitación en el inventario hacia el personal de aseo, presentando al huésped la liquidación de Módulo 3 sin recaudar pagos locales, y emitiendo por cola la notificación de finalización hacia Módulo 2.
 
-**Prueba Independiente**: Se prueba de forma aislada iniciando sesión como Recepcionista y recorriendo el flujo de salida: (1) búsqueda por código de reserva en estado "CHECKED_IN" (en Módulo 2 "IN_PROGRESS") con habitación en "Occupied"; (2) recepción y consulta del desglose financiero informativo de Módulo 3 estructurado en resumen para el huésped e información operativa con factura definitiva asociada; (3) confirmación explícita de salida; y (4) verificación de la transición a "PendingCleaning", su envío a la bandeja del personal de limpieza y el despacho asíncrono a Módulo 2.
+**Prueba Independiente**: Se prueba de forma aislada iniciando desde el Panel de Recepción con una estancia ya seleccionada y recorriendo el flujo de 5 pasos: (1) presentación de los datos de la estancia activa en estado "Occupied" recuperados localmente de `Stay`, `Room` y `RoomGuest` (titular con `isReservationGuest = true`) sin invocar a Módulo 2 ni mostrar "Estado en Módulo 2"; (2) consulta reactiva REST GET a Módulo 3 ("Consultar liquidación") y visualización del paso Liquidación mostrando la factura definitiva asociada arriba y la información de la reserva (canal `source`, comisión OTA e ingreso neto); (3) visualización del paso Pago con la factura definitiva asociada arriba, el resumen para el huésped (hospedaje, IVA, total a pagar) y los datos reales de la estadía (noches, fecha de entrada `checkInDate`, fecha de salida `checkOutDate`), sin procesar transacciones monetarias; (4) confirmación explícita de salida; y (5) pantalla de éxito certificando la transición síncrona a "PendingCleaning", su envío a la bandeja del personal de limpieza y el despacho de notificación por cola a Módulo 2 (sin mostrar horas y con botón único "Volver al inicio").
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Flujo completo de Check-Out en fecha pactada (Happy Path)
-   - **Dado** una habitación en estado operativo "Occupied" vinculada a una reserva en Módulo 2 en estado "CHECKED_IN" (estado "IN_PROGRESS" en Módulo 2), cuya fecha de salida programada coincide con hoy
-   - **Cuando** el Recepcionista consulta la reserva, revisa la liquidación calculada por Módulo 3 diferenciando el resumen para el huésped (valor del hospedaje total ya calculado, IVA, total a pagar) y la información operativa de la reserva (canal de origen, porcentaje y valor de comisión OTA si aplica, ingreso neto y factura definitiva asociada emitida por Módulo 3 sin recalcularla), y confirma la salida del huésped
-   - **Entonces** el sistema transiciona la habitación a "PendingCleaning" de forma síncrona mediante la invocación interna a "Marcar pendiente a limpieza", envía la notificación asíncrona a Módulo 2 para pasar la reserva a "COMPLETED" (etiquetada como "CHECKED_OUT"), y certifica la liberación de la habitación informando que ha sido enviada a la bandeja del personal de limpieza.
+   - **Dado** una habitación en estado operativo "Occupied" vinculada a una estancia activa local (`Stay`) con canal de origen `source` persistido y titular identificado en `RoomGuest`, seleccionada previamente desde el Panel de Recepción
+   - **Cuando** el Recepcionista revisa la información de la estancia en el paso 1, avanza al paso 2 ("Liquidación") consultando síncronamente a Módulo 3 mediante REST GET para obtener la factura definitiva asociada y la información de la reserva (canal "Directo" u "OTA", comisión OTA e ingreso neto), continúa al paso 3 ("Pago") revisando el resumen para el huésped (hospedaje, IVA, total a pagar) y los datos de estadía (noches, fecha de entrada y salida reales), y en el paso 4 marca la casilla de confirmación y confirma la salida
+   - **Entonces** el sistema transiciona la habitación a "PendingCleaning" de forma síncrona mediante la invocación interna a "Marcar pendiente a limpieza", emite proactivamente mediante cola asíncrona la notificación de check-out hacia Módulo 2 para pasar la reserva a "COMPLETED", y despliega el paso 5 ("Liberar habitación") confirmando que la habitación está en estado "Pendiente de limpieza", la notificación sincronizada, sin mostrar horas y ofreciendo el botón único "Volver al inicio".
 
-2. **Escenario**: Check-Out con salida anticipada (Early Check-Out) y penalización incorporada
-   - **Dado** un huésped con reserva en estado "CHECKED_IN" cuya fecha de finalización pactada ("endDate") es posterior a la fecha actual
-   - **Cuando** el Recepcionista consulta la reserva e inicia el Check-Out en la fecha de hoy
-   - **Entonces** Módulo 3 entrega en la liquidación el valor total de hospedaje liquidado (con el cálculo y penalizaciones ya incorporados por Módulo 3 sin requerir desglose por noche), el IVA, el total a pagar, junto con los datos de canal, comisión OTA, ingreso neto y factura definitiva asociada
-   - **Y cuando** el Recepcionista verifica la información (atendiendo a que la salida anticipada incluye penalizaciones, que no se gestionan consumos locales en este flujo y que la actualización hacia Módulo 2 es asíncrona) y confirma la salida
-   - **Entonces** el sistema libera la habitación a "PendingCleaning" de inmediato y despacha la notificación a Módulo 2.
+2. **Escenario**: Check-Out con salida anticipada (Early Check-Out)
+   - **Dado** una estancia física activa cuya fecha pactada de finalización ("expectedCheckoutTime") es posterior a la fecha actual
+   - **Cuando** el Recepcionista consulta la estancia e inicia el Check-Out en la fecha de hoy
+   - **Entonces** Módulo 3 entrega en la liquidación el valor consolidado de hospedaje correspondiente a las noches reales (con las políticas y penalizaciones resueltas internamente por Módulo 3), el IVA, el total a pagar, junto con los datos de canal, comisión OTA, ingreso neto y la factura definitiva asociada
+   - **Y cuando** el Recepcionista verifica la información en los pasos de Liquidación y Pago, confirma la casilla en el paso 4 y confirma la salida
+   - **Entonces** el sistema libera la habitación a "PendingCleaning" de inmediato y despacha proactivamente mediante cola asíncrona la notificación a Módulo 2 para pasar la reserva a "COMPLETED".
 
 3. **Escenario**: Bloqueo de confirmación por falta de validación explícita
-   - **Dado** que se ha consultado la reserva y la liquidación de la estadía
-   - **Cuando** el Recepcionista intenta finalizar la salida sin haber confirmado explícitamente que la información mostrada es correcta
-   - **Entonces** el sistema mantiene bloqueada la finalización, impidiendo cualquier transición física de la habitación o notificación a Módulo 2 hasta contar con la aceptación explícita.
+   - **Dado** que se ha consultado la estancia y revisado los pasos de liquidación y pago
+   - **Cuando** en el paso 4 el Recepcionista intenta confirmar el Check-Out sin marcar la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta")
+   - **Entonces** el sistema mantiene bloqueada la confirmación, impidiendo la transición física de la habitación y la notificación a Módulo 2 hasta contar con la validación explícita.
 
 4. **Escenario**: Recepción y visualización inmediata en la bandeja de trabajo de limpieza
-   - **Dado** que se ha confirmado exitosamente un Check-Out
+   - **Dado** que se ha confirmado exitosamente un Check-Out en el paso 4
    - **Cuando** el Personal de limpieza consulta su listado o bandeja de trabajo
    - **Entonces** la habitación figura de inmediato en estado "PendingCleaning", habilitando el inicio del proceso de aseo.
 
@@ -44,11 +44,11 @@ Como Recepcionista, quiero formalizar la salida física del huésped consultando
 
 ### Historia de Usuario 2 - Bloqueo de salidas inconsistentes y resiliencia de integración (Prioridad: P2)
 
-Como Recepcionista, quiero que el sistema rechace intentos de Check-Out sobre habitaciones o reservas en estados incompatibles y mantenga la resiliencia operativa ante fallas o indisponibilidad externa, para evitar inconsistencias en el inventario y no perjudicar la salida física del huésped.
+Como Recepcionista, quiero que el sistema rechace intentos de Check-Out sobre habitaciones que no cuenten con una estancia activa ocupada y mantenga la resiliencia operativa ante fallas o indisponibilidad externa, para evitar inconsistencias en el inventario y no perjudicar la salida física del huésped.
 
 **Por qué esta prioridad**: Asegura la consistencia lógica de la máquina de estados e impide que caídas de servicios externos (Módulo 2 o Módulo 3) bloqueen la operación física del hotel o dejen habitaciones en estados huérfanos.
 
-**Prueba Independiente**: Se prueba intentando registrar el Check-Out sobre habitaciones en estados diferentes a "Occupied", reservas en estados incompatibles en Módulo 2 ("ACTIVE", "CANCELLED", "COMPLETED"), o simulando indisponibilidad en los servicios externos de Módulo 2 o Módulo 3, verificando los bloqueos controlados y los mecanismos de contingencia.
+**Prueba Independiente**: Se prueba intentando registrar el Check-Out sobre habitaciones en estados diferentes a "Occupied" o sin estancia física activa (`Stay`), o simulando indisponibilidad en los servicios externos de Módulo 2 o Módulo 3, verificando los bloqueos controlados y los mecanismos de contingencia.
 
 **Escenarios de Aceptación**:
 
@@ -57,30 +57,26 @@ Como Recepcionista, quiero que el sistema rechace intentos de Check-Out sobre ha
    - **Cuando** el Recepcionista intenta consultar o ejecutar el Check-Out
    - **Entonces** el sistema rechaza la operación informando que la habitación no se encuentra en estado "Occupied" y no tiene una estancia física activa para finalizar.
 
-2. **Escenario**: Rechazo de Check-Out por reserva en estado no apto en Módulo 2
-   - **Dado** una reserva consultada en Módulo 2 que se encuentra en estado "ACTIVE" (sin Check-In previo), "CANCELLED" o "COMPLETED" / "CHECKED_OUT"
-   - **Cuando** el Recepcionista busca el código de reserva
-   - **Entonces** el sistema bloquea el avance con un mensaje controlado indicando que la reserva no registra un ingreso previo o ya fue finalizada.
-
-3. **Escenario**: Resiliencia ante caída o indisponibilidad de Módulo 3 (Facturación)
-   - **Dado** una habitación en estado "Occupied" con reserva "CHECKED_IN" al momento en que el servicio de Módulo 3 no responde o se demora al solicitar la liquidación
+2. **Escenario**: Resiliencia ante caída o indisponibilidad de Módulo 3 (Facturación)
+   - **Dado** una habitación en estado "Occupied" con estancia física activa al momento en que el servicio de Módulo 3 no responde o se demora al solicitar la liquidación vía REST GET
    - **Cuando** el Recepcionista gestiona la salida física del huésped
-   - **Entonces** el sistema Módulo 1 presenta un informe controlado de la indisponibilidad temporal del cálculo financiero, ofreciendo al Recepcionista la opción de autorizar la liberación física de la habitación a "PendingCleaning" para no retrasar el aseo ni retener al huésped, registrando la transacción como pendiente de regularización financiera sin provocar fallos técnicos no controlados.
+   - **Entonces** Módulo 1 presenta un informe controlado de la indisponibilidad temporal del cálculo financiero, ofreciendo al Recepcionista la opción de autorizar la liberación física de la habitación a "PendingCleaning" para no retrasar el aseo ni retener al huésped, registrando la transacción como pendiente de regularización financiera sin provocar fallos técnicos no controlados.
 
-4. **Escenario**: Resiliencia ante falla de notificación asíncrona a Módulo 2
-   - **Dado** que el Check-Out físico fue confirmado y la habitación transicionó a "PendingCleaning", pero la comunicación con Módulo 2 sufre una desconexión
-   - **Cuando** el sistema despacha la notificación asíncrona a Módulo 2
-   - **Entonces** el cambio de estado físico de la habitación se mantiene firme e irreversible en "PendingCleaning", el flujo concluye exitosamente y la notificación a Módulo 2 se programa para reintento en segundo plano.
+3. **Escenario**: Resiliencia ante falla de notificación por cola a Módulo 2
+   - **Dado** que el Check-Out físico fue confirmado y la habitación transicionó a "PendingCleaning", pero la comunicación con Módulo 2 experimenta una interrupción
+   - **Cuando** el sistema emite la notificación a la cola de Módulo 2
+   - **Entonces** el cambio de estado físico de la habitación se mantiene firme en "PendingCleaning", la notificación a Módulo 2 permanece en cola pendiente de reintento en segundo plano (manteniéndose la reserva en Módulo 2 en su estado actual hasta procesar el mensaje), y se muestra en pantalla la nota informativa correspondiente.
 
 ---
 
 ### Casos Borde
 
-- **Confirmación explícita requerida para la salida**: El sistema no permite el despacho de la transacción de Check-Out bajo ninguna circunstancia si el Recepcionista no ha validado explícitamente que la información es correcta.
-- **Ausencia de gestión de consumos locales**: Coherente con las reglas de negocio, este flujo NO incluye campos ni gestión de minibar, lavandería ni consumos de restaurante. La liquidación provista por Módulo 3 se limita exclusivamente a hospedaje, comisiones intermediarias, impuestos y la factura definitiva asociada.
+- **Confirmación explícita requerida para la salida**: El sistema no permite el despacho de la transacción de Check-Out si el Recepcionista no ha marcado la casilla obligatoria de confirmación en el paso 4.
+- **Ausencia de gestión de consumos locales y pasarelas de pago**: Este flujo NO incluye campos ni gestión de minibar, lavandería ni consumos de restaurante, ni procesa transacciones financieras en el paso Pago. La liquidación provista por Módulo 3 se limita exclusivamente a hospedaje, comisiones intermediarias, impuestos y la factura definitiva asociada.
 - **Indisponibilidad o falta de respuesta de Módulo 3 al consultar liquidación**: Si la consulta a Módulo 3 supera el tiempo de espera o retorna error, el sistema ofrece una vía de contingencia para liberar la habitación física a "PendingCleaning" y registra la transacción para regularización posterior sin interrumpir la atención.
 - **Notificación duplicada hacia Módulo 2**: Si la notificación de Check-Out se reenvía hacia Módulo 2 para una reserva que ya alcanzó el estado "COMPLETED", Módulo 2 confirma la recepción sin duplicar registros ni generar alteraciones redundantes.
 - **Peticiones simultáneas de Check-Out sobre la misma habitación**: La primera petición transiciona la habitación a "PendingCleaning"; cualquier intento concurrente posterior es bloqueado de inmediato informando colisión y notificando que la habitación ya no figura como "Occupied".
+- **Salidas prematuras y salidas tardías/vencidas**: Se permiten tanto salidas antes de la fecha final esperada (Early Check-Out) como salidas en estancias cuya fecha de salida esté vencida; en ambos casos la liquidación se efectúa con base en las fechas reales de la estadía (`checkInDate` y `checkOutDate`).
 
 ---
 
@@ -89,41 +85,45 @@ Como Recepcionista, quiero que el sistema rechace intentos de Check-Out sobre ha
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor autenticado "Recepcionista" registrar la salida física y formalizar el Check-Out en Módulo 1.
-- **FR-002**: El sistema DEBE estructurar el proceso de Check-Out a través de las etapas funcionales: (1) Consulta de reserva, (2) Liquidación de la estadía, (3) Confirmación de salida y (4) Finalización y liberación de habitación.
-- **FR-003**: En la consulta inicial de reserva, el sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) contra Módulo 2 mediante el código de reserva (`reservationRef`), confirmando que el estado de la reserva sea "CHECKED_IN" (estado "IN_PROGRESS" en Módulo 2) y que la habitación actual figure en estado "Occupied" ("Ocupada").
+- **FR-002**: El sistema DEBE estructurar el proceso de Check-Out a través de 5 etapas funcionales y visuales:
+  1. *Consultar reserva*
+  2. *Liquidación*
+  3. *Pago*
+  4. *Confirmación*
+  5. *Liberar habitación*
+- **FR-003**: La búsqueda y selección de la estancia para Check-Out se realizan **previamente** en el **Panel de Recepción** (`spec-consultar-panel-recepcion.md`) a través del buscador de Salidas, el cual opera exclusivamente sobre datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`) sin invocar a Módulo 2. Al pulsar el botón "Check-out" en el panel, el flujo llega al paso 1 ("Consultar reserva") con la estancia ya identificada. En el paso 1, el sistema DEBE obtener y presentar la información completa de la estadía desde las entidades locales `Stay` + `Room` + `RoomGuest` (identificando al titular mediante `isReservationGuest = true`), sin realizar peticiones externas a Módulo 2 ni desplegar el campo "Estado en Módulo 2". La interfaz debe mostrar: código de reserva, huésped titular, rango de fechas de la estancia, canal de procedencia (`source`: "Directo" u "OTA") y habitación asignada en estado "Ocupada" (`Occupied`). El paso 1 NO dispone de una barra de búsqueda propia.
 - **FR-004**: El sistema DEBE validar como precondición física obligatoria que la habitación asignada se encuentre estrictamente en estado "Occupied" según documentos/SPEC/referencias/maquina-estados-habitacion.md. Si la habitación está en cualquier otro estado, DEBE rechazar el inicio del Check-Out con un mensaje de error controlado, detallando el estado físico real.
-- **FR-005**: En la fase de liquidación de la estadía, el sistema DEBE invocar obligatoriamente el caso de uso interno "Consultar liquidación" (`<<includes>>`), enviando a Módulo 3 las fechas reservadas y marcas de tiempo reales (`checkInTime` y `checkOutTime`).
-- **FR-006**: El sistema DEBE presentar la información de liquidación provista por Módulo 3 estructurada en dos grupos informativos:
-  1. **Resumen para el huésped**:
-     - Valor del hospedaje (total, ya calculado y consolidado por Módulo 3, no desglosado por noche)
-     - Impuesto al Valor Agregado (IVA)
-     - Total a pagar
-  2. **Información de la reserva / operación (para uso de recepción)**:
-     - Canal de origen (Booking / Web / Directo)
-     - Porcentaje de comisión OTA (si aplica)
-     - Valor monetario de la comisión OTA (si aplica)
-     - Ingreso neto
-     - Factura definitiva asociada emitida por Módulo 3 (con su número consecutivo oficial y desglose según FR-010 de generar_factura_final.md)
-- **FR-007**: El sistema NO DEBE solicitar, registrar ni tramitar cobros de consumos locales (minibar, lavandería o restaurante) ni procesar pagos con pasarelas dentro de Módulo 1.
-- **FR-008**: El sistema DEBE exigir una confirmación explícita por parte del Recepcionista validando que la información de salida es correcta antes de autorizar la formalización del Check-Out.
-- **FR-009**: El sistema DEBE informar al Recepcionista que la salida anticipada incluye penalizaciones (si aplica), que no se gestionan consumos locales en este flujo y que la notificación de actualización hacia el Módulo 2 es asíncrona.
-- **FR-010**: Al confirmar la salida, el sistema DEBE invocar de forma síncrona y atómica el caso de uso interno "Marcar pendiente a limpieza" (`<<includes>>`), transicionando el estado de la entidad Room de "Occupied" a "PendingCleaning".
+- **FR-005**: Conforme al contrato de interfaces con Módulo 3 (`mod-1-2-3.drawio`: "Consultar liquidación: REST · GET · Reactivo"), en el paso 2 el sistema DEBE consultar de forma reactiva mediante una petición sincrónica REST GET a Módulo 3 la liquidación de la estadía (`SettlementRequest`), enviando: `reservationRef`, `eventType` (`CHECK_OUT`), fechas esperadas (`startDate`, `endDate`), fechas reales de la estancia (`checkInDate` y `checkOutDate` como fechas sin hora), canal (`source` obtenido localmente de `Stay`) y el identificador de la habitación (`roomId`).
+- **FR-006**: El sistema DEBE presentar la información de liquidación provista por Módulo 3 distribuida en las dos etapas correspondientes:
+  1. *En el paso 2 (Liquidación)*:
+     - Factura definitiva asociada (número consecutivo oficial emitido por Módulo 3, ej. FAC-40001, ubicada en la parte superior).
+     - **Información de la reserva** (para uso de recepción): canal de origen ("Directo" u "OTA"), porcentaje de comisión OTA (si aplica), valor monetario de la comisión OTA (si aplica) e ingreso neto.
+  2. *En el paso 3 (Pago)*:
+     - Factura definitiva asociada (ubicada en la parte superior).
+     - **Resumen para el huésped**: valor del hospedaje (total consolidado ya calculado), Impuesto al Valor Agregado (IVA) y total a pagar.
+     - **Datos de la estadía**: número de noches, fecha de entrada real (`checkInDate`) y fecha de salida real (`checkOutDate`).
+- **FR-007**: El sistema NO DEBE solicitar, registrar ni tramitar cobros de consumos locales (minibar, lavandería o restaurante) ni procesar pagos con pasarelas dentro de Módulo 1. En el paso 3 ("Pago"), no se registra ni recibe dinero; su propósito es exclusivamente la visualización del resumen de cobro para revisión con el huésped.
+- **FR-008**: En el paso 4 ("Confirmación"), el sistema DEBE exigir que el Recepcionista marque obligatoriamente la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta") antes de habilitar el botón de confirmación de Check-Out.
+- **FR-009**: En el paso 4 ("Confirmación"), el sistema DEBE presentar únicamente la siguiente nota informativa de contingencia: "Si falla la actualización, la reserva queda en estado Pendiente para reintento." (indicando que la notificación a Módulo 2 queda pendiente de reintento en la cola y la reserva permanece en su estado actual `IN_PROGRESS` hasta ser procesada por Módulo 2). No se deben mostrar avisos en pantalla sobre penalizaciones ni aclaraciones de consumos locales.
+- **FR-010**: Al confirmar la salida en el paso 4, el sistema DEBE invocar de forma síncrona y atómica el caso de uso interno "Marcar pendiente a limpieza" (`<<includes>>`), transicionando el estado de la entidad Room de "Occupied" a "PendingCleaning", y cerrando la entidad `Estancia` registrando `checkOutDate` y el recepcionista responsable (`receptionistIdCheckOut`).
 - **FR-011**: La habitación en estado "PendingCleaning" DEBE figurar de inmediato en la bandeja de trabajo del Personal de limpieza.
-- **FR-012**: El sistema DEBE despachar una notificación asíncrona hacia el servicio de Módulo 2 con la `reservationRef` y la hora de salida (`checkOutTime`), solicitando la transición de la reserva al estado "COMPLETED" (etiquetada como "CHECKED_OUT" en recepción).
-- **FR-013**: Al formalizarse el Check-Out, el sistema DEBE confirmar que la habitación ha pasado a estado "PendingCleaning" y ha sido transferida a la bandeja del personal de limpieza, certificando la finalización exitosa del flujo.
-- **FR-014**: Si Módulo 2 o Módulo 3 experimentan demoras o fallas de comunicación, el sistema NO DEBE bloquear la liberación física de la habitación a "PendingCleaning" ni impedir la salida del huésped; las notificaciones y conciliaciones se programan para resolución en segundo plano.
-- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría el ID de la habitación, la referencia de la reserva, el identificador de la Estancia, el recepcionista responsable del check-out (`receptionistIdCheckOut`), la fecha/hora de salida y la referencia de liquidación.
+- **FR-012**: Conforme al contrato de interfaces con Módulo 2 (`mod-1-2-3.drawio`: "Notificación de check-out: COLA · Proactivo"), al confirmar la salida el sistema DEBE notificar proactivamente mediante COLA asíncrona a Módulo 2 que el check-out físico fue realizado, enviando la `reservationRef` y la fecha de salida real (`checkOutDate`, solo fecha), solicitando la transición de la reserva al estado "COMPLETED".
+- **FR-013**: En el paso 5 ("Liberar habitación"), el sistema DEBE certificar la finalización exitosa del flujo confirmando que la habitación ha pasado a "PendingCleaning" (Pendiente de limpieza) y la reserva a "COMPLETED" (Completada), mostrando las etiquetas de validación ("Habitación: Pendiente de limpieza", "Notificación a Módulo 2: Sincronizada"), sin mostrar horas en pantalla y proveyendo como única acción de salida el botón "Volver al inicio".
+- **FR-014**: Si Módulo 2 o Módulo 3 experimentan demoras o fallas de comunicación, el sistema NO DEBE bloquear la liberación física de la habitación a "PendingCleaning" ni impedir la salida del huésped; las notificaciones y conciliaciones se programan para resolución en segundo plano mediante la cola asíncrona.
+- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría el ID de la habitación, la referencia de la reserva, el identificador de la Estancia, el recepcionista responsable del check-out (`receptionistIdCheckOut`), la fecha de salida (`checkOutDate`) y la referencia de liquidación.
 
 ---
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fecha/hora de llegada real (`checkInTime`), fecha/hora de salida (`checkOutTime`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
-- **SettlementSummary**: Estructura conceptual informativa provista por Módulo 3 y obtenida vía "Consultar liquidación", estructurada en: (1) Resumen para el huésped: valor del hospedaje (total ya calculado), IVA y total a pagar; y (2) Información de la reserva / operación: canal de origen, porcentaje de comisión OTA (si aplica), valor de comisión OTA (si aplica), ingreso neto y factura definitiva asociada.
-- **Receptionist**: Actor de recepcionista que opera el flujo de registro de check-in y check-out.
-- **CleaningStaff**: Personal operativo que recibe de forma inmediata la habitación en estado "PendingCleaning" en su bandeja de trabajo.
-- **Reservation**: Entidad conceptual de reserva que representa la reserva de una habitación. Atributos clave: ID único, referencia de reserva (`reservationRef`), fecha de inicio (`startDate`), fecha de fin (`endDate`), estado (`status`), habitación asignada (`assignedRoomId`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: "Directo" u "OTA"), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `fullName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
+- **SettlementSummary**: Estructura conceptual informativa devuelta por Módulo 3 y consumida vía "Consultar liquidación" conteniendo: factura definitiva asociada (`invoiceNumber`), valor de hospedaje consolidado (`accommodationTotalAmount`), canal (`source`: "Directo" u "OTA"), porcentaje de comisión OTA (`otaCommissionPercentage`), valor de comisión OTA (`otaCommissionAmount`), IVA (`taxAmount`) e ingreso neto (`netIncomeAmount`).
+- **Receptionist**: Actor de recepcionista que opera el flujo de recepción, consultas, registro de check-in y registro de check-out en el hotel.
+- **CleaningStaff**: Personal operativo que recibe de forma inmediata la habitación en estado "PendingCleaning" en su bandeja de trabajo al registrarse el check-out.
+- **Module2 (Operación de Reservas)**: Sistema externo responsable del ciclo de vida contractual de las reservas y fuente de verdad de sus datos.
+- **Module3 (Facturación y Liquidación)**: Sistema externo responsable exclusivo de calcular la liquidación, aplicar comisiones e IVA, y generar la factura definitiva oficial.
 
 ---
 
@@ -133,7 +133,8 @@ Como Recepcionista, quiero que el sistema rechace intentos de Check-Out sobre ha
 
 - **SC-001**: El Recepcionista puede completar el proceso de Check-Out en menos de 1 minuto a partir de que el sistema recibe la respuesta de liquidación de Módulo 3.
 - **SC-002**: El 100% de los Check-Outs confirmados transicionan de forma atómica y síncrona la habitación a "PendingCleaning", quedando visible de inmediato en la bandeja del Personal de limpieza.
-- **SC-003**: El sistema impide el 100% de los intentos de salida sin la confirmación explícita del Recepcionista.
-- **SC-004**: El sistema rechaza el 100% de los intentos de Check-Out sobre habitaciones cuyo estado físico sea diferente de "Occupied" o sobre reservas que no figuren en estado "CHECKED_IN" (estado "IN_PROGRESS" en Módulo 2).
+- **SC-003**: El sistema impide el 100% de los intentos de salida sin la confirmación explícita del Recepcionista mediante la casilla obligatoria en el paso 4.
+- **SC-004**: El sistema rechaza el 100% de los intentos de Check-Out sobre habitaciones cuyo estado físico sea diferente de "Occupied".
 - **SC-005**: Cero cálculos manuales de tarifas, cero cargos por minibar/consumos locales y cero operaciones de cobro pasarela procesadas en Módulo 1 durante este flujo.
-- **SC-006**: Ante indisponibilidad de Módulo 2 o Módulo 3, el 100% de los casos permiten completar la liberación física de la habitación a "PendingCleaning", dejando registrada la notificación asíncrona para reintento en segundo plano sin retener al huésped en recepción.
+- **SC-006**: Ante indisponibilidad de Módulo 2 o Módulo 3, el 100% de los casos permiten completar la liberación física de la habitación a "PendingCleaning", dejando registrada la notificación en cola para reintento en segundo plano sin retener al huésped en recepción.
+
