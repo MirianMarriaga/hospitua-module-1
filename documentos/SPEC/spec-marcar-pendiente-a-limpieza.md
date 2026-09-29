@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: Marcar Pendiente a Limpieza
 
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Sistema (automático) / Personal de mantenimiento / Módulo 2 (Recepción)
+**Actor principal**: Sistema (automático, invocado por "Registrar Check-Out") / Personal de mantenimiento
 **Creado**: 2026-09-07
 
 ---
@@ -12,7 +12,7 @@
 
 Como sistema, quiero que al registrar un check-out de un huésped la habitación transite automáticamente al estado "PendingCleaning", para que la habitación entre en el ciclo de limpieza sin requerir una acción manual adicional.
 
-**Por qué esta prioridad**: Esta es la transición de mayor frecuencia hacia "PendingCleaning". Toda habitación que ha sido ocupada necesita pasar por limpieza antes de poder ser reasignada. La transición es automática porque forma parte del flujo de check-out del Módulo 2, y su documentación centralizada evita duplicación.
+**Por qué esta prioridad**: Esta es la transición de mayor frecuencia hacia "PendingCleaning". Toda habitación que ha sido ocupada necesita pasar por limpieza antes de poder ser reasignada. La transición es automática y atómica, ejecutándose como parte del flujo de "Registrar Check-Out" de Módulo 1 (Recepcionista), conforme al acuerdo que establece que Módulo 1 es dueño exclusivo de `Room.status`; Módulo 2 únicamente recibe la notificación asíncrona resultante por la cola `habitacion.checkout`. Su documentación centralizada evita duplicación de lógica.
 
 **Prueba Independiente**: Puede probarse registrando un check-out para una habitación en estado "Occupied" y verificando que la habitación transita automáticamente a "PendingCleaning" sin intervención manual.
 
@@ -95,7 +95,7 @@ Como sistema, quiero que cada invocación de "Marcar pendiente a limpieza" valid
 
 ### Requisitos Funcionales
 
-- **FR-001**: "Marcar pendiente a limpieza" es un caso de uso propio, centralizado y compartido, documentado una sola vez en vez de repetirse en cada flujo que la dispara (check-out del Módulo 2, y confirmar reparación finalizada).
+- **FR-001**: "Marcar pendiente a limpieza" es un caso de uso propio, centralizado y compartido, documentado una sola vez en vez de repetirse en cada flujo que la dispara. Conforme al acuerdo arquitectural (Módulo 1 es dueño de `Room.status`), este caso de uso es invocado internamente (`<<includes>>`) por "Registrar Check-Out" de Módulo 1 (la Recepcionista formaliza la salida) y por "Confirmar reparación finalizada"; Módulo 2 NO transiciona directamente el estado de la habitación.
 - **FR-002**: El sistema DEBE validar como precondición que la habitación se encuentre en uno de los tres estados que permiten la transición a "PendingCleaning" : "Occupied" (para el flujo de check-out), "DisabledForRepairs" o "TechnicalBlock" (para el flujo de confirmar reparación).
 - **FR-003**: El sistema DEBE rechazar la operación si la habitación se encuentra en cualquier estado distinto de "Occupied", "DisabledForRepairs" o "TechnicalBlock", informando el estado actual.
 - **FR-004**: El sistema DEBE cambiar el estado de la habitación a "PendingCleaning" de forma inmediata tras la invocación, sin requerir pasos intermedios ni aprobaciones adicionales.

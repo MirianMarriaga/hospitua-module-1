@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: Consultar Reservas
 
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Recepcionista
+**Actor principal**: Recepcionista / Personal de mantenimiento
 **Creado**: 2026-09-25
 
 ---
@@ -12,16 +12,16 @@
 
 Como Recepcionista, quiero consultar el listado de reservas del día o buscar reservas mediante criterios acordados con Módulo 2 (código de reserva, o alternativamente por documento o nombre del titular), para obtener y verificar oportunamente los datos contractuales y el estado de la unidad en el flujo de Check-In.
 
-**Por qué esta prioridad**: Es el punto de partida indispensable en la validación inicial de Check-In (reservas en estado `ACTIVE` con fecha de inicio hoy). Permite localizar la estancia en Módulo 2, verificar el estado del contrato (`ACTIVE`) y contrastarlo con el estado físico de la habitación asignada en Módulo 1 (`Reserved`). Las salidas (Check-Out) no requieren consultar a Módulo 2, pues se gestionan a partir de la información persistida localmente en Módulo 1 (`Stay` + `Room` + `RoomGuest`).
+**Por qué esta prioridad**: Es el punto de partida indispensable en la validación inicial de Check-In (reservas en estado `ACTIVE` con fecha de inicio hoy). Permite localizar la estancia en Módulo 2, verificar el estado del contrato (`ACTIVE`) y contrastarlo con el estado físico de la habitación asignada en Módulo 1 (`Reserved`). Las salidas (Check-Out) no requieren consultar a Módulo 2, pues se gestionan a partir de la información persistida localmente en Módulo 1 (`Stay` + `Room` + `RoomGuest`). Conforme al acuerdo B14, el listado de llegadas del día se recibe por cola asíncrona (`DailyReservationList`) a las 00:00; la búsqueda puntual por código, documento o nombre continúa siendo una consulta REST GET reactiva a Módulo 2.
 
 **Prueba Independiente**: Se prueba invocando la consulta desde el listado general de Llegadas de hoy (reservas en estado `ACTIVE` con `startDate = hoy`) o mediante la barra de búsqueda de Check-In, comprobando que el sistema consulta síncronamente a Módulo 2 y suministra: código de reserva (`reservationRef`), datos del huésped titular (`fullName`, `documentType`, `documentNumber`, `nationality`), cantidad de huéspedes contratada (`guestCount`), fechas de estadía (solo fechas: `startDate`, `endDate` y número de noches), canal de origen (`source`: "Directo" u "OTA"), estado de la reserva (`status`: `ACTIVE`), y la habitación asignada con su estado físico actual en Módulo 1.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Búsqueda o selección exitosa de reserva para Check-In (Happy Path Check-In)
+1. **Escenario**: Listado de llegadas del día cargado desde la cola (Happy Path Check-In)
    - **Dado** una reserva en Módulo 2 en estado "ACTIVE" cuya fecha de inicio coincide con la fecha de hoy, con habitación asignada en estado físico "Reserved" en Módulo 1
-   - **Cuando** el Recepcionista localiza la reserva desde el listado de Llegadas del día (que presenta habitación, huésped, estadía en noches, cantidad de personas de la reserva, tipo de habitación y canal) o mediante la barra de búsqueda (por nombre del titular, documento de identidad o código de reserva `reservationRef`)
-   - **Entonces** el sistema consulta síncronamente a Módulo 2 mediante REST GET y presenta la información de la estadía mostrando: habitación asignada (número, tipo y estado actual "Reserved"), huésped titular (nombre y documento), estadía (rango de fechas y noches, sin horas), número de huéspedes de la reserva (`guestCount`), canal de origen ("Directo" u "OTA") y estado en Módulo 2 ("Activa" / `ACTIVE`), habilitando continuar con el Check-In sin desplegar avisos o banners eliminados.
+   - **Cuando** el Recepcionista abre el panel al inicio de la jornada (la `DailyReservationList` fue recibida por cola a las 00:00, acuerdo B14)
+   - **Entonces** el sistema muestra en la pestaña Llegadas el listado con las reservas `ACTIVE` con `startDate = hoy` recibidas por cola, mostrando en columnas: habitación asignada (número, tipo y estado actual "Reserved"), huésped titular (nombre y documento), estadía (rango de fechas y noches, sin horas), número de huéspedes de la reserva (`guestCount`), canal de origen ("Directo" u "OTA") y estado en Módulo 2 ("Activa" / `ACTIVE`), habilitando continuar con el Check-In.
 
 2. **Escenario**: Búsqueda para Check-In por número de identificación del titular
    - **Dado** una reserva en Módulo 2 en estado "ACTIVE" con fecha de inicio hoy asociada a un titular con documento "10203040"
@@ -75,10 +75,10 @@ Como Recepcionista, quiero que el sistema me obligue a seleccionar la reserva ad
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE operar como un caso de uso de consulta incluido (`<<includes>>`) tanto por el **Panel de Recepción** (`spec-consultar-panel-recepcion.md`, buscador de Llegadas) como por "Registrar Check-In" (paso 1: Validar reserva), encapsulando la integración de consulta con Módulo 2. El proceso de Check-Out NO invoca este caso de uso externo, ya que se alimenta exclusivamente de la información local persistida en Módulo 1 (`Stay` + `Room` + `RoomGuest`).
-- **FR-002**: Conforme al contrato de interfaces con Módulo 2 (`mod-1-2-3.drawio`), el sistema DEBE consultar de forma reactiva mediante una petición sincrónica REST GET a Módulo 2 las reservas requeridas durante el Check-In, sin alterar ningún dato en el módulo destino y esperando respuesta inmediata.
+- **FR-002**: Conforme al acuerdo B14, el listado de Llegadas del Panel de Recepción se nutre de la `DailyReservationList` recibida por cola asíncrona a las 00:00 (hora Colombia UTC-5), **no** del endpoint `GET /api/reservations` de Módulo 2. La búsqueda puntual por código de reserva (`reservationRef`), documento o nombre del titular sí realiza una petición REST GET reactiva a Módulo 2 sin alterar ningún dato en el módulo destino.
 - **FR-003**: El sistema DEBE proveer los siguientes mecanismos de consulta y búsqueda para el flujo de Check-In acordados con Módulo 2, accesibles desde el **buscador de Llegadas del Panel de Recepción** (`spec-consultar-panel-recepcion.md`):
-  1. *Listado general de Llegadas*: reservas en estado `ACTIVE` con fecha de inicio igual a la fecha actual (`startDate = hoy`), visualizando en columnas: habitación, huésped titular, estadía en noches, cantidad de personas de la reserva, tipo de habitación, canal de origen y botón de acción "Check-in".
-  2. *Búsqueda en el buscador de Llegadas*: búsqueda por nombre del huésped titular (`ACTIVE` + fecha de inicio hoy), por documento del titular (`ACTIVE` + fecha de inicio hoy), o por código de reserva (`reservationRef`).
+  1. *Listado general de Llegadas* (fuente: cola `DailyReservationList`, acuerdo B14): el panel presenta las reservas `ACTIVE` con `startDate = hoy` recibidas por cola a las 00:00. Las actualizaciones del día (`DailyReservationUpdate`) se aplican en tiempo real al listado local. El listado muestra en columnas: habitación, huésped titular, estadía en noches, cantidad de personas de la reserva, tipo de habitación, canal de origen y botón de acción "Check-in".
+  2. *Búsqueda en el buscador de Llegadas* (fuente: REST GET a Módulo 2): búsqueda por nombre del huésped titular, documento del titular o código de reserva (`reservationRef`). Aplica sobre la lista del día con filtros `ACTIVE` + `startDate = hoy`, salvo búsqueda por código exacto que puede retornar cualquier estado.
 - **FR-004**: El sistema DEBE recibir desde Módulo 2 la siguiente estructura contractual (`ReservationSummary`):
   - Código de reserva (`reservationRef`)
   - Datos del huésped titular (`guestRef`, `fullName`, `documentType`, `documentNumber`, `nationality`)

@@ -48,7 +48,7 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 1. **Escenario**: Detección de nacionalidad extranjera y despliegue de aviso SIRE
    - **Dado** una reserva donde se registra para cualquiera de los ocupantes una nacionalidad distinta de Colombia
    - **Cuando** el Recepcionista selecciona dicha nacionalidad en la lista desplegable
-   - **Entonces** el sistema despliega de inmediato en pantalla la alerta informativa indicando que los datos migratorios se enviarán automáticamente a Módulo 2 para validación migratoria (SIRE), y activa la extensión "Enviar datos de huéspedes extranjeros" (`<<extend>>`) para asociar automáticamente el tipo de movimiento ("ENTRADA") y la fecha (`checkInDate`) al confirmar el Check-In.
+   - **Entonces** el sistema despliega de inmediato en pantalla la alerta informativa indicando que los datos migratorios se enviarán automáticamente a Módulo 2 para validación migratoria (SIRE), habilita los campos adicionales `originPlace` (procedencia) y `destinationPlace` (destino) requeridos por el SIRE (acuerdo B15) para ese ocupante, y activa la extensión "Enviar datos de huéspedes extranjeros" (`<<extend>>`) para asociar automáticamente el tipo de movimiento (`ENTRY`) y la fecha (`checkInDate`) al confirmar el Check-In.
 
 2. **Escenario**: Bloqueo por discrepancia con la cantidad de huéspedes registrada en la reserva (`guestCount`)
    - **Dado** una reserva con `guestCount = 2`
@@ -82,16 +82,21 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 
 - **FR-001**: El sistema DEBE operar como un caso de uso interno incluido obligatoriamente (`<<includes>>`) por "Registrar Check-In", ejecutándose durante la etapa de captura de ocupantes.
 - **FR-002**: El sistema DEBE recibir la reserva validada y la habitación asignada desde "Consultar reservas", precargando los datos del Huésped Titular a partir de `guestRef` y marcándolo internamente con `isReservationGuest = true`.
-- **FR-003**: El sistema DEBE capturar exactamente los mismos 4 campos obligatorios tanto para el Huésped Titular como para los acompañantes (sin exigir campos adicionales a extranjeros):
+- **FR-003**: El sistema DEBE capturar exactamente los mismos 4 campos obligatorios tanto para el Huésped Titular como para los acompañantes:
   1. Nombre completo
   2. Tipo de documento
   3. Número de documento
   4. Nacionalidad (seleccionada desde un catálogo general de países)
+
+  Para ocupantes con nacionalidad distinta de Colombia, el formulario DEBE habilitar además los dos campos adicionales exigidos por el SIRE (acuerdo B15):
+  5. Procedencia (`originPlace`)
+  6. Destino (`destinationPlace`)
 - **FR-004**: Los datos del Huésped Titular DEBEN permanecer fijos, en modo de solo lectura (incluyendo la lista desplegable de nacionalidad deshabilitada) y sin ícono de eliminar, permitiendo al Recepcionista únicamente registrar, modificar o remover a los acompañantes.
 - **FR-005**: El sistema DEBE validar de forma obligatoria que la cantidad total de personas registradas (titular más acompañantes) coincida exactamente con la cantidad de huéspedes registrada en la reserva (`guestCount`), y no exceda la capacidad máxima (`maxCapacity`) de la habitación asignada. Al alcanzar la capacidad máxima de la habitación, el sistema DEBE deshabilitar el botón "+ Agregar huésped" y presentar la nota informativa "Se alcanzó la capacidad máxima de la habitación (N personas)". Si la cantidad de personas registradas difiere de `guestCount`, el sistema DEBE bloquear la confirmación e informar la discrepancia al Recepcionista.
 - **FR-006**: Si la nacionalidad de cualquiera de los ocupantes es distinta de Colombia (`nationality !== 'Colombia'`), el sistema DEBE:
   1. Mostrar de inmediato la alerta visual informativa indicando que los datos migratorios se enviarán automáticamente a Módulo 2 (SIRE). Si la nacionalidad es Colombia, dicha alerta NO debe mostrarse.
-  2. Activar la extensión al caso de uso "Enviar datos de huéspedes extranjeros" (`<<extend>>`).
+  2. Habilitar en el formulario los campos `originPlace` (procedencia) y `destinationPlace` (destino) para ese ocupante, requeridos por el SIRE (acuerdo B15). Estos dos campos son obligatorios para extranjeros; el sistema DEBE validar que no estén vacíos antes de permitir avanzar.
+  3. Activar la extensión al caso de uso "Enviar datos de huéspedes extranjeros" (`<<extend>>`).
 - **FR-007**: El sistema NO DEBE solicitar al Recepcionista parámetros de control migratorio como tipo de movimiento ni fecha de movimiento, delegando su asignación automática al caso de uso extendido.
 - **FR-008**: Al completar la validación de los datos ingresados, el sistema DEBE persistir a los ocupantes como registros inmutables `RoomGuest` vinculados a la `Estancia`, almacenando obligatoriamente el atributo `isReservationGuest` (`true` para el titular y `false` para los acompañantes).
 - **FR-009**: Este caso de uso NO DEBE validar fechas de estadía, vigencia contractual de la reserva ni liquidaciones financieras, responsabilidades delegadas en otros pasos del flujo de Check-In.
@@ -101,6 +106,7 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `fullName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
+- **ForeignGuestData**: Estructura efímera de control migratorio con los diez campos exigidos por el SIRE (acuerdo B15). Los campos `originPlace` y `destinationPlace` se capturan en este caso de uso; `movementType` (`ENTRY`) y `movementDate` (`checkInDate`) los asigna automáticamente el caso de uso "Enviar datos de huéspedes extranjeros".
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
 - **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: "Directo" u "OTA"), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **Receptionist**: Actor de recepcionista que opera el flujo de recepción, consultas, registro de check-in y registro de check-out en el hotel.
