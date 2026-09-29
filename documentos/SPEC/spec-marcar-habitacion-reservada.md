@@ -1,8 +1,8 @@
 # Especificación de Funcionalidad: Marcar Habitación como Reservada
 
-**Creado**: 2026-09-21  
-**Módulo Propietario**: Módulo 1 — Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out  
-**Actor Principal**: Módulo 2 (Actor externo / Sistema)  
+**Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
+**Actor principal**: Módulo 2 (sistema externo)
+**Creado**: 2026-09-21
 
 ---
 
@@ -10,9 +10,9 @@
 
 ### Descripción del problema
 
-En la operación integrada del hotel, el **Módulo 1** es el responsable exclusivo de digitalizar y custodiar el estado físico de las unidades habitacionales (`Room`), mientras que el **Módulo 2** administra el ciclo de vida de las reservas de los huéspedes. Cuando se concreta una reserva con asignación de unidad habitacional, el hotel necesita salvaguardar dicha habitación para evitar que sea ofrecida a clientes sin reserva previa (walk-in) en recepción o intervenida por tareas preventivas no urgentes.
+En la operación integrada del hotel, el **Módulo 1** es el responsable exclusivo de digitalizar y custodiar el estado físico de las unidades habitacionales (`Room`), mientras que el **Módulo 2** administra el ciclo de vida de las reservas de los huéspedes. Cuando se concreta una reserva con asignación de unidad habitacional, el hotel necesita salvaguardar dicha habitación para evitar que sea asignada a otra estancia o intervenida por tareas preventivas no urgentes.
 
-Para dar respuesta a esta necesidad sin acoplamientos innecesarios ni consultas continuas, la arquitectura del sistema incorpora el estado **`Reserved`** como el 8vo estado oficial del ciclo de vida de `Room`, gobernado por el caso de uso **"Marcar habitación como reservada"**.
+Para dar respuesta a esta necesidad sin acoplamientos innecesarios ni consultas continuas, la arquitectura del sistema incorpora el estado **`Reserved`** como uno de los 8 estados oficiales del ciclo de vida de `Room`, gobernado por el caso de uso **"Marcar habitación como reservada"**.
 
 Este caso de uso posee una **naturaleza especial y 100% reactiva**:
 1. **Disparador e integración**: No es iniciado por ningún actor humano (ni Recepcionista ni Administrador). Su único disparador es un **evento asíncrono emitido por el Módulo 2** cuando corresponde marcar una habitación como reservada.
@@ -25,11 +25,12 @@ Este caso de uso posee una **naturaleza especial y 100% reactiva**:
 
 ### Flujo de Integración de Alto Nivel
 
-1. El sistema externo **Módulo 2** emite un evento asíncrono hacia Módulo 1 conteniendo el identificador de la habitación (`habitationId`), la referencia de la reserva (`reservationRef`) y la marca de tiempo de la reserva.
+1. El sistema externo **Módulo 2** emite un evento asíncrono hacia Módulo 1 **12 horas antes del `startDate`** de la reserva, conteniendo el identificador de la habitación (`roomId`), la referencia de la reserva (`reservationRef`) y la marca de tiempo del evento.
 2. El Módulo 1 recibe el evento y valida la estructura de los datos requeridos.
 3. El Módulo 1 consulta el estado actual de la habitación en su inventario físico:
    - **Camino Exitoso (`Room.status == Available`)**: Módulo 1 transiciona de forma síncrona y atómica el estado de la habitación de `Available` a **`Reserved`**, vincula la `reservationRef` y genera un registro de auditoría de cambio de estado.
-   - **Camino Idempotente (`Room.status == Reserved`)**: Si la habitación ya está en `Reserved` para la misma reserva, Módulo 1 confirma la recepción sin aplicar una nueva transición ni duplicar registros de historial.
+   - **Camino Idempotente (`Room.status == Reserved` con la misma `reservationRef`)**: Si la habitación ya está en `Reserved` para la misma reserva, Módulo 1 confirma la recepción sin aplicar una nueva transición ni duplicar registros de historial.
+   - **Camino de Conflicto por otra reserva (`Room.status == Reserved` con distinta `reservationRef`)**: Si la habitación ya está en `Reserved` para una reserva diferente, Módulo 1 **no modifica** el estado ni la reserva vinculada y persiste un registro de conflicto (`RESERVATION_STATE_CONFLICT`) en la bitácora de auditoría.
    - **Camino de Conflicto (`Room.status != Available` y `!= Reserved`)**: Si la habitación se encuentra en cualquier otro estado (`Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock`, `Inactive`), Módulo 1 **no modifica** el estado de la habitación y persiste inmediatamente un registro de conflicto (`RESERVATION_STATE_CONFLICT`) en la bitácora de auditoría con todos los detalles contextuales.
 
 ---
@@ -42,7 +43,7 @@ Como **Módulo 1**, quiero recibir y procesar el evento de reserva emitido por M
 
 **Por qué esta prioridad**: Es la base del control de aforo e inventario entre reservas y cuartos físicos. Garantiza que las unidades asignadas queden identificadas como `Reserved` en tiempo real de forma reactiva y atómica, sin requerir intervención manual ni sobrecargar la arquitectura con consultas síncronas periódicas (polling).
 
-**Prueba Independiente**: Puede probarse de forma aislada simulando la emisión de un evento desde Módulo 2 con el `habitationId` de una habitación en estado `Available` y una referencia de reserva válida. Se comprueba que la habitación cambia atómicamente su estado a `Reserved`, se asocia la referencia de reserva y queda registrada en el inventario general con su trazabilidad de auditoría.
+**Prueba Independiente**: Puede probarse de forma aislada simulando la emisión de un evento desde Módulo 2 con el `roomId` de una habitación en estado `Available` y una referencia de reserva válida. Se comprueba que la habitación cambia atómicamente su estado a `Reserved`, se asocia la referencia de reserva y queda registrada en el inventario general con su trazabilidad de auditoría.
 
 **Escenarios de Aceptación**:
 
@@ -50,15 +51,10 @@ Como **Módulo 1**, quiero recibir y procesar el evento de reserva emitido por M
 
 1. **Escenario**: Transición exitosa de Available a Reserved ante evento de Módulo 2
    - **Dado** que existe una habitación registrada en Módulo 1 en estado físico `Available`
-   - **Cuando** el Módulo 2 emite y entrega a Módulo 1 el evento de asignación de reserva con el `habitationId` y la referencia `reservationRef`
+   - **Cuando** el Módulo 2 emite y entrega a Módulo 1 el evento de asignación de reserva con el `roomId` y la referencia `reservationRef`
    - **Entonces** el sistema actualiza de forma atómica el estado de la habitación a `Reserved`, asocia la `reservationRef` para trazabilidad y registra el cambio de estado en la bitácora de auditoría
 
-2. **Escenario**: Reflejo inmediato del estado Reserved en la consulta de inventario
-   - **Dado** que una habitación ha transicionado a `Reserved` tras procesar el evento de Módulo 2
-   - **Cuando** el Administrador o el Recepcionista consulta el inventario operativo de habitaciones
-   - **Entonces** la habitación refleja de inmediato el estado `Reserved`, indicando la referencia de la reserva asociada
-
-3. **Escenario**: Habitación en estado Reserved es apta para Check-In
+2. **Escenario**: Habitación en estado Reserved es apta para Check-In
    - **Dado** una habitación que se encuentra en estado físico `Reserved` vinculada a una reserva activa
    - **Cuando** el Recepcionista inicia el proceso de Check-In formal en Módulo 1
    - **Entonces** el sistema autoriza la admisión física reconociendo `Reserved` como un estado precondición válido para transicionar hacia `Occupied`
@@ -69,7 +65,7 @@ Como **Módulo 1**, quiero recibir y procesar el evento de reserva emitido por M
 
 Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reintentos de red y registrar los conflictos de estado sin sobrescribir la situación física real de la habitación, para garantizar la consistencia de la máquina de estados y permitir la trazabilidad operativa.
 
-**Por qué esta prioridad**: En arquitecturas distribuidas y orientadas a eventos, las entregas duplicadas son habituales y los descalces de tiempo pueden generar colisiones (por ejemplo, una habitación ocupada por un walk-in antes de procesar el evento). Garantizar la idempotencia evita corrupciones en el historial, y rechazar la sobreescritura protege la verdad física de lo que ocurre en el hotel.
+**Por qué esta prioridad**: En arquitecturas distribuidas y orientadas a eventos, las entregas duplicadas son habituales y los descalces de tiempo pueden generar colisiones (por ejemplo, una habitación que sigue ocupada por una estancia anterior cuando llega el evento). Garantizar la idempotencia evita corrupciones en el historial, y rechazar la sobreescritura protege la verdad física de lo que ocurre en el hotel.
 
 **Prueba Independiente**: Se prueba enviando dos veces consecutivas el mismo evento de reserva para verificar idempotencia sin errores, y enviando eventos de reserva hacia habitaciones en cada uno de los otros estados operativos (`Occupied`, `InCleaning`, `TechnicalBlock`, etc.), verificando que el estado físico no se modifique y que se genere un registro explícito de conflicto en auditoría.
 
@@ -77,23 +73,28 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
 
 *Escenarios de Idempotencia y Manejo de Conflictos*
 
-4. **Escenario**: Procesamiento idempotente ante evento duplicado de Módulo 2
+3. **Escenario**: Procesamiento idempotente ante evento duplicado de Módulo 2
    - **Dado** una habitación que ya se encuentra en estado `Reserved` vinculada a la reserva "RES-101"
    - **Cuando** Módulo 2 reenvía el mismo evento de reserva para la misma habitación y reserva "RES-101"
    - **Entonces** el sistema detecta que la habitación ya se encuentra en estado `Reserved` para esa reserva, no aplica una nueva transición, no altera el inventario y confirma el procesamiento satisfactorio sin duplicar registros en la bitácora
 
-5. **Escenario**: Conflicto de estado por habitación físicamente ocupada
+4. **Escenario**: Conflicto de estado por habitación físicamente ocupada
    - **Dado** una habitación que se encuentra en estado físico `Occupied`
    - **Cuando** Módulo 1 recibe un evento de Módulo 2 solicitando marcar dicha habitación como reservada
-   - **Entonces** el sistema **no sobrescribe** el estado `Occupied`, rechaza la transición y persiste un registro de conflicto de tipo `RESERVATION_STATE_CONFLICT` en la bitácora de auditoría detallando el `habitationId`, el estado real `Occupied` y la `reservationRef` entrante
+   - **Entonces** el sistema **no sobrescribe** el estado `Occupied`, rechaza la transición y persiste un registro de conflicto de tipo `RESERVATION_STATE_CONFLICT` en la bitácora de auditoría detallando el `roomId`, el estado real `Occupied` y la `reservationRef` entrante
 
-6. **Escenario**: Conflicto de estado por habitación en ciclo de aseo o mantenimiento
-   - **Dado** una habitación en estado operativo `PendingCleaning`, `InCleaning`, `DisabledForRepairs` o `TechnicalBlock`
+5. **Escenario**: Conflicto de estado por habitación en ciclo de aseo, mantenimiento o dada de baja
+   - **Dado** una habitación en estado operativo `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive`
    - **Cuando** Módulo 1 recibe un evento de Módulo 2 para marcarla como reservada
    - **Entonces** el sistema preserva el estado físico operativo actual, no altera la habitación a `Reserved` y registra el conflicto en la auditoría para análisis operativo
 
+6. **Escenario**: Conflicto por habitación ya reservada para otra reserva
+   - **Dado** una habitación que ya se encuentra en estado `Reserved` vinculada a la reserva "RES-101"
+   - **Cuando** Módulo 1 recibe un evento de Módulo 2 para marcarla como reservada con la reserva "RES-202"
+   - **Entonces** el sistema no cambia el estado ni la reserva vinculada ("RES-101") y registra un conflicto `RESERVATION_STATE_CONFLICT` en la bitácora de auditoría con ambas referencias
+
 7. **Escenario**: Rechazo de evento con identificador de habitación inexistente
-   - **Dado** un evento emitido por Módulo 2 cuyo `habitationId` no corresponde a ninguna habitación registrada en el catálogo de Módulo 1
+   - **Dado** un evento emitido por Módulo 2 cuyo `roomId` no corresponde a ninguna habitación registrada en el catálogo de Módulo 1
    - **Cuando** Módulo 1 intenta procesar el evento
    - **Entonces** el sistema rechaza la operación, no altera ninguna entidad y registra una advertencia de recurso no encontrado en el registro del sistema
 
@@ -102,9 +103,9 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
 ### Casos Borde
 
 - **Idempotencia ante reenvío de eventos por fallas de transporte**: Si la capa de mensajería o Módulo 2 reintenta la entrega de un evento debido a un retraso de confirmación previa, Módulo 1 valida si la habitación ya posee el estado `Reserved` con la misma `reservationRef`. En caso afirmativo, la operación se da por completada con éxito sin realizar escrituras redundantes ni disparar nuevos eventos en el historial de estados.
-- **Colisión de estado con ocupación previa (Walk-in o mantenimiento)**: Si la habitación asignada en Módulo 2 se encuentra en `Occupied`, `TechnicalBlock` o `DisabledForRepairs`, Módulo 1 respeta la realidad física del hotel y no permite que un evento lógico de reserva altere dicho estado. El conflicto se registra de forma obligatoria en la bitácora de auditoría (`RESERVATION_STATE_CONFLICT`) con fecha, hora, estado actual y referencia de reserva, impidiendo el descarte silencioso del incidente.
+- **Colisión de estado con ocupación previa, mantenimiento o baja**: Si la habitación asignada en Módulo 2 se encuentra en `Occupied`, `TechnicalBlock`, `DisabledForRepairs` o `Inactive`, Módulo 1 respeta la realidad física del hotel y no permite que un evento lógico de reserva altere dicho estado. El conflicto se registra de forma obligatoria en la bitácora de auditoría (`RESERVATION_STATE_CONFLICT`) con fecha, hora, estado actual y referencia de reserva, impidiendo el descarte silencioso del incidente.
 - **Llegada de eventos concurrentes para la misma habitación**: Si ingresan simultáneamente dos eventos intentando reservar la misma habitación, el bloqueo transaccional a nivel de persistencia garantiza que solo el primero que valide la precondición `Available` ejecutará la transición a `Reserved`; el segundo detectará el nuevo estado y será tratado bajo las reglas de idempotencia o conflicto según corresponda.
-- **Momento exacto del disparo del evento por Módulo 2**: **[TBD — Responsabilidad y política de Módulo 2]**. Actualmente se encuentra pendiente de definición si el Módulo 2 emitirá el evento inmediatamente al confirmar la reserva o de forma diferida al comenzar la fecha de la estancia (por ejemplo, a las 00:00 del día pactado de llegada). El Módulo 1 se mantiene agnóstico respecto a esta definición y procesará el evento en el momento exacto en que sea recibido.
+- **Momento exacto del disparo del evento por Módulo 2**: Módulo 2 emite el evento 12 horas antes del `startDate` de la reserva. Hasta ese momento la habitación permanece en `Available` y puede pasar por limpieza, mantenimiento o bloqueo técnico. Módulo 1 procesa el evento en el momento exacto en que lo recibe; si llega con retraso, se aplican igualmente las reglas de precondición, idempotencia y conflicto.
 - **Interrupción de conectividad o falla de persistencia**: Si ocurre una falla en el motor de base de datos durante la actualización, la transacción se cancela atómicamente (rollback), garantizando que la habitación permanezca en su estado original sin inconsistencias intermedias.
 
 ---
@@ -115,15 +116,15 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
 
 - **FR-001**: Naturaleza reactiva y actor: El caso de uso DEBE ser iniciado y ejecutado exclusivamente ante la recepción de un evento asíncrono emitido por el actor **Módulo 2 (actor externo / sistema)**. Ningún actor humano (Recepcionista, Personal de mantenimiento o Administrador) podrá invocar este caso de uso de manera directa o manual.
 - **FR-002**: Ausencia de polling: El sistema **NO DEBE** implementar mecanismos de sondeo continuo o periódico (polling) hacia el Módulo 2 para consultar habitaciones por reservar; el flujo DEBE ser 100% dirigido por eventos entrantes.
-- **FR-003**: Datos requeridos del evento: El sistema DEBE validar que el evento recibido desde Módulo 2 contenga obligatoriamente: identificador de la habitación (`habitationId`), referencia única de la reserva (`reservationRef`) y la marca de tiempo de emisión del evento (`timestamp`).
+- **FR-003**: Datos requeridos del evento: El sistema DEBE validar que el evento recibido desde Módulo 2 contenga obligatoriamente: identificador de la habitación (`roomId`), referencia única de la reserva (`reservationRef`) y la marca de tiempo de emisión del evento (`timestamp`).
 - **FR-004**: Precondición física obligatoria: El sistema DEBE validar que la habitación se encuentre estrictamente en estado **`Available`** dentro del catálogo de 8 estados de Módulo 1 antes de autorizar la transición.
-- **FR-005**: Transición atómica de estado: Al cumplirse la precondición, el sistema DEBE actualizar de forma atómica y síncrona el atributo `Room.stateHabitation` de `Available` a **`Reserved`**, asociando la `reservationRef` para efectos de trazabilidad.
+- **FR-005**: Transición atómica de estado: Al cumplirse la precondición, el sistema DEBE actualizar de forma atómica y síncrona el atributo `Room.status` de `Available` a **`Reserved`**, asociando la `reservationRef` para efectos de trazabilidad.
 - **FR-006**: Comportamiento idempotente: Si el sistema recibe un evento para una habitación que ya se encuentra en estado `Reserved` asociada a la misma `reservationRef`, DEBE procesar la solicitud como exitosa sin modificar el estado de la habitación, sin provocar errores y sin generar registros duplicados en el historial de transiciones.
-- **FR-007**: Rechazo ante estados no aptos: Si la habitación se encuentra en cualquiera de los otros 6 estados operativos (`Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive`), el sistema **NO DEBE** sobrescribir ni modificar el estado físico actual de la habitación.
-- **FR-008**: Registro obligatorio de conflicto: Ante el rechazo previsto en FR-007, el sistema DEBE generar y persistir de inmediato un registro de auditoría de tipo `RESERVATION_STATE_CONFLICT` con el `habitationId`, el estado operativo actual de la habitación, la `reservationRef` involucrada y la marca de tiempo, garantizando que el conflicto no sea descartado en silencio.
+- **FR-007**: Rechazo ante estados no aptos: Si la habitación se encuentra en cualquiera de los otros 6 estados operativos (`Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive`), o en estado `Reserved` asociada a una `reservationRef` distinta a la del evento, el sistema **NO DEBE** sobrescribir ni modificar el estado físico actual de la habitación ni la reserva vinculada.
+- **FR-008**: Registro obligatorio de conflicto: Ante el rechazo previsto en FR-007, el sistema DEBE generar y persistir de inmediato un registro de auditoría de tipo `RESERVATION_STATE_CONFLICT` con el `roomId`, el estado operativo actual de la habitación, la `reservationRef` entrante, la `reservationRef` ya vinculada (cuando la habitación esté en `Reserved`) y la marca de tiempo, garantizando que el conflicto no sea descartado en silencio.
 - **FR-009**: Prohibición de asignación manual: El estado `Reserved` **NO DEBE** ser seleccionable ni asignable manualmente desde los casos de uso "Registrar habitación", "Editar habitación", "Marcar habitación como disponible" ni "Confirmar fin de limpieza".
 - **FR-010**: Habilitación para Check-In: Toda habitación que se encuentre en estado `Reserved` DEBE ser reconocida por el caso de uso "Registrar Check-In" como un estado de origen válido para completar la admisión física y transicionar hacia `Occupied`.
-- **FR-011**: Auditoría de transición: El sistema DEBE registrar en la bitácora de auditoría cada transición exitosa a `Reserved`, incluyendo el `habitationId`, el estado previo (`Available`), el estado resultante (`Reserved`), la `reservationRef` y la marca de tiempo exacta.
+- **FR-011**: Auditoría de transición: El sistema DEBE registrar en `RoomStateHistory` cada transición exitosa a `Reserved`, incluyendo el `roomId`, el estado previo (`Available`), el estado resultante (`Reserved`), la `reservationRef` y la marca de tiempo exacta.
 
 ### Requisitos No Funcionales
 
@@ -135,13 +136,14 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room / Habitation**: Entidad que representa la unidad física de hospedaje gestionada centralmente por el Módulo 1.
-  - *Atributos clave*: `habitationId` (UUID), `numberHabitation`, `floorWing`, `categoryHabitation`, `maxCapacity`, `baseRate`, `stateHabitation`, y `currentReservationRef` (referencia externa de reserva asociada).
+- **Room**: Entidad que representa la unidad física de hospedaje gestionada centralmente por el Módulo 1.
+  - *Atributos clave*: `roomId` (UUID), número de habitación, piso, tipo, capacidad máxima (`maxCapacity`), tarifa base, `status` y `currentReservationRef` (referencia externa de reserva asociada).
   - *Catálogo oficial (8 estados vigentes)*: `Available`, `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock`, `Inactive`.
   - *Comportamiento en este caso de uso*: Transiciona exclusivamente de `Available` a `Reserved`.
 - **Module2 (Actor Externo / Sistema)**: Módulo de Reservas y Cumplimiento Legal que actúa como emisor asíncrono del evento de asignación de habitación.
 - **Reservation (Referencia Externa de Módulo 2)**: Entidad de reserva externa consumida solo por referencia (`reservationRef`) para vincular el compromiso comercial a la unidad física.
-- **RoomStateAudit**: Bitácora de auditoría del inventario. Registra las transiciones exitosas a `Reserved` y los eventos de discrepancia operativa (`RESERVATION_STATE_CONFLICT`).
+- **RoomStateHistory**: Historial común de transiciones de estado definido en documentos/SPEC/referencias/maquina-estados-habitacion.md. Registra cada transición exitosa `Available → Reserved`.
+- **Bitácora de auditoría**: Registra los eventos de discrepancia operativa (`RESERVATION_STATE_CONFLICT`), que no generan transición.
 
 ---
 
@@ -152,5 +154,5 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
 - **SC-001**: El 100% de los eventos válidos de Módulo 2 recibidos para habitaciones en estado `Available` transicionan la habitación a `Reserved` en menos de 200 milisegundos.
 - **SC-002**: El 100% de los eventos duplicados recibidos para habitaciones ya en estado `Reserved` son procesados de forma idempotente sin arrojar errores ni duplicar transiciones.
 - **SC-003**: Cero sobreescrituras indebidas de habitaciones en estados físicos `Occupied`, `InCleaning`, `TechnicalBlock`, `DisabledForRepairs`, `PendingCleaning` o `Inactive` ante eventos de reserva.
-- **SC-004**: El 100% de los conflictos de estado quedan persistidos en la bitácora de auditoría con identificación de habitación, estado físico actual y referencia de reserva.
+- **SC-004**: El 100% de los conflictos de estado, incluidos los eventos para habitaciones ya reservadas con otra reserva, quedan persistidos en la bitácora de auditoría con identificación de habitación, estado físico actual y referencia de reserva.
 - **SC-005**: Cero habitaciones registradas o editadas manualmente en estado `Reserved` mediante formularios de usuario.
