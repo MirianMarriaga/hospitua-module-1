@@ -96,7 +96,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE operar como un caso de uso interno incluido obligatoriamente (`<<includes>>`) por el caso de uso "Registrar Check-Out", durante la fase de liquidación de la estadía.
-- **FR-002**: Conforme al contrato de interfaces con Módulo 3 (`mod-1-2-3.drawio`: "Consultar liquidación: REST · GET · Reactivo"), durante el Check-Out el sistema DEBE consultar de forma reactiva mediante una petición sincrónica REST GET a Módulo 3 la liquidación de la estadía (`SettlementRequest`), esperando respuesta inmediata con los siguientes parámetros:
+- **FR-002**: Conforme al contrato de interfaces con Módulo 3: "Consultar liquidación: REST · GET · Reactivo", durante el Check-Out el sistema DEBE consultar de forma reactiva mediante una petición sincrónica REST GET a Módulo 3 la liquidación de la estadía (`SettlementRequest`), esperando respuesta inmediata con los siguientes parámetros:
   - Referencia de reserva (`reservationRef`)
   - Tipo de evento (`CHECK_OUT`)
   - Fechas contratadas de estadía (`startDate`, `endDate`) obtenidas de `Stay`
