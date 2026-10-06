@@ -118,41 +118,46 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 - **FR-001**: El sistema DEBE mostrar al Recepcionista autenticado la pantalla de inicio de jornada compuesta por: encabezado corporativo con nombre del sistema ("Hotel Hospitua · Recepción") y chip de sesión del usuario en turno (nombre y rol), saludo personalizado con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", espacio institucional para imagen del hotel, cuatro tarjetas de indicadores operativos (KPIs), y un panel de trabajo con pestañas de Llegadas y Salidas.
 
 - **FR-002**: El sistema DEBE calcular y mostrar los siguientes cuatro indicadores operativos locales al cargar la pantalla:
-  1. **Llegadas de hoy**: total de habitaciones de la lista del día (`daily_reservation_room`) para las cuales aún no se ha creado una estancia física (`Stay`).
+  1. **Llegadas de hoy**: total de reservas del día en la copia local pendientes de Check-In (calculado localmente a partir de `daily_reservation` y sus habitaciones sin `Stay`).
   2. **Salidas de hoy**: total de estancias activas locales (`Stay`) con `expectedCheckoutTime` igual a la fecha actual.
   3. **Salidas vencidas**: total de estancias activas locales (`Stay`) con `expectedCheckoutTime` anterior a la fecha actual. Este KPI DEBE mostrarse con color de alerta diferenciado.
   4. **Habitaciones ocupadas**: total de habitaciones en estado `Occupied` en el inventario de Módulo 1.
 
 - **FR-003**: El sistema DEBE disponer de un **buscador independiente en la pestaña Llegadas** para localizar reservas antes de iniciar el proceso de Check-In. Este buscador:
-  - Opera **exclusivamente sobre la copia local de la lista del día** (`daily_reservation` y `daily_reservation_room`) sin realizar consultas REST GET a Módulo 2.
+  - Opera **exclusivamente sobre la copia local de la lista del día** (`daily_reservation` y `daily_reservation_room`) sin realizar consultas REST a Módulo 2.
   - Admite búsqueda por nombre o apellido del titular, número de documento e identificador de reserva (`reservationRef`).
   - Filtra en tiempo real la tabla de Llegadas.
-  - Muestra el listado por defecto con todas las habitaciones de reservas activas con llegada hoy que no cuenten con Check-In realizado.
+  - Muestra el listado por defecto con todas las habitaciones de reservas activas con llegada hoy que no cuenten con Check-In realizado (sin `Stay` asociado para ese par `reservationRef` y `roomId`).
 
 - **FR-004**: El sistema DEBE disponer de un **buscador independiente en la pestaña Salidas** para localizar estancias antes de iniciar el proceso de Check-Out. Este buscador:
   - Opera **exclusivamente sobre datos locales de Módulo 1** (`Stay` + `Room` + `RoomGuest`); no realiza ninguna petición a Módulo 2.
-  - Admite búsqueda por nombre o apellido del titular (`RoomGuest` con `isReservationGuest = true`), número de documento del titular, referencia de reserva (`reservationRef` almacenada en `Stay`) y número de habitación.
+  - Admite búsqueda por nombre o apellido del titular (`titularFirstName`, `titularLastName`), número de documento del titular (`titularDocumentNumber`), referencia de reserva (`reservationRef` almacenada en `Stay`) y número de habitación.
   - Filtra en tiempo real la tabla de Salidas.
   - Muestra el listado por defecto con todas las estancias activas cuya `expectedCheckoutTime` sea igual o anterior a la fecha actual (salidas del día y salidas vencidas).
 
-- **FR-005**: La tabla de la pestaña **Llegadas** DEBE estructurarse presentando **una fila por cada habitación asignada** (una reserva con múltiples habitaciones genera una fila por cada unidad habitacional) con las siguientes columnas:
+- **FR-005**: La tabla de la pestaña **Llegadas** DEBE estructurarse presentando **una fila por cada habitación asignada**, agrupadas visualmente por reserva mediante un encabezado o etiqueta de grupo tipo `"RES-123 · 2 de 3 pendientes"`. La tabla presenta las siguientes columnas:
   - Número de habitación asignada.
   - Nombre del huésped titular (`firstName`, `lastName` con número de documento debajo).
-  - Estadía en noches (calculada entre `startDate` y `endDate`).
-  - Cantidad de personas de la habitación (`guestCount` por habitación, pendiente de confirmación por Módulo 2).
+  - Estadía en noches (calculada localmente entre `startDate` y `endDate`).
+  - Cantidad de personas de la habitación (`guestCount` por habitación, o capacidad si no se especifica).
   - Tipo de habitación.
-  - Canal de origen (`source`: `DIRECTA` o nombre de la OTA).
-  - Alerta visual en caso de conflicto por habitación no apartable (estado "DisabledForRepairs", "TechnicalBlock" o "Inactive").
-  - Botón de acción "Check-in".
+  - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
+  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con texto explicativo claro para Recepción (ej. "No apartada: En mantenimiento").
+  - Botón individual de acción "Check-in" por cada habitación.
+
+- **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas por la cola `m1.reservas.diarias.queue` (`reserva.lista-del-dia.actualizacion`):
+  - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
+  - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
+  - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
 
 - **FR-006**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
   - Número de habitación.
-  - Nombre del huésped titular (`firstName`, `lastName` con número de documento debajo), obtenido de `Stay` y `RoomGuest` con `isReservationGuest = true`.
+  - Nombre del huésped titular (`titularFirstName`, `titularLastName` con número de documento `titularDocumentNumber` debajo), visible en todas las habitaciones gracias a la copia persistida en `Stay`.
   - Fecha de entrada real (`checkInDate`).
   - Fecha de salida esperada (`expectedCheckoutTime`), con etiqueta visual "Vencida" si la fecha ya expiró.
   - Cantidad total de personas alojadas (total de registros `RoomGuest` vinculados a la `Stay`).
   - Tipo de habitación.
-  - Canal de origen (`source`: `DIRECTA` o nombre de la OTA, almacenado en `Stay`).
+  - Fuente (`source` de `Stay`: `DIRECTA` o nombre de la OTA).
   - Botón de acción "Check-out".
 
 - **FR-007**: Al pulsar el botón "Check-in" en una fila de Llegadas, el sistema DEBE navegar al flujo de Registrar Check-In transfiriendo la referencia de la reserva y la habitación seleccionada, de modo que el proceso de admisión inicie directamente en el paso 1 (Validar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
@@ -168,7 +173,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
 - **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida por la cola `m1.reservas.diarias.queue`: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
 - **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación, pendiente de confirmación por Módulo 2).

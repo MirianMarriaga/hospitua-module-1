@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Página-1" id="SqzdmELL1t0c-c9SqVwx">
-    <mxGraphModel dx="2298" dy="964" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="light-dark(#ffffff, #121212)" math="0" shadow="0">
+    <mxGraphModel dx="1844" dy="938" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="light-dark(#ffffff, #121212)" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -333,12 +333,6 @@
             </Array>
             <mxPoint x="30" y="540" as="sourcePoint" />
             <mxPoint x="224.94" y="950" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="aYeGtkV4E9a1lYzj8Les-13" edge="1" parent="1" source="6qvytv6oTkwjXiFrrnVx-6" style="endArrow=classic;html=1;rounded=0;endFill=1;exitX=0.813;exitY=0.957;exitDx=0;exitDy=0;exitPerimeter=0;labelBackgroundColor=none;fontColor=default;" target="6qvytv6oTkwjXiFrrnVx-49" value="">
-          <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <mxPoint x="961" y="287" as="sourcePoint" />
-            <mxPoint x="672" y="583" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-49" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;" value="Consultar liquidación" vertex="1">
