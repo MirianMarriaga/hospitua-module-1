@@ -37,18 +37,18 @@ Como Recepcionista, quiero capturar durante el Check-In la información de ident
 
 ### Historia de Usuario 2 - Coincidencia con `guestCount`, control de capacidad física y panel migratorio SIRE (Prioridad: P2)
 
-Como Recepcionista, quiero que el sistema valide que la cantidad de personas registradas coincida exactamente con la cantidad de la habitación (`guestCount`), no exceda la capacidad máxima física de la habitación y abra el panel de datos migratorios para cada ocupante con nacionalidad distinta de Colombia solicitando obligatoriamente fecha de nacimiento, procedencia y destino de catálogo, para evitar sobrecupos físicos y cumplir con la legislación migratoria sin devoluciones.
+Como Recepcionista, quiero que el sistema valide que la cantidad de personas registradas coincida exactamente con la cantidad de la habitación (`guestCount`), no exceda la capacidad máxima física de la habitación y abra el panel de datos migratorios para cada ocupante con nacionalidad distinta de Colombia solicitando obligatoriamente fecha de nacimiento, procedencia y destino, para evitar sobrecupos físicos y cumplir con la legislación migratoria sin devoluciones.
 
 **Por qué esta prioridad**: Previene sobreocupación en las unidades habitacionales físicas del hotel, garantiza la correspondencia estricta con la cantidad contratada para la habitación y asegura que la presencia de ocupantes extranjeros active el panel migratorio exigiendo los datos completos antes de avanzar, eliminando devoluciones externas.
 
-**Prueba Independiente**: Se prueba intentando avanzar con menos o más ocupantes de los definidos en `guestCount` de la habitación, comprobando el bloqueo en ambos casos; intentando exceder la capacidad máxima (`maxCapacity`) de la habitación; seleccionando una nacionalidad distinta de Colombia y verificando la apertura del panel migratorio con los tres campos faltantes requeridos; y comprobando el bloqueo si se intenta dejar campos vacíos, ingresar una fecha de nacimiento no válida o un destino no perteneciente al catálogo.
+**Prueba Independiente**: Se prueba intentando avanzar con menos o más ocupantes de los definidos en `guestCount` de la habitación, comprobando el bloqueo en ambos casos; intentando exceder la capacidad máxima (`maxCapacity`) de la habitación; seleccionando una nacionalidad distinta de Colombia y verificando la apertura del panel migratorio con los tres campos faltantes requeridos; y comprobando el bloqueo si se intenta dejar vacíos los campos de fecha de nacimiento, procedencia o destino, o ingresar una fecha de nacimiento no válida.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Detección de nacionalidad extranjera y apertura del panel migratorio
    - **Dado** un formulario de ocupantes donde se registra o selecciona para cualquiera de los huéspedes una nacionalidad distinta de Colombia (`nationality !== 'Colombia'`)
    - **Cuando** el Recepcionista establece dicha nacionalidad en el selector
-   - **Entonces** el sistema abre de inmediato el panel de datos migratorios para ese ocupante, despliega la alerta informativa de envío a Módulo 2 (SIRE), y solicita obligatoriamente: fecha de nacimiento (`birthDate`: fecha válida pasada sin hora en formato `AAAA-MM-DD`), procedencia (`originPlace`) y destino (`destinationPlace`) seleccionados desde el catálogo general de países mediante combobox con búsqueda, reutilizando los datos de identidad ya capturados (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`). Si la nacionalidad se revierte a Colombia, el panel migratorio se cierra de inmediato.
+   - **Entonces** el sistema abre de inmediato el panel de datos migratorios para ese ocupante, despliega la alerta informativa de envío a Módulo 2 (SIRE), y solicita obligatoriamente: fecha de nacimiento (`birthDate`: fecha válida pasada sin hora en formato `AAAA-MM-DD`), procedencia (`originPlace`) y destino (`destinationPlace`) en formato texto libre con asistencia de catálogo de países (combobox de sugerencias; acepta texto no vacío incluyendo el formato "Ciudad, País" que exige el SIRE), reutilizando los datos de identidad ya capturados (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`). Si la nacionalidad se revierte a Colombia, el panel migratorio se cierra de inmediato.
 
 2. **Escenario**: Bloqueo por discrepancia con la cantidad de huéspedes registrada en la habitación (`guestCount`)
    - **Dado** una habitación asignada con `guestCount = 2`
@@ -65,10 +65,10 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
    - **Cuando** el Recepcionista intenta continuar hacia el resumen de confirmación
    - **Entonces** el sistema resalta los campos faltantes y no permite avanzar al paso 3 hasta completar todos los datos obligatorios.
 
-5. **Escenario**: Rechazo ante valor de procedencia o destino no perteneciente al catálogo
-   - **Dado** un ocupante extranjero en cuyo panel migratorio no se selecciona un valor existente del catálogo de países en los campos `originPlace` o `destinationPlace`
+5. **Escenario**: Bloqueo por campos migratorios vacíos
+   - **Dado** un ocupante extranjero en cuyo panel migratorio los campos `originPlace` o `destinationPlace` se dejan en blanco
    - **Cuando** el Recepcionista intenta avanzar hacia la confirmación
-   - **Entonces** el sistema no permite el avance, manteniendo el campo vacío y bloqueando el paso 3 hasta que se elija una opción válida del catálogo.
+   - **Entonces** el sistema no permite el avance y resalta los campos vacíos hasta que sean completados con cualquier texto válido no vacío.
 
 ---
 
@@ -77,7 +77,7 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 - **Documento duplicado entre ocupantes de la misma habitación**: Si se ingresa para un acompañante el mismo tipo y número de documento del Huésped Titular, el sistema alerta sobre duplicidad de identidad en la misma unidad e impide continuar.
 - **Incompatibilidad entre expectativa de reserva y aforo físico de la habitación**: Prevalece estrictamente el aforo físico (`maxCapacity`) de Módulo 1, impidiendo registrar personas por encima del límite físico de la habitación asignada.
 - **Caracteres con tildes, diéresis y nombres compuestos**: Los campos `firstName` y `lastName` admiten caracteres alfabéticos internacionales, apóstrofes, espacios y guiones sin alterar el texto.
-- **Formato del valor entregado por el catálogo de países**: Como asunción de Módulo 1, los selectores de `originPlace` y `destinationPlace` envían el valor oficial entregado por el catálogo general de países; queda pendiente confirmación de Módulo 2 sobre si prefiere nombre del país o código ISO.
+- **Formato de procedencia y destino**: `originPlace` y `destinationPlace` aceptan texto libre; el SIRE espera el formato "Ciudad, País" (ej. "Madrid, España"). El combobox sugiere países del catálogo como ayuda pero no restringe el valor ingresado.
 
 ---
 
@@ -96,16 +96,15 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 
   Para ocupantes con nacionalidad distinta de Colombia (`nationality !== 'Colombia'`), el panel de datos migratorios DEBE exigir obligatoriamente:
   6. Fecha de nacimiento (`birthDate`: fecha válida pasada, solo fecha sin hora en formato `AAAA-MM-DD` hora Colombia)
-  7. Procedencia (`originPlace`: seleccionada mediante combobox con búsqueda desde el catálogo general de países)
-  8. Destino (`destinationPlace`: seleccionada mediante combobox con búsqueda desde el catálogo general de países)
+  7. Procedencia (`originPlace`: texto libre con asistencia de catálogo —combobox de sugerencias—; formato esperado por el SIRE: "Ciudad, País", ej. "Miami, Estados Unidos")
+  8. Destino (`destinationPlace`: texto libre con asistencia de catálogo —combobox de sugerencias—; mismo formato que procedencia)
 
-  No se permite texto libre en procedencia ni destino; solo valores existentes en el catálogo.
 - **FR-004**: Los datos del Huésped Titular DEBEN permanecer fijos, en modo de solo lectura (incluyendo la lista desplegable de nacionalidad deshabilitada) y sin ícono de eliminar, permitiendo al Recepcionista únicamente registrar, modificar o remover a los acompañantes.
 - **FR-005**: El sistema DEBE validar de forma obligatoria que la cantidad total de personas registradas (titular más acompañantes) coincida exactamente con la cantidad de huéspedes asignada a la habitación en la reserva (`guestCount` de la habitación; pendiente de confirmación por Módulo 2: en caso de no recibirse por habitación, se valida contra la capacidad máxima `maxCapacity`), y no exceda la capacidad máxima (`maxCapacity`) de la habitación física asignada. Al alcanzar la capacidad máxima de la habitación, el sistema DEBE deshabilitar el botón "+ Agregar huésped" y presentar la nota informativa "Se alcanzó la capacidad máxima de la habitación (N personas)". Si la cantidad de personas registradas difiere de `guestCount`, el sistema DEBE bloquear el avance al paso 3.
 - **FR-006**: Panel de datos migratorios para extranjeros: Si la nacionalidad de cualquiera de los ocupantes es distinta de Colombia (`nationality !== 'Colombia'`), el sistema DEBE:
   1. Abrir de inmediato el panel de datos migratorios para ese ocupante. Si la nacionalidad es Colombia, el panel no se abre (o se cierra automáticamente si se rectifica la nacionalidad a Colombia).
   2. Solicitar en el panel exclusivamente los tres campos faltantes: `birthDate`, `originPlace` y `destinationPlace`. Los datos de identidad (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`) se toman directamente del formulario del ocupante sin volver a solicitarlos.
-  3. Exigir que los tres campos estén diligenciados y validados (`birthDate` fecha pasada válida `AAAA-MM-DD`; `originPlace` y `destinationPlace` seleccionados de catálogo) como condición obligatoria antes de autorizar el avance al paso 3 de Confirmación, resaltando los faltantes o inválidos.
+  3. Exigir que los tres campos estén diligenciados y no vacíos (`birthDate` fecha pasada válida `AAAA-MM-DD`; `originPlace` y `destinationPlace` con cualquier texto no vacío, incluyendo formato "Ciudad, País") como condición obligatoria antes de autorizar el avance al paso 3 de Confirmación, resaltando los faltantes o inválidos.
   4. Activar la extensión al caso de uso "Enviar datos de huéspedes extranjeros" (`<<extend>>`).
 - **FR-007**: El sistema NO DEBE solicitar al Recepcionista parámetros de control migratorio como tipo de movimiento ni fecha de movimiento, asignando automáticamente `movementType = 'ENTRY'` y `movementDate = checkInDate` a través del caso de uso extendido.
 - **FR-008**: Al completar la validación de los datos ingresados, el sistema DEBE persistir a los ocupantes como registros inmutables `RoomGuest` vinculados a la `Estancia`, almacenando obligatoriamente `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, los campos migratorios si aplica (`birthDate`, `originPlace`, `destinationPlace`) y el atributo `isReservationGuest` (`true` para el titular y `false` para los acompañantes).
