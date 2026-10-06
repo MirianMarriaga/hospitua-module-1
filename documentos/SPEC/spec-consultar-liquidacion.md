@@ -10,33 +10,33 @@
 
 ### Historia de Usuario 1 - Consulta del desglose de liquidación y factura definitiva en Check-Out (Prioridad: P1)
 
-Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma reactiva mediante REST GET a Módulo 3 la liquidación y la factura definitiva asociada para estructurar la información en los pasos de Liquidación (factura asociada e información de la reserva: canal, comisión e ingreso neto) y Pago (factura asociada, resumen para el huésped con hospedaje, IVA y total a pagar; junto a los datos reales de estadía: noches, fecha de entrada y fecha de salida), para contar con la información financiera oficial antes de autorizar la salida y liberar la unidad.
+Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma reactiva mediante REST GET a Módulo 3 la liquidación y la factura definitiva asociada enviando la fuente (`source`: `DIRECTA` o el nombre de la OTA leído de `Stay.source`), para estructurar la información en los pasos de Liquidación (factura asociada e información de la reserva: fuente, comisión e ingreso neto) y Pago (factura asociada, resumen para el huésped con hospedaje, IVA y total a pagar; junto a los datos reales de estadía: noches, fecha de entrada y fecha de salida), contando con la información financiera oficial antes de autorizar la salida y liberar la unidad, sin que Módulo 3 devuelva el campo de fuente.
 
-**Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia física en información financiera oficial para el cierre de la estadía. Módulo 1 actúa como consumidor estricto de la liquidación y de la factura definitiva emitidas por Módulo 3, sin calcular tarifas, sin deducir comisiones ni recaudar pagos en recepción.
+**Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia física en información financiera oficial para el cierre de la estadía. Módulo 1 actúa como consumidor estricto de la liquidación y de la factura definitiva emitidas por Módulo 3, sin calcular tarifas, sin deducir comisiones ni recaudar pagos en recepción. Módulo 1 envía `source` (`DIRECTA` o el nombre de la OTA) y Módulo 3 ya no lo devuelve en `SettlementSummary`.
 
-**Prueba Independiente**: Se prueba invocando este caso de uso de forma aislada con un conjunto de datos de estancia válido (`reservationRef`, fechas reservadas `startDate` y `endDate`, fechas reales `checkInDate` y `checkOutDate`, canal "Directo" u "OTA" obtenido de `Stay`, y `roomId`) y verificando que el sistema retorna la estructura completa suministrada por Módulo 3 sin alteraciones, desagregada para su presentación en el paso Liquidación (Información de la reserva) y en el paso Pago (Resumen para el huésped y Datos de la estadía), con la factura definitiva asociada visible en la parte superior de ambos pasos y sin procesar transacciones monetarias en Módulo 1.
+**Prueba Independiente**: Se prueba invocando este caso de uso de forma aislada con un conjunto de datos de estancia válido (`reservationRef`, fechas reservadas `startDate` y `endDate`, fechas reales `checkInDate` y `checkOutDate`, fuente `source`: `DIRECTA` o nombre de la OTA obtenido de `Stay`, y `roomId`) y verificando que el sistema retorna la estructura completa suministrada por Módulo 3 sin alteraciones, desagregada para su presentación en el paso Liquidación (Información de la reserva) y en el paso Pago (Resumen para el huésped y Datos de la estadía), con la factura definitiva asociada visible en la parte superior de ambos pasos y sin procesar transacciones monetarias en Módulo 1.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Consulta de liquidación para reserva de Canal Directo (sin comisión OTA)
-   - **Dado** una estancia asociada a una reserva con canal de origen "Directo" registrado en `Stay.source` (0% comisión OTA)
+1. **Escenario**: Consulta de liquidación para reserva de fuente DIRECTA (sin comisión OTA)
+   - **Dado** una estancia asociada a una reserva con fuente `source = DIRECTA` registrada en `Stay.source` (0% comisión OTA)
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `SettlementRequest` con `source` a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
+   - **Entonces** el sistema envía `SettlementRequest` con `source` (`DIRECTA`) a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
      1. Para el paso Liquidación:
         - Factura definitiva asociada (arriba, con su número oficial, ej. FAC-40001)
-        - Información de la reserva: Canal de origen (desplegado desde `Stay.source` local: "Directo"), Comisión OTA en 0% (valor $0) e Ingreso neto equivalente al valor del hospedaje
+        - Información de la reserva: Fuente (desplegada desde `Stay.source` local: `DIRECTA`), Comisión OTA en 0% (valor $0) e Ingreso neto equivalente al valor del hospedaje
      2. Para el paso Pago:
         - Factura definitiva asociada (arriba)
         - Resumen para el huésped: Valor del hospedaje (total ya calculado), IVA y Total a pagar
         - Datos de la estadía: Noches de hospedaje, Fecha de entrada real (`checkInDate`) y Fecha de salida real (`checkOutDate`), sin registrar ni recibir pagos en recepción
 
 2. **Escenario**: Consulta de liquidación para reserva originada en OTA (con comisión de intermediario)
-   - **Dado** una estancia asociada a una reserva proveniente de intermediario con canal registrado en `Stay.source` ("OTA" o identificador de OTA) y comisión pactada
+   - **Dado** una estancia asociada a una reserva proveniente de intermediario con fuente registrada en `Stay.source` (ej. `BOOKING` o `EXPEDIA`) y comisión pactada
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `SettlementRequest` con `source` a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
+   - **Entonces** el sistema envía `SettlementRequest` con `source` (nombre de la OTA) a Módulo 3 mediante REST GET, recibe la liquidación financiera (sin `source` en la respuesta) y entrega para la atención:
      1. Para el paso Liquidación:
         - Factura definitiva asociada (arriba)
-        - Información de la reserva: Canal de origen (desplegado desde `Stay.source` local), Porcentaje de comisión OTA, Valor monetario de comisión OTA e Ingreso neto (hospedaje menos comisión)
+        - Información de la reserva: Fuente (desplegada desde `Stay.source` local: ej. `EXPEDIA`), Porcentaje de comisión OTA, Valor monetario de comisión OTA e Ingreso neto (hospedaje menos comisión)
      2. Para el paso Pago:
         - Factura definitiva asociada (arriba)
         - Resumen para el huésped: Valor del hospedaje, IVA y Total a pagar (sin recargar comisiones al huésped)
@@ -83,8 +83,8 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 
 ### Casos Borde
 
-- **Canal Directo sin comisión OTA**: El sistema reporta el canal como "Directo", el porcentaje de comisión OTA en 0%, el valor de comisión en $0 y el ingreso neto exactamente igual al valor del hospedaje.
-- **Canal OTA sin marcas comerciales específicas**: El canal de intermediario se expone únicamente con la etiqueta general "OTA" (sin nombres de plataformas o agencias de viajes externas).
+- **Fuente DIRECTA sin comisión OTA**: El sistema reporta la fuente como `DIRECTA`, el porcentaje de comisión OTA en 0%, el valor de comisión en $0 y el ingreso neto exactamente igual al valor del hospedaje.
+- **Fuente de intermediario (OTA)**: La fuente se guarda tal cual llega (`BOOKING`, `EXPEDIA`, etc.) y se despliega bajo la etiqueta "Fuente".
 - **Inmutabilidad de la factura definitiva asociada**: La factura definitiva es emitida exclusivamente por Módulo 3 al liquidar; Módulo 1 la consume y referencia como un registro inmutable con su numeración oficial asignada (ej. FAC-40001), mostrándola en la cabecera de los pasos de Liquidación y Pago sin alterarla ni recalcularla.
 - **Consultas reiteradas para la misma estancia**: Si se solicita la liquidación más de una vez antes de formalizar la salida, la consulta se reejecuta de manera segura sin duplicar registros ni persistir saldos hasta la confirmación final.
 - **Salida anticipada (Early Check-Out)**: El valor de hospedaje consolidado recibido de Módulo 3 ya incorpora cualquier penalización o ajuste definido internamente por las políticas de Módulo 3, entregándose como un único valor total ya procesado sobre las noches reales.
@@ -101,7 +101,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
   - Tipo de evento (`CHECK_OUT`)
   - Fechas contratadas de estadía (`startDate`, `endDate`) obtenidas de `Stay`
   - Fechas reales de la estancia (`checkInDate` real registrado en `Stay` y `checkOutDate` correspondiente a la fecha de salida, sin horas)
-  - Canal de procedencia (`source`: "Directo" u "OTA", obtenido localmente de `Stay`)
+  - Fuente (`source`: `DIRECTA` o el nombre de la OTA como `BOOKING`, `EXPEDIA`..., obtenido localmente de `Stay`)
   - Identificador de la habitación física (`roomId`)
 - **FR-003**: El sistema DEBE recibir desde Módulo 3 la siguiente estructura oficial de liquidación y facturación (`SettlementSummary`):
   1. Factura definitiva asociada emitida por Módulo 3 (número consecutivo oficial `invoiceNumber`, ej. FAC-40001).
@@ -110,12 +110,12 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
   4. Valor monetario de la comisión OTA (`otaCommissionAmount`, si corresponde).
   5. Impuesto al Valor Agregado (`taxAmount`, IVA).
   6. Ingreso neto (`netIncomeAmount`: valor de hospedaje menos comisión OTA).
-  *(Nota: El canal de origen de la reserva `source` viaja de Módulo 1 a Módulo 3 en la solicitud, pero no regresa en la respuesta de Módulo 3; Módulo 1 lo recupera de la entidad local `Stay.source`).*
+  *(Nota: La fuente de la reserva `source` viaja de Módulo 1 a Módulo 3 en la solicitud, pero ya no regresa en la respuesta de Módulo 3; Módulo 1 lo recupera de la entidad local `Stay.source`).*
 - **FR-004**: El sistema DEBE proveer la información estructurada para su presentación separada en dos etapas de recepción:
   - *En el paso 2 (Liquidación)*:
     - Factura definitiva asociada (arriba).
     - **Información de la reserva**:
-      - Canal de origen (desplegado directamente desde `Stay.source` local: ej. "Directo" o nombre del canal/OTA)
+      - Fuente (desplegada directamente desde `Stay.source` local: ej. `DIRECTA` o nombre de la OTA)
       - Porcentaje de comisión OTA (XX %)
       - Valor monetario de comisión OTA ($XXX)
       - Ingreso neto ($XXX)
@@ -136,9 +136,9 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **SettlementRequest**: Objeto conceptual de solicitud remitido a Módulo 3 con los parámetros de la estancia: `reservationRef`, `eventType` (`CHECK_OUT`), `startDate`, `endDate`, `checkInDate`, `checkOutDate` (fechas sin hora), `source` (obtenido localmente de `Stay.source`) y `roomId`.
+- **SettlementRequest**: Objeto conceptual de solicitud remitido a Módulo 3 con los parámetros de la estancia: `reservationRef`, `eventType` (`CHECK_OUT`), `startDate`, `endDate`, `checkInDate`, `checkOutDate` (fechas sin hora), `source` (obtenido localmente de `Stay.source`: `DIRECTA` o nombre de la OTA) y `roomId`.
 - **SettlementSummary**: Estructura conceptual informativa devuelta por Módulo 3 y consumida vía "Consultar liquidación" conteniendo: factura definitiva asociada (`invoiceNumber`), valor de hospedaje consolidado (`accommodationTotalAmount`), porcentaje de comisión OTA (`otaCommissionPercentage`), valor de comisión OTA (`otaCommissionAmount`), IVA (`taxAmount`) e ingreso neto (`netIncomeAmount`). No incluye `source`.
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real de la habitación. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: "DIRECTA" o identificador de OTA como `BOOKING`, `EXPEDIA`...), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real de la habitación. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA como `BOOKING`, `EXPEDIA`...), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **Module3 (Facturación y Liquidación)**: Sistema externo responsable exclusivo de calcular la liquidación, aplicar comisiones e IVA, y generar la factura definitiva oficial.
 
 ---
