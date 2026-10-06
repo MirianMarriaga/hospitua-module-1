@@ -19,24 +19,24 @@ Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Consulta de liquidación para reserva de Canal Directo (sin comisión OTA)
-   - **Dado** una estancia asociada a una reserva con canal de origen "Directo" (0% comisión OTA)
+   - **Dado** una estancia asociada a una reserva con canal de origen "Directo" registrado en `Stay.source` (0% comisión OTA)
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema consulta a Módulo 3 mediante REST GET y entrega para la atención:
+   - **Entonces** el sistema envía `SettlementRequest` con `source` a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
      1. Para el paso Liquidación:
         - Factura definitiva asociada (arriba, con su número oficial, ej. FAC-40001)
-        - Información de la reserva: Canal de origen ("Directo"), Comisión OTA en 0% (valor $0) e Ingreso neto equivalente al valor del hospedaje
+        - Información de la reserva: Canal de origen (desplegado desde `Stay.source` local: "Directo"), Comisión OTA en 0% (valor $0) e Ingreso neto equivalente al valor del hospedaje
      2. Para el paso Pago:
         - Factura definitiva asociada (arriba)
         - Resumen para el huésped: Valor del hospedaje (total ya calculado), IVA y Total a pagar
         - Datos de la estadía: Noches de hospedaje, Fecha de entrada real (`checkInDate`) y Fecha de salida real (`checkOutDate`), sin registrar ni recibir pagos en recepción
 
 2. **Escenario**: Consulta de liquidación para reserva originada en OTA (con comisión de intermediario)
-   - **Dado** una estancia asociada a una reserva proveniente de intermediario con canal "OTA" y comisión pactada
+   - **Dado** una estancia asociada a una reserva proveniente de intermediario con canal registrado en `Stay.source` ("OTA" o identificador de OTA) y comisión pactada
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema consulta a Módulo 3 mediante REST GET y entrega para la atención:
+   - **Entonces** el sistema envía `SettlementRequest` con `source` a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
      1. Para el paso Liquidación:
         - Factura definitiva asociada (arriba)
-        - Información de la reserva: Canal de origen ("OTA"), Porcentaje de comisión OTA, Valor monetario de comisión OTA e Ingreso neto (hospedaje menos comisión)
+        - Información de la reserva: Canal de origen (desplegado desde `Stay.source` local), Porcentaje de comisión OTA, Valor monetario de comisión OTA e Ingreso neto (hospedaje menos comisión)
      2. Para el paso Pago:
         - Factura definitiva asociada (arriba)
         - Resumen para el huésped: Valor del hospedaje, IVA y Total a pagar (sin recargar comisiones al huésped)
@@ -103,19 +103,19 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
   - Fechas reales de la estancia (`checkInDate` real registrado en `Stay` y `checkOutDate` correspondiente a la fecha de salida, sin horas)
   - Canal de procedencia (`source`: "Directo" u "OTA", obtenido localmente de `Stay`)
   - Identificador de la habitación física (`roomId`)
-- **FR-003**: El sistema DEBE recibir desde Módulo 3 la siguiente estructura oficial de liquidación y facturación:
-  1. Factura definitiva asociada emitida por Módulo 3 (número consecutivo oficial, ej. FAC-40001).
-  2. Valor de hospedaje consolidado (total ya calculado, no desglosado por noche).
-  3. Canal de origen de la reserva (clasificado como "Directo" u "OTA").
-  4. Porcentaje de la comisión OTA aplicable (si corresponde).
-  5. Valor monetario de la comisión OTA (si corresponde).
-  6. Impuesto al Valor Agregado (IVA).
-  7. Ingreso neto (valor de hospedaje menos comisión OTA).
+- **FR-003**: El sistema DEBE recibir desde Módulo 3 la siguiente estructura oficial de liquidación y facturación (`SettlementSummary`):
+  1. Factura definitiva asociada emitida por Módulo 3 (número consecutivo oficial `invoiceNumber`, ej. FAC-40001).
+  2. Valor de hospedaje consolidado (`accommodationTotalAmount`, total ya calculado, no desglosado por noche).
+  3. Porcentaje de la comisión OTA aplicable (`otaCommissionPercentage`, si corresponde).
+  4. Valor monetario de la comisión OTA (`otaCommissionAmount`, si corresponde).
+  5. Impuesto al Valor Agregado (`taxAmount`, IVA).
+  6. Ingreso neto (`netIncomeAmount`: valor de hospedaje menos comisión OTA).
+  *(Nota: El canal de origen de la reserva `source` viaja de Módulo 1 a Módulo 3 en la solicitud, pero no regresa en la respuesta de Módulo 3; Módulo 1 lo recupera de la entidad local `Stay.source`).*
 - **FR-004**: El sistema DEBE proveer la información estructurada para su presentación separada en dos etapas de recepción:
   - *En el paso 2 (Liquidación)*:
     - Factura definitiva asociada (arriba).
     - **Información de la reserva**:
-      - Canal de origen ("Directo" u "OTA")
+      - Canal de origen (desplegado directamente desde `Stay.source` local: ej. "Directo" o nombre del canal/OTA)
       - Porcentaje de comisión OTA (XX %)
       - Valor monetario de comisión OTA ($XXX)
       - Ingreso neto ($XXX)
@@ -136,9 +136,9 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **SettlementRequest**: Objeto conceptual de solicitud remitido a Módulo 3 con los parámetros de la estancia: `reservationRef`, `eventType`, `startDate`, `endDate`, `checkInDate`, `checkOutDate` (fechas sin hora), `source` ("Directo" u "OTA" obtenido de `Stay`) y `roomId`.
-- **SettlementSummary**: Estructura conceptual informativa devuelta por Módulo 3 y consumida vía "Consultar liquidación" conteniendo: factura definitiva asociada (`invoiceNumber`), valor de hospedaje consolidado (`accommodationTotalAmount`), canal (`source`: "Directo" u "OTA"), porcentaje de comisión OTA (`otaCommissionPercentage`), valor de comisión OTA (`otaCommissionAmount`), IVA (`taxAmount`) e ingreso neto (`netIncomeAmount`).
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: "Directo" u "OTA"), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **SettlementRequest**: Objeto conceptual de solicitud remitido a Módulo 3 con los parámetros de la estancia: `reservationRef`, `eventType` (`CHECK_OUT`), `startDate`, `endDate`, `checkInDate`, `checkOutDate` (fechas sin hora), `source` (obtenido localmente de `Stay.source`) y `roomId`.
+- **SettlementSummary**: Estructura conceptual informativa devuelta por Módulo 3 y consumida vía "Consultar liquidación" conteniendo: factura definitiva asociada (`invoiceNumber`), valor de hospedaje consolidado (`accommodationTotalAmount`), porcentaje de comisión OTA (`otaCommissionPercentage`), valor de comisión OTA (`otaCommissionAmount`), IVA (`taxAmount`) e ingreso neto (`netIncomeAmount`). No incluye `source`.
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real de la habitación. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: "DIRECTA" o identificador de OTA como `BOOKING`, `EXPEDIA`...), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **Module3 (Facturación y Liquidación)**: Sistema externo responsable exclusivo de calcular la liquidación, aplicar comisiones e IVA, y generar la factura definitiva oficial.
 
 ---
