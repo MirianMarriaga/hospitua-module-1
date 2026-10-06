@@ -11,13 +11,13 @@ Implementar la pantalla central de inicio de turno **Panel de Recepción** para 
 
 Componentes y lógica operativa:
 1. **Indicadores Operativos (4 KPIs)**:
-   - *Llegadas de hoy*: Conteo de reservas activas con fecha de inicio igual a hoy, obtenidas reactivamente vía REST GET desde Módulo 2.
+   - *Llegadas de hoy*: Conteo de reservas `ACTIVE` con `startDate = hoy` de la **copia local** (`daily_reservation`), ingestada a las 00:00 por cola.
    - *Salidas de hoy*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutTime` igual a hoy.
    - *Salidas vencidas*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutTime` anterior a hoy (destacado visualmente con color de alerta).
    - *Habitaciones ocupadas*: Total de habitaciones con `Room.status = Occupied` en el inventario local de Módulo 1.
-2. **Pestaña Llegadas**: Listado por defecto de reservas contractuales con llegada hoy en estado `ACTIVE`, enriquecidas con el estado físico de la habitación en Módulo 1 (`Reserved`). Incluye buscador en tiempo real (nombre, documento o código de reserva) contra Módulo 2 y botón de acción "Check-in" que navega directamente al paso 1 del flujo de admisión.
+2. **Pestaña Llegadas**: Listado por defecto de reservas con llegada hoy tomadas **100% de la copia local** (`daily_reservation`), enriquecidas con el estado físico de la habitación en Módulo 1 (`Reserved`). Incluye buscador en tiempo real (nombre, documento o código de reserva) **contra la copia local** sin llamadas a Módulo 2 y botón de acción "Check-in" que navega directamente al paso 1 del flujo de admisión.
 3. **Pestaña Salidas**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida"). Incluye buscador local (nombre, documento, código o número de habitación) sin llamadas a Módulo 2 y botón "Check-out" que transfiere la estancia directamente al paso 1 del flujo de salida.
-4. **Resiliencia**: Ante indisponibilidad de Módulo 2, los KPIs locales y la pestaña Salidas operan con total autonomía e informan de forma controlada el estado de la conexión externa.
+4. **Resiliencia**: Toda la pantalla opera con total autonomía sin depender del estado de red ni de la disponibilidad de Módulo 2, dado que tanto Llegadas como Salidas se sirven desde el almacenamiento local.
 
 ---
 
@@ -30,9 +30,9 @@ Componentes y lógica operativa:
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / JSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
-  - Carga inicial del panel < 500 ms (incluyendo KPIs y llamadas REST a M2 con timeout estricto).
-  - Filtrado del buscador de Salidas (local) < 50 ms.
-  - Filtrado del buscador de Llegadas (REST a M2) < 1.5 s.
+  - Carga inicial del panel < 500 ms (KPIs y listados servidos desde copia local).
+  - Filtrado del buscador de Llegadas (local `daily_reservation`) < 50 ms.
+  - Filtrado del buscador de Salidas (local `stay`) < 50 ms.
 - **Constraints**:
   - Sin operaciones de escritura ni transiciones de estado de habitaciones en esta pantalla.
   - Fechas expuestas sin horas (`LocalDate` / YYYY-MM-DD).
@@ -78,11 +78,11 @@ backend/src/
 │   │       └── out/
 │   │           ├── RoomPersistencePort.java
 │   │           ├── StayPersistencePort.java
-│   │           └── ReservationRestQueryPort.java
+│   │           └── DailyReservationRepositoryPort.java  # Lectura de copia local
 │   ├── application/
 │   │   ├── service/
-│   │   │   ├── ReceptionPanelQueryService.java
-│   │   │   └── DepartureSearchService.java
+│   │   │   ├── ReceptionPanelQueryService.java    # Consolida KPIs y llegadas desde copia local
+│   │   │   └── DepartureSearchService.java        # Búsqueda local de estancias
 │   │   └── dto/
 │   │       ├── ReceptionPanelResponseDto.java
 │   │       ├── ArrivalSummaryDto.java
@@ -95,9 +95,8 @@ backend/src/
 │       │   └── out/
 │       │       ├── persistence/
 │       │       │   ├── RoomRepositoryAdapter.java
-│       │       │   └── StayRepositoryAdapter.java
-│       │       └── rest/
-│       │           └── ReservationRestAdapter.java
+│       │       │   ├── StayRepositoryAdapter.java
+│       │       │   └── JpaDailyReservationAdapter.java  # Lee la copia local para Llegadas
 frontend/src/
 ├── components/panel/
 │   ├── ReceptionPanel.jsx
@@ -110,15 +109,15 @@ frontend/src/
     └── departureService.js
 ```
 
-**Structure Decision**: El servicio `ReceptionPanelQueryService` consolida los datos agregados: realiza consultas paralelas no bloqueantes para calcular KPIs y listar salidas locales, y consulta Módulo 2 vía `ReservationRestQueryPort` para las llegadas.
+**Structure Decision**: El servicio `ReceptionPanelQueryService` consolida los datos agregados: consulta la copia local `daily_reservation` para KPIs de llegadas y la pestaña Llegadas (sin REST), y consulta `Stay` + `Room` localmente para KPIs y pestaña Salidas. **Ninguna ruta del panel hace llamadas REST a Módulo 2.**
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar la configuración base de repositorios y cliente REST en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Configurar el timeout síncrono para la consulta de llegadas a Módulo 2 (1000 ms).
-- [ ] T003 Configurar el mapeo de excepciones para respuestas degradadas de Módulo 2 en `GlobalExceptionHandler`.
+- [ ] T001 Verificar la configuración base de repositorios en [PLAN/base/plan.md](base/plan.md).
+- [ ] T002 Verificar que el esquema de `daily_reservation` esté disponible (generado por `plan-consultar-reservas.md`).
+- [ ] T003 Configurar el mapeo de excepciones en `GlobalExceptionHandler`.
 
 ---
 
@@ -130,26 +129,27 @@ frontend/src/
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
   - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
+- [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas `countArrivalsToday()` y `searchArrivals(String query)` sobre la copia local.
 
 ---
 
 ## Phase 3: User Story 1 - Consulta del listado de llegadas del día y búsqueda para Check-In (Priority: P1)
 
-**Goal**: Permitir al Recepcionista consultar la pestaña Llegadas con reservas del día de Módulo 2, filtrar por texto y acceder al Check-In con la reserva preseleccionada.
+**Goal**: Permitir al Recepcionista consultar la pestaña Llegadas con reservas del día directamente de la copia local, filtrar por texto y acceder al Check-In con la reserva preseleccionada.
 
-**Independent Test**: Invocar el endpoint de llegadas con datos simulados de Módulo 2, verificar la presencia de las columnas requeridas (Habitación, Huésped con documento, Noches, Personas, Tipo hab, Fuente, Botón Check-in) y verificar la redirección al flujo de Check-In.
+**Independent Test**: Poblar la copia local con reservas de prueba y consultar el endpoint de llegadas **sin que se genere ninguna llamada REST a Módulo 2**, verificando las columnas requeridas y la redirección al flujo de Check-In.
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Unit test para `ReceptionPanelQueryService` verificando enriquecimiento de llegadas con el estado de la habitación en Módulo 1.
-- [ ] T008 [P] [US1] Contract test para el endpoint `GET /api/reception/arrivals` consumiendo Módulo 2.
+- [ ] T007 [P] [US1] Unit test para `ReceptionPanelQueryService` verificando que las llegadas se obtienen de `DailyReservationRepositoryPort` (copia local) y se enriquecen con el estado de habitación local, sin llamadas REST.
+- [ ] T008 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve llegadas de la copia local (sin llamadas REST a M2).
 - [ ] T009 [P] [US1] Component test frontend para `ArrivalsTab.jsx` validando renderizado de tabla y paso de `reservationRef` al pulsar "Check-in".
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] Implementar en `ReceptionPanelQueryService` el método para listar y filtrar llegadas del día llamando a `ReservationRestQueryPort`.
+- [ ] T010 [P] [US1] Implementar en `ReceptionPanelQueryService` el método que lista y filtra llegadas del día llamando a `DailyReservationRepositoryPort.searchArrivals(query)` (copia local).
 - [ ] T011 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`.
-- [ ] T012 [US1] Construir los componentes frontend `ArrivalsTab.jsx` y `ReceptionSearchBar.jsx` con debounce para filtrado en tiempo real.
+- [ ] T012 [US1] Construir los componentes frontend `ArrivalsTab.jsx` y `ReceptionSearchBar.jsx` con debounce para filtrado local en tiempo real.
 - [ ] T013 [US1] Conectar el botón "Check-in" para redirigir a `/check-in?reservationRef={ref}` cargando directamente el paso 1 del wizard.
 
 ---
@@ -197,7 +197,7 @@ frontend/src/
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [ ] T026 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue "No hay reservas que mostrar.".
-- [ ] T027 Validar el manejo de contingencia si Módulo 2 cae: el panel muestra banner informativo en Llegadas, mientras Salidas y KPIs locales funcionan normalmente.
+- [ ] T027 Asegurar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración sin red externa.
 - [ ] T028 Asegurar que ninguna fecha exponga horas y que los textos institucionales y saludo concuerden con la especificación.
 
 ---
@@ -206,6 +206,6 @@ frontend/src/
 
 - **Foundational**: Requiere `Room`, `Stay` y `RoomGuest` de [PLAN/base/plan.md](base/plan.md).
 - **Sub-planes Integrados**:
-  - `plan-consultar-reservas.md`: Utilizado para la consulta de llegadas a Módulo 2.
+  - `plan-consultar-reservas.md`: Suministra la copia local `daily_reservation` para la pestaña Llegadas y el KPI de llegadas.
   - `plan-registrar-check-in.md`: Destino de navegación al pulsar "Check-in".
   - `plan-registrar-check-out.md`: Destino de navegación al pulsar "Check-out".

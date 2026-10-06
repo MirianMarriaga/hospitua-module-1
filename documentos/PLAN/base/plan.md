@@ -67,9 +67,10 @@ Regla arquitectónica de HOSPITUA:
 |---|---|---|---|---|
 | **Notificación de Check-In** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkin.queue` / routing key `habitacion.checkin`) | Proactiva | `plan-registrar-check-in.md` |
 | **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) | Proactiva | `plan-registrar-check-out.md` |
-| **Datos de Huéspedes Extranjeros** | M1 → M2 | Cola RabbitMQ (`m2.huespedes.extranjeros.queue` o consolidada en checkin) | Proactiva | `plan-enviar-datos-huespedes-extranjeros.md` |
-| **Consultar Reservas** | M1 → M2 | REST GET (`/api/reservations?startDate={today}&status=ACTIVE` y `/api/reservations/{ref}`) | Reactiva | `plan-consultar-reservas.md`, `plan-consultar-panel-recepcion.md` |
+| **Datos de Huéspedes Extranjeros** | M1 → M2 | Cola RabbitMQ (`m2.huespedes.extranjeros.queue`) — 1 mensaje por extranjero | Proactiva | `plan-enviar-datos-huespedes-extranjeros.md` |
+| **Ingestión de Reservas Diarias** | M2 → M1 | Cola RabbitMQ (`m1.reservas.diarias.queue` / routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`) | Reactiva (push) | `plan-consultar-reservas.md` |
 | **Consultar Inventario de Habitaciones** | M2 → M1 | REST GET (`/api/rooms`) | Reactiva | `spec-consultar-inventario-habitaciones.md` |
+| **Consultar Disponibilidad de Reservas** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`) — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
 | **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
 | **Consultar Tarifa Base** | M3 → M1 | REST GET (`/api/rooms/{roomId}/base-rate`) | Reactiva | `spec-consultar-tarifa-base.md` |
 
@@ -77,9 +78,11 @@ Regla arquitectónica de HOSPITUA:
 
 - **Exchange**: `hospitua.events` (Tipo: `topic`, durable).
 - **Colas / Routing Keys emitidas por Módulo 1 hacia Módulo 2**:
-  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite `eventId` (o `messageId`), `reservationRef`, `roomId`, `checkInDate` (sin hora), y datos migratorios consolidados si existen ocupantes extranjeros para actualizar `MigratoryMovement`.
-  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 4 de Check-Out. Emite `eventId`, `reservationRef`, `roomId`, `checkOutDate` (sin hora) para pasar la reserva a `COMPLETED`.
-  - `m2.huespedes.extranjeros.queue`: Para reporte SIRE. Emite datos migratorios completos con los 10 campos acordados (B15), con procedencia y destino en formato libre ("Ciudad, País", ej. "Madrid, España") y asignación automática de `movementType` (`ENTRY` o `DEPARTURE`) y `movementDate`.
+  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite `eventId`, `reservationRef`, `roomId`, `checkInDate` (sin hora) y `foreignGuestCount` (número de extranjeros; los datos individuales viajan por su propia cola).
+  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite `eventId`, `reservationRef`, `roomId`, `checkOutDate` (sin hora) y `foreignGuestCount`.
+  - `m2.huespedes.extranjeros.queue`: Para reporte SIRE. Un mensaje independiente por cada huésped extranjero con `messageId`, `sequenceNumber`, `reservationRef`, `roomId` y los 10 campos migratorios: `firstName`, `lastName`, `documentType`, `documentNumber`, `birthDate`, `nationality`, `movementType` (`ENTRY` en Check-In / `DEPARTURE` en Check-Out), `movementDate` (`checkInDate` / `checkOutDate`), `originPlace` y `destinationPlace` (texto libre `"Ciudad, País"`).
+- **Cola recibida por Módulo 1 desde Módulo 2**:
+  - `m1.reservas.diarias.queue` (routing key `reserva.lista-del-dia`): Lista diaria de reservas `ACTIVE` ingestada a las 00:00 para alimentar la copia local. Routing key `reserva.lista-del-dia.actualizacion`: actualizaciones continuas del día (`ADDED`, `UPDATED`, `REMOVED`).
 - **Estructura estándar del mensaje (`EventEnvelope<T>`)**:
   ```json
   {
@@ -119,8 +122,7 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 
 | Servicio Externo | Método y Ruta | Propósito |
 |---|---|---|
-| **Módulo 2 (Reservas)** | `GET /api/reservations?startDate={today}&status=ACTIVE` | Consulta de llegadas del día para el buscador de Llegadas del Panel de Recepción |
-| **Módulo 2 (Reservas)** | `GET /api/reservations/{reservationRef}` | Consulta reactiva de los datos contractuales del titular de una reserva específica en paso 1 de Check-In |
+| **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
 | **Módulo 3 (Liquidación)** | `GET /api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}` | Consulta reactiva síncrona de la liquidación final y desglose financiero en el paso 2 de Check-Out |
 
 ### Formato Estándar de Error (`ApiError`)
