@@ -37,9 +37,9 @@ Como Recepcionista, quiero capturar durante el Check-In la información de ident
 
 ### Historia de Usuario 2 - Coincidencia con `guestCount`, control de capacidad física y panel migratorio SIRE (Prioridad: P2)
 
-Como Recepcionista, quiero que el sistema valide que la cantidad de personas registradas coincida exactamente con la cantidad de la habitación (`guestCount`), no exceda la capacidad máxima física de la habitación y abra el panel de datos migratorios para cada ocupante con nacionalidad distinta de Colombia solicitando obligatoriamente fecha de nacimiento, procedencia y destino, para evitar sobrecupos físicos y cumplir con la legislación migratoria sin devoluciones.
+Como Recepcionista, quiero que el sistema valide que la cantidad de personas registradas coincida exactamente con la cantidad de la habitación (`guestCount`), no exceda la capacidad máxima física de la habitación y abra el panel de datos migratorios para cada ocupante con nacionalidad distinta de Colombia solicitando obligatoriamente fecha de nacimiento, procedencia y destino, para evitar sobrecupos físicos y cumplir con la legislación migratoria de manera íntegra y oportuna.
 
-**Por qué esta prioridad**: Previene sobreocupación en las unidades habitacionales físicas del hotel, garantiza la correspondencia estricta con la cantidad contratada para la habitación y asegura que la presencia de ocupantes extranjeros active el panel migratorio exigiendo los datos completos antes de avanzar, eliminando devoluciones externas.
+**Por qué esta prioridad**: Previene sobreocupación en las unidades habitacionales físicas del hotel, garantiza la correspondencia estricta con la cantidad contratada para la habitación y asegura que la presencia de ocupantes extranjeros active el panel migratorio exigiendo los datos completos antes de avanzar.
 
 **Prueba Independiente**: Se prueba intentando avanzar con menos o más ocupantes de los definidos en `guestCount` de la habitación, comprobando el bloqueo en ambos casos; intentando exceder la capacidad máxima (`maxCapacity`) de la habitación; seleccionando una nacionalidad distinta de Colombia y verificando la apertura del panel migratorio con los tres campos faltantes requeridos; y comprobando el bloqueo si se intenta dejar vacíos los campos de fecha de nacimiento, procedencia o destino, o ingresar una fecha de nacimiento no válida.
 
@@ -60,7 +60,7 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
    - **Cuando** el número de ocupantes alcanza la capacidad física de la habitación
    - **Entonces** el sistema deshabilita el botón "Agregar huésped" y muestra el mensaje indicando que se alcanzó la capacidad máxima física de la habitación (`maxCapacity`: 2 personas), permitiendo únicamente eliminar al acompañante mediante el ícono de papelera.
 
-4. **Escenario**: Bloqueo por campos obligatorios incompletos en identidad o panel migratorio
+4. **Escenario**: Bloqueo por campos obligatorios no diligenciados en identidad o panel migratorio
    - **Dado** que se añade un acompañante pero se omite diligenciar alguno de los campos de identidad obligatorios (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`), o en un ocupante extranjero se deja vacío alguno de los campos del panel migratorio (`birthDate`, `originPlace`, `destinationPlace`)
    - **Cuando** el Recepcionista intenta continuar hacia el resumen de confirmación
    - **Entonces** el sistema resalta los campos faltantes y no permite avanzar al paso 3 hasta completar todos los datos obligatorios.
@@ -117,7 +117,7 @@ Como Recepcionista, quiero que el sistema valide que la cantidad de personas reg
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate` (solo extranjeros), `originPlace` (solo extranjeros), `destinationPlace` (solo extranjeros) e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
 - **ForeignGuestData**: Estructura de control migratorio con los diez campos exigidos por el SIRE que se envía por la cola independiente `m2.huespedes.extranjeros.queue`. Los campos `birthDate`, `originPlace` y `destinationPlace` se capturan en el panel migratorio de este caso de uso; `movementType` (`ENTRY`) y `movementDate` (`checkInDate`) los asigna automáticamente el caso de uso "Enviar datos de huéspedes extranjeros".
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base y estado actual (uno de los 8 estados del ciclo de vida).
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), canal de origen (`source`: `DIRECTA` o nombre de la OTA), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva, recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva, recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **Receptionist**: Actor de recepcionista que opera el flujo de recepción y captura de huéspedes.
 
 ---
