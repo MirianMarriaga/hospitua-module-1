@@ -1,92 +1,56 @@
 # Especificación del Caso de Uso: Programar Bloqueo Técnico para Habitación
 
-**Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Personal de mantenimiento (programación) / Módulo 1 (Autónomo, aplicación del bloqueo)
-**Creado**: 2026-09-21
-
 ---
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Programación de un mantenimiento preventivo (Prioridad: P1)
+### Historia de Usuario 1 - Programación de bloqueo preventivo sobre habitación disponible (Prioridad: P1)
 
 Como miembro del personal de mantenimiento quiero poder programar mantenimientos preventivos en habitaciones, para así formalizar mi participación en labores definidas para mi área e indicar de forma documentada la necesidad de intervenir y realizar reparaciones, reemplazos o remociones de manera preventiva sobre una habitación de forma temporal.
 
-**Por qué esta prioridad**: Permite ejecutar inspecciones y mantenimientos preventivos sin chocar con reservas, evitando asignar a huéspedes habitaciones que estarán en intervención.
+**Por qué esta prioridad**: Permite ejecutar inspecciones y mantenimientos preventivos protegiendo los estándares de infraestructura del hotel, evitando la asignación de unidades habitacionales en posible mal estado y por consiguiente evitar a los huéspedes malas experiencias.
 
-**Prueba independiente**: Programar un mantenimiento sobre una habitación con una justificación y un rango válidos, verificar que se consultan reservas y mantenimientos, que se registra el `TechnicalBlockReport` en estado `Scheduled` y que, al llegar la fecha de inicio con la habitación en `Available`, el sistema la pasa a `TechnicalBlock` y la muestra en el panel de mantenimiento.
-
-**Escenarios de aceptación**:
-
-1. **Escenario**: Programación exitosa
-   - **Dado que** Existe una habitación que no está en `DisabledForRepairs`, `TechnicalBlock` ni `Inactive`
-   - **Cuando** El miembro del personal de mantenimiento la busca en su panel, pulsa "Programar bloqueo" e ingresa una justificación válida, fecha de inicio y fecha estimada de fin válidas
-   - **Entonces** El sistema consulta reservas y mantenimientos de la habitación en ese rango, comprueba que no hay cruces y registra el `TechnicalBlockReport` en estado `Scheduled`, sin cambiar el estado de la habitación
-
-2. **Escenario**: Rechazo por cruce con reservas
-   - **Dado que** La habitación tiene una reserva en Módulo 2 dentro del rango solicitado
-   - **Cuando** El miembro del personal de mantenimiento intenta programar el mantenimiento
-   - **Entonces** El sistema rechaza la programación e indica que hay una reserva en ese rango para que se elija otro rango o se coordine con Módulo 2
-
-3. **Escenario**: Rechazo por cruce con otro mantenimiento
-   - **Dado que** La habitación ya tiene un mantenimiento programado (`Scheduled`) cuyo rango se cruza con el solicitado
-   - **Cuando** El miembro del personal de mantenimiento intenta programar el mantenimiento
-   - **Entonces** El sistema rechaza la programación e indica el rango del mantenimiento existente
-
-4. **Escenario**: Datos inválidos
-   - **Dado que** El miembro del personal de mantenimiento está autenticado
-   - **Cuando** Intenta confirmar con la justificación vacía, una fecha de inicio pasada, una fecha de fin anterior a la de inicio, una fecha inexistente (ej. 31-02-2026) o un rango fuera de los límites
-   - **Entonces** El sistema bloquea la confirmación indicando la regla incumplida, sin ejecutar las consultas de reservas ni mantenimientos
-
-5. **Escenario**: Cancelación de un bloqueo programado por error
-   - **Dado que** Existe un bloqueo en estado `Scheduled` (por ejemplo, con una fecha o habitación equivocada)
-   - **Cuando** Un miembro del personal de mantenimiento pulsa "Cancelar" en el listado "Programados" del panel y confirma
-   - **Entonces** El informe pasa a `Cancelled`, se registra en la bitácora quién lo canceló y cuándo, y deja de bloquear la habitación: Módulo 2 puede volver a asignarla en ese rango y el Administrador puede darla de baja
-
----
-
-### Historia de Usuario 2 (Autónoma) - Aplicación del bloqueo (Prioridad: P1)
-
-Como Módulo 1, quiero poner la habitación en bloqueo técnico cuando llegue la fecha programada, para que quede fuera del inventario operativo durante la intervención sin que nadie tenga que hacerlo a mano.
-
-**Por qué esta prioridad**: Sin la aplicación automática, el mantenimiento programado nunca retiraría la habitación del inventario.
-
-**Prueba independiente**: Con un bloqueo `Scheduled`, simular la llegada de la fecha de inicio con la habitación en `Available` y verificar que pasa a `TechnicalBlock`; repetir con la habitación `Occupied` y verificar que el bloqueo se aplica cuando la habitación vuelve a `Available` dentro del rango, o caduca si el rango termina antes.
+**Prueba independiente**: Puede ser probada indicando que se programará un mantenimiento en una habitación en estado `Available`, seleccionando dicha habitación, ingresando la justificación técnica del mantenimiento y un rango temporal válido, verificando que realiza validaciones relacionadas a reservas y mantenimientos futuros previamente a la programación, confirmando la operación y verificando que el estado de la habitación cambie a `TechnicalBlock`, quede excluida del inventario operativo del hotel y sea transferida exclusivamente al panel de mantenimiento.
 
 **Escenarios de aceptación**:
 
-1. **Escenario**: Aplicación en la fecha de inicio
-   - **Dado que** Existe un bloqueo `Scheduled` cuya fecha de inicio es hoy y la habitación está en `Available`
-   - **Cuando** Comienza el día de inicio
-   - **Entonces** El sistema pasa la habitación a `TechnicalBlock` y el informe a `Applied`
+1. **Escenario**: Bloqueo técnico exitoso sin conflicto de reservas
+   - **Dado que** Existe una habitación listada que se encuentra en estado `Available`
+   - **Cuando** El miembro del personal de mantenimiento programa el bloqueo técnico ingresando una justificación válida, fecha de inicio y fecha estimada de finalización válidas
+   - **Entonces** El sistema realiza consultas sobre las reservas y mantenimientos futuros vinculados a la habitación, comprueba que no existen conflictos, transiciona la habitación a `TechnicalBlock`, la retira del inventario operativo del hotel y registra el mantenimiento en la tabla de mantenimientos.
 
-2. **Escenario**: Bloqueo programado para hoy
-   - **Dado que** La habitación está en `Available`
-   - **Cuando** El técnico programa un bloqueo cuya fecha de inicio es hoy
-   - **Entonces** El sistema registra el informe y, en la misma operación, pasa la habitación a `TechnicalBlock` y el informe a `Applied`
+2. **Escenario**: Rechazo de bloqueo técnico por conflicto con reservas existentes
+   - **Dado que** Existe una habitación en estado `Available` que registra una reserva programada en la tabla de reservas dentro del rango definido para la intervención
+   - **Cuando** El miembro del personal de mantenimiento intenta programar el mantenimiento
+   - **Entonces** El sistema realiza consultas sobre las reservas futuras vinculadas a la habitación, rechaza el cambio de estado, mantiene la habitación en `Available` y alerta sobre el conflicto para reprogramar el mantenimiento.
 
-3. **Escenario**: Aplicación diferida
-   - **Dado que** Al comenzar el día de inicio la habitación está `Occupied` (o en limpieza o en reparación)
-   - **Cuando** La habitación vuelve a `Available` dentro del rango programado
-   - **Entonces** *Marcar habitación como disponible* aplica el bloqueo pendiente: la habitación queda en `TechnicalBlock` y el informe en `Applied`
+3. **Escenario**: Rechazo de bloqueo técnico por conflicto con mantenimientos existentes en el rango temporal definido
+   - **Dado que** Existe una habitación en estado `Available` que registra un mantenimiento preventivo ya programado en la tabla de mantenimientos dentro del rango definido para la intervención
+   - **Cuando** El miembro del personal de mantenimiento intenta programar el mantenimiento
+   - **Entonces** El sistema realiza consultas sobre los mantenimientos futuros vinculados a la habitación, rechaza el cambio de estado, mantiene la habitación en `Available` y alerta sobre el conflicto para reprogramar el mantenimiento.
 
-4. **Escenario**: Caducidad
-   - **Dado que** El rango programado termina sin que la habitación haya estado en `Available`
-   - **Cuando** Termina la fecha estimada de fin
-   - **Entonces** El informe pasa a `Expired`, se registra en la bitácora y deja de bloquear la habitación; si el mantenimiento sigue siendo necesario, se programa uno nuevo
+4. **Escenario**: Intento de programación con justificación técnica vacía
+   - **Dado que** Existe una habitación en estado `Available`
+   - **Cuando** El miembro del personal de mantenimiento intenta confirmar la programación dejando el campo de justificación vacío o con caracteres en blanco
+   - **Entonces** El sistema bloquea el diligenciamiento, no ejecuta la consulta de reservas y exige documentar el motivo técnico preventivo.
+
+5. **Escenario**: Intento de programación con fechas o rango temporal sin sentido
+   - **Dado que** Existe una habitación en estado `Available` y el miembro del personal de mantenimiento está autenticado
+   - **Cuando** El miembro del personal de mantenimiento intenta confirmar la programación con una fecha de inicio pasada, una fecha estimada de finalización anterior a la de inicio, una fecha inexistente en el calendario (ej. 31-02-2026) o un rango que excede los límites permitidos
+   - **Entonces** El sistema bloquea la confirmación, no ejecuta las consultas de reservas ni mantenimientos, mantiene la habitación en `Available` y muestra un error indicando la regla temporal incumplida.
 
 ---
 
 ### Casos Límite
 
-1. **Fallo en la consulta de reservas o de mantenimientos**: No se registra la programación y se informa que no fue posible verificar; el usuario puede reintentar (FR-015).
-2. **Dos programaciones simultáneas con rangos cruzados**: Solo la primera se registra; la segunda se rechaza por cruce (FR-014).
-3. **Daño mayor detectado durante el bloqueo**: El técnico cierra la intervención con *Confirmar reparación finalizada* y, si hace falta, reporta el daño cuando la habitación vuelva a `Available`.
-4. **Rango de un solo día**: Una fecha de fin igual a la de inicio es válida.
-5. **Habitación dada de baja con un bloqueo `Scheduled`**: No ocurre; *Dar de baja habitación* rechaza la baja mientras exista un bloqueo `Scheduled`. Si el bloqueo ya no se necesita, se cancela primero (HU-1, escenario 5).
-6. **Cancelar un bloqueo ya aplicado**: No es posible; un bloqueo `Applied` termina con *Confirmar reparación finalizada*. Solo se cancelan bloqueos `Scheduled`.
-7. **El bloqueo deja de estar programado mientras se confirma su cancelación** (se aplicó al comenzar el día, caducó o lo canceló otro técnico): la cancelación se rechaza informando su estado actual (`Applied`, `Expired` o `Cancelled`) y el listado "Programados" se actualiza (FR-011, FR-014).
-8. **Falla la aplicación o la caducidad automática** (por ejemplo, un error al comenzar el día): se reintenta automáticamente mientras el bloqueo siga vigente y el fallo queda en la bitácora (FR-016).
+1. **Conflicto con reservas activas o futuras detectadas en sistema de reservas**: Al invocar el caso de uso incluido `Consultar reservas`, si el sistema detecta reservas confirmadas que coinciden con el periodo de trabajo preventivo, cancela la transición a `TechnicalBlock`, mantiene la unidad en `Available` y notifica al usuario que coordine la reasignación de la reserva en el Módulo 2.
+2. **Peticiones simultáneas de bloqueo técnico sobre la misma unidad (concurrencia)**: Ante dos intentos simultáneos de programación, el sistema procesa la primera solicitud transicionándola a `TechnicalBlock` y rechaza la segunda informando que la unidad ya se encuentra en bloqueo técnico.
+3. **Justificación técnica vacía o insuficiente**: El sistema exige de forma obligatoria un texto descriptivo del mantenimiento preventivo planificado antes de habilitar la confirmación y realizar la operación.
+4. **Fallo o no disponibilidad en la consulta de reservas**: La operación se ejecuta de manera atómica; si la consulta sobre reservas futuras asignadas vinculadas a la habitación presenta una caída de red o no hay respuesta, el sistema ejecuta rollback y la habitación permanece en estado `Available`.
+5. **Fallo o no disponibilidad en la consulta de mantenimientos**: La operación se ejecuta de manera atómica; si la consulta sobre mantenimientos futuros programados vinculados a la habitación presenta una caída de red o no hay respuesta, el sistema ejecuta rollback y la habitación permanece en estado `Available`.
+6. **Detección de daño físico mayor durante la intervención**: Si durante el mantenimiento preventivo en `TechnicalBlock` se detecta una avería crítica imprevista, la unidad debe culminar su ciclo hacia `PendingCleaning` mediante "Confirmar reparación finalizada" o canalizarse por el flujo correspondiente de inhabilitación según las directrices de mantenimiento.
+7. **Rango temporal de un solo día**: Una fecha estimada de finalización igual a la fecha de inicio es válida (duración mínima de un día). Una fecha de finalización anterior a la de inicio es siempre inválida.
+8. **Fechas en formato incorrecto o inexistentes en el calendario**: El sistema rechaza valores como `2026-13-45`, `31-02-2026` o texto libre, indicando el formato esperado DD-MM-YYYY.
 
 ---
 
@@ -94,37 +58,37 @@ Como Módulo 1, quiero poner la habitación en bloqueo técnico cuando llegue la
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al Personal de mantenimiento programar mantenimientos, sobre habitaciones que no estén en `DisabledForRepairs`, `TechnicalBlock` ni `Inactive` (una habitación que ya está en intervención se programa después de confirmar su reparación). El punto de entrada es la acción "Programar bloqueo" de la búsqueda del panel de mantenimiento (`spec-consultar-panel-mantenimiento.md`).
-- **FR-002**: El sistema DEBE exigir una justificación técnica (no vacía, máximo 500 caracteres), una fecha de inicio (`TechnicalBlockStartDate`) y una fecha estimada de fin (`EstimatedTechnicalBlockEndDate`), ambas en formato DD-MM-YYYY y existentes en el calendario.
-- **FR-003**: El sistema DEBE rechazar una fecha de inicio anterior a hoy, una fecha de fin anterior a la de inicio, un rango de más de 90 días y una fecha de inicio a más de 365 días de hoy, indicando la regla incumplida.
-- **FR-004**: Solo con los datos válidos, el sistema DEBE verificar que no haya cruces en el rango mediante:
-  - *Consultar reservas* (`<<includes>>`, consulta REST a Módulo 2 con `roomId`, `startDate`, `endDate`). Cuentan como cruce las reservas en estado `ACTIVE` o `CHECKED_IN`, con el mismo criterio que *Dar de baja habitación*.
-  - *Consultar información de mantenimientos*.
-- **FR-005**: Si alguna verificación encuentra un cruce, el sistema DEBE rechazar la programación indicando el motivo.
-- **FR-006**: Si no hay cruces, el sistema DEBE registrar el `TechnicalBlockReport` en estado `Scheduled`, sin cambiar el estado de la habitación.
-- **FR-007**: Al comenzar el día de inicio, si la habitación está en `Available`, el sistema DEBE pasarla a `TechnicalBlock` (actor `SYSTEM`) y marcar el informe como `Applied`. Si la fecha de inicio es hoy y la habitación está en `Available` en el momento de programar, la aplicación ocurre en la misma operación de registro. Si no está en `Available`, el bloqueo queda pendiente y lo aplica *Marcar habitación como disponible* cuando la habitación vuelva a `Available` dentro del rango.
-- **FR-008**: Al terminar la fecha estimada de fin, un informe que siga en `Scheduled` DEBE pasar a `Expired` y registrarse en la bitácora.
-- **FR-009**: El sistema DEBE ofrecer la acción **Ver informe** sobre los bloqueos `Scheduled` y `Applied`, mostrando por separado la justificación técnica, el responsable, la fecha de inicio, la fecha estimada de fin y la fecha y hora de la programación.
-- **FR-010**: Las habitaciones en `TechnicalBlock` se gestionan desde el panel de mantenimiento (`spec-consultar-panel-mantenimiento.md`). La salida de `TechnicalBlock` solo ocurre por *Confirmar reparación finalizada*.
-- **FR-011**: El sistema DEBE permitir al Personal de mantenimiento cancelar un bloqueo en estado `Scheduled`, previa confirmación, desde el listado "Programados" del panel de mantenimiento (`spec-consultar-panel-mantenimiento.md`). El informe pasa a `Cancelled` y se registra en la bitácora quién lo canceló y cuándo. Los bloqueos `Applied` no se cancelan. Si al confirmar el bloqueo ya no está en `Scheduled`, la cancelación se rechaza informando su estado actual.
-- **FR-012**: Solo el Personal de mantenimiento autenticado DEBE poder programar o cancelar un bloqueo. Si la sesión expiró o el rol no corresponde, el sistema NO DEBE ejecutar nada: pide iniciar sesión o informa que la acción no está permitida.
-- **FR-013**: `ReportDateTime`, la fecha y hora de cancelación y la de aplicación DEBEN generarse en el servidor en hora Colombia (UTC-5), ignorando cualquier hora enviada por el cliente. "Hoy", para validar y aplicar las fechas, es la fecha del servidor en esa misma zona.
-- **FR-014**: Si dos operaciones compiten (dos programaciones con rangos cruzados sobre la misma habitación, o una cancelación y la aplicación del mismo bloqueo), solo la primera DEBE proceder; la segunda se rechaza informando el motivo o el estado actual.
-- **FR-015**: La programación (verificaciones, registro del informe y, si empieza hoy, la aplicación) y la cancelación DEBEN confirmarse completas o no aplicar nada. Si una verificación no responde o falla, no se registra nada, se informa que no fue posible verificar y el usuario puede reintentar.
-- **FR-016**: La aplicación (FR-007) y la caducidad (FR-008) son operaciones autónomas: si fallan, el sistema DEBE reintentarlas automáticamente mientras el bloqueo siga vigente y registrar cada fallo en la bitácora; ninguna se pierde sin dejar rastro.
-- **FR-017**: La transición a `TechnicalBlock` DEBE registrarse en `RoomStateHistory` con el actor y el flujo de origen, dentro de la misma operación.
+- **FR-001**: El sistema DEBE verificar que la habitación sobre la que se desea operar se encuentre en el estado `Available`
+- **FR-002**: El sistema DEBE actualizar el estado de la habitación de `Available` a `TechnicalBlock` una vez que la fecha actual esté contenida dentro del rango temporal definido para la ejecución del mantenimiento programado, aún así, el registro de **TechnicalBlockReport** se da inmediantamente se confirma el diligenciamiento del proceso de programación del mantenimiento..
+- **FR-003**: El sistema DEBE permitir únicamente al actor "miembro del personal de mantenimiento" (`MaintenanceStaff`) ejecutar la programación de mantenimientos.
+- **FR-004**: El sistema DEBE realizar obligatoriamente la consulta relacionada a reservas o mantenimientos programados vinculados a la habitación (las consultas se realizan usando el identificador único de la habitación, mediante el caso de uso *Consultar información de Mantenimientos* para los mantenimientos) para comprobar la existencia de reservas o eventos futuros en esta y evitar el solapamiento de eventos en el mismo rango temporal definido.
+- **FR-005**: El sistema DEBE rechazar la programación del bloqueo técnico si la consulta de reservas o mantenimientos retorna compromisos comerciales u operativos programados para la unidad dentro de la ventana de mantenimiento.
+- **FR-006**: El sistema DEBE requerir y validar como obligatorio el ingreso de una justificación técnica detallada que fundamente el mantenimiento preventivo programado.
+- **FR-007**: El sistema DEBE rechazar la solicitud si la habitación se encuentra en cualquiera de los otros estados operativos (`Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock`, `Inactive`).
+- **FR-008**: El sistema DEBE excluir de forma inmediata las habitaciones en estado `TechnicalBlock` de las consultas comerciales y del catálogo de asignaciones para nuevas reservas.
+- **FR-009**: El sistema DEBE crear un registro para auditoría (tabla de mantenimientos programados) vinculando la habitación, el técnico responsable, la justificación técnica registrada, fecha de inicio del mantenimiento, fecha estimada de finalización del mantenimiento y la marca de tiempo (timestamp) exacta de la operación.
+- **FR-010**: El sistema DEBE asegurar que la liberación y salida del estado `TechnicalBlock` se gestione exclusivamente a través de los casos de uso autorizados en el ciclo de vida del módulo.
+- **FR-011**: El sistema DEBE garantizar la disponibilidad de un recurso de consulta correspondiente al registro del informe de mantenimiento programado (acción **Ver informe**) de manera persistente para toda unidad habitacional que haya transicionado exitosamente al estado `TechnicalBlock`.
+   - **FR-011.1**: El recurso **Ver informe** DEBE mostrar la justificación técnica, el responsable, el rango temporal del mantenimiento y la fecha y hora de la programación.
+   - **FR-011.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones en bloqueo técnico (`TechnicalBlock`) aplicando las siguientes políticas de control de acceso según la sesión activa:
+      - **Para el rol `Personal de mantenimiento`**: Autorización híbrida (lectura y escritura); el sistema expondrá tanto la acción de consulta (**Ver informe**) como la acción de transición operativa (**Iniciar reparaciones**), esta última únicamente cuando la fecha actual se encuentre dentro del rango temporal definido para ser intervenida.
+- **FR-012**: El sistema DEBE validar que `TechnicalBlockStartDate` y `EstimatedTechnicalBlockEndDate` sean obligatorias, no nulas y con formato DD-MM-YYYY, y que correspondan a fechas reales de calendario (ej. rechazar 31-02-2026 o 29-02 en año no bisiesto).
+- **FR-013**: El sistema DEBE rechazar una `TechnicalBlockStartDate` anterior a la fecha actual del servidor.
+- **FR-014**: El sistema DEBE rechazar una `EstimatedTechnicalBlockEndDate` anterior a `TechnicalBlockStartDate`; una fecha de finalización igual a la de inicio es válida (duración mínima de un día).
+- **FR-015**: El sistema DEBE restringir la duración máxima del rango temporal (`EstimatedTechnicalBlockEndDate` − `TechnicalBlockStartDate`) a un límite configurable (valor por defecto sugerido: 90 días) y la antelación máxima de programación (`TechnicalBlockStartDate` − fecha actual) a un límite configurable (valor por defecto sugerido: 365 días), rechazando rangos que los excedan.
+- **FR-016**: El sistema DEBE ejecutar las validaciones temporales (FR-012 a FR-015) antes de realizar las consultas de reservas y mantenimientos, y DEBE informar mediante retroalimentación visual la regla específica incumplida, indicando el formato o límite esperado.
+- **FR-017**: El sistema DEBE generar `ReportDateTime` exclusivamente en el servidor, sin aceptar fechas u horas de operación enviadas por el cliente.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Pasa de `Available` a `TechnicalBlock` al aplicarse el bloqueo.
-- **TechnicalBlockReport**: Informe del mantenimiento programado. Almacena:
-  - **RoomId**: Identificador de la habitación
-  - **MaintenanceStaffMemberId**: Miembro del personal de mantenimiento que programó
-  - **TechnicalBlockReason**: Justificación técnica
-  - **TechnicalBlockStartDate**: Fecha de inicio (DD-MM-YYYY)
-  - **EstimatedTechnicalBlockEndDate**: Fecha estimada de fin (DD-MM-YYYY)
-  - **Status**: `Scheduled` (programado, aún no aplicado), `Applied` (la habitación pasó a `TechnicalBlock`), `Expired` (el rango terminó sin aplicarse) o `Cancelled` (cancelado por mantenimiento antes de aplicarse)
-  - **ReportDateTime**: Fecha y hora de la programación
+- **Room**: Entidad que representa una habitación, que transiciona de `Available` a `TechnicalBlock`.
+- **TechnicalBlockReport**: Entidad que representa el informe generado por la programación del mantenimiento, esta almacena:
+   - **RoomId**: Identificador de la habitación
+   - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento que programó el mantenimiento
+   - **TechnicalBlockReason**: Cadena de texto que representa el motivo de la programación del mantenimiento
+   - **TechnicalBlockStartDate**: Fecha de inicio del mantenimiento - Formato DD-MM-YYYY
+   - **EstimatedTechnicalBlockEndDate**: Fecha de finalización estimada del mantenimiento - Formato DD-MM-YYYY
+   - **ReportDateTime**: TimeStamp de realización de la programación del mantenimiento - Formato DD-MM-YYYY HH:MM
 
 ---
 
@@ -132,7 +96,8 @@ Como Módulo 1, quiero poner la habitación en bloqueo técnico cuando llegue la
 
 ### Resultados Medibles
 
-- **SC-001**: El 100% de las programaciones válidas ejecutan ambas verificaciones y quedan registradas en menos de 2 segundos.
-- **SC-002**: El 100% de las programaciones con cruce de reservas o mantenimientos, o con datos inválidos, son rechazadas.
-- **SC-003**: El 100% de los bloqueos `Scheduled` terminan en `Applied`, `Expired` o `Cancelled`; ninguno queda programado indefinidamente.
-- **SC-004**: El 100% de las habitaciones en `TechnicalBlock` quedan fuera del inventario operativo de inmediato.
+- **SC-001**: El 100% de las programaciones válidas realizan consultas a la tabla de reservas y mantenimiento, y transicionan la habitación a `TechnicalBlock` en menos de 2 segundos.
+- **SC-002**: El sistema intercepta y rechaza el 100% de los intentos de bloqueo técnico sobre habitaciones que no se encuentren en estado `Available` o que presenten reservas o mantenimientos programados en colisión.
+- **SC-003**: El 100% de las habitaciones marcadas en `TechnicalBlock` quedan excluidas de forma inmediata de las consultas de inventario operativo del hotel.
+- **SC-004**: Cero registros de bloqueo técnico completados sin justificación obligatoria o sin la traza correspondiente de auditoría.
+- **SC-005**: El 100% de los intentos con fechas nulas, inexistentes, pasadas, con rango invertido o fuera de los límites configurados son rechazados antes de ejecutar consultas externas.

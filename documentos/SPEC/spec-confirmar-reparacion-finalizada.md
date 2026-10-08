@@ -1,100 +1,49 @@
-# Especificación del Caso de Uso: Confirmar Reparación Finalizada
-
-**Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Personal de mantenimiento
-**Creado**: 2026-09-04
+# Especificación del Caso de Uso: Confirmar Fin de Reparación de Habitación
 
 ---
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Inicio de reparaciones desde el panel de mantenimiento (Prioridad: P1)
-
-Como miembro del personal de mantenimiento quiero ver las habitaciones que requieren intervención y tomar una para empezar a repararla, para que quede claro que alguien está trabajando en ella.
-
-**Por qué esta prioridad**: Es la entrada al ciclo de mantenimiento: sin una tarea iniciada, nadie puede confirmar el fin de la reparación.
-
-**Prueba independiente**: Entrar al panel de mantenimiento, pulsar "Iniciar reparaciones" sobre una habitación en `DisabledForRepairs` o `TechnicalBlock` sin tarea abierta y verificar que se crea la `ReparationTask` del técnico, que el estado de la habitación no cambia y que el técnico pasa a la vista de tarea activa.
-
-**Escenarios de aceptación**:
-
-1. **Escenario**: Inicio de reparaciones
-   - **Dado que** El técnico no tiene tareas activas y la habitación "101" está en `DisabledForRepairs` (o `TechnicalBlock`) sin tarea de reparación abierta
-   - **Cuando** Pulsa "Iniciar reparaciones" sobre la habitación "101"
-   - **Entonces** El sistema crea la `ReparationTask` con el técnico y la fecha y hora de inicio, sin cambiar el estado de la habitación, y lo redirige a la vista de tarea activa
-
-2. **Escenario**: Habitación con una reparación en curso
-   - **Dado que** La habitación "102" tiene una `ReparationTask` abierta de otro técnico
-   - **Cuando** Un técnico consulta el panel
-   - **Entonces** La habitación no ofrece "Iniciar reparaciones": pertenece a su titular hasta que este la confirme o la libere (FR-011)
-
----
-
-### Historia de Usuario 2 - Finalización de reparación y pase a limpieza (Prioridad: P1)
+### Historia de Usuario 1 - Finalización de reparación y pase a limpieza (Prioridad: P1)
 
 Como miembro del personal de mantenimiento quiero poder indicar que he finalizado las labores de reparación o revisión técnica en una habitación, para así poder formalizar mi participación en las labores definidas para mi área e indicar que la unidad se encuentra nuevamente disponible para ser asignada a labores de limpieza previo a su habilitación comercial.
 
-**Por qué esta prioridad**: Es el cierre del ciclo de mantenimiento. Sin esta confirmación, la habitación queda bloqueada en el inventario por motivos técnicos y la tarea del técnico queda abierta indefinidamente.
+**Por qué esta prioridad**: Es el cierre del ciclo de mantenimiento. Sin esta confirmación, la habitación queda bloqueada en el inventario por motivos técnicos, reduciendo la capacidad operativa del hotel y dejando la tarea del empleado abierta indefinidamente.
 
-**Prueba independiente**: Desde la vista de tarea activa, confirmar el fin de la reparación y verificar que la habitación pasa a `PendingCleaning`, que la `ReparationTask` se cierra con resultado `Completed` y su fecha y hora de fin, y que el técnico vuelve al panel general de mantenimiento.
+**Prueba independiente**: Puede ser probada indicando que se ha finalizado la reparación de una habitación en estado `DisabledForRepairs` o `TechnicalBlock` previamente asignada al usuario activo, verificando que el sistema la marca como `PendingCleaning`, registra la fecha y hora de finalización en la tarea del usuario, y retorna la vista del usuario al panel general de mantenimiento.
 
 **Escenarios de aceptación**:
 
 1. **Escenario**: Fin de reparación exitoso
-   - **Dado que** El técnico tiene la tarea activa de la habitación "101", en `DisabledForRepairs` (o `TechnicalBlock`)
-   - **Cuando** Confirma que ha finalizado las labores de reparación
-   - **Entonces** El sistema, mediante *Marcar pendiente a limpieza*, pasa la habitación a `PendingCleaning`, cierra la `ReparationTask` con resultado `Completed` y libera al técnico de la tarea activa
+   - **Dado que** El miembro del personal de mantenimiento está autenticado y tiene asignada activamente la habitación "101" cuyo estado es `DisabledForRepairs` (o `TechnicalBlock`)
+   - **Cuando** El personal de mantenimiento confirma que ha finalizado las labores de reparación
+   - **Entonces** El sistema transiciona la habitación a estado `PendingCleaning`, registra la hora de finalización y libera al usuario de la tarea activa.
 
-2. **Escenario**: Intento de finalización de una tarea ajena o liberada
-   - **Dado que** La tarea de la habitación "105" pertenece a "Usuario B", o la tarea de "Usuario A" fue liberada por el Administrador
-   - **Cuando** "Usuario A" intenta confirmar el fin de la reparación
-   - **Entonces** El sistema rechaza la operación (FR-006) y, si su tarea fue liberada, se lo informa y lo devuelve al panel (FR-011)
+2. **Escenario**: Habitación no está en proceso de reparación
+   - **Dado que** El miembro del personal de mantenimiento está autenticado y la habitación "101" se encuentra en estado `Available`, `PendingCleaning` u `Occupied`
+   - **Cuando** El miembro del personal de mantenimiento intenta ejecutar la acción de marcar el fin de labores de reparación sobre ella
+   - **Entonces** El sistema rechaza la operación, indicando a través de un error que el estado actual no permite esta transición.
 
----
-
-### Historia de Usuario 3 - Liberar una reparación que no puedo terminar (Prioridad: P2)
-
-Como miembro del personal de mantenimiento, quiero poder dejar una reparación que no podré terminar (fin de turno, falta de repuestos u otra prioridad), para que otro técnico pueda iniciarla sin que nadie se quede con mi tarea sin mi consentimiento.
-
-**Por qué esta prioridad**: Solo el titular puede cerrar su tarea (FR-011). Sin esta opción, una reparación que el titular no puede terminar dejaría la habitación sin salida.
-
-**Prueba independiente**: Con una `ReparationTask` abierta de "Usuario B" sobre la habitación "102", pulsar "Liberar tarea" como "Usuario B", confirmar y verificar que la tarea queda cerrada como `Released`, que la habitación sigue en su estado y que vuelve a ofrecer "Iniciar reparaciones" a cualquier técnico.
-
-**Escenarios de aceptación**:
-
-1. **Escenario**: El titular libera su tarea
-   - **Dado que** "Usuario B" tiene la tarea activa de la habitación "102", en `DisabledForRepairs`
-   - **Cuando** Pulsa "Liberar tarea" en su vista de tarea activa y acepta la confirmación (texto definido en `spec-consultar-panel-mantenimiento.md`)
-   - **Entonces** El sistema cierra la `ReparationTask` con resultado `Released`, la habitación sigue en `DisabledForRepairs` sin tarea abierta y "Usuario B" vuelve al panel general
-
-2. **Escenario**: Otro técnico continúa la reparación
-   - **Dado que** La habitación "102" quedó sin tarea abierta tras ser liberada
-   - **Cuando** "Usuario A", sin tarea activa, pulsa "Iniciar reparaciones" sobre ella
-   - **Entonces** Se crea una `ReparationTask` nueva para "Usuario A" con el mismo reporte de origen (HU-1, escenario 1)
-
-3. **Escenario**: Liberación por el Administrador (titular ausente)
-   - **Dado que** "Usuario B" no está y su tarea en la habitación "102" sigue abierta
-   - **Cuando** El Administrador pulsa "Liberar tarea" sobre la habitación "102" en *Consultar inventario de habitaciones* y confirma
-   - **Entonces** Se produce el mismo efecto que en el HU-3, escenario 1
+3. **Escenario**: Intento de finalización de tarea ajena (Validación de propiedad)
+   - **Dado que** El miembro del personal de mantenimiento identificado como "Usuario A" está autenticado y la habitación "105" se encuentra en estado `DisabledForRepairs` pero la orden de reparación fue iniciada por el "Usuario B"
+   - **Cuando** El "Usuario A" intenta confirmar el fin de labores de reparación en esa habitación
+   - **Entonces** El sistema rechaza la operación por falta de autorización y muestra un error indicando que la tarea pertenece a otro miembro del personal de mantenimiento.
 
 ---
 
 ### Casos Límite
 
-1. **¿Qué ocurre si el técnico confirma el fin, pero la habitación sigue presentando fallas?**
-   Es un problema de calidad que el sistema no puede validar; el historial permite auditar qué técnico cerró la tarea.
+1. **¿Qué ocurre si el personal de mantenimiento confirma el fin, pero la habitación sigue presentando fallas físicas?**
+   Este es un problema operativo de calidad que no puede ser validado técnicamente por el sistema en este punto. La responsabilidad recae en la supervisión de mantenimiento; el historial registrado permitirá auditar qué técnico cerró la tarea de forma deficiente.
 
-2. **¿Qué ocurre si se detecta una avería distinta a la original?**
-   El técnico confirma la reparación actual para cerrar su tarea; la nueva avería se reporta después con *Marcar habitación inhabilitada por reparaciones* cuando la habitación pase por limpieza o quede `Available`.
+2. **¿Qué ocurre si se confirma el fin de reparación pero se detecta una nueva avería distinta a la original?**
+   El sistema debe permitir la confirmación de la reparación actual para cerrar el ciclo de la tarea activa. El reporte de la nueva avería representaría un flujo independiente que se podrá realizar posteriormente.
 
-3. **¿Qué ocurre si dos técnicos pulsan "Iniciar reparaciones" sobre la misma habitación a la vez?**
-   Solo el primero procede; el segundo recibe un error con el estado actual (FR-013).
+3. **¿Qué ocurre si la conexión a internet falla exactamente al momento de confirmar el fin de reparación?**
+   La operación se ejecuta bajo control transaccional estricto (ACID), conforme a lo definido en el caso de uso *Marcar Pendiente a Limpieza*. Si ocurre un error de red, se ejecutará un *rollback* completo. La habitación permanecerá en `DisabledForRepairs` (o `TechnicalBlock`) y la tarea seguirá activa, y la retroalimentación visual sugerirá reintentar la operación notificando sobre el error de conexión ocurrido.
 
-4. **¿Qué ocurre si un técnico con una tarea activa intenta iniciar otra?**
-   No es posible: mientras tenga una tarea activa solo ve la vista de tarea activa (FR-010).
-
-5. **¿Puede un técnico tomar directamente la reparación que otro tiene en curso?**
-   No. La tarea pertenece a su titular hasta que la confirma o la libera; si está ausente, solo el Administrador puede liberarla (FR-003, FR-011).
+4. **¿Qué ocurre si la fecha y hora de finalización resultan anteriores al inicio de la reparación?**
+   El sistema rechaza la operación, mantiene la habitación y la tarea sin cambios y muestra un error de inconsistencia temporal. Los timestamps siempre son generados por el servidor.
 
 ---
 
@@ -102,42 +51,27 @@ Como miembro del personal de mantenimiento, quiero poder dejar una reparación q
 
 ### Requisitos Funcionales
 
-#### Inicio y liberación de la reparación
-
-- **FR-001**: El punto de entrada de este caso de uso es el **panel de mantenimiento**, definido en `spec-consultar-panel-mantenimiento.md` (pestañas, columnas, orden, búsqueda de cualquier habitación, vista de tarea activa y textos). Desde él se inicia **Iniciar reparaciones** sobre habitaciones en `DisabledForRepairs` o `TechnicalBlock` sin tarea abierta; desde la vista de tarea activa, **Confirmar fin** y **Liberar tarea**.
-- **FR-002**: **Iniciar reparaciones** DEBE crear la `ReparationTask` (técnico autenticado, habitación, reporte de origen, fecha y hora de inicio) y llevar al técnico a la vista de tarea activa. No cambia el estado de la habitación.
-- **FR-003**: **Liberar tarea** permite al titular dejar una reparación que no podrá terminar (fin de turno, falta de repuestos u otra prioridad). DEBE pedir confirmación y, al confirmarse, cerrar la `ReparationTask` con resultado `Released` y quién la liberó, sin cambiar el estado de la habitación, que queda disponible para que cualquier técnico la inicie (FR-002). Solo puede ejecutarla el titular o, si el titular está ausente, el Administrador desde *Consultar inventario de habitaciones*.
-
-#### Confirmación del fin
-
-- **FR-004**: Mientras su `ReparationTask` siga abierta, el técnico solo accede a la vista de tarea activa (FR-010), definida en `spec-consultar-panel-mantenimiento.md`, con las acciones **Confirmar fin**, **Liberar tarea** y **Ver informe** (solo lectura, muestra el reporte de origen indicado en `SourceReportId`, para consultar el daño o la justificación mientras repara).
-- **FR-005**: Antes de confirmar el fin, el sistema DEBE pedir una confirmación explícita advirtiendo que la habitación pasará a la cola de limpieza.
-- **FR-006**: El sistema DEBE aceptar la confirmación solo si la habitación está en `DisabledForRepairs` o `TechnicalBlock` y la `ReparationTask` abierta pertenece al técnico autenticado; en otro caso la rechaza informando el estado actual de la habitación y el motivo.
-- **FR-007**: El sistema DEBE delegar la transición a `PendingCleaning` en *Marcar pendiente a limpieza* (`<<includes>>`), sin reimplementar su lógica, y cerrar la `ReparationTask` con resultado `Completed` y su fecha y hora de fin en la misma operación.
-- **FR-008**: Tras confirmar el fin o liberar la tarea, el técnico queda sin tarea activa y vuelve al panel general de mantenimiento.
-
-#### Reglas de la tarea y de la operación
-
-- **FR-009**: Solo el Personal de mantenimiento autenticado DEBE poder iniciar, confirmar o liberar su propia reparación; el Administrador solo puede liberar tareas (FR-003). Si la sesión expiró o el rol no corresponde, el sistema NO DEBE ejecutar nada: pide iniciar sesión o informa que la acción no está permitida.
-- **FR-010**: Una habitación DEBE tener como máximo una `ReparationTask` abierta y cada técnico como máximo una tarea activa. El sistema DEBE rechazar "Iniciar reparaciones" si el técnico ya tiene una tarea abierta o si la habitación ya la tiene.
-- **FR-011**: Solo el titular DEBE poder cerrar su `ReparationTask` (confirmar el fin o liberarla); ningún otro técnico puede quedarse con ella. La única excepción es la liberación por el Administrador (FR-003). Si el Administrador liberó la tarea y el titular intenta operar sobre ella, el sistema DEBE informarle "Tu tarea en la habitación [número] fue liberada por la administración." y devolverlo al panel.
-- **FR-012**: `StartDateTime` y `EndDateTime` DEBEN generarse en el servidor en hora Colombia (UTC-5), ignorando cualquier hora enviada por el cliente. La hora de fin nunca es anterior a la de inicio, y una hora registrada no se modifica.
-- **FR-013**: Si dos operaciones compiten sobre la misma habitación o la misma tarea (dos técnicos inician la misma habitación, o el titular confirma mientras el Administrador libera), solo la primera DEBE proceder; la segunda se rechaza informando el estado actual de la habitación.
-- **FR-014**: Iniciar, liberar y confirmar el fin (con *Marcar pendiente a limpieza* y el historial) DEBEN confirmarse completos o no aplicar nada. Ante un fallo, la habitación y la tarea conservan su estado, se informa el error y el usuario puede reintentar.
-- **FR-015**: La transición a `PendingCleaning` DEBE registrarse en `RoomStateHistory` con el técnico y el flujo de origen, dentro de la misma operación. Iniciar y liberar una reparación no cambian el estado y no generan historial de estados.
-- **FR-016**: El sistema NO DEBE incluir asignación de reparaciones por un supervisor, checklists de reparación ni inventario de repuestos: cada técnico inicia sus tareas desde el panel.
+- **FR-001**: El sistema DEBE proporcionar una vista alternativa al panel general de mantenimiento para restringir la acción de los miembros del personal con tareas activas vinculadas a la acción de **Confirmación de finalización de labores de reparación**.
+   - **FR-001.1**: En la vista alternativa o vista de tarea activa únicamente debe estar presente la habitación cuyas labores activas estén vinculadas al usuario autenticado en dicha sesión, con sus datos operativos (número de habitación, tipo, estado actual).
+   - **FR-001.2**: La cinta de opciones disponibles a realizar sobre la habitación debe ser limitada a la acción "Confirmar fin", que representa la intención inicial de confirmar la finalización de la reparación en la unidad habitacional.
+- **FR-002**: El sistema DEBE permitir al personal de mantenimiento autenticado solicitar la finalización de sus labores y requerir confirmación explícita *(confirmación a través de un modal superpuesto indicando "¿Está seguro que desea finalizar las reparaciones de la habitación X?", advirtiendo que la acción trasladará la habitación a la cola de limpieza).*
+- **FR-003**: El sistema DEBE validar estrictamente que la habitación objetivo se encuentre en estado `DisabledForRepairs` (o `TechnicalBlock`) Y que el usuario solicitante sea el titular de la tarea activa vinculada a dicha habitación.
+- **FR-004**: El sistema DEBE delegar la transición de la habitación a `PendingCleaning` en el caso de uso *Marcar Pendiente a Limpieza*, invocándolo dentro del mismo contexto transaccional, sin reimplementar su lógica.
+- **FR-005**: El sistema DEBE actualizar el registro de auditoría de la tarea (`ReparationTask`) que vincula al miembro del personal de mantenimiento asignado, la habitación, la fecha y hora de inicio y la fecha y hora exacta de finalización *(sin requerir input manual del usuario ni el diligenciamiento de informes adicionales)*.
+- **FR-006**: El sistema DEBE rechazar cualquier petición que incumpla el **FR-003** y proveer retroalimentación visual inmediata *(notificación de error en la vista actual explicando si el fallo se debe al estado de la habitación o a un conflicto de asignación de la orden de trabajo).*
+- **FR-007**: El sistema DEBE actualizar la interfaz del usuario tras una confirmación exitosa del fin de labores de reparación en una habitación, cambiando la vista de "tarea activa" y redirigiendo al miembro del personal al panel general de mantenimiento.
+- **FR-008**: El sistema DEBE generar `EndDateTime` exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
+- **FR-009**: El sistema DEBE validar que `EndDateTime` no sea nulo, no sea anterior a `StartDateTime` de la misma tarea y no sea posterior a la fecha y hora actual del servidor; de lo contrario DEBE ejecutar rollback, mantener la habitación en su estado actual y mostrar retroalimentación visual del error.
+- **FR-010**: El sistema DEBE impedir que `StartDateTime` y `EndDateTime` sean modificados manualmente una vez registrados.
 
 ### Entidades Clave
 
-- **Room**: Transita de `DisabledForRepairs` o `TechnicalBlock` a `PendingCleaning` al confirmar el fin; liberar la tarea no cambia su estado.
-- **ReparationTask**: Vinculación del técnico con la habitación que repara. Almacena:
-  - **MaintenanceStaffMemberId**: Técnico titular
-  - **RoomId**: Habitación intervenida
-  - **SourceReportId**: Reporte que llevó la habitación a su estado actual: el `DamageReport` más reciente (si está en `DisabledForRepairs`) o el `TechnicalBlockReport` en estado `Applied` (si está en `TechnicalBlock`)
-  - **StartDateTime**: Fecha y hora de inicio (al pulsar "Iniciar reparaciones")
-  - **EndDateTime**: Fecha y hora de cierre
-  - **Outcome**: Resultado del cierre: `Completed` (fin confirmado) o `Released` (liberada por el titular o por el Administrador); vacío mientras la tarea está abierta
-  - **ReleasedBy**: Solo si `Outcome = Released`: quién la liberó (el titular o el Administrador)
+- **Room**: Entidad que representa la habitación del hotel. Transita de `DisabledForRepairs` (o `TechnicalBlock`) a `PendingCleaning`.
+- **ReparationTask**: Entidad que representa la vinculación del miembro del personal técnico con la labor que realizó, esta almacena:
+   - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento
+   - **RoomId**: Identificador de la habitación sobre la que se realizaron las labores
+   - **StartDateTime**: TimeStamp del inicio de reparaciones - Formato DD-MM-YYYY HH:MM
+   - **EndDateTime**: TimeStamp de la finalización de las reparaciones - Formato DD-MM-YYYY HH:MM
 
 ---
 
@@ -145,10 +79,7 @@ Como miembro del personal de mantenimiento, quiero poder dejar una reparación q
 
 ### Resultados Medibles
 
-- **SC-001**: El técnico puede iniciar, liberar o confirmar el fin de una reparación en menos de 3 clics, sin redactar justificaciones.
-- **SC-002**: La habitación pasa a la cola de limpieza (`PendingCleaning`) en menos de 2 segundos tras la confirmación.
-- **SC-003**: El 100% de las confirmaciones cierran la `ReparationTask` correspondiente con resultado `Completed`.
-- **SC-004**: Cero habitaciones con más de una `ReparationTask` abierta, y ninguna habitación en intervención sin posibilidad de cierre.
-- **SC-005**: Cero tareas de reparación cambian de titular sin haber sido liberadas antes.
-
-> Los criterios de presentación del panel de mantenimiento (listados, orden, búsqueda, mensajes) se miden en `spec-consultar-panel-mantenimiento.md`.
+- **SC-001**: El personal de mantenimiento puede confirmar el fin del proceso técnico desde su vista de tarea activa en menos de 3 clics, sin necesidad de redactar justificaciones.
+- **SC-002**: La habitación es delegada a la cola operativa de limpieza (`PendingCleaning`) en menos de 2 segundos tras la confirmación.
+- **SC-003**: El 100% de las confirmaciones cierran la entidad `ReparationTask` correspondiente con una marca de tiempo válida asociada al técnico responsable.
+- **SC-004**: Cero registros de `ReparationTask` con `EndDateTime` anterior a `StartDateTime` o posterior a la hora del servidor.
