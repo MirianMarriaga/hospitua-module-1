@@ -29,6 +29,11 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
    - **Cuando** El miembro del personal de limpieza intenta indicar que va a iniciar labores de limpieza en la habitación
    - **Entonces** El sistema rechaza la operación y muestra un error con el estado actual de la habitación indicando que es una operación no válida
 
+4. **Escenario**: Miembro con una tarea activa
+   - **Dado que** El miembro del personal de limpieza está autenticado y tiene una `CleaningTask` activa sobre la habitación "101"
+   - **Cuando** Intenta iniciar labores de limpieza en la habitación "105"
+   - **Entonces** El sistema rechaza la operación indicando que ya tiene una tarea activa, no modifica el estado de la habitación "105" y lo redirige a la vista de tarea activa
+
 ---
 
 ### Casos Límite
@@ -44,6 +49,9 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 
 4. **¿Qué ocurre si el reloj del dispositivo del cliente está desajustado o se intenta enviar una fecha propia?**
    El sistema ignora cualquier fecha enviada por el cliente y utiliza exclusivamente el timestamp del servidor, evitando registros con fechas sin sentido.
+
+5. **¿Qué ocurre si el miembro del personal de limpieza no puede terminar una tarea activa?**
+   El miembro vinculado puede liberarla desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*): la habitación vuelve a `PendingCleaning` y cualquier miembro puede retomarla desde el panel. Si el miembro abandona la tarea sin liberarla, la habitación permanece en `InCleaning`; ese caso queda fuera del alcance del módulo.
 
 ---
 
@@ -62,15 +70,20 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
       - Número de habitación (ej. 1, 2, ...)
       - Tipo (Sencilla, Doble, Suite, Boutique)
       - Estado (Disponible, Pendiente por limpieza)
-      - Última limpieza (Fecha y hora de la última limpieza) - Formato: DD-MM-YYYY HH:MM
+      - Última limpieza (`EndDateTime` de la última `CleaningTask` de la habitación con `Outcome` `Completed` o `DamageReported`; las tareas liberadas no cuentan) - Formato: DD-MM-YYYY HH:MM
       - Cinta de opciones - `PC`: Iniciar limpieza ; `AVB`: Reportar daño, Iniciar limpieza - Formato: Botón con el nombre de la acción
 - **FR-008**: El sistema DEBE permitir realizar búsquedas en el listado de habitaciones utilizando el número de la habitación para agilizar las labores por solicitud específica
    - El tipo de búsqueda DEBE ser por coincidencia exacta
    - Una búsqueda exitosa debe retornar una habitación listada usando el mismo formato designado para presentar las habitaciones en el panel general de limpieza
-- **FR-009**: El sistema DEBE redirigir a los miembros del personal de limpieza con una tarea activa a la vista exclusiva de tarea activa, cuyo comportamiento y cinta de opciones (`IC`: Confirmar fin) se definen en el caso de uso *Confirmar Fin de Limpieza de Habitación*.
+- **FR-009**: El sistema DEBE redirigir a los miembros del personal de limpieza con una tarea activa a la vista exclusiva de tarea activa, cuyo comportamiento y cinta de opciones (`IC`: Confirmar fin, Liberar tarea) se definen en el caso de uso *Confirmar Fin de Limpieza de Habitación*.
 - **FR-010**: El sistema DEBE generar el timestamp de inicio de labores (`StartDateTime`) exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
-- **FR-011**: El sistema DEBE validar que `StartDateTime` no sea nulo, no sea posterior a la fecha y hora actual del servidor y no sea anterior al último cambio de estado registrado de la habitación; de lo contrario DEBE rechazar la operación con retroalimentación visual del error.
+- **FR-011**: El sistema DEBE asignar `StartDateTime` en el mismo momento en que se procesa la transición a `InCleaning`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
 - **FR-012**: El sistema DEBE mostrar la fecha de última limpieza únicamente cuando exista un registro válido (fecha real de calendario, no futura); si no existe, DEBE mostrar un indicador de "Sin registro" en lugar de una fecha inválida.
+- **FR-013**: El sistema DEBE rechazar la marcación si el miembro del personal de limpieza autenticado ya tiene una `CleaningTask` sin `EndDateTime`, aunque la solicitud no provenga del panel de limpieza, informando que ya tiene una tarea activa.
+- **FR-014**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `InCleaning`, `PreviousStatus` = `PendingCleaning` o `Available`, `StartDateTime` = `StartDateTime` de la tarea, `ActorId` = miembro del personal de limpieza y `SourceFlow` = *Marcar Habitación en Limpieza*.
+- **FR-015**: El sistema DEBE permitir liberar una `CleaningTask` activa únicamente a su miembro vinculado, desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*); el sistema NO DEBE permitir transferir la tarea a un miembro específico ni liberar tareas de otros miembros.
+- **FR-016**: El sistema DEBE ejecutar la marcación (transición, `CleaningTask` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.
+- **FR-017**: El sistema DEBE informar "No se encontró la habitación X" cuando la búsqueda del panel (FR-008) no retorne resultados, y "No hay habitaciones pendientes de limpieza ni disponibles" cuando el panel no tenga habitaciones para listar.
 
 ### Entidades Clave
 
@@ -80,6 +93,8 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
    - **CleaningStaffMemberId**: Identificador del miembro del personal de limpieza
    - **StartDateTime**: TimeStamp de inicio de labores de limpieza - Formato DD-MM-YYYY HH:MM
    - **EndDateTime**: TimeStamp de finalización de labores de limpieza - Formato DD-MM-YYYY HH:MM
+   - **Outcome**: Resultado de la tarea, asignado al cerrarla - `Completed` (limpieza confirmada), `DamageReported` (limpieza confirmada con reporte de daño) o `Released` (tarea liberada sin terminar); nulo mientras la tarea está activa
+- **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se abre el periodo `InCleaning`.
 
 ---
 
@@ -90,4 +105,4 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 - **SC-001**: El Personal de limpieza puede marcar una habitación en limpieza en menos de 15 segundos.
 - **SC-002**: El 100% de las marcaciones registran correctamente el personal vinculado a la tarea junto con la fecha y hora de inicio de labores de limpieza.
 - **SC-003**: El cambio de estado se refleja en el inventario en menos de 2 segundos.
-- **SC-004**: Cero registros de `CleaningTask` con `StartDateTime` nulo, futuro o inconsistente con el historial de la habitación.
+- **SC-004**: El 100% de las marcaciones quedan registradas en `RoomStateHistory` con el mismo timestamp de servidor que `StartDateTime`, y ningún miembro tiene más de una `CleaningTask` activa.

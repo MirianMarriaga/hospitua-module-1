@@ -2,15 +2,13 @@
 
 **Creado**: 2026-09-07
 
-
-
 Glosario compartido por los tres módulos del proyecto, para que todos usemos los mismos términos con el mismo significado.
 
 ## Actores
 
 * **Administrador**: Usuario interno con permisos transversales. En Módulo 1: registrar, editar, dar de baja y reactivar habitaciones del inventario. En Módulo 3: gestionar facturación, revisar/modificar tarifas por temporada, y actualizar el porcentaje de IVA.
-* **Personal de limpieza**: Actor de Módulo 1 responsable de ejecutar el aseo de las habitaciones: marca el inicio de la limpieza y confirma su finalización, dejando la habitación lista para uso.
-* **Personal de mantenimiento**: Actor de Módulo 1 que inhabilita habitaciones por reparaciones o las pone en bloqueo técnico preventivo, y confirma cuando la intervención finaliza.
+* **Personal de limpieza**: Actor de Módulo 1 responsable de ejecutar el aseo de las habitaciones: desde el panel de limpieza marca el inicio de la limpieza y, desde la vista de tarea activa, confirma su finalización (reportando un daño si lo encuentra) o libera la tarea para que otro miembro la retome. También puede reportar daños en habitaciones disponibles.
+* **Personal de mantenimiento**: Actor de Módulo 1 que, desde el panel de mantenimiento, reporta daños (inhabilitando habitaciones por reparaciones), programa bloqueos técnicos preventivos e inicia reparaciones; desde la vista de tarea activa confirma cuando la intervención finaliza o libera la tarea para que otro miembro la retome.
 * **Gerente**: Actor de Módulo 1 con acceso de solo lectura a reportes de estado y al inventario completo de habitaciones.
 * **Recepcionista**: Usuario interno encargado de la operación en el front-desk del hotel. Es actor de **Módulo 1** para admitir huéspedes (Check-In) y formalizar salidas (Check-Out), y actor de **Módulo 2** para gestionar reservas directas y procesar cancelaciones.
 * **Migración**: Ente externo gubernamental (Migración Colombia). En el sistema, actúa como actor que ingresa de forma autenticada a una ventana de autogestión o portal exclusivo para filtrar por fechas y descargar de manera directa el archivo estructurado .TXT (SIRE) generado por el Módulo 2. El hotel no realiza envíos automáticos; la descarga asíncrona la realiza este actor.
@@ -21,14 +19,13 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **Huésped**: Persona que se aloja en una habitación durante una estancia.
 * **Responsable de facturación (rol)**: Forma en que varias historias de Módulo 3 nombran a quien necesita el ingreso neto, la comisión y el IVA correctamente reflejados para conciliar; no es un actor propio del diagrama, sino el Administrador actuando en su función de facturación.
 
-
 ## Módulo 1: Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out
 
 * **Habitación**: Unidad de alojamiento con identificación (UUID, número, piso/ala), categorización (tipo, capacidad máxima) y tarifa base.
 * **Estado de habitación**: Situación operativa actual de una habitación (`Room.status`), con **8 valores vigentes**: `Available` (Disponible), `Reserved` (existe una reserva asociada en Módulo 2, aún no ocupada; se marca por evento de Módulo 2, no por consulta activa de Módulo 1), `Occupied` (Ocupada), `PendingCleaning` (Pendiente de limpieza), `InCleaning` (En limpieza), `DisabledForRepairs` (Inhabilitada por reparaciones), `TechnicalBlock` (Bloqueo técnico) e `Inactive` (Inactiva).
 * **Tarifa base**: Valor regular de una habitación, usado como punto de partida del cálculo de tarifa dinámica (Módulo 3).
 * **Check-in / Check-out**: Eventos gestionados directamente por **Módulo 1**, ejecutados por el Recepcionista.
-  * El **Check-In** transiciona la habitación de `Available` o `Reserved` a `Occupied`, de forma interna y síncrona. No genera ninguna liquidación ni interviene Módulo 3. Notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_IN`.
+  * El **Check-In** transiciona la habitación de `Reserved` a `Occupied`, de forma interna y síncrona. No genera ninguna liquidación ni interviene Módulo 3. Notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_IN`.
   * El **Check-Out** transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Incluye el paso **"Consultar liquidación"**: envía a Módulo 3 las fechas reservadas y reales de la estancia para obtener la liquidación final, y notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_OUT`.
   * Ningún fallo de integración con Módulo 2 o Módulo 3 bloquea la transición física de la habitación en ninguno de los dos eventos.
 * **Estancia (Stay)**: Entidad que representa la ocupación física real de una habitación durante un período determinado. Se crea de forma síncrona al confirmar el Check-In y se cierra al registrar el Check-Out. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fecha/hora de llegada real (`checkInTime`), fecha/hora de salida real (`checkOutTime`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
@@ -38,8 +35,13 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **ReservationSummary**: Estructura contractual devuelta por Módulo 2 como respuesta a una consulta de reserva. Contiene: `reservationRef`, datos del huésped titular (`guestRef`, `fullName`, `documentNumber`, `documentType`, `nationality`), habitación asignada (`roomId`), fechas de estadía (`startDate`, `endDate`), canal de origen (`source`) y estado de la reserva (`status`).
 * **SettlementRequest**: Objeto conceptual que Módulo 1 envía a Módulo 3 al ejecutar "Consultar liquidación" durante el Check-Out. Incluye los parámetros de la estancia: `reservationRef`, `eventType`, `startDate`, `endDate`, `checkInTime`, `checkOutTime`, `source` y `roomId`.
 * **SettlementSummary**: Estructura informativa de solo lectura devuelta por Módulo 3 como respuesta a la solicitud de liquidación. Contiene dos grupos: (1) **Resumen para el huésped**: valor del hospedaje (total ya calculado), IVA y total a pagar; y (2) **Información de la operación**: canal de origen, porcentaje de comisión OTA (si aplica), valor de comisión OTA (si aplica), ingreso neto y factura definitiva asociada. Módulo 1 la presenta en recepción pero no recalcula ni modifica sus valores.
-
-
+* **CleaningTask (tarea de limpieza)**: Asignación de la limpieza de una habitación a un miembro del Personal de limpieza. Se crea al marcar la habitación en limpieza y se cierra al confirmar el fin o al liberarla. Atributos: `RoomId`, `CleaningStaffMemberId`, `StartDateTime`, `EndDateTime` y `Outcome` (`Completed`, `DamageReported` o `Released`). Un miembro solo puede tener una tarea abierta.
+* **ReparationTask (tarea de reparación)**: Asignación de la intervención de una habitación inhabilitada o en bloqueo técnico a un miembro del Personal de mantenimiento. Se crea con la acción "Iniciar reparaciones" y se cierra al confirmar el fin o al liberarla. Atributos: `MaintenanceStaffMemberId`, `RoomId`, `StartDateTime`, `EndDateTime` y `Outcome` (`Completed` o `Released`). Una habitación y un miembro solo pueden tener una tarea abierta.
+* **DamageReport (reporte de daño)**: Registro inmutable del daño que lleva una habitación a `DisabledForRepairs`. Atributos: `DamageDescription` (máximo 500 caracteres), `UserId` (autor), `RoomId` y `ReportDateTime`. Se consulta con la acción "Ver informe".
+* **TechnicalBlockReport (informe de bloqueo técnico)**: Registro de un mantenimiento preventivo programado. Atributos: `RoomId`, `MaintenanceStaffMemberId`, `TechnicalBlockReason`, `TechnicalBlockStartDate`, `EstimatedTechnicalBlockEndDate`, `ReportDateTime` y `Status` (`Scheduled`, `Applied`, `Completed` o `Expired`). Un trabajo autónomo de las 00:00 lo aplica, pasando la habitación a `TechnicalBlock`, cuando llega su fecha de inicio.
+* **RoomStateHistory (historial de estados)**: Registro común de los periodos de cada habitación en cada estado (`Status`, `PreviousStatus`, `StartDateTime`, `EndDateTime`, `ActorId`, `SourceFlow`, `ReservationRef`). Cada transición cierra el periodo abierto y abre uno nuevo; es la fuente de "Consultar historial de estados".
+* **Vista de tarea activa**: Pantalla exclusiva a la que se redirige al Personal de limpieza o de mantenimiento mientras tiene una tarea abierta; solo permite "Confirmar fin" o "Liberar tarea".
+* **Liberar tarea**: Acción con la que el dueño de una tarea abierta la cierra sin terminarla (`Outcome` = `Released`) para que otro miembro la retome desde el panel. En limpieza devuelve la habitación a `PendingCleaning`; en reparación no cambia el estado.
 
 ## Módulo 2: Operación de Reservas y Cumplimiento Legal
 
@@ -58,6 +60,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 
   * PENDING: Registro de extranjero validado en el Check-In y pendiente de ser exportado en el reporte .TXT.
   * EXPORTED: Registro ya descargado por el actor Migración en un archivo plano de reporte.
+
 ## Módulo 3: Facturación, Consumos y Liquidación
 
 ### Tarifas
@@ -99,4 +102,3 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **Criterio de búsqueda / Resultado de búsqueda**: Filtros (estancia, cliente, canal, rango de fechas, estado) y resultados que el Administrador usa para localizar facturas ya emitidas, sin crear ni modificar nada.
 * **Detalle de factura consultada**: Vista de solo lectura del desglose completo y la trazabilidad de una factura específica, idéntica a la generada originalmente.
 * **Resumen consolidado**: Agregado de totales de hospedaje, comisión OTA e IVA por canal de origen y por estado (`Final` o `Preliminary`), calculado sobre un rango de fechas, usado por el Administrador para conciliar con cada OTA.
-
