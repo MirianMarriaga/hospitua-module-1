@@ -10,7 +10,8 @@
 Implementar el caso de uso interno de consulta reactiva **Consultar Liquidación**, invocado de forma obligatoria como inclusión (`<<includes>>`) por los pasos 2 y 3 de **Registrar Check-Out** (`plan-registrar-check-out.md`).
 
 Responsabilidades:
-1. **Consulta síncrona REST GET a Módulo 3**: Enviar los parámetros contractuales y físicos de la estancia: `reservationRef`, `eventType = CHECK_OUT`, fechas esperadas (`startDate`, `endDate`), fechas reales sin horas (`checkInDate`, `checkOutDate`), canal de origen (`source`: "Directo" u "OTA" recuperado localmente de `Stay`) y `roomId`.
+
+1. **Consulta síncrona REST GET a Módulo 3**: Enviar los parámetros contractuales y físicos de la estancia: `reservationRef`, `eventType = CHECK_OUT`, fechas esperadas (`startDate`, `endDate`), fechas reales sin horas (`checkInDate`, `checkOutDate`), canal de origen (`source`: `DIRECTA` o nombre de la OTA, recuperado localmente de `Stay`) y `roomId`.
 2. **Recepción de la estructura oficial `SettlementSummary`**:
    - Factura definitiva oficial emitida por Módulo 3 (`invoiceNumber`, ej. `FAC-40001`), visible en la parte superior tanto en el paso Liquidación como en el paso Pago.
    - Hospedaje total consolidado (`accommodationTotalAmount`) ya resuelto por Módulo 3 (incluyendo políticas de estadía o penalizaciones de salida anticipada).
@@ -133,7 +134,7 @@ frontend/src/
 ### Implementation for User Story 1
 
 - [ ] T010 [P] [US1] Implementar en `SettlementRestAdapter` la consulta GET a Módulo 3 con `RestClient`.
-- [ ] T011 [US1] Implementar en `SettlementQueryService` la lógica para clasificar canales "Directo" (0% comisión) y "OTA" (con comisión e ingreso neto).
+- [ ] T011 [US1] Implementar en `SettlementQueryService` la lógica para clasificar canales: `DIRECTA` (0% comisión) y cualquier otro valor de `source`, que corresponde al nombre de la OTA (con comisión e ingreso neto).
 - [ ] T012 [US1] Implementar el endpoint `GET /api/settlements/query` en `SettlementController.java`.
 - [ ] T013 [US1] Construir los componentes frontend `SettlementCard.jsx` (Paso 2) y `PaymentReviewCard.jsx` (Paso 3).
 
