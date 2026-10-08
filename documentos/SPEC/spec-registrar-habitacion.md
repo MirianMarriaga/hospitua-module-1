@@ -67,6 +67,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 - **FR-010**: El sistema DEBE registrar la fecha y el usuario responsable de la creación de cada habitación, para efectos de trazabilidad.
 - **FR-011**: El sistema DEBE validar que el piso sea un número entero positivo (mayor a cero).
 - **FR-012**: Tras un registro exitoso, el sistema DEBE mostrar una confirmación con el ID, el estado, el número, el piso, el tipo, la capacidad máxima y la tarifa base de la habitación, y ofrecer las opciones "Registrar otra" y "Volver al inventario". La fecha y el usuario de FR-010 se guardan, pero no se muestran en la confirmación.
+- **FR-013**: Al registrar la habitación, el sistema DEBE abrir su primer periodo en `RoomStateHistory` (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md) dentro de la misma transacción, con `Status` = `Available`, `PreviousStatus` nulo, `StartDateTime` = fecha y hora del servidor, `EndDateTime` nulo, `ActorId` = Administrador responsable y `SourceFlow` = *Registrar habitación*.
 
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*

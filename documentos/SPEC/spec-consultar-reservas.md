@@ -155,6 +155,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - Para dar de baja una habitación: `startDate` corresponde a la fecha actual y `endDate` corresponde a `hoy + 30 días`.
   - *Pendiente Módulo 2*: La ruta del endpoint y la forma exacta de la respuesta están pendientes de confirmación por el Módulo 2.
 - **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad o timeout de Módulo 2 en la consulta de mantenimiento o baja, el sistema DEBE capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
+- **FR-009**: Efecto de la ingesta sobre el estado de las habitaciones: al persistir en la copia local la lista diaria de las 00:00 o una actualización `ADDED` con `startDate` = hoy, el sistema DEBE invocar el caso de uso *Marcar habitación como reservada* por cada habitación de la reserva. Al procesar un `REMOVED`, o al no figurar en la nueva lista de las 00:00 una reserva que mantenía una habitación en `Reserved`, el sistema DEBE liberar esa habitación a `Available` mediante el caso de uso *Marcar habitación como disponible*. En la ingesta de las 00:00 las liberaciones DEBEN ejecutarse antes de apartar las habitaciones de la nueva lista. Un `UPDATED` que cambia la habitación asignada DEBE tratarse como la liberación de la habitación anterior y el apartado de la nueva.
 
 ---
 

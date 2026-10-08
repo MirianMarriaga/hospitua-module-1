@@ -78,6 +78,8 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 
 - **FR-010**: En el paso de selección del motivo, en la confirmación y en el resultado exitoso, el sistema DEBE mostrar los datos de la habitación (número, piso, tipo y estado). En la confirmación y en el resultado exitoso DEBE mostrar además el motivo seleccionado y el detalle, si existe, y en el resultado exitoso DEBE indicar que la habitación ya no aparece entre las habitaciones disponibles. Durante la verificación de reservas, el sistema DEBE indicar que está comprobando las reservas de la habitación.
 
+- **FR-011**: Al ejecutar la baja, el sistema DEBE registrar la transición en `RoomStateHistory` (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md) dentro de la misma transacción del cambio de estado: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `Inactive`, `PreviousStatus` = `Available`, `StartDateTime` = fecha y hora del servidor, `ActorId` = Administrador responsable y `SourceFlow` = *Dar de baja habitación*.
+
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).

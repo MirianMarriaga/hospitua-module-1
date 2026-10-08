@@ -50,6 +50,11 @@ Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del 
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
    - **Entonces** dicha fila se muestra resaltada con una alerta visual de conflicto de habitación ("No disponible: [Estado]"), notificando al Recepcionista para gestionar la reubicación física de la asignación.
 
+7. **Escenario**: Indicador informativo por habitación en limpieza
+   - **Dado** una reserva en la lista del día cuya habitación asignada se encuentra en Módulo 1 en estado "PendingCleaning" o "InCleaning"
+   - **Cuando** el Recepcionista visualiza la pestaña Llegadas
+   - **Entonces** dicha fila muestra un indicador informativo, sin resaltado de conflicto ("En limpieza: se apartará al terminar"), ya que la habitación pasará a "Reserved" automáticamente al confirmarse el fin de la limpieza; mientras tanto, el Check-in de esa habitación será rechazado indicando su estado actual.
+
 ---
 
 ### Historia de Usuario 2 - Consulta del listado de salidas y búsqueda para Check-Out (Prioridad: P1)
@@ -143,6 +148,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
   - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con texto explicativo claro para Recepción (ej. "No apartada: En mantenimiento").
+  - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar en limpieza (`PendingCleaning` o `InCleaning`) (ej. "En limpieza: se apartará al terminar").
   - Botón individual de acción "Check-in" por cada habitación.
 
 - **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas por la cola `m1.reservas.diarias.queue` (`reserva.lista-del-dia.actualizacion`):

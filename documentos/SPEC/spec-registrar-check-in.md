@@ -135,6 +135,7 @@ Como Recepcionista, quiero que el sistema bloquee cualquier intento de Check-In 
 - **FR-013**: En el paso 4 ("Check-In"), el sistema DEBE mostrar la pantalla de confirmación exitosa con icono de verificación y exhibir las etiquetas de validación ("Habitación: Ocupada", "Notificación a Módulo 2: Sincronizada"), sin mostrar horas en pantalla y ofreciendo como única acción de salida el botón "Volver al inicio".
 - **FR-014**: Ante lentitud extrema, falta de respuesta o caída de red de Módulo 2 durante la confirmación, el sistema NO DEBE bloquear la entrega física de la habitación ni revertir el estado "Occupied"; la Estancia se consolida localmente y las notificaciones a Módulo 2 permanecen en sus respectivas colas para reintento en segundo plano.
 - **FR-015**: El sistema DEBE registrar en la bitácora de auditoría el ID de la habitación, la referencia de la reserva, el identificador de la Estancia creada, el recepcionista responsable y la marca de tiempo de confirmación.
+- **FR-016**: Al confirmar la admisión, el sistema DEBE registrar la transición en `RoomStateHistory` (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md) dentro de la misma transacción del cambio de estado: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `Occupied`, `PreviousStatus` = `Reserved`, `StartDateTime` = fecha y hora del servidor, `ActorId` = recepcionista responsable, `SourceFlow` = *Registrar Check-In* y `ReservationRef` = referencia de la reserva.
 
 ---
 
