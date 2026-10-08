@@ -1,0 +1,69 @@
+---
+config:
+  theme: dark
+  look: neo
+  layout: elk
+title: Máquina de estados de Room (sincronizada con documentos/SPEC/referencias/maquina-estados-habitacion.md)
+---
+stateDiagram-v2
+    direction TB
+
+    state "Disponible (Available)" as Available
+    state "Reservada (Reserved)" as Reserved
+    state "Ocupada (Occupied)" as Occupied
+    state "Pendiente de limpieza (PendingCleaning)" as PendingCleaning
+    state "En limpieza (InCleaning)" as InCleaning
+    state "Inhabilitada por reparaciones (DisabledForRepairs)" as DisabledForRepairs
+    state "Bloqueo técnico (TechnicalBlock)" as TechnicalBlock
+    state "Inactiva (Inactive)" as Inactive
+
+    [*] --> Available : Registrar habitación (Administrador)
+
+    %% Ciclo comercial
+    Available --> Reserved : Aplicar reserva pendiente (Módulo 1 autónomo)
+    Reserved --> Available : Reserva retirada (REMOVED), ausente de la lista de las 00:00 o reasignada a otra habitación (Módulo 1 autónomo, el no-show lo marca Módulo 2)
+    Reserved --> Occupied : Check-in (Recepcionista)
+    Occupied --> PendingCleaning : Check-out → Marcar pendiente a limpieza (Recepcionista)
+
+    %% Ciclo de limpieza
+    PendingCleaning --> InCleaning : Marcar en limpieza (Personal de limpieza)
+    Available --> InCleaning : Marcar en limpieza preventiva (Personal de limpieza)
+    InCleaning --> Available : Confirmar fin de limpieza → Marcar como disponible (Personal de limpieza)
+    InCleaning --> PendingCleaning : Liberar tarea → Marcar pendiente a limpieza (titular o Administrador)
+
+    %% Ciclo de mantenimiento
+    Available --> DisabledForRepairs : Reportar daño (Limpieza o Mantenimiento)
+    InCleaning --> DisabledForRepairs : Reportar daño durante la limpieza (titular de la tarea)
+    Available --> TechnicalBlock : Aplicar bloqueo técnico pendiente dentro del rango (Módulo 1 autónomo)
+    DisabledForRepairs --> PendingCleaning : Confirmar reparación finalizada (Personal de mantenimiento)
+    TechnicalBlock --> PendingCleaning : Confirmar reparación finalizada (Personal de mantenimiento)
+
+    %% Ciclo administrativo
+    Available --> Inactive : Dar de baja (Administrador)
+    Inactive --> Available : Reactivar → Marcar como disponible (Administrador)
+
+    note right of Available
+        Regla única de pendientes:
+        al quedar en Available por cualquier flujo,
+        se aplica en la misma operación el pendiente vigente.
+        Reserva pendiente → Reserved
+        Bloqueo técnico Scheduled en rango → TechnicalBlock
+        Si hay ambos, se aplica la reserva y el bloqueo
+        sigue pendiente (se registra en bitácora).
+        La reserva pendiente se registra por el evento de 12 h
+        o, como respaldo, por la lista del día.
+        Caduca cuando Módulo 2 la retira de la lista del día o la reasigna.
+        El bloqueo caduca al terminar su rango o al cancelarse.
+    end note
+
+    note left of DisabledForRepairs
+        Iniciar reparaciones y Liberar tarea
+        no cambian el estado: solo abren o cierran
+        la ReparationTask (ver Confirmar reparación finalizada).
+    end note
+
+    note left of InCleaning
+        Solo el titular cierra o libera su tarea.
+        Si está ausente, la libera el Administrador.
+        Nadie toma la tarea de otro sin liberarla antes.
+    end note
