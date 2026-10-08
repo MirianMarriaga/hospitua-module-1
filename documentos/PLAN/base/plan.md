@@ -124,6 +124,20 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 | `GET /api/rooms/{roomId}/base-rate` | Módulo 3 | Consulta reactiva de la tarifa base configurada para la habitación |
 | `GET /api/stays/{stayId}` | Recepcionista, Auditoría | Detalle de la estancia física, fechas reales y ocupantes registrados |
 | `GET /api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}` | Módulo 2, Personal de mantenimiento (vía "Programar bloqueo técnico") | Verificación de solapamiento con mantenimientos programados o aplicados de una habitación; responde si el evento es factible o no, o "habitación no encontrada" (`spec-consultar-informacion-mantenimientos.md`) |
+| `GET /api/cleaning/panel` | Personal de limpieza (Frontend M1) | Panel de limpieza: habitaciones en `PendingCleaning` y `Available` con su última limpieza, o la tarea activa del miembro (`plan-marcar-habitacion-en-limpieza.md`) |
+| `POST /api/cleaning/tasks` | Personal de limpieza (Frontend M1) | Iniciar la limpieza de una habitación: transición a `InCleaning` y creación de la `CleaningTask` (`plan-marcar-habitacion-en-limpieza.md`) |
+| `GET /api/cleaning/tasks/active` | Personal de limpieza (Frontend M1) | Tarea de limpieza activa del miembro para la vista de tarea activa (`plan-confirmar-fin-de-limpieza.md`) |
+| `POST /api/cleaning/tasks/{taskId}/complete` | Personal de limpieza (Frontend M1) | Confirmar fin de limpieza, con daño opcional: `Available`, `Reserved` o `DisabledForRepairs` (`plan-confirmar-fin-de-limpieza.md`) |
+| `POST /api/cleaning/tasks/{taskId}/release` | Personal de limpieza (Frontend M1) | Liberar la tarea de limpieza: la habitación vuelve a `PendingCleaning` (`plan-confirmar-fin-de-limpieza.md`) |
+| `POST /api/rooms/{roomId}/damage-reports` | Personal de limpieza y de mantenimiento (Frontend M1) | Reportar daño: `Available` → `DisabledForRepairs` con su `DamageReport` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) |
+| `GET /api/rooms/{roomId}/damage-reports/latest` | Personal de mantenimiento (Frontend M1) | "Ver informe" del daño que inhabilitó la habitación (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) |
+| `GET /api/maintenance/panel` | Personal de mantenimiento (Frontend M1) | Panel de mantenimiento: habitaciones `Available`, `DisabledForRepairs` y `TechnicalBlock`, o la tarea activa del miembro (`plan-confirmar-reparacion-finalizada.md`) |
+| `POST /api/maintenance/tasks` | Personal de mantenimiento (Frontend M1) | "Iniciar reparaciones": crea la `ReparationTask` (`plan-confirmar-reparacion-finalizada.md`) |
+| `GET /api/maintenance/tasks/active` | Personal de mantenimiento (Frontend M1) | Tarea de reparación activa del miembro (`plan-confirmar-reparacion-finalizada.md`) |
+| `POST /api/maintenance/tasks/{taskId}/complete` | Personal de mantenimiento (Frontend M1) | Confirmar fin de reparación: la habitación pasa a `PendingCleaning` (`plan-confirmar-reparacion-finalizada.md`) |
+| `POST /api/maintenance/tasks/{taskId}/release` | Personal de mantenimiento (Frontend M1) | Liberar la tarea de reparación sin cambiar la habitación (`plan-confirmar-reparacion-finalizada.md`) |
+| `POST /api/rooms/{roomId}/technical-blocks` | Personal de mantenimiento (Frontend M1) | Programar bloqueo técnico; se aplica de inmediato si inicia hoy (`plan-programar-bloqueo-tecnico-para-habitacion.md`) |
+| `GET /api/rooms/{roomId}/technical-blocks/current` | Personal de mantenimiento (Frontend M1) | "Ver informe" del bloqueo técnico programado o aplicado (`plan-programar-bloqueo-tecnico-para-habitacion.md`) |
 
 ### 2. Endpoints que Módulo 1 CONSUME (clientes de otros módulos)
 
