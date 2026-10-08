@@ -20,7 +20,7 @@ Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepc
 
 - **Language/Version**: Java 21 (LTS)
 - **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
-- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_audit`)
+- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_history`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / JSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
@@ -159,7 +159,7 @@ frontend/src/
   - Verificar que la habitación esté en estado `Occupied`.
   - Transicionar `Room.status` a `RoomStatus.PendingCleaning` (invocando caso interno de máquina de estados).
   - Actualizar `Stay` asignando `checkOutDate = LocalDate.now()` y `receptionistIdCheckOut`.
-  - Registrar evento de auditoría en `room_state_audit`.
+  - Registrar evento de auditoría en `room_state_history`.
   - Guardar mensaje outbox en `outbox_notification` (tipo `habitacion.checkout`).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
   - `GET /api/check-out/active-stay/{reservationRef}`: Datos locales de la estancia para el Paso 1.

@@ -8,6 +8,7 @@
 ## Summary
 
 Implementar el caso de uso central **Registrar Check-In** para el actor Recepcionista en Módulo 1, mediante un flujo guiado de 4 pasos en la interfaz de usuario:
+
 1. **Validar reserva**: Recepción de la reserva precargada desde el Panel de Recepción (`reservationRef`), consulta **en la copia local** de reservas del día (`daily_reservation`) mantenida por `plan-consultar-reservas.md` (ingestada a las 00:00 vía `m1.reservas.diarias.queue`), y verificación física obligatoria de que la habitación asignada se encuentre en estado `Reserved` en Módulo 1 con `startDate = fechaActual`. **No se realiza ninguna llamada REST a Módulo 2** en este paso.
 2. **Datos de huéspedes**: Invocación al caso de uso interno `plan-procesar-datos-huespedes.md` (`<<includes>>`), presentando al Huésped Titular precargado y de solo lectura (`isReservationGuest = true`), capturando acompañantes, validando coincidencia exacta con `guestCount` y tope de `maxCapacity`, y alertando reactivamente ante huéspedes extranjeros para activar `plan-enviar-datos-huespedes-extranjeros.md` (`<<extend>>`).
 3. **Confirmación**: Resumen visual con habitación ("Hab. 304" y tipo en gris), cantidad de huéspedes, estadía (noches y fechas en gris) y advertencia informativa del cambio de estado inminente a `Occupied` y sincronización con Módulo 2 (sin mostrar contador de extranjeros).
@@ -19,7 +20,7 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
 
 - **Language/Version**: Java 21 (LTS)
 - **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
-- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_audit`)
+- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_history`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / JSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
@@ -160,7 +161,7 @@ frontend/src/
   - Crear y persistir la entidad `Stay`.
   - Crear y persistir la lista de `RoomGuest` asignando `isReservationGuest = true` al titular.
   - Actualizar `Room.status` de `Reserved` a `Occupied` mediante `RoomPersistencePort`.
-  - Registrar entrada en `room_state_audit`.
+  - Registrar entrada en `room_state_history`.
   - Contar huéspedes extranjeros (`foreignGuestCount = guests.stream().filter(g -> !"Colombia".equals(g.nationality())).count()`).
   - Ensamblar payload JSON con `eventId`, `reservationRef`, `roomId`, `checkInDate` y `foreignGuestCount`, y guardar registro en `outbox_notification` (tipo `habitacion.checkin`).
 - [ ] T015 [US1] Implementar el endpoint REST `POST /api/check-in` en `CheckInController.java`.
