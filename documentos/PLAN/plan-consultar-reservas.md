@@ -180,7 +180,7 @@ frontend/src/
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar `DailyReservationPersistenceAdapter` para operaciones CRUD y purga atómica de la copia local.
-- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación, control de `sequenceNumber` y comparación de `updatedAt`.
+- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación, control de `sequenceNumber` y comparación de `updatedAt`; al aplicar la lista y las actualizaciones, invocar *Marcar habitación como reservada* y *Marcar habitación como disponible* según FR-009 del spec (primero las liberaciones).
 - [ ] T013 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`.
 
 ---
