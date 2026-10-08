@@ -45,7 +45,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 ### Dependencias y herramientas transversales aprobadas
 
 | Necesidad | Propuesta | Justificación |
-|---|---|---|
+| --- | --- | --- |
 | Herramienta de compilación | Maven | Estándar empresarial con Spring Boot y soporte multi-módulo |
 | Migraciones de Base de Datos | Flyway | Versionamiento determinista del esquema SQL en `src/main/resources/db/migration/` |
 | Autenticación y Autorización | Spring Security + JWT | Control de acceso basado en roles (`RECEPTIONIST`, `ADMINISTRATOR`, `CLEANING_STAFF`, `MAINTENANCE_STAFF`) e intercomunicación segura entre servicios |
@@ -58,13 +58,14 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 ## Comunicación entre módulos
 
 Regla arquitectónica de HOSPITUA:
+
 - **Proactiva** (el módulo avisa la ocurrencia de un evento de negocio y no requiere esperar respuesta sincrónica) → **Cola RabbitMQ**.
 - **Reactiva** (solicitud bajo demanda que requiere un dato o confirmación síncrona inmediata) → **REST**.
 
 ### Matriz de Integración de Módulo 1
 
 | Interacción | Dirección | Mecanismo | Tipo | Feature / Caso de Uso |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **Notificación de Check-In** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkin.queue` / routing key `habitacion.checkin`) | Proactiva | `plan-registrar-check-in.md` |
 | **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) | Proactiva | `plan-registrar-check-out.md` |
 | **Datos de Huéspedes Extranjeros** | M1 → M2 | Cola RabbitMQ (`m2.huespedes.extranjeros.queue`) — 1 mensaje por extranjero | Proactiva | `plan-enviar-datos-huespedes-extranjeros.md` |
@@ -73,6 +74,7 @@ Regla arquitectónica de HOSPITUA:
 | **Consultar Disponibilidad de Reservas** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`) — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
 | **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
 | **Consultar Tarifa Base** | M3 → M1 | REST GET (`/api/rooms/{roomId}/base-rate`) | Reactiva | `spec-consultar-tarifa-base.md` |
+| **Consultar Información de Mantenimientos** | M2 → M1 | REST GET (`/api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}`) — M2 la consulta antes de asignar una habitación a una reserva | Reactiva | `spec-consultar-informacion-mantenimientos.md` |
 
 ### Convenciones de Mensajería (RabbitMQ)
 
@@ -84,6 +86,7 @@ Regla arquitectónica de HOSPITUA:
 - **Cola recibida por Módulo 1 desde Módulo 2**:
   - `m1.reservas.diarias.queue` (routing key `reserva.lista-del-dia`): Lista diaria de reservas `ACTIVE` ingestada a las 00:00 para alimentar la copia local. Routing key `reserva.lista-del-dia.actualizacion`: actualizaciones continuas del día (`ADDED`, `UPDATED`, `REMOVED`).
 - **Estructura estándar del mensaje (`EventEnvelope<T>`)**:
+
   ```json
   {
     "eventId": "UUIDv4",
@@ -97,6 +100,7 @@ Regla arquitectónica de HOSPITUA:
 ### Traducción de Respuestas HTTP a Cola ("HTTP a Cola") y Resiliencia
 
 De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
+
 1. **Desacoplamiento asíncrono**: Check-In y Check-Out son eventos físicos que se consolidan **localmente y de forma inmediata** en la base de datos de Módulo 1 (`Stay`, `Room.status = Occupied` / `PendingCleaning`, `RoomGuest`).
 2. **Patrón Transaccional Outbox**: La notificación a Módulo 2 se inserta en la tabla `outbox_notification` dentro de la **misma transacción ACID** que el cambio físico de la habitación.
 3. **Despacho no bloqueante**: Un publicador asíncrono toma los registros pendientes y los deposita en RabbitMQ con acuse de recibo del broker (Publisher Confirms).
@@ -109,7 +113,7 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 ### 1. Endpoints que Módulo 1 EXPONE (servicios propios)
 
 | Método y Ruta | Consumidor | Propósito |
-|---|---|---|
+| --- | --- | --- |
 | `GET /api/reception/panel` | Recepcionista (Frontend M1) | Consulta consolidada de llegadas (M2) y salidas (M1) para el Panel de Recepción |
 | `POST /api/check-in` | Recepcionista (Frontend M1) | Formalización del Check-In (4 pasos: validación, captura `RoomGuest`, transición atómica a `Occupied`, outbox) |
 | `POST /api/check-out` | Recepcionista (Frontend M1) | Formalización del Check-Out (5 pasos: consulta estancia, liquidación M3, resumen pago, transición a `PendingCleaning`, outbox) |
@@ -117,17 +121,19 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 | `GET /api/rooms/{roomId}` | Módulo 2, Módulo 3, Recepcionista | Detalle físico y estado actual de una habitación específica |
 | `GET /api/rooms/{roomId}/base-rate` | Módulo 3 | Consulta reactiva de la tarifa base configurada para la habitación |
 | `GET /api/stays/{stayId}` | Recepcionista, Auditoría | Detalle de la estancia física, fechas reales y ocupantes registrados |
+| `GET /api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}` | Módulo 2, Personal de mantenimiento (vía "Programar bloqueo técnico") | Verificación de solapamiento con mantenimientos programados o aplicados de una habitación; responde si el evento es factible o no, o "habitación no encontrada" (`spec-consultar-informacion-mantenimientos.md`) |
 
 ### 2. Endpoints que Módulo 1 CONSUME (clientes de otros módulos)
 
 | Servicio Externo | Método y Ruta | Propósito |
-|---|---|---|
+| --- | --- | --- |
 | **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
 | **Módulo 3 (Liquidación)** | `GET /api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}` | Consulta reactiva síncrona de la liquidación final y desglose financiero en el paso 2 de Check-Out |
 
 ### Formato Estándar de Error (`ApiError`)
 
 Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado:
+
 ```json
 {
   "errorCode": "ROOM_NOT_OCCUPIED | RESERVATION_NOT_FOUND | CAPACITY_EXCEEDED | CONCURRENT_UPDATE",
@@ -136,6 +142,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado:
   "path": "/api/check-out"
 }
 ```
+
 - **HTTP 400**: Errores de validación o datos faltantes.
 - **HTTP 409**: Conflicto de concurrencia optimista o violación del ciclo de vida de la máquina de estados habitacional.
 - **HTTP 500 no controlado PROHIBIDO**: Todo error inesperado es capturado por `@RestControllerAdvice`, registrado con identificador de correlación en logs y devuelto al cliente con código de error controlado.
@@ -295,7 +302,7 @@ frontend/
 ### Modelo de Datos Relacional (PostgreSQL)
 
 | Tabla | Entidad JPA | Descripción y Atributos Clave |
-|---|---|---|
+| --- | --- | --- |
 | `room` | `RoomJpaEntity` | Unidad habitacional física. `id` (UUID PK), `room_number` (VARCHAR único), `floor_wing`, `room_category` (Sencilla, Doble, Suite, Boutique), `max_capacity` (INT), `base_rate` (NUMERIC), `status` (VARCHAR: 8 estados canónicos), `version` (optimistic lock). |
 | `room_state_audit` | `RoomStateAuditJpaEntity` | Bitácora inmutable de transiciones. `id`, `room_id`, `previous_status`, `new_status`, `reason`, `changed_by`, `changed_at`. |
 | `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` ("Directo" / "OTA"), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_time` (DATE), `expected_checkout_time` (DATE), `receptionist_id_check_in`, `receptionist_id_check_out`, `version`. |
