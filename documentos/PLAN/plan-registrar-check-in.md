@@ -160,8 +160,8 @@ frontend/src/
 - [ ] T014 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
   - Crear y persistir la entidad `Stay`.
   - Crear y persistir la lista de `RoomGuest` asignando `isReservationGuest = true` al titular.
-  - Actualizar `Room.status` de `Reserved` a `Occupied` mediante `RoomPersistencePort`.
-  - Registrar entrada en `room_state_history`.
+  - Transicionar `Room.status` de `Reserved` a `Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)` (regla 8 del plan base).
+  - El periodo en `room_state_history` lo registra esa misma llamada, con el recepcionista y la `reservationRef` (*Registrar check-in* FR-016); no se registra aparte.
   - Contar huéspedes extranjeros (`foreignGuestCount = guests.stream().filter(g -> !"Colombia".equals(g.nationality())).count()`).
   - Ensamblar payload JSON con `eventId`, `reservationRef`, `roomId`, `checkInDate` y `foreignGuestCount`, y guardar registro en `outbox_notification` (tipo `habitacion.checkin`).
 - [ ] T015 [US1] Implementar el endpoint REST `POST /api/check-in` en `CheckInController.java`.
