@@ -103,73 +103,199 @@
 const today = new Date(); today.setHours(0,0,0,0);
 const day = n => { const d = new Date(today); d.setDate(d.getDate()+n); return d; };
 const fmt = d => d.toLocaleDateString('es-CO',{day:'numeric',month:'short'});
-const off = (y,m,d) => Math.round((new Date(y,m,d)-today)/86400000); // fecha fija -> desplazamiento en días
+const off = (y,m,d) => Math.round((new Date(y,m,d)-today)/86400000);
 const nights = (a,b) => Math.round((b-a)/86400000);
 
-// Estado en Módulo 2: pending | active (por llegar) | in_progress (hospedado) | completed | cancelled | no_show
-// Solo se muestra el huésped titular (sin grupos ni familias)
-const res = [
-  {ref:'RES-12345', name:'María González', doc:'CC 1032456789', room:'304', tipo:'Doble', guests:2, src:'Directo', s:0, e:3, status:'active'},
-  {ref:'RES-2041', name:'Marta Londoño', doc:'CC 43208115', room:'204', tipo:'Boutique', guests:1, src:'OTA', s:0, e:3, status:'active'},
-  {ref:'RES-2042', name:'Camilo Arango', doc:'CC 1017223908', room:'205', tipo:'Boutique', guests:2, src:'OTA', s:0, e:3, status:'active'},
-  {ref:'RES-2043', name:'Julián Restrepo', doc:'CC 79665214', room:'118', tipo:'Sencilla', guests:1, src:'Directo', s:0, e:1, status:'active'},
-  {ref:'RES-2044', name:'Andrea Vélez', doc:'CE 1140552', room:'227', tipo:'Doble', guests:2, src:'Directo', s:0, e:2, status:'active'},
-  {ref:'RES-2045', name:'Ricardo Mejía', doc:'CC 71302940', room:'145', tipo:'Doble', guests:2, src:'OTA', s:0, e:2, status:'active'},
-  {ref:'RES-1990', name:'Carlos Peña', doc:'CC 80114552', room:'102', tipo:'Doble', guests:2, src:'Directo', s:-4, e:0, status:'in_progress'},
-  {ref:'RES-40001', name:'Miguel Ángel Ríos', doc:'CC 79845132', room:'411', tipo:'Suite', guests:3, src:'OTA', s:off(2026,8,21), e:off(2026,8,26), status:'in_progress'},
-  {ref:'RES-1981', name:'Marco Ferretti', doc:'PA AR3391027', room:'309', tipo:'Suite', guests:1, src:'Directo', s:-6, e:0, status:'in_progress'},
-  {ref:'RES-2010', name:'Diego Salazar', doc:'CC 10556221', room:'140', tipo:'Boutique', guests:2, src:'OTA', s:-1, e:0, status:'in_progress'},
-  {ref:'RES-1975', name:'Paola Duarte', doc:'CC 63220478', room:'318', tipo:'Sencilla', guests:1, src:'Directo', s:-5, e:-2, status:'in_progress'},
-  {ref:'RES-2005', name:'Sergio Ortiz', doc:'CC 98331070', room:'112', tipo:'Doble', guests:2, src:'OTA', s:-1, e:2, status:'in_progress'},
+// Reservas de ejemplo con soporte para múltiples habitaciones por reserva
+// Llegadas (copia local de reservas de hoy) y Salidas (estancias activas en el hotel)
+const arrivalReservations = [
+  {
+    ref: 'RES-12345',
+    titular: 'María González',
+    doc: 'CC 1032456789',
+    src: 'DIRECTA',
+    s: 0, e: 3,
+    rooms: [
+      { room: '304', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null },
+      { room: '305', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2041',
+    titular: 'Marta Londoño',
+    doc: 'CC 43208115',
+    src: 'BOOKING',
+    s: 0, e: 3,
+    rooms: [
+      { room: '204', tipo: 'Boutique', guests: 1, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2042',
+    titular: 'Camilo Arango',
+    doc: 'CC 1017223908',
+    src: 'EXPEDIA',
+    s: 0, e: 3,
+    rooms: [
+      { room: '205', tipo: 'Boutique', guests: 2, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-5002',
+    titular: 'Carlos Méndez',
+    doc: 'CC 79541230',
+    src: 'BOOKING',
+    s: 0, e: 2,
+    rooms: [
+      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock', alert: 'Habitación en mantenimiento / bloqueo técnico — no apartada automáticamente' },
+      { room: '109', tipo: 'Sencilla', guests: 1, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2044',
+    titular: 'Andrea Vélez',
+    doc: 'CE 1140552',
+    src: 'DIRECTA',
+    s: 0, e: 2,
+    rooms: [
+      { room: '227', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null }
+    ]
+  }
 ];
+
+const departuresData = [
+  { ref:'RES-1990', name:'Carlos Peña', doc:'CC 80114552', room:'102', tipo:'Doble', guests:2, src:'DIRECTA', s:-4, e:0, status:'in_progress' },
+  { ref:'RES-40001', name:'Miguel Ángel Ríos', doc:'CC 79845132', room:'411', tipo:'Suite', guests:3, src:'EXPEDIA', s:off(2026,8,21), e:off(2026,8,26), status:'in_progress' },
+  { ref:'RES-1981', name:'Marco Ferretti', doc:'PA AR3391027', room:'309', tipo:'Suite', guests:1, src:'DIRECTA', s:-6, e:0, status:'in_progress' },
+  { ref:'RES-2010', name:'Diego Salazar', doc:'CC 10556221', room:'140', tipo:'Boutique', guests:2, src:'BOOKING', s:-1, e:0, status:'in_progress' },
+  { ref:'RES-1975', name:'Paola Duarte', doc:'CC 63220478', room:'318', tipo:'Sencilla', guests:1, src:'DIRECTA', s:-5, e:-2, status:'in_progress' },
+  { ref:'RES-2005', name:'Sergio Ortiz', doc:'CC 98331070', room:'112', tipo:'Doble', guests:2, src:'EXPEDIA', s:-1, e:2, status:'in_progress' }
+];
+
 let tab = 'in';
 const $ = id => document.getElementById(id);
 
-
-const arrivals = () => res.filter(r => r.status==='active' && r.s===0);
-const departures = () => res.filter(r => r.status==='in_progress');
+// En llegadas: aplanar las habitaciones de las reservas con su contexto
+function getArrivalRows(){
+  const list = [];
+  arrivalReservations.forEach(r => {
+    const total = r.rooms.length;
+    // Habitaciones pendientes: aquellas en estado Reserved (o con alerta) que no tienen estancia registrada
+    const pendingCount = r.rooms.filter(rm => rm.status === 'Reserved').length;
+    r.rooms.forEach((rm, idx) => {
+      list.push({
+        ref: r.ref,
+        resLabel: `${r.ref} · ${pendingCount} de ${total} pendientes`,
+        titular: r.titular,
+        doc: r.doc,
+        src: r.src,
+        nightsCount: nights(day(r.s), day(r.e)),
+        room: rm.room,
+        tipo: rm.tipo,
+        guests: rm.guests,
+        status: rm.status,
+        alert: rm.alert,
+        canCheckIn: rm.status === 'Reserved',
+        isFirstInGroup: idx === 0,
+        groupSize: total
+      });
+    });
+  });
+  return list;
+}
 
 function render(){
   const q = $('search').value.trim().toLowerCase();
-  $('thead').innerHTML = tab==='in'
-    ? '<tr><th>Hab.</th><th>Huésped</th><th>Estadía</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>'
-    : '<tr><th>Hab.</th><th>Huésped</th><th>Fecha entrada</th><th>Fecha salida</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
-
-  let rows = (tab==='in' ? arrivals() : departures()).filter(r =>
-    !q || r.name.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q));
-
   const tb = $('tbody'); tb.innerHTML = '';
-  if(!rows.length){ tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas que mostrar.</div></td></tr>`; return; }
-  rows.forEach(r=>{
-    const late = r.e<0;
-    const stay = tab==='in'
-      ? `<td>${nights(day(r.s),day(r.e))} noche${nights(day(r.s),day(r.e))>1?'s':''}</td>`
-      : `<td>${fmt(day(r.s))}</td>
-         <td><div class="${late?'late':''}">${fmt(day(r.e))}</div>${late?`<div class="late-sub">Vencida</div>`:''}</td>`;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><div class="room-num">${r.room}</div></td>
-      <td><div class="name">${r.name}</div><div class="meta">${r.doc}</div></td>
-      ${stay}
-      <td>${r.guests}</td>
-      <td>${r.tipo}</td><td>${r.src}</td>
-      <td><a class="btn ${tab==='in'?'in':'out'}" href="${tab==='in'?'02-checkin-1-reserva.html':'07-checkout-1-reserva.html'}?ref=${encodeURIComponent(r.ref)}">${tab==='in'?'Check-in':'Check-out'}</a></td>`;
-    tb.appendChild(tr);
-  });
+
+  if(tab === 'in'){
+    $('thead').innerHTML = '<tr><th>Reserva / Grupo</th><th>Hab.</th><th>Huésped titular</th><th>Estadía</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
+    let rows = getArrivalRows().filter(r =>
+      !q || r.titular.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q) || r.room.toLowerCase().includes(q)
+    );
+
+    if(!rows.length){
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas de llegada que mostrar.</div></td></tr>`;
+      return;
+    }
+
+    let lastRef = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      // Alerta de habitación no apartada
+      const alertHtml = r.alert
+        ? `<div style="margin-top:4px;padding:3px 8px;border-radius:4px;background:#FEF2F2;color:#991B1B;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+             ${r.alert}
+           </div>`
+        : '';
+
+      const groupTag = `<span style="font-size:12px;font-weight:700;color:var(--primary);background:#EAF1FF;padding:2px 8px;border-radius:6px;display:inline-block">${r.resLabel}</span>`;
+
+      tr.innerHTML = `
+        <td>${groupTag}</td>
+        <td>
+          <div class="room-num">${r.room}</div>
+          ${alertHtml}
+        </td>
+        <td><div class="name">${r.titular}</div><div class="meta">${r.doc}</div></td>
+        <td>${r.nightsCount} noche${r.nightsCount > 1 ? 's' : ''}</td>
+        <td>${r.guests}</td>
+        <td>${r.tipo}</td>
+        <td><span style="font-weight:600">${r.src}</span></td>
+        <td>
+          ${r.canCheckIn
+            ? `<a class="btn in" href="02-checkin-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-in</a>`
+            : `<button class="btn" style="background:#E2E8F0;color:#94A3B8;cursor:not-allowed" disabled title="Habitación no disponible para Check-in">Bloqueada</button>`
+          }
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+  } else {
+    $('thead').innerHTML = '<tr><th>Hab.</th><th>Huésped titular</th><th>Fecha entrada</th><th>Fecha salida</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
+    let rows = departuresData.filter(r =>
+      !q || r.name.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q) || r.room.toLowerCase().includes(q)
+    );
+
+    if(!rows.length){
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay salidas que mostrar.</div></td></tr>`;
+      return;
+    }
+
+    rows.forEach(r => {
+      const late = r.e < 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div class="room-num">${r.room}</div></td>
+        <td><div class="name">${r.name}</div><div class="meta">${r.doc}</div></td>
+        <td>${fmt(day(r.s))}</td>
+        <td><div class="${late ? 'late' : ''}">${fmt(day(r.e))}</div>${late ? `<div class="late-sub">Vencida</div>` : ''}</td>
+        <td>${r.guests}</td>
+        <td>${r.tipo}</td>
+        <td><span style="font-weight:600">${r.src}</span></td>
+        <td><a class="btn out" href="07-checkout-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-out</a></td>`;
+      tb.appendChild(tr);
+    });
+  }
 }
 
 function renderAll(){
-  const dep = departures();
-  $('kArr').textContent = arrivals().length;
-  $('kDep').textContent = dep.filter(r=>r.e===0).length;
-  $('kDue').textContent = dep.filter(r=>r.e<0).length;
+  // KPI "Llegadas de hoy" cuenta habitaciones pendientes en el día
+  const allArrivalRooms = getArrivalRows();
+  const pendingArrivals = allArrivalRooms.filter(r => r.canCheckIn).length;
+  const dep = departuresData;
+
+  $('kArr').textContent = pendingArrivals;
+  $('kDep').textContent = dep.filter(r => r.e === 0).length;
+  $('kDue').textContent = dep.filter(r => r.e < 0).length;
   $('kOcc').textContent = dep.length;
   render();
 }
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active'); tab = t.dataset.tab; $('search').value=''; render();
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active'); tab = t.dataset.tab; $('search').value = ''; render();
 });
 $('search').oninput = render;
 renderAll();
