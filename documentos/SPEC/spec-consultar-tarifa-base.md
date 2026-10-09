@@ -3,6 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Módulo 3 — Facturación (sistema externo)
 **Creado**: 2026-09-07
+**Actualizado**: 2026-10-09
 
 ---
 

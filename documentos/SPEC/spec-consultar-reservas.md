@@ -3,7 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Sistema Módulo 1 (Autónomo) / Recepcionista / Personal de mantenimiento / Administrador
 **Creado**: 2026-09-25
-**Actualizado**: 2026-10-06
+**Actualizado**: 2026-10-09
 
 ---
 
@@ -141,19 +141,19 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - Un mensaje `UPDATED` solo DEBE aplicarse si su `updatedAt` es más reciente que el almacenado localmente.
   - Al recibir la lista de las 00:00, el sistema DEBE reiniciar el contador de `sequenceNumber` y purgar la copia local del día anterior.
 - **FR-004**: Estructura de la copia local:
-  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
-  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count`.
+  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type` [NEEDS_CONFIRMATION_MODULO_2], `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
+  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` [NEEDS_CONFIRMATION_MODULO_2] (cantidad de personas por habitación; respaldo: `maxCapacity` de `Room` si Módulo 2 no envía este campo por habitación).
   - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
-  - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución.
+  - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
 - **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
 - **FR-006**: Consultas para Recepción: Las consultas y búsquedas de llegadas en mostrador y Panel de Recepción DEBEN ejecutarse exclusivamente contra la copia local, sin realizar peticiones HTTP/REST hacia el Módulo 2.
 - **FR-007**: Consulta REST de Mantenimiento y Baja:
   - El sistema DEBE proveer una consulta REST dirigida al Módulo 2 invocable únicamente por Personal de mantenimiento y Administrador.
-  - La petición DEBE enviar únicamente el header de la petición más tres datos: `roomId`, `startDate` y `endDate`.
+  - La petición DEBE enviar únicamente los tres parámetros: `roomId`, `startDate` y `endDate`.
   - Solo DEBE consultarse una habitación por petición (no por categoría ni lista de habitaciones).
   - Para programar bloqueo técnico: `startDate` corresponde al inicio del mantenimiento y `endDate` a la fecha estimada de finalización.
   - Para dar de baja una habitación: `startDate` corresponde a la fecha actual y `endDate` corresponde a `hoy + 30 días`.
-  - *Pendiente Módulo 2*: La ruta del endpoint y la forma exacta de la respuesta están pendientes de confirmación por el Módulo 2.
+  - [NEEDS_CONFIRMATION_MODULO_2]: La ruta exacta del endpoint y la forma de la respuesta están pendientes de confirmación por Módulo 2. Módulo 1 define únicamente el puerto desacoplado con los tres parámetros, sin asumir ruta ni formato de respuesta.
 - **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad o timeout de Módulo 2 en la consulta de mantenimiento o baja, el sistema DEBE capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
 
 ---

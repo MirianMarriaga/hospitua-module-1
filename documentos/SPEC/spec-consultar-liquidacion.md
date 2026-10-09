@@ -1,93 +1,80 @@
 # Especificación de Funcionalidad: Consultar Liquidación
 
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Recepcionista (indirecto, vía caso de uso "Registrar Check-Out")
+**Actor principal**: Recepcionista (indirecto, vía `<<includes>>` desde "Registrar Check-Out")
 **Creado**: 2026-09-25
+**Actualizado**: 2026-10-09
 
 ---
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Consulta del desglose de liquidación y factura definitiva en Check-Out (Prioridad: P1)
+### Historia de Usuario 1 - Consulta del desglose de liquidación en Check-Out (Prioridad: P1)
 
-Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma reactiva mediante REST GET a Módulo 3 la liquidación y la factura definitiva asociada enviando la fuente (`source`: `DIRECTA` o el nombre de la OTA leído de `Stay.source`), para estructurar la información en los pasos de Liquidación (factura asociada e información de la reserva: fuente, comisión e ingreso neto) y Pago (factura asociada, resumen para el huésped con hospedaje, IVA y total a pagar; junto a los datos reales de estadía: noches, fecha de entrada y fecha de salida), contando con la información financiera oficial antes de autorizar la salida y liberar la unidad, sin que Módulo 3 devuelva el campo de fuente.
+Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma reactiva mediante REST GET a Módulo 3 la liquidación de la estancia enviando `source` desde `Stay.source`, para estructurar la información en los pasos de Liquidación (tipo de liquidación, factura, fuente local, comisión e ingreso neto) y Pago (hospedaje, IVA, total a pagar de M3, datos de estadía), sin que Módulo 3 devuelva el campo `source`.
 
-**Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia física en información financiera oficial para el cierre de la estadía. Módulo 1 actúa como consumidor estricto de la liquidación y de la factura definitiva emitidas por Módulo 3, sin calcular tarifas, sin deducir comisiones ni recaudar pagos en recepción. Módulo 1 envía `source` (`DIRECTA` o el nombre de la OTA) y Módulo 3 ya no lo devuelve en `SettlementSummary`.
+**Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia en información financiera oficial. Módulo 1 actúa como consumidor estricto: no calcula tarifas, no deduce comisiones, no recauda pagos. El `totalAmount` proviene exclusivamente de M3 (nunca se suma localmente en M1).
 
-**Prueba Independiente**: Se prueba invocando este caso de uso de forma aislada con un conjunto de datos de estancia válido (`reservationRef`, fechas reservadas `startDate` y `endDate`, fechas reales `checkInDate` y `checkOutDate`, fuente `source`: `DIRECTA` o nombre de la OTA obtenido de `Stay`, y `roomId`) y verificando que el sistema retorna la estructura completa suministrada por Módulo 3 sin alteraciones, desagregada para su presentación en el paso Liquidación (Información de la reserva) y en el paso Pago (Resumen para el huésped y Datos de la estadía), con la factura definitiva asociada visible en la parte superior de ambos pasos y sin procesar transacciones monetarias en Módulo 1.
+**Prueba Independiente**: Invocar con datos válidos de estancia (`reservationRef`, `checkInDate`, `checkOutDate`, `source` de `Stay`, `roomId`) y verificar que el sistema retorna la estructura de M3 desagregada para los pasos de Liquidación y Pago, sin parámetros `eventType`, `startDate` ni `endDate`, sin header `Authorization`, y sobre la URL `GET /api/settlements` (sin `/v1/`).
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Consulta de liquidación para reserva de fuente DIRECTA (sin comisión OTA)
-   - **Dado** una estancia asociada a una reserva con fuente `source = DIRECTA` registrada en `Stay.source` (0% comisión OTA)
+1. **Escenario**: Consulta de liquidación para reserva DIRECTA (sin comisión OTA)
+   - **Dado** una estancia con `source = DIRECTA` en `Stay.source`
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `SettlementRequest` con `source` (`DIRECTA`) a Módulo 3 mediante REST GET, recibe la liquidación financiera y entrega para la atención:
-     1. Para el paso Liquidación:
-        - Factura definitiva asociada (arriba, con su número oficial, ej. FAC-40001)
-        - Información de la reserva: Fuente (desplegada desde `Stay.source` local: `DIRECTA`), Comisión OTA en 0% (valor $0) e Ingreso neto equivalente al valor del hospedaje
-     2. Para el paso Pago:
-        - Factura definitiva asociada (arriba)
-        - Resumen para el huésped: Valor del hospedaje (total ya calculado), IVA y Total a pagar
-        - Datos de la estadía: Noches de hospedaje, Fecha de entrada real (`checkInDate`) y Fecha de salida real (`checkOutDate`), sin registrar ni recibir pagos en recepción
+   - **Entonces** el sistema envía `GET /api/settlements` con `reservationRef`, `checkInDate`, `checkOutDate`, `source = DIRECTA`, `roomId`, `categoryRoom` y recibe de M3:
+     - Para el paso Liquidación: `settlementType` ("Liquidación informativa" o "Liquidación final"), `invoiceNumber` (entero consecutivo o no mostrado si informativa), fuente desplegada desde `Stay.source` local, comisión 0%, ingreso neto = hospedaje
+     - Para el paso Pago: `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (no mostrados si informativa), noches, `checkInDate`, `checkOutDate`
 
-2. **Escenario**: Consulta de liquidación para reserva originada en OTA (con comisión de intermediario)
-   - **Dado** una estancia asociada a una reserva proveniente de intermediario con fuente registrada en `Stay.source` (ej. `BOOKING` o `EXPEDIA`) y comisión pactada
+2. **Escenario**: Consulta de liquidación para reserva OTA (con comisión)
+   - **Dado** una estancia con `source = BOOKING` o `EXPEDIA` en `Stay.source`
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `SettlementRequest` con `source` (nombre de la OTA) a Módulo 3 mediante REST GET, recibe la liquidación financiera (sin `source` en la respuesta) y entrega para la atención:
-     1. Para el paso Liquidación:
-        - Factura definitiva asociada (arriba)
-        - Información de la reserva: Fuente (desplegada desde `Stay.source` local: ej. `EXPEDIA`), Porcentaje de comisión OTA, Valor monetario de comisión OTA e Ingreso neto (hospedaje menos comisión)
-     2. Para el paso Pago:
-        - Factura definitiva asociada (arriba)
-        - Resumen para el huésped: Valor del hospedaje, IVA y Total a pagar (sin recargar comisiones al huésped)
-        - Datos de la estadía: Noches, Fecha de entrada real (`checkInDate`) y Fecha de salida real (`checkOutDate`)
+   - **Entonces** el sistema envía `source` y `categoryRoom` al endpoint de M3 y recibe la liquidación (sin `source` en la respuesta). Muestra en el paso Liquidación: fuente desde `Stay.source`, `otaCommissionPercentage`, `otaCommissionAmount`, `netIncomeAmount`
 
-3. **Escenario**: Valor de hospedaje total consolidado sin desglose por noche
-   - **Dado** una estancia de múltiples noches o con ajuste por salida anticipada
-   - **Cuando** se consulta la liquidación a Módulo 3
-   - **Entonces** el sistema recibe el valor del hospedaje como una cifra total consolidada ya calculada por Módulo 3, sin requerir ni procesar un desglose noche a noche en Módulo 1.
+3. **Escenario**: Valor de hospedaje consolidado (sin desglose por noche)
+   - **Dado** una estancia de múltiples noches o con salida anticipada
+   - **Cuando** se consulta la liquidación
+   - **Entonces** el sistema recibe `accommodationTotalAmount` como cifra total ya calculada por M3; Módulo 1 no desglosa por noche
 
-4. **Escenario**: Exclusión estricta de consumos locales y recaudos
-   - **Dado** el resultado provisto por Módulo 3
-   - **Cuando** se procesa la información de la liquidación en los pasos de Liquidación y Pago
-   - **Entonces** el sistema garantiza que no se incluyan conceptos de consumos locales (minibar, restaurante, lavandería o daños) ni se procesen recaudos monetarios o pasarelas en Módulo 1, circunscribiendo la consulta al hospedaje, comisiones intermediarias, impuestos y la factura definitiva de Módulo 3.
+4. **Escenario**: Liquidación informativa — sin IVA, sin total, sin factura
+   - **Dado** que M3 devuelve `settlementType = INFORMATIVA` con `invoiceNumber = null`, `taxAmount = null`, `totalAmount = null`
+   - **Cuando** se presenta la liquidación
+   - **Entonces** el sistema muestra exclusivamente el valor de hospedaje (`accommodationTotalAmount`), comisión OTA e ingreso neto (`netIncomeAmount`). No se calcula ni se muestra IVA, no se muestra total ni número de factura (se indican como no aplicables o pendientes de facturación)
 
 ---
 
 ### Historia de Usuario 2 - Manejo controlado de la indisponibilidad de Módulo 3 (Prioridad: P2)
 
-Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud al entregar la liquidación y la factura, el sistema informe la contingencia de forma controlada en lugar de emitir errores técnicos, permitiendo gestionar la salida física en recepción.
-
-**Por qué esta prioridad**: Módulo 3 es un sistema externo de pricing y facturación; su indisponibilidad no debe bloquear la recepción del hotel ni generar excepciones técnicas o fallos no controlados, garantizando que la decisión de continuar la salida física (liberar habitación y regularizar saldos posteriormente) quede en manos de "Registrar Check-Out".
-
-**Prueba Independiente**: Se prueba simulando falta de respuesta o mensajes de error de Módulo 3 al consultar la liquidación, verificando que el caso de uso retorne un resultado controlado de estado `UNAVAILABLE` con la causa del fallo al caso de uso llamador "Registrar Check-Out", sin provocar caídas del sistema.
+Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sistema informe la contingencia de forma controlada sin emitir errores técnicos.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Falta de respuesta por lentitud de red en Módulo 3
-   - **Dado** que el servicio de Módulo 3 no emite respuesta dentro del tiempo límite de espera configurado
-   - **Cuando** se agota el tiempo de consulta
-   - **Entonces** el sistema captura la condición y entrega a "Registrar Check-Out" un resultado controlado de indisponibilidad, impidiendo fallos técnicos o caídas del sistema.
+1. **Escenario**: Timeout (sin respuesta en 3 s)
+   - **Dado** que M3 no responde dentro del tiempo límite
+   - **Entonces** el caso de uso entrega a "Registrar Check-Out" un resultado `UNAVAILABLE` con causa `TIMEOUT`
 
-2. **Escenario**: Error devuelto por Módulo 3
-   - **Dado** que Módulo 3 responde con un mensaje de error controlado o falla técnica del servicio
-   - **Cuando** "Consultar liquidación" procesa la respuesta
-   - **Entonces** el sistema traduce el código en un mensaje informativo sobre indisponibilidad del servicio de facturación, sin intentar calcular ni generar montos inventados o parciales.
+2. **Escenario**: Error 404 devuelto por M3 (`RESERVATION_NOT_FOUND` o `QUOTE_NOT_FOUND`)
+   - **Dado** que M3 responde con HTTP 404 y `errorCode` conocido
+   - **Entonces** el sistema mapea a `UNAVAILABLE` con la causa del `errorCode` específico de M3
 
-3. **Escenario**: Delegación de la contingencia en "Registrar Check-Out"
-   - **Dado** un resultado de indisponibilidad de liquidación devuelto por este caso de uso
-   - **Cuando** el flujo de Check-Out recibe la notificación de indisponibilidad
-   - **Entonces** "Consultar liquidación" no ejecuta ninguna acción autónoma de liberación física ni de persistencia; la decisión de proceder con la salida física y registrar la transacción pendiente de regularización es asumida íntegramente por "Registrar Check-Out".
+3. **Escenario**: Error `MODULE2_UNAVAILABLE` devuelto por M3
+   - **Dado** que M3 responde con `errorCode = MODULE2_UNAVAILABLE`
+   - **Entonces** el sistema mapea a `UNAVAILABLE` con esa causa; no se trata como error 503 (M3 no emite 503)
+
+4. **Escenario**: Delegación de contingencia en "Registrar Check-Out"
+   - **Dado** un resultado `UNAVAILABLE`
+   - **Entonces** "Consultar liquidación" no libera la habitación ni persiste saldos; la decisión es de "Registrar Check-Out"
 
 ---
 
 ### Casos Borde
 
-- **Fuente DIRECTA sin comisión OTA**: El sistema reporta la fuente como `DIRECTA`, el porcentaje de comisión OTA en 0%, el valor de comisión en $0 y el ingreso neto exactamente igual al valor del hospedaje.
-- **Fuente de intermediario (OTA)**: La fuente se guarda tal cual llega (`BOOKING`, `EXPEDIA`, etc.) y se despliega bajo la etiqueta "Fuente".
-- **Inmutabilidad de la factura definitiva asociada**: La factura definitiva es emitida exclusivamente por Módulo 3 al liquidar; Módulo 1 la consume y referencia como un registro inmutable con su numeración oficial asignada (ej. FAC-40001), mostrándola en la cabecera de los pasos de Liquidación y Pago sin alterarla ni recalcularla.
-- **Consultas reiteradas para la misma estancia**: Si se solicita la liquidación más de una vez antes de formalizar la salida, la consulta se reejecuta de manera segura sin duplicar registros ni persistir saldos hasta la confirmación final.
-- **Salida anticipada (Early Check-Out)**: El valor de hospedaje consolidado recibido de Módulo 3 ya incorpora cualquier penalización o ajuste definido internamente por las políticas de Módulo 3, entregándose como un único valor total ya procesado sobre las noches reales.
+- **`source` DIRECTA**: Comisión 0%, valor $0, ingreso neto = hospedaje.
+- **`source` OTA**: Se muestra desde `Stay.source` (M3 no lo devuelve en la respuesta).
+- **`invoiceNumber` como entero**: Número consecutivo entero (sin prefijos como "F-2026-" ni "FAC-").
+- **`totalAmount` de M3**: Módulo 1 **nunca** suma `accommodationTotalAmount + taxAmount` localmente; usa el `totalAmount` de M3 tal cual.
+- **`categoryRoom` como parámetro**: Confirmado — Módulo 3 acepta `categoryRoom` (resuelto y cerrado; no se usa `roomType`).
+- **Consultas reiteradas**: Seguras sin duplicar registros ni persistir saldos antes de la confirmación final.
 
 ---
 
@@ -95,51 +82,60 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE operar como un caso de uso interno incluido obligatoriamente (`<<includes>>`) por el caso de uso "Registrar Check-Out", durante la fase de liquidación de la estadía.
-- **FR-002**: Conforme al contrato de interfaces con Módulo 3: "Consultar liquidación: REST · GET · Reactivo", durante el Check-Out el sistema DEBE consultar de forma reactiva mediante una petición sincrónica REST GET a Módulo 3 la liquidación de la estadía (`SettlementRequest`), esperando respuesta inmediata con los siguientes parámetros:
-  - Referencia de reserva (`reservationRef`)
-  - Tipo de evento (`CHECK_OUT`)
-  - Fechas contratadas de estadía (`startDate`, `endDate`) obtenidas de `Stay`
-  - Fechas reales de la estancia (`checkInDate` real registrado en `Stay` y `checkOutDate` correspondiente a la fecha de salida, sin horas)
-  - Fuente (`source`: `DIRECTA` o el nombre de la OTA como `BOOKING`, `EXPEDIA`..., obtenido localmente de `Stay`)
-  - Identificador de la habitación física (`roomId`)
-- **FR-003**: El sistema DEBE recibir desde Módulo 3 la siguiente estructura oficial de liquidación y facturación (`SettlementSummary`):
-  1. Factura definitiva asociada emitida por Módulo 3 (número consecutivo oficial `invoiceNumber`, ej. FAC-40001).
-  2. Valor de hospedaje consolidado (`accommodationTotalAmount`, total ya calculado, no desglosado por noche).
-  3. Porcentaje de la comisión OTA aplicable (`otaCommissionPercentage`, si corresponde).
-  4. Valor monetario de la comisión OTA (`otaCommissionAmount`, si corresponde).
-  5. Impuesto al Valor Agregado (`taxAmount`, IVA).
-  6. Ingreso neto (`netIncomeAmount`: valor de hospedaje menos comisión OTA).
-  *(Nota: La fuente de la reserva `source` viaja de Módulo 1 a Módulo 3 en la solicitud, pero ya no regresa en la respuesta de Módulo 3; Módulo 1 lo recupera de la entidad local `Stay.source`).*
-- **FR-004**: El sistema DEBE proveer la información estructurada para su presentación separada en dos etapas de recepción:
-  - *En el paso 2 (Liquidación)*:
-    - Factura definitiva asociada (arriba).
-    - **Información de la reserva**:
-      - Fuente (desplegada directamente desde `Stay.source` local: ej. `DIRECTA` o nombre de la OTA)
-      - Porcentaje de comisión OTA (XX %)
-      - Valor monetario de comisión OTA ($XXX)
-      - Ingreso neto ($XXX)
-  - *En el paso 3 (Pago)*:
-    - Factura definitiva asociada (arriba).
-    - **Resumen para el huésped**:
-      - Valor del hospedaje ($XXX)
-      - IVA ($XXX)
-      - Total a pagar ($XXX)
-    - **Datos de la estadía**:
-      - Noches (X)
-      - Fecha de entrada (`checkInDate`)
-      - Fecha de salida (`checkOutDate`)
-- **FR-005**: El sistema DEBE mantener los valores como datos de consulta e informativos, sin procesar pagos, cobros por pasarela ni modificar las cifras provistas por Módulo 3. En el paso 3 ("Pago"), no se registra ni recibe dinero; su propósito es la exhibición y revisión del resumen con el huésped.
-- **FR-006**: Este caso de uso NO DEBE decidir de forma autónoma la liberación física de la habitación ni alterar el estado físico de la misma ante fallas de Módulo 3, delegando la gestión de contingencia en "Registrar Check-Out".
+- **FR-001**: El sistema DEBE operar como caso de uso interno incluido (`<<includes>>`) por "Registrar Check-Out" durante la fase de liquidación.
+- **FR-002**: El sistema DEBE consultar mediante REST GET la URL `GET /api/settlements` (sin prefijo `/v1/`, sin header `Authorization`) con los siguientes query params:
+  - `reservationRef` (string, formato `RES-000123`)
+  - `checkInDate` (YYYY-MM-DD)
+  - `checkOutDate` (YYYY-MM-DD)
+  - `source` (`DIRECTA` o nombre de la OTA, obtenido de `Stay.source`)
+  - `roomId` (UUID)
+  - `categoryRoom` (string, nombre confirmado y aceptado por M3)
+  
+  Parámetros que **NO** se envían: `eventType`, `startDate`, `endDate`.
+  
+- **FR-003**: El sistema DEBE recibir desde M3 la estructura `SettlementSummary` con:
+  1. `invoiceNumber` (entero consecutivo, null si liquidación informativa)
+  2. `accommodationTotalAmount` (decimal)
+  3. `otaCommissionPercentage` (decimal)
+  4. `otaCommissionAmount` (decimal)
+  5. `taxAmount` (decimal, null si informativa)
+  6. `netIncomeAmount` (decimal — fórmula confirmada: hospedaje − comisión OTA)
+  7. `totalAmount` (decimal, null si informativa — lo calcula M3; Módulo 1 **no** lo recalcula)
+  8. `settlementType` (string: `"INFORMATIVA"` | `"FINAL"`)
+  
+  *Nota*: `source` NO regresa en la respuesta de M3; Módulo 1 lo recupera de `Stay.source`.
+
+- **FR-004**: El sistema DEBE proveer la información para su presentación en dos etapas:
+  - *Paso 2 (Liquidación)*:
+    - `settlementType` mostrado como "Liquidación informativa" o "Liquidación final"
+    - `invoiceNumber` (entero consecutivo; si es informativa y null, no se muestra número o se indica como "Pendiente de facturación")
+    - Fuente (desde `Stay.source` local)
+    - `otaCommissionPercentage`, `otaCommissionAmount`, `netIncomeAmount`
+  - *Paso 3 (Pago)*:
+    - En liquidación FINAL: `invoiceNumber`, `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (Módulo 1 **no lo suma localmente**), noches, `checkInDate`, `checkOutDate`.
+    - En liquidación INFORMATIVA: Muestra únicamente el subtotal de hospedaje (`accommodationTotalAmount`), comisión OTA e ingreso neto (`netIncomeAmount`). No incluye IVA, total a pagar ni número de factura (se indican como no aplicables / pendientes de facturación).
+
+- **FR-005**: El sistema DEBE mantener los valores como datos de consulta sin procesar pagos ni modificar las cifras de M3.
+- **FR-006**: Este caso de uso NO DEBE liberar físicamente la habitación ni alterar su estado ante fallas de M3; delega la gestión de contingencia en "Registrar Check-Out".
+
+### Manejo de Errores de M3
+
+- M3 usa su propio `ApiError` con campo `errorCode`.
+- Códigos conocidos: `RESERVATION_NOT_FOUND`, `QUOTE_NOT_FOUND`, `MODULE2_UNAVAILABLE`.
+- M3 **no** devuelve HTTP 503.
+- Mapeo:
+  - HTTP 404 con `errorCode` conocido → `UNAVAILABLE` con causa = `errorCode`.
+  - Timeout (sin respuesta en 3 s) → `UNAVAILABLE` con causa = `TIMEOUT`.
+  - Error de red / conexión → `UNAVAILABLE` con causa = `CONNECTION_ERROR`.
 
 ---
 
-### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+### Entidades Clave
 
-- **SettlementRequest**: Objeto conceptual de solicitud remitido a Módulo 3 con los parámetros de la estancia: `reservationRef`, `eventType` (`CHECK_OUT`), `startDate`, `endDate`, `checkInDate`, `checkOutDate` (fechas sin hora), `source` (obtenido localmente de `Stay.source`: `DIRECTA` o nombre de la OTA) y `roomId`.
-- **SettlementSummary**: Estructura conceptual informativa devuelta por Módulo 3 y consumida vía "Consultar liquidación" conteniendo: factura definitiva asociada (`invoiceNumber`), valor de hospedaje consolidado (`accommodationTotalAmount`), porcentaje de comisión OTA (`otaCommissionPercentage`), valor de comisión OTA (`otaCommissionAmount`), IVA (`taxAmount`) e ingreso neto (`netIncomeAmount`). No incluye `source`.
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real de la habitación. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA como `BOOKING`, `EXPEDIA`...), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
-- **Module3 (Facturación y Liquidación)**: Sistema externo responsable exclusivo de calcular la liquidación, aplicar comisiones e IVA, y generar la factura definitiva oficial.
+- **SettlementRequest**: Parámetros enviados a M3: `reservationRef`, `checkInDate`, `checkOutDate`, `source` (de `Stay.source`), `roomId`, `categoryRoom`.
+- **SettlementSummary**: Respuesta de M3: `invoiceNumber` (entero o null), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType`. No incluye `source`.
+- **Stay**: Fuente de `source`, `checkInDate`, `checkOutDate`, `reservationRef`, `roomId`.
+- **Module3**: Sistema externo responsable del cálculo, comisiones, IVA y generación de factura oficial. Consume notificaciones de Check-Out vía `m2.habitacion.checkout.queue`. No recibe ni espera datos de huéspedes en peticiones directas.
 
 ---
 
@@ -147,7 +143,8 @@ Como Recepcionista, quiero que si Módulo 3 no responde o experimenta lentitud a
 
 ### Resultados Medibles
 
-- **SC-001**: El 100% de las consultas de liquidación completadas exitosamente suministran con exactitud los datos estructurados para los pasos de Liquidación y Pago con su factura definitiva asociada en la cabecera, sin alterar ni recalcular los montos provistos por Módulo 3.
-- **SC-002**: La consulta de liquidación responde en menos de 2 segundos en condiciones normales de conectividad con Módulo 3.
-- **SC-003**: Cero excepciones técnicas no controladas propagadas al Recepcionista ante demoras o errores devueltos por Módulo 3; el 100% de las fallas se traducen en un resultado controlado.
-- **SC-004**: Cero cálculos locales de tarifas, comisiones o impuestos y cero recaudos monetarios ejecutados dentro de Módulo 1.
+- **SC-001**: El 100% de las consultas exitosas suministran los datos estructurados para los pasos de Liquidación y Pago sin alterar ni recalcular los montos de M3.
+- **SC-002**: La consulta responde en menos de 3 s. Pasado ese tiempo, el caso de uso devuelve `UNAVAILABLE` con causa `TIMEOUT`.
+- **SC-003**: Cero excepciones técnicas propagadas al Recepcionista; el 100% de las fallas se traducen en resultado controlado `UNAVAILABLE`.
+- **SC-004**: Cero cálculos locales de `totalAmount` (siempre de M3) y cero recaudos ejecutados en Módulo 1.
+- **SC-005**: El `invoiceNumber` siempre se trata como entero (sin prefijos de formato); si es null, se muestra "Pendiente de facturación".
