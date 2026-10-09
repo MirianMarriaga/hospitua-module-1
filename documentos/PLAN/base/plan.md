@@ -50,7 +50,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | --- | --- | --- |
 | Herramienta de compilación | Maven | Estándar empresarial con Spring Boot y soporte multi-módulo |
 | Migraciones de Base de Datos | Flyway | Versionamiento determinista del esquema SQL en `src/main/resources/db/migration/` |
-| Autenticación y Autorización | Spring Security + JWT | Control de acceso basado en roles (`RECEPTIONIST`, `ADMINISTRATOR`, `MANAGER`, `CLEANING_STAFF`, `MAINTENANCE_STAFF`) e intercomunicación segura entre servicios |
+| Autenticación y Autorización | Spring Security + JWT | Control de acceso basado en roles (`RECEPTIONIST`, `ADMINISTRATOR`, `MANAGER`, `CLEANING_STAFF`, `MAINTENANCE_STAFF` y el rol de servicio `MODULE_2` para Módulo 2) e intercomunicación segura entre servicios |
 | Resiliencia y Timeouts REST | `RestClient` con timeouts + Resilience4j | Evitar bloqueos ante lentitud o caída de Módulo 2 o Módulo 3 |
 | Patrón Outbox Transaccional | Tabla `outbox_notification` + `@Scheduled` worker | Garantiza entrega eventual y consistencia atómica entre la base de datos y RabbitMQ |
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
@@ -216,13 +216,19 @@ backend/
     │   │   │   │   ├── ReparationTaskOutcome.java    # Enum: Completed / Released
     │   │   │   │   ├── DamageReport.java             # Reporte de daño inmutable
     │   │   │   │   ├── TechnicalBlockReport.java     # Bloqueo técnico programado
-    │   │   │   │   └── TechnicalBlockStatus.java     # Enum: Scheduled / Applied / Completed / Expired
+    │   │   │   │   ├── TechnicalBlockStatus.java     # Enum: Scheduled / Applied / Completed / Expired
+    │   │   │   │   └── SourceFlow.java                   # Enum: catálogo de flujos de origen del historial (Regla 8)
     │   │   │   ├── exception/                        # Excepciones de reglas de negocio
     │   │   │   │   ├── DomainException.java
     │   │   │   │   ├── InvalidRoomTransitionException.java
     │   │   │   │   ├── RoomNotAvailableException.java
     │   │   │   │   ├── CapacityExceededException.java
-    │   │   │   │   └── GuestValidationException.java
+    │   │   │   │   ├── GuestValidationException.java
+    │   │   │   │   ├── TaskNotOwnedException.java          # Tarea de otro miembro del personal (403)
+    │   │   │   │   ├── TaskNotFoundException.java          # Tarea inexistente (404)
+    │   │   │   │   ├── TaskAlreadyClosedException.java     # Tarea ya confirmada o liberada (409)
+    │   │   │   │   ├── ActiveTaskExistsException.java      # El miembro ya tiene una tarea abierta (409)
+    │   │   │   │   └── NoActiveTaskException.java          # El miembro no tiene tarea abierta (404)
     │   │   │   └── ports/                            # CONTRATOS / INTERFACES DE PUERTOS
     │   │   │       ├── in/                           # Puertos de Entrada (Casos de Uso primarios)
     │   │   │       │   ├── ConsultReceptionPanelUseCase.java
@@ -232,7 +238,9 @@ backend/
     │   │   │       │   ├── SendForeignGuestsUseCase.java
     │   │   │       │   ├── RegisterCheckOutUseCase.java
     │   │   │       │   ├── ConsultSettlementUseCase.java
-    │   │   │       │   └── TransitionRoomStateUseCase.java
+    │   │   │       │   ├── TransitionRoomStateUseCase.java
+    │   │   │       │   ├── MarkRoomAvailableUseCase.java     # Transiciones hacia Available (Marcar habitación como disponible)
+    │   │   │       │   └── MarkRoomReservedUseCase.java      # Available → Reserved (Marcar habitación como reservada)
     │   │   │       └── out/                          # Puertos de Salida (Persistencia, Clientes, Mensajería)
     │   │   │           ├── RoomRepositoryPort.java
     │   │   │           ├── StayRepositoryPort.java
@@ -282,7 +290,8 @@ backend/
     │   │           ├── SecurityConfig.java
     │   │           ├── RabbitConfig.java
     │   │           ├── RestClientConfig.java
-    │   │           └── ClockConfig.java
+    │   │           ├── ClockConfig.java
+    │   │           └── MaintenanceProperties.java     # Límites de rangos de mantenimiento (90 / 365 días)
     │   └── resources/
     │       ├── application.yml
     │       └── db/migration/                         # Scripts Flyway (V1__init_schema.sql, V2__seed_rooms.sql)
@@ -322,6 +331,10 @@ frontend/
 | --- | --- | --- |
 | `room` | `RoomJpaEntity` | Unidad habitacional física. `id` (UUID PK), `room_number` (VARCHAR único), `floor_wing`, `room_category` (Sencilla, Doble, Suite, Boutique), `max_capacity` (INT), `base_rate` (NUMERIC), `status` (VARCHAR: 8 estados canónicos), `reserved_by_reservation_ref` (VARCHAR nullable: reserva que aparta la habitación, solo en `Reserved`), `version` (optimistic lock). |
 | `room_state_history` | `RoomStateHistoryJpaEntity` | Historial común de estados por periodos (ver `maquina-estados-habitacion.md`). `id`, `room_id`, `status`, `previous_status` (nullable), `start_date_time`, `end_date_time` (nullable mientras el periodo está abierto), `actor_id` (nullable en transiciones autónomas), `source_flow`, `reservation_ref` (nullable). |
+| `cleaning_task` | `CleaningTaskJpaEntity` | Tarea de limpieza. `id` (UUID PK), `room_id` (FK a `room`), `cleaning_staff_member_id`, `start_date_time`, `end_date_time` (nullable mientras está abierta), `outcome` (`Completed`, `DamageReported`, `Released`; nullable), `version`. Índices únicos parciales por miembro y por habitación con `end_date_time IS NULL` (Regla 9). |
+| `reparation_task` | `ReparationTaskJpaEntity` | Tarea de reparación. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `start_date_time`, `end_date_time` (nullable), `outcome` (`Completed`, `Released`; nullable), `version`. Índices únicos parciales como en `cleaning_task`. |
+| `damage_report` | `DamageReportJpaEntity` | Reporte de daño inmutable. `id` (UUID PK), `room_id` (FK a `room`), `user_id`, `damage_description` (VARCHAR 500), `report_date_time`. Índice por `(room_id, report_date_time DESC)`. |
+| `technical_block_report` | `TechnicalBlockReportJpaEntity` | Bloqueo técnico programado. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `technical_block_reason` (VARCHAR 500), `technical_block_start_date` (DATE), `estimated_technical_block_end_date` (DATE), `report_date_time`, `status` (`Scheduled`, `Applied`, `Completed`, `Expired`), `version`. Índice por `(room_id, status)`. |
 | `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` (VARCHAR: `DIRECTA` o nombre de la OTA, ej. `BOOKING`, almacenado tal como llega de Módulo 2), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_time` (DATE), `expected_checkout_time` (DATE), `receptionist_id_check_in`, `receptionist_id_check_out`, `version`. |
 | `room_guest` | `RoomGuestJpaEntity` | Ocupante físico inmutable. `id` (UUID PK), `stay_id` (FK a `stay`), `full_name`, `document_type`, `document_number`, `nationality`, `birth_date` (DATE nullable), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable), `is_reservation_guest` (BOOLEAN). |
 | `outbox_notification` | `OutboxNotificationJpaEntity` | Mensajes asíncronos pendientes de envío hacia RabbitMQ. `id` (UUID), `event_type`, `routing_key`, `payload` (JSONB), `status` (`PENDING`, `PUBLISHED`, `FAILED`), `retry_count`, `created_at`, `published_at`. |
@@ -333,6 +346,10 @@ frontend/
 erDiagram
   ROOM ||--o{ STAY : aloja
   ROOM ||--o{ ROOM_STATE_HISTORY : registra
+  ROOM ||--o{ CLEANING_TASK : limpia
+  ROOM ||--o{ REPARATION_TASK : repara
+  ROOM ||--o{ DAMAGE_REPORT : reporta
+  ROOM ||--o{ TECHNICAL_BLOCK_REPORT : programa
   STAY ||--o{ ROOM_GUEST : tiene
   USER_ACCOUNT ||..o{ STAY : atiende
   USER_ACCOUNT ||..o{ ROOM_STATE_HISTORY : cambia
@@ -384,6 +401,42 @@ erDiagram
     string destination_place
     boolean is_reservation_guest
   }
+  CLEANING_TASK {
+    uuid id PK
+    uuid room_id FK
+    string cleaning_staff_member_id
+    timestamp start_date_time
+    timestamp end_date_time
+    string outcome
+    int version
+  }
+  REPARATION_TASK {
+    uuid id PK
+    uuid room_id FK
+    string maintenance_staff_member_id
+    timestamp start_date_time
+    timestamp end_date_time
+    string outcome
+    int version
+  }
+  DAMAGE_REPORT {
+    uuid id PK
+    uuid room_id FK
+    string user_id
+    string damage_description
+    timestamp report_date_time
+  }
+  TECHNICAL_BLOCK_REPORT {
+    uuid id PK
+    uuid room_id FK
+    string maintenance_staff_member_id
+    string technical_block_reason
+    date technical_block_start_date
+    date estimated_technical_block_end_date
+    timestamp report_date_time
+    string status
+    int version
+  }
   OUTBOX_NOTIFICATION {
     uuid id PK
     string event_type
@@ -404,7 +457,7 @@ erDiagram
 
 **Cómo leer el diagrama:**
 
-- **Línea continua**: clave foránea real en la base de datos (`stay.room_id → room`, `room_guest.stay_id → stay`, `room_state_history.room_id → room`).
+- **Línea continua**: clave foránea real en la base de datos (`stay.room_id → room`, `room_guest.stay_id → stay`, `room_state_history.room_id → room`, y `room_id → room` en `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`).
 - **Línea punteada**: relación lógica hacia `user_account`. Los campos `receptionist_id_check_in`, `receptionist_id_check_out` y `actor_id` se almacenan como cadenas simples, sin FK declarada en el esquema.
 - **`outbox_notification`**: no tiene FK. Se vincula lógicamente con la estancia y la habitación a través del campo `payload` (JSONB con `reservationRef` y `roomId`) y se inserta en la misma transacción ACID que el cambio físico de estado (Regla 3).
 - **`room_guest`**: registro inmutable tras el Check-In (Regla 4). Los campos `origin_place` y `destination_place` son **nullable** — solo aplican a extranjeros y van en el payload migratorio hacia Módulo 2 (SIRE), no como FK. Aceptan texto libre `"Ciudad, País"` (ej. `"Madrid, España"`).
@@ -422,9 +475,9 @@ erDiagram
    - `Module3RestClientAdapter`: Connect timeout 1s, Read timeout 3s. Si Módulo 3 no responde durante el Check-Out, se activa la vía de contingencia contemplada en el SPEC para liberar la habitación sin bloquear al huésped.
 6. **Aislamiento de fechas**: En Módulo 1, las fechas de estadía, reserva y mantenimiento programado se tratan estrictamente como fechas de calendario (`LocalDate`, formato `AAAA-MM-DD`, sin componente de hora en pantalla ni en mensajes). Las marcas operativas (inicio y fin de tareas, reportes y periodos del historial de estados) son timestamps generados exclusivamente por el servidor mediante `Clock` (hora de Colombia, UTC-5).
 7. **Manejo de errores uniforme**: Ningún fallo no controlado produce código HTTP 500; todos los errores son traducidos por `GlobalExceptionHandler` al esquema `ApiError`.
-8. **Historial de estados**: Toda transición de `Room.status` registra su periodo en `room_state_history` dentro de la misma transacción, mediante un único componente (`RoomStateHistoryRecorder`) que cierra el periodo abierto de la habitación y abre el nuevo.
+8. **Historial de estados**: Toda transición de `Room.status` se ejecuta mediante `TransitionRoomStateUseCase.transition(roomId, estadoDestino, actorId, sourceFlow, reservationRef)`, que valida la matriz, aplica `Room.transitionTo()`, registra el periodo en `room_state_history` dentro de la misma transacción (cierra el periodo abierto y abre el nuevo) y devuelve la marca de tiempo del periodo abierto. Los casos de uso no invocan `RoomStateHistoryRecorder` directamente. `sourceFlow` toma un valor del enum `SourceFlow` (un valor por caso de uso que cambia el estado de una habitación); `actorId` es nulo en las transiciones autónomas.
 9. **Tareas operativas**: Un miembro del personal y una habitación tienen como máximo una tarea abierta (`end_date_time` nulo) a la vez, garantizado con índices únicos parciales en `cleaning_task` y `reparation_task`. Solo el dueño de la tarea la cierra, asignando su `outcome`.
-10. **Orden de las 00:00**: Primero se procesa la ingesta de la lista diaria de reservas (que libera y luego aparta habitaciones) y después el trabajo de aplicación de bloqueos técnicos programados.
+10. **Orden de las 00:00**: Primero se procesa la ingesta de la lista diaria de reservas (que libera y luego aparta habitaciones); al terminar, la ingesta publica el evento de aplicación `DailyReservationListIngestedEvent`, y el trabajo de aplicación de bloqueos técnicos programados se ejecuta al recibirlo.
 
 ---
 
@@ -471,8 +524,11 @@ erDiagram
 - [ ] T012 Implementar el mecanismo transaccional Outbox: puerto `OutboxEventPublisherPort`, adaptador `JpaOutboxAdapter` y `OutboxScheduledWorker` para despacho garantizado
 - [ ] T013 [P] Configurar `RestClientConfig` con timeouts e implementar los adaptadores de salida `Module2RestClientAdapter` y `Module3RestClientAdapter` implementando sus respectivos puertos
 - [ ] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
-- [ ] T015 [P] Configurar Spring Security con autenticación JWT y roles de usuario (`RECEPTIONIST`, `ADMINISTRATOR`, `MANAGER`, `CLEANING_STAFF`, `MAINTENANCE_STAFF`)
+- [ ] T015 [P] Configurar Spring Security con autenticación JWT y roles de usuario (`RECEPTIONIST`, `ADMINISTRATOR`, `MANAGER`, `CLEANING_STAFF`, `MAINTENANCE_STAFF`) y el rol de servicio `MODULE_2` para las consultas de Módulo 2
 - [ ] T016 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) con interceptores y layouts por rol (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
-- [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado en cada transición de `Room.status` (Regla 8)
+- [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` (Regla 8)
+- [ ] T018 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9). Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
+- [ ] T019 Implementar los puertos transversales `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`) y `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`), según sus specs, sobre `TransitionRoomStateUseCase`. Los usan la ingesta de reservas y *Confirmar fin de limpieza*
+- [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365)
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
