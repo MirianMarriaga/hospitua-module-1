@@ -2,7 +2,7 @@
 
 **Módulo propietario**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Tipo de documento**: Referencia compartida (no es un SPEC de feature, no sigue spec-template.md)
-**Actualizado**: 2026-09-07
+**Actualizado**: 2026-10-09
 
 ## Propósito
 
@@ -19,7 +19,7 @@ El nombre en español entre paréntesis es de referencia para los diagramas del 
 1. **Available** (Disponible)
 2. **Reserved** (Reservada)
 3. **Occupied** (Ocupada)
-4. **PendingCleaning** (Pendiente de limpieza)
+4. **PendingCleaning** (Pendiente a limpieza)
 5. **InCleaning** (En limpieza)
 6. **DisabledForRepairs** (Inhabilitada por reparaciones)
 7. **TechnicalBlock** (Bloqueo técnico)
@@ -30,43 +30,39 @@ El nombre en español entre paréntesis es de referencia para los diagramas del 
 Estas son las transiciones confirmadas contra el diagrama de casos de uso y la arquitectura actualizada (Módulo 1 es el dueño absoluto de `Room.status`):
 
 | Desde | Hacia | Disparador | Actor / Componente |
-| --- | --- | --- | --- |
-| Available | Reserved | Ingesta de lista diaria (00:00), actualización `ADDED` con `startDate = hoy` o confirmación del fin de limpieza de una habitación con llegada pendiente hoy (después de `InCleaning → Available`, en la misma transacción) (asigna `reservedByReservationRef`) | Módulo 1 (Autónomo) |
-| Reserved | Available | Actualización `REMOVED` de esa reserva (incluye `NO_SHOW`, decidido por Módulo 2) o ausencia de la reserva en la lista diaria de las 00:00 | Módulo 1 (Autónomo) |
+|---|---|---|---|
+| Available | Reserved | Ingesta de lista diaria (00:00) con `startDate = hoy`, o actualización `ADDED` con `startDate = hoy` (asigna `reservedByReservationRef`) | Módulo 1 (Autónomo) |
+| Reserved | Available | Actualización `REMOVED` de esa reserva, habitación quitada de la reserva (`UPDATED`), o corte de las 23:59 (desmarque automático por no-show), solo si `reservedByReservationRef` coincide (limpia `reservedByReservationRef`) | Módulo 1 (Autónomo) |
 | Reserved | Occupied | Check-in confirmado | Recepcionista |
 | Occupied | PendingCleaning | Check-out confirmado | Recepcionista |
 | Available | InCleaning | Marcar en limpieza (aseo preventivo) | Personal de limpieza |
 | PendingCleaning | InCleaning | Marcar en limpieza | Personal de limpieza |
-| InCleaning | Available | Confirmar fin de limpieza; en la misma transacción puede continuar a `Reserved` (llegada pendiente hoy) o a `DisabledForRepairs` (daño reportado) | Personal de limpieza |
-| InCleaning | PendingCleaning | Liberar tarea de limpieza (relevo voluntario; la habitación vuelve a la cola de limpieza) | Personal de limpieza |
-| Available | DisabledForRepairs | Marcar inhabilitada por reparaciones (directamente o desde Confirmar fin de limpieza con daño reportado) | Personal de limpieza / Personal de mantenimiento |
+| InCleaning | Available | Confirmar fin de limpieza (sin llegada pendiente hoy para esa habitación) | Personal de limpieza |
+| Available | DisabledForRepairs | Marcar inhabilitada por reparaciones | Personal de mantenimiento |
 | DisabledForRepairs | PendingCleaning | Confirmar reparación finalizada | Personal de mantenimiento |
-| Available | TechnicalBlock | Programar bloqueo técnico: trabajo autónomo de las 00:00 al llegar `StartDate`, o inmediato al programar si `StartDate` = hoy | Módulo 1 (Autónomo, trabajo de las 00:00) / Personal de mantenimiento (aplicación inmediata) |
+| Available | TechnicalBlock | Programar bloqueo técnico | Personal de mantenimiento |
 | TechnicalBlock | PendingCleaning | Confirmar reparación finalizada | Personal de mantenimiento |
 | Available | Inactive | Dar de baja habitación | Administrador |
 | Inactive | Available | Marcar disponible / reactivar | Administrador |
 
-> **Reglas de conflicto y salvaguarda**:
->
-> 1. Si a las 00:00 una habitación con llegada hoy está en `Occupied` o en aseo (`PendingCleaning` / `InCleaning`), Módulo 1 no sobrescribe su estado; la aparta a `Reserved` en el momento exacto en que complete la limpieza y pase a `Available`.
-> 2. Si a las 00:00 la habitación asignada está en mantenimiento o inactiva (`DisabledForRepairs`, `TechnicalBlock`, `Inactive`), Módulo 1 no transiciona la habitación a `Reserved` y emite una alerta operativa a Recepción. La misma alerta se emite cuando una habitación con llegada hoy queda en `DisabledForRepairs` al confirmarse el fin de su limpieza con un daño reportado.
-> 3. Se eliminan definitivamente los mensajes externos `RoomStateRequest` y las confirmaciones/rechazos hacia Módulo 2 (acuerdos B7 y B8 eliminados).
-> 4. Un bloqueo técnico programado solo se aplica si la habitación está en `Available`. El trabajo autónomo se ejecuta a las 00:00 después de la ingesta de la lista diaria de reservas (la reserva tiene prioridad); si la habitación no está en `Available`, no sobrescribe su estado y reintenta cada 00:00 mientras la fecha actual no supere `EstimatedTechnicalBlockEndDate`; superada esa fecha, la programación caduca.
+> **Transiciones ELIMINADAS** (no existen en la arquitectura vigente):
+> - `Available → Occupied` (el Check-In exige la habitación en `Reserved`).
+> - `InCleaning → Reserved` (eliminada; la habitación pasa a `Available` y el consumer de reservas la aparta si corresponde).
+> - Cualquier otra transición no listada en la tabla anterior es inválida y produce HTTP 409.
 
-## RoomStateHistory
+## Reglas de conflicto y salvaguarda
 
-Historial común de estados de `Room`. Cada registro representa un periodo de la habitación en un estado; cada transición cierra el periodo abierto y abre uno nuevo dentro de la misma transacción que cambia `Room.status`. Las reglas de escritura las define cada SPEC en sus propios requisitos funcionales.
+1. **Habitación no apartable**: Si a las 00:00 (o al recibir un `ADDED`) una habitación con llegada hoy está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive`, Módulo 1 **no** transiciona la habitación a `Reserved` y el Panel de Recepción muestra una alerta operativa en la fila correspondiente ("No apartada: [Estado]").
 
-| Campo | Descripción |
-| --- | --- |
-| `RoomId` | Identificador de la habitación |
-| `Status` | Estado de la habitación durante el periodo |
-| `PreviousStatus` | Estado del periodo anterior (nulo en el primer registro de la habitación) |
-| `StartDateTime` | Inicio del periodo, generado por el servidor |
-| `EndDateTime` | Fin del periodo; nulo mientras el periodo está abierto |
-| `ActorId` | Usuario que provocó la transición; nulo cuando la transición es autónoma |
-| `SourceFlow` | Nombre del caso de uso que provocó la transición |
-| `ReservationRef` | Referencia de reserva asociada, cuando aplica (opcional) |
+2. **Caso fuera de alcance (sin transición)**: Si a las 00:00 una habitación con llegada hoy está en `Occupied`, `PendingCleaning` o `InCleaning`, se asume que no ocurre y queda fuera del flujo normal. No se define ninguna transición para este caso.
+
+3. **`RoomStateRequest`, confirmaciones/rechazos externos y mensajes de órdenes de bloqueo eliminados**: Módulo 2 ya **no** ordena transiciones de estado en Módulo 1. `RoomStateRequest`, los acuerdos B7 y B8 (orden de `Reserved`/`Available` externa), `ROOM_OCCUPIED`, `OBSOLETE` y el mecanismo de idempotencia por `requestId` están definitivamente eliminados.
+
+4. **Salvaguarda `reservedByReservationRef`**: La transición `Reserved → Available` autónoma solo se ejecuta si el `reservedByReservationRef` de la habitación coincide con el `reservationRef` del mensaje `REMOVED` o del `UPDATED` que quita la habitación. Al liberar, se limpia `reservedByReservationRef`. Motivo de auditoría: `LIBERACION_AUTOMATICA`.
+
+5. **Motivos de auditoría canónicos** para las transiciones autónomas:
+   - Apartado automático (`Available → Reserved`): `APARTADO_AUTOMATICO`.
+   - Liberación automática (`Reserved → Available`): `LIBERACION_AUTOMATICA`.
 
 ## Cómo referenciar este documento desde un SPEC
 

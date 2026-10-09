@@ -3,6 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Recepcionista
 **Creado**: 2026-09-28
+**Actualizado**: 2026-10-09
 
 > **Nota**: Esta especificación describe una vista de consulta e inicio operativo, no un caso de uso transaccional. No registra entidades, no transiciona estados de habitaciones y no tiene caso de uso `<<includes>>` ni `<<extends>>`. Actúa como punto de despacho hacia los flujos transaccionales de Check-In (`spec-registrar-check-in.md`) y Check-Out (`spec-registrar-check-out.md`).
 

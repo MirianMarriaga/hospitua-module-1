@@ -234,48 +234,132 @@ select.tbl-input{padding:6px 6px;height:34px}
 </style></head><body><div id="root">
 
 <div class="main"><div class="topbar"><div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Recepción</div></div></div><div class="user-chip"><div class="user-avatar">AR</div><div><div class="user-name">Ana Ramírez</div><div class="user-role">Recepcionista</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div></div>
-<div class="content"><div class="content-inner"><div class="back-row"><a class="icon-btn" href="02-checkin-1-reserva.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a><h1 style="margin:0">Registrar Check-In</h1></div><p class="page-sub">Ingresa el código o referencia de la reserva para iniciar el proceso de admisión.</p><div class="card ref-card"><div class="ref-row"><div class="ref-left"><div class="ref-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg></div><div class="ref-code">RES-12345</div></div></div><div class="stepper"><div class="step done"><div class="circle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><span>Validar reserva</span></div><div class="step-line done"></div><div class="step active"><div class="circle">2</div><span>Datos de huéspedes</span></div><div class="step-line "></div><div class="step "><div class="circle">3</div><span>Confirmación</span></div><div class="step-line "></div><div class="step "><div class="circle">4</div><span>Check-In</span></div></div></div><div class="card"><div class="card-title-row"><div class="card-title">2. Datos de huéspedes</div></div><p class="page-sub" style="margin-bottom:12px">Captura las identificaciones de los ocupantes. Máximo 2 persona(s) por habitación.</p>
-<div class="guest-card"><div class="guest-head"><span class="g-main">Huésped Titular</span></div><div class="fgrid">
-<div><label>Nombre completo</label><input class="tbl-input" value="María González" readonly></div>
+<div class="content"><div class="content-inner"><div class="back-row"><a class="icon-btn" href="02-checkin-1-reserva.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></a><h1 style="margin:0">Registrar Check-In</h1></div><p class="page-sub">Ingresa el código o referencia de la reserva para iniciar el proceso de admisión.</p><div class="card ref-card"><div class="ref-row"><div class="ref-left"><div class="ref-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg></div><div class="ref-code">RES-12345</div></div></div><div class="stepper"><div class="step done"><div class="circle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><span>Validar reserva</span></div><div class="step-line done"></div><div class="step active"><div class="circle">2</div><span>Datos de huéspedes</span></div><div class="step-line "></div><div class="step "><div class="circle">3</div><span>Confirmación</span></div><div class="step-line "></div><div class="step "><div class="circle">4</div><span>Check-In</span></div></div></div><div class="card"><div class="card-title-row"><div class="card-title">2. Datos de huéspedes — Habitación 304</div></div><p class="page-sub" style="margin-bottom:12px">Captura las identificaciones de los ocupantes de esta habitación. Aforo asignado: 2 persona(s).</p>
+<div class="guest-card"><div class="guest-head"><span class="g-main">Huésped Titular</span><span class="badge badge-blue">Titular de la reserva</span></div><div class="fgrid">
+<div><label>Nombres</label><input class="tbl-input" value="María" readonly></div>
+<div><label>Apellidos</label><input class="tbl-input" value="González" readonly></div>
 <div><label>Tipo de documento</label><input class="tbl-input" value="Cédula de ciudadanía" readonly></div>
 <div><label>Número de documento</label><input class="tbl-input" value="1.032.456.789" readonly></div>
 <div><label>Nacionalidad</label><select class="tbl-input" disabled><option>Colombia</option></select></div></div></div>
 <div id="g2"></div>
 <div id="addRow"></div>
-<div class="alert alert-blue" id="foreignAlert" style="display:none;margin-top:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><div><b>Se detectó un huésped extranjero.</b><br>Los datos migratorios se enviarán automáticamente a Módulo 2 para su validación migratoria (SIRE).</div></div></div>
-<div class="actions-row"><a class="btn btn-outline" href="02-checkin-1-reserva.html">Atrás</a><a class="btn btn-primary" href="04-checkin-3-confirmacion.html" >Continuar</a></div></div></div></div></div><script>
-const MAX=2;
+<div id="validationError" class="alert alert-red" style="display:none;margin-top:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div id="validationMsg"></div></div>
+<div class="actions-row"><a class="btn btn-outline" href="02-checkin-1-reserva.html">Atrás</a><button class="btn btn-primary" id="btnContinuar">Continuar</button></div></div></div></div></div><script>
+const MAX=2; // aforo de esta habitación
 const PAISES=['Colombia','Estados Unidos','Venezuela','México','Argentina','Brasil','Ecuador','Perú','España','Francia','Alemania'];
 const TRASH='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 const PLUS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-// Huésped 2 (editable). null = no agregado
-let g2={nombre:'Juan Pérez',tipo:'Pasaporte',num:'P12345678',nac:'Estados Unidos'};
-const esc=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const todayStr = new Date().toISOString().split('T')[0];
+
+// Huésped 2 (editable). Inicialmente extranjero para ilustrar el panel migratorio
+let g2={
+  nombres:'John',
+  apellidos:'Doe',
+  tipo:'Pasaporte',
+  num:'P12345678',
+  nac:'Estados Unidos',
+  birthDate:'1990-05-14',
+  originPlace:'Miami, EE. UU.',
+  destinationPlace:'Cartagena, Colombia'
+};
+
+const esc=v=>String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const $=id=>document.getElementById(id);
 
-function syncForeign(){
-  const ext=!!g2 && g2.nac!=='Colombia';
-  const n=$('nota2'); if(n) n.style.display=ext?'block':'none';
-  $('foreignAlert').style.display=ext?'flex':'none';
-}
 function render(){
-  $('g2').innerHTML=g2?`<div class="guest-card"><div class="guest-head"><span>Huésped 2</span><button class="trash" id="del" title="Eliminar huésped">${TRASH}</button></div>
-    <div class="fgrid">
-      <div><label>Nombre completo</label><input class="tbl-input" data-k="nombre" value="${esc(g2.nombre)}"></div>
-      <div><label>Tipo de documento</label><input class="tbl-input" data-k="tipo" value="${esc(g2.tipo)}"></div>
-      <div><label>Número de documento</label><input class="tbl-input" data-k="num" value="${esc(g2.num)}"></div>
-      <div><label>Nacionalidad</label><select class="tbl-input" id="nac">${PAISES.map(p=>`<option${p===g2.nac?' selected':''}>${p}</option>`).join('')}</select></div>
+  const isForeign = g2 && g2.nac !== 'Colombia';
+  $('g2').innerHTML = g2 ? `
+    <div class="guest-card">
+      <div class="guest-head">
+        <span>Acompañante 2</span>
+        <button class="trash" id="del" title="Eliminar acompañante">${TRASH}</button>
+      </div>
+      <div class="fgrid">
+        <div><label>Nombres *</label><input class="tbl-input" data-k="nombres" value="${esc(g2.nombres)}"></div>
+        <div><label>Apellidos *</label><input class="tbl-input" data-k="apellidos" value="${esc(g2.apellidos)}"></div>
+        <div><label>Tipo de documento *</label><input class="tbl-input" data-k="tipo" value="${esc(g2.tipo)}"></div>
+        <div><label>Número de documento *</label><input class="tbl-input" data-k="num" value="${esc(g2.num)}"></div>
+        <div><label>Nacionalidad *</label>
+          <select class="tbl-input" id="nac">
+            ${PAISES.map(p=>`<option${p===g2.nac?' selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      ${isForeign ? `
+        <div style="margin-top:16px;padding:14px;border-radius:8px;background:#F8FAFF;border:1px solid #D6E4FF">
+          <div style="font-weight:700;font-size:13.5px;color:var(--navy);display:flex;align-items:center;gap:6px;margin-bottom:10px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Datos de control migratorio (requerido para extranjeros)
+          </div>
+          <div class="fgrid">
+            <div><label>Fecha de nacimiento *</label><input type="date" class="tbl-input" data-k="birthDate" value="${esc(g2.birthDate)}" max="${todayStr}"></div>
+            <div><label>Procedencia (Ciudad, País) *</label><input class="tbl-input" data-k="originPlace" placeholder="Ej. Miami, EE. UU." value="${esc(g2.originPlace)}"></div>
+            <div><label>Destino (Ciudad, País) *</label><input class="tbl-input" data-k="destinationPlace" placeholder="Ej. Cartagena, Colombia" value="${esc(g2.destinationPlace)}"></div>
+            <div><label>Movimiento</label><input class="tbl-input" value="Entrada" readonly></div>
+            <div><label>Fecha de registro</label><input class="tbl-input" value="${todayStr}" readonly></div>
+          </div>
+        </div>
+      ` : ''}
     </div>
-    <div class="visa-note" id="nota2" style="display:none">Requerido por Módulo 2 (SIRE) para huéspedes extranjeros</div></div>`:'';
-  const full=!!g2; // titular + huésped 2 = capacidad (2)
-  $('addRow').innerHTML=`<div class="add-row"><button class="btn btn-outline btn-sm" id="add" ${full?'disabled':''}>${PLUS} Agregar huésped</button>${full?`<span class="visa-note">Se alcanzó la capacidad máxima de la habitación (${MAX} personas).</span>`:''}</div>`;
+  ` : '';
+
+  const full = !!g2; // titular + acompañante = 2 (aforo de la habitación)
+  $('addRow').innerHTML = `
+    <div class="add-row" style="margin-top:10px">
+      <button class="btn btn-outline btn-sm" id="add" ${full ? 'disabled' : ''}>${PLUS} Agregar acompañante</button>
+      ${full ? `<span class="visa-note" style="color:var(--text-dim)">Capacidad máxima alcanzada para esta habitación (${MAX} ocupantes).</span>` : ''}
+    </div>`;
+
   if(g2){
-    document.querySelectorAll('#g2 input[data-k]').forEach(i=>i.oninput=()=>g2[i.dataset.k]=i.value);
-    $('nac').onchange=e=>{g2.nac=e.target.value;syncForeign();};
-    $('del').onclick=()=>{g2=null;render();};
+    document.querySelectorAll('#g2 input[data-k]').forEach(i => {
+      i.oninput = () => { g2[i.dataset.k] = i.value; };
+    });
+    $('nac').onchange = e => {
+      const prevNac = g2.nac;
+      g2.nac = e.target.value;
+      if(g2.nac === 'Colombia'){
+        // Vaciar y cerrar datos migratorios
+        g2.birthDate = '';
+        g2.originPlace = '';
+        g2.destinationPlace = '';
+      }
+      render();
+    };
+    $('del').onclick = () => { g2 = null; render(); };
   }
-  $('add').onclick=()=>{if(!g2){g2={nombre:'',tipo:'',num:'',nac:'Colombia'};render();}};
-  syncForeign();
+
+  $('add').onclick = () => {
+    if(!g2){
+      g2 = { nombres:'', apellidos:'', tipo:'Cédula de extranjería', num:'', nac:'Colombia', birthDate:'', originPlace:'', destinationPlace:'' };
+      render();
+    }
+  };
 }
+
+$('btnContinuar').onclick = () => {
+  $('validationError').style.display = 'none';
+  if(g2){
+    if(!g2.nombres || !g2.apellidos || !g2.tipo || !g2.num){
+      $('validationMsg').textContent = 'Por favor completa todos los campos de identificación del acompañante.';
+      $('validationError').style.display = 'flex';
+      return;
+    }
+    if(g2.nac !== 'Colombia'){
+      if(!g2.birthDate || !g2.originPlace || !g2.destinationPlace){
+        $('validationMsg').textContent = 'Los datos migratorios (nacimiento, procedencia y destino) son obligatorios para huéspedes extranjeros.';
+        $('validationError').style.display = 'flex';
+        return;
+      }
+      if(g2.birthDate >= todayStr){
+        $('validationMsg').textContent = 'La fecha de nacimiento debe ser anterior al día de hoy.';
+        $('validationError').style.display = 'flex';
+        return;
+      }
+    }
+  }
+  window.location.href = '04-checkin-3-confirmacion.html';
+};
+
 render();
 </script></body></html>
