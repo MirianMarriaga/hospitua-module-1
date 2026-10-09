@@ -31,18 +31,17 @@ Estas son las transiciones confirmadas contra el diagrama de casos de uso y la a
 
 | Desde | Hacia | Disparador | Actor / Componente |
 | --- | --- | --- | --- |
-| Available | Reserved | Ingesta de lista diaria (00:00) o actualización `ADDED` con `startDate = hoy` (asigna `reservedByReservationRef`) | Módulo 1 (Autónomo) |
+| Available | Reserved | Ingesta de lista diaria (00:00), actualización `ADDED` con `startDate = hoy` o confirmación del fin de limpieza de una habitación con llegada pendiente hoy (después de `InCleaning → Available`, en la misma transacción) (asigna `reservedByReservationRef`) | Módulo 1 (Autónomo) |
 | Reserved | Available | Actualización `REMOVED` de esa reserva (incluye `NO_SHOW`, decidido por Módulo 2) o ausencia de la reserva en la lista diaria de las 00:00 | Módulo 1 (Autónomo) |
 | Reserved | Occupied | Check-in confirmado | Recepcionista |
 | Occupied | PendingCleaning | Check-out confirmado | Recepcionista |
 | Available | InCleaning | Marcar en limpieza (aseo preventivo) | Personal de limpieza |
 | PendingCleaning | InCleaning | Marcar en limpieza | Personal de limpieza |
-| InCleaning | Available | Confirmar fin de limpieza (sin llegada programada hoy) | Personal de limpieza |
+| InCleaning | Available | Confirmar fin de limpieza; en la misma transacción puede continuar a `Reserved` (llegada pendiente hoy) o a `DisabledForRepairs` (daño reportado) | Personal de limpieza |
 | InCleaning | PendingCleaning | Liberar tarea de limpieza (relevo voluntario; la habitación vuelve a la cola de limpieza) | Personal de limpieza |
-| InCleaning | Reserved | Confirmar fin de limpieza (con llegada pendiente hoy, transición encadenada) | Módulo 1 (Autónomo) |
-| Available | DisabledForRepairs | Marcar inhabilitada por reparaciones | Personal de limpieza / Personal de mantenimiento |
+| Available | DisabledForRepairs | Marcar inhabilitada por reparaciones (directamente o desde Confirmar fin de limpieza con daño reportado) | Personal de limpieza / Personal de mantenimiento |
 | DisabledForRepairs | PendingCleaning | Confirmar reparación finalizada | Personal de mantenimiento |
-| Available | TechnicalBlock | Programar bloqueo técnico: trabajo autónomo de las 00:00 al llegar `StartDate`, o inmediato al programar si `StartDate` = hoy | Módulo 1 (Autónomo) |
+| Available | TechnicalBlock | Programar bloqueo técnico: trabajo autónomo de las 00:00 al llegar `StartDate`, o inmediato al programar si `StartDate` = hoy | Módulo 1 (Autónomo, trabajo de las 00:00) / Personal de mantenimiento (aplicación inmediata) |
 | TechnicalBlock | PendingCleaning | Confirmar reparación finalizada | Personal de mantenimiento |
 | Available | Inactive | Dar de baja habitación | Administrador |
 | Inactive | Available | Marcar disponible / reactivar | Administrador |
