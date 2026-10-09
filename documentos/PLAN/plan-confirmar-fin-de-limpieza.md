@@ -11,7 +11,7 @@ Implementar el caso de uso **Confirmar Fin de Limpieza de Habitación** para el 
 
 1. **Confirmar fin** (FR-001 a FR-006, FR-008 a FR-013, FR-015, FR-017, FR-018): tras un diálogo de confirmación con un campo opcional de daño, cierra la `CleaningTask` y, en una sola transacción:
    - delega `InCleaning` → `Available` en *Marcar habitación como disponible* (FR-003);
-   - si se describió un daño, invoca *Marcar habitación inhabilitada por reparaciones* y la habitación termina en `DisabledForRepairs` (FR-012);
+   - si se describió un daño, invoca *Marcar habitación inhabilitada por reparaciones* y la habitación termina en `DisabledForRepairs` (FR-012); aunque tenga llegada hoy no se aparta, y Recepción la ve con la alerta de su panel (FR-019);
    - si no hay daño y la copia local de la lista del día contiene una reserva asignada a la habitación, invoca *Marcar habitación como reservada* (FR-011).
 2. **Liberar tarea** (FR-014, FR-016): cierra la tarea con `outcome = Released` y devuelve la habitación a `PendingCleaning` mediante *Marcar pendiente a limpieza*.
 
@@ -30,6 +30,7 @@ En ambos casos el miembro queda desvinculado y vuelve al panel de limpieza.
   - `EndDateTime` lo genera el servidor con `Clock`, no puede ser anterior a `StartDateTime` y no se modifica después (FR-008 a FR-010).
   - Todas las transiciones del flujo, el cierre de la tarea y los registros en el historial van en una sola transacción; cualquier fallo deja la habitación en `InCleaning` con la tarea activa (FR-012, FR-017).
   - El paso a `Reserved` es autónomo y no lo elige el usuario (FR-011).
+  - La alerta operativa a Recepción (FR-019) no es un componente de este plan: la produce el panel de recepción a partir del estado `DisabledForRepairs` (regla 11 del plan base).
 
 ---
 
@@ -324,7 +325,7 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T005 [P] [US1] Unit test: rechazo si la habitación no está en `InCleaning` (HU-1 esc. 2; FR-005).
 - [ ] T006 [P] [US1] Unit test: rechazo con `TASK_NOT_OWNED` si la tarea es de otro miembro (HU-1 esc. 3; FR-002, FR-005).
 - [ ] T007 [P] [US1] Unit test: con reserva pendiente de hoy, la habitación termina en `Reserved` vía `MarkRoomReservedUseCase` (HU-1 esc. 4; FR-011).
-- [ ] T008 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs`, no se aparta aunque haya reserva y `outcome = DamageReported` (HU-1 esc. 5; FR-012, FR-015).
+- [ ] T008 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la copia local tenga una reserva de hoy asignada a la habitación, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 5 y 7; FR-012, FR-015, FR-019).
 - [ ] T009 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: cierra con `outcome = Released`, invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK`, no verifica llegadas ni daño y rechaza tareas de otros miembros (HU-1 esc. 6; FR-014).
 - [ ] T010 [P] [US1] Unit test con `Clock` fijo: `endDateTime` lo genera el servidor; si fuera anterior a `startDateTime` se rechaza sin cambios (FR-008, FR-009; caso límite 3).
 - [ ] T011 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-006, FR-016).
@@ -338,7 +339,7 @@ No aplica: usa la infraestructura del plan base.
   - Validar que la tarea exista, esté abierta, sea del miembro y que la habitación esté en `InCleaning`.
   - Cerrar la tarea con la hora de `Clock`.
   - Invocar `MarkRoomAvailableUseCase` (`InCleaning` → `Available`) con `sourceFlow = CONFIRM_CLEANING_END`.
-  - Si hay daño: invocar `ReportDamageUseCase` con `sourceFlow = CONFIRM_CLEANING_END` y asignar `outcome = DamageReported`.
+  - Si hay daño: invocar `ReportDamageUseCase` con `sourceFlow = CONFIRM_CLEANING_END` y asignar `outcome = DamageReported`; no se consulta la copia local ni se invoca `MarkRoomReservedUseCase` (FR-019).
   - Si no hay daño: si la copia local de la lista del día (`daily_reservation_room`) contiene una reserva asignada a la habitación, invocar `MarkRoomReservedUseCase`. Asignar `outcome = Completed`.
   - Cada transición registra su periodo a través de `TransitionRoomStateUseCase` (regla 8 del plan base); este servicio no invoca `RoomStateHistoryRecorder`.
 - [ ] T016 [US1] Implementar `ReleaseCleaningTaskService` (`@Transactional`): validar la tarea y su dueño, cerrarla con `outcome = Released` e invocar `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` (FR-014, FR-016, FR-017).
@@ -354,6 +355,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T020 Integration test: tras confirmar el fin, `GET /api/rooms?status=Available` (o `Reserved`) refleja la habitación en menos de 2 segundos (SC-003).
 - [ ] T021 Integration test: ninguna `CleaningTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-004).
+- [ ] T022 Integration test: con una reserva de hoy asignada a la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref`, y `GET /api/reception/panel` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
 
 ---
 
