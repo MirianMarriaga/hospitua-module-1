@@ -19,7 +19,7 @@ El nombre en español entre paréntesis es de referencia para los diagramas del 
 1. **Available** (Disponible)
 2. **Reserved** (Reservada)
 3. **Occupied** (Ocupada)
-4. **PendingCleaning** (Pendiente a limpieza)
+4. **PendingCleaning** (Pendiente de limpieza)
 5. **InCleaning** (En limpieza)
 6. **DisabledForRepairs** (Inhabilitada por reparaciones)
 7. **TechnicalBlock** (Bloqueo técnico)

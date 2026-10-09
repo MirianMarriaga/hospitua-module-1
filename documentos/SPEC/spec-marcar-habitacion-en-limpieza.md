@@ -69,7 +69,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
    - Cada habitación que cumpla con las condiciones anteriormente descritas debe estar listada utilizando los siguientes datos y el formato descrito:
       - Número de habitación (ej. 1, 2, ...)
       - Tipo (Sencilla, Doble, Suite, Boutique)
-      - Estado (Disponible, Pendiente por limpieza)
+      - Estado (Disponible, Pendiente de limpieza)
       - Última limpieza (`EndDateTime` de la última `CleaningTask` de la habitación con `Outcome` `Completed` o `DamageReported`; las tareas liberadas no cuentan) - Formato: DD-MM-YYYY HH:MM
       - Cinta de opciones - `PC`: Iniciar limpieza ; `AVB`: Reportar daño, Iniciar limpieza - Formato: Botón con el nombre de la acción
 - **FR-008**: El sistema DEBE permitir realizar búsquedas en el listado de habitaciones utilizando el número de la habitación para agilizar las labores por solicitud específica
