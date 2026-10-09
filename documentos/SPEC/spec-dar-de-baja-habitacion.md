@@ -17,7 +17,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Baja exitosa de una habitación sin actividad pendiente
-   - **Dado** una habitación existe en estado "Available" y no tiene reservas activas ni futuras asignadas en Módulo 2
+   - **Dado** una habitación existe en estado "Available" y no tiene reservas activas ni futuras asignadas en Módulo 2 dentro de los próximos 30 días
    - **Cuando** el Administrador selecciona la habitación, indica el motivo de la baja y confirma la acción de dar de baja
    - **Entonces** el sistema ejecuta el caso de uso incluido "Consultar reservas" (`<<includes>>`), comprueba que no existen reservas asignadas, cambia el estado de la habitación a "Inactive", la excluye de los resultados de disponibilidad y conserva su historial
 
@@ -26,8 +26,8 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
    - **Cuando** el Administrador intenta darla de baja
    - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Available".
 
-3. **Escenario**: Rechazo de la baja por reservas activas o futuras asignadas
-   - **Dado** una habitación en estado "Available" que tiene una o más reservas activas o futuras asignadas en Módulo 2
+3. **Escenario**: Rechazo de la baja por reservas en los próximos 30 días
+   - **Dado** una habitación en estado "Available" que tiene una o más reservas activas o futuras asignadas en Módulo 2 dentro de los próximos 30 días
    - **Cuando** el Administrador intenta darla de baja
    - **Entonces** el sistema invoca "Consultar reservas" con el `roomId` de la habitación, recibe uno o más `ReservationSummary` en estado "ACTIVE" o "CHECKED_IN", rechaza la baja, mantiene la habitación en "Available" y alerta al Administrador listando por cada reserva en conflicto su `reservationRef`, fechas de estadía (`startDate`, `endDate`) y estado (`status`), para que sean reasignadas antes de reintentar la baja.
 
@@ -49,6 +49,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - Reactivación de una habitación: el Administrador puede revertir la baja y devolver la habitación al estado "Available" mediante el caso de uso "Marcar habitación como disponible".
 - Pérdida de conexión o fallo del proceso tras confirmar: la transacción se cancela, evitando que la habitación quede en un estado intermedio inconsistente.
 - Fallo o indisponibilidad de Módulo 2 al consultar reservas: si la invocación de "Consultar reservas" presenta una caída de red o no responde, el sistema cancela la operación, la habitación permanece en estado "Available" y se informa al Administrador que la baja no pudo verificarse, ofreciéndole la opción "Reintentar", que vuelve a ejecutar la verificación de reservas con el mismo motivo ya registrado.
+- Reservas posteriores a los 30 días: no se consultan ni impiden la baja; Módulo 2 deberá reasignarlas a otra habitación.
 - Motivo de baja sin categoría: el sistema impide confirmar la baja hasta que el Administrador seleccione una categoría de motivo.
 - Detalle demasiado largo: el campo de texto no admite más de 500 caracteres.
 - Motivo "Otro" sin descripción: si el Administrador selecciona la categoría "Otro" y deja vacío el campo de texto (o solo con espacios), el sistema impide continuar e indica que debe escribir el motivo de la baja.
@@ -60,11 +61,11 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" dar de baja habitaciones del inventario.
 
-- **FR-002**: El sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) antes de ejecutar la baja, usando como criterio el identificador de la habitación (`roomId`), y recibir la lista de `ReservationSummary` asignados a esa habitación en Módulo 2.
+- **FR-002**: El sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) antes de ejecutar la baja, enviando el identificador de la habitación (`roomId`), `startDate` = fecha actual y `endDate` = fecha actual + 30 días (horizonte máximo definido en "Consultar reservas", FR-007), y recibir la lista de `ReservationSummary` asignados a esa habitación en ese periodo.
 
 - **FR-003**: El sistema DEBE impedir dar de baja una habitación que no se encuentre en estado "Available" ("Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock" o "Inactive"), independientemente de la causa que originó ese estado, según documentos/SPEC/referencias/maquina-estados-habitacion.md.
 
-- **FR-004**: El sistema DEBE rechazar la baja si al menos un `ReservationSummary` retornado se encuentra en estado "ACTIVE" (reserva vigente o futura, aún sin Check-In) o "CHECKED_IN", manteniendo la habitación en estado "Available" e informando al Administrador la `reservationRef`, las fechas (`startDate`, `endDate`) y el estado de cada reserva en conflicto. Las reservas en estado "CHECKED_OUT" o "CANCELLED" no impiden la baja. Si la consulta falla o Módulo 2 no responde, el sistema DEBE cancelar la operación sin modificar el estado de la habitación.
+- **FR-004**: El sistema DEBE rechazar la baja si al menos un `ReservationSummary` retornado para los próximos 30 días se encuentra en estado "ACTIVE" (reserva vigente o futura, aún sin Check-In) o "CHECKED_IN", manteniendo la habitación en estado "Available" e informando al Administrador la `reservationRef`, las fechas (`startDate`, `endDate`) y el estado de cada reserva en conflicto. Las reservas en estado "CHECKED_OUT" o "CANCELLED", y las que empiezan después de los 30 días consultados, no impiden la baja. Si la consulta falla o Módulo 2 no responde, el sistema DEBE cancelar la operación sin modificar el estado de la habitación.
 
 - **FR-005**: El sistema DEBE solicitar una confirmación explícita del Administrador antes de ejecutar la baja.
 
@@ -94,4 +95,4 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - **SC-002**: El 100% de los intentos de baja sobre habitaciones que no estén en estado "Available" son rechazados por el sistema.
 - **SC-003**: El 0% de las habitaciones dadas de baja aparece en los resultados de disponibilidad.
 - **SC-004**: El 100% de las bajas ejecutadas quedan registradas con usuario responsable, fecha/hora y motivo, sin pérdida del historial previo de la habitación.
-- **SC-005**: El 100% de los intentos de baja sobre habitaciones con reservas activas o futuras asignadas son rechazados, sin que la habitación cambie de estado.
+- **SC-005**: El 100% de los intentos de baja sobre habitaciones con reservas activas o futuras asignadas dentro de los próximos 30 días son rechazados, sin que la habitación cambie de estado.

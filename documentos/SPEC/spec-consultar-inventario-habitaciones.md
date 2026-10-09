@@ -63,9 +63,9 @@ Como Gerente, Administrador o Módulo 2, quiero consultar las habitaciones del h
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE permitir a los actores "Gerente", "Módulo 2" y "Administrador" consultar el listado completo de habitaciones del inventario.
-- **FR-002**: El sistema DEBE mostrar para cada habitación sus atributos completos: ID único, número, piso, tipo, capacidad máxima, tarifa base y estado actual.
+- **FR-002**: En las vistas del Gerente y del Administrador, el sistema DEBE mostrar para cada habitación: número, piso, tipo, capacidad máxima, tarifa base y estado actual. El ID único (UUID) no se muestra en el listado; Módulo 2 lo recibe en la respuesta de su consulta.
 - **FR-003**: El sistema DEBE incluir por defecto en el listado todas las habitaciones, incluso aquellas que se encuentran en estado "Inactive", a menos que se filtre explícitamente para excluirlas.
-- **FR-004**: El sistema DEBE permitir filtrar el listado por identificador único (ID), por número de habitación, por tipo, por piso y por estado. Una consulta filtrada por ID o por número de habitación devuelve como máximo un resultado.
+- **FR-004**: El sistema DEBE permitir filtrar el listado por número de habitación, por tipo, por piso y por estado. El filtro por identificador único (ID) está disponible solo para Módulo 2. Una consulta filtrada por ID o por número de habitación devuelve como máximo un resultado.
 - **FR-005**: El sistema DEBE permitir ordenar el listado de resultados (por ejemplo, por número de habitación, por tarifa o por estado).
 - **FR-006**: El sistema NO DEBE modificar ningún dato ni ejecutar transiciones de estado como parte de esta consulta.
 - **FR-007**: En la vista del Gerente, el sistema DEBE ofrecer en cada habitación del listado la opción "Ver historial", que abre "Consultar historial de estados" filtrado por esa habitación.
