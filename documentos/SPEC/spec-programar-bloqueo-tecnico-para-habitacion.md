@@ -85,9 +85,9 @@ Como miembro del personal de mantenimiento quiero poder programar mantenimientos
 - **FR-009**: El sistema DEBE crear un registro para auditoría (tabla de mantenimientos programados) vinculando la habitación, el técnico responsable, la justificación técnica registrada, fecha de inicio del mantenimiento, fecha estimada de finalización del mantenimiento y la marca de tiempo (timestamp) exacta de la operación.
 - **FR-010**: El sistema DEBE permitir la salida del estado `TechnicalBlock` únicamente mediante el caso de uso *Confirmar Fin de Reparación de Habitación*.
 - **FR-011**: El sistema DEBE garantizar la disponibilidad de un recurso de consulta correspondiente al registro del informe de mantenimiento programado (acción **Ver informe**) de manera persistente para toda unidad habitacional con un `TechnicalBlockReport` en estado `Scheduled` o `Applied`.
-   - **FR-011.1**: El recurso **Ver informe** DEBE mostrar la justificación técnica, el responsable, el rango temporal del mantenimiento y la fecha y hora de la programación.
-   - **FR-011.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones en bloqueo técnico (`TechnicalBlock`) aplicando las siguientes políticas de control de acceso según la sesión activa:
-      - **Para el rol `Personal de mantenimiento`**: Autorización híbrida (lectura y escritura); el sistema expondrá tanto la acción de consulta (**Ver informe**) como la acción **Iniciar reparaciones** (definida en el caso de uso *Confirmar Fin de Reparación de Habitación*), esta última únicamente cuando la habitación ya se encuentre en `TechnicalBlock`.
+  - **FR-011.1**: El recurso **Ver informe** DEBE mostrar la justificación técnica, el responsable, el rango temporal del mantenimiento y la fecha y hora de la programación.
+  - **FR-011.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones en bloqueo técnico (`TechnicalBlock`) aplicando las siguientes políticas de control de acceso según la sesión activa:
+    - **Para el rol `Personal de mantenimiento`**: Autorización híbrida (lectura y escritura); el sistema expondrá tanto la acción de consulta (**Ver informe**) como la acción **Iniciar reparaciones** (definida en el caso de uso *Confirmar Fin de Reparación de Habitación*), esta última únicamente cuando la habitación ya se encuentre en `TechnicalBlock`.
 - **FR-012**: El sistema DEBE validar que `TechnicalBlockStartDate` y `EstimatedTechnicalBlockEndDate` sean obligatorias, no nulas y con formato DD-MM-YYYY, y que correspondan a fechas reales de calendario (ej. rechazar 31-02-2026 o 29-02 en año no bisiesto).
 - **FR-013**: El sistema DEBE rechazar una `TechnicalBlockStartDate` anterior a la fecha actual del servidor.
 - **FR-014**: El sistema DEBE rechazar una `EstimatedTechnicalBlockEndDate` anterior a `TechnicalBlockStartDate`; una fecha de finalización igual a la de inicio es válida (duración mínima de un día).
@@ -102,13 +102,13 @@ Como miembro del personal de mantenimiento quiero poder programar mantenimientos
 
 - **Room**: Entidad que representa una habitación, que transiciona de `Available` a `TechnicalBlock`.
 - **TechnicalBlockReport**: Entidad que representa el informe generado por la programación del mantenimiento, esta almacena:
-   - **RoomId**: Identificador de la habitación
-   - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento que programó el mantenimiento
-   - **TechnicalBlockReason**: Cadena de texto que representa el motivo de la programación del mantenimiento
-   - **TechnicalBlockStartDate**: Fecha de inicio del mantenimiento - Formato DD-MM-YYYY
-   - **EstimatedTechnicalBlockEndDate**: Fecha de finalización estimada del mantenimiento - Formato DD-MM-YYYY
-   - **ReportDateTime**: TimeStamp de realización de la programación del mantenimiento - Formato DD-MM-YYYY HH:MM
-   - **Status**: Estado del informe - `Scheduled` (programado, aún no aplicado), `Applied` (habitación en `TechnicalBlock`), `Completed` (reparación confirmada como finalizada) o `Expired` (no aplicado antes de su fecha estimada de finalización)
+  - **RoomId**: Identificador de la habitación
+  - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento que programó el mantenimiento
+  - **TechnicalBlockReason**: Cadena de texto que representa el motivo de la programación del mantenimiento
+  - **TechnicalBlockStartDate**: Fecha de inicio del mantenimiento - Formato DD-MM-YYYY
+  - **EstimatedTechnicalBlockEndDate**: Fecha de finalización estimada del mantenimiento - Formato DD-MM-YYYY
+  - **ReportDateTime**: TimeStamp de realización de la programación del mantenimiento - Formato DD-MM-YYYY HH:MM
+  - **Status**: Estado del informe - `Scheduled` (programado, aún no aplicado), `Applied` (habitación en `TechnicalBlock`), `Completed` (reparación confirmada como finalizada) o `Expired` (no aplicado antes de su fecha estimada de finalización)
 - **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se abre el periodo `TechnicalBlock` al aplicarse el bloqueo.
 
 ---
