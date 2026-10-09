@@ -12,7 +12,7 @@ Este módulo digitaliza la infraestructura física del hotel, controla la dispon
 
 #### 1.1. Atributos de la Habitación (Entidad)
 Cada unidad habitacional debe estar indexada con los siguientes metadatos:
-*   **Identificación:** ID Único (UUID), Número de habitación, Piso/Ala.
+*   **Identificación:** ID Único (UUID), Número de habitación, Piso.
 *   **Categorización:** Tipo (Sencilla, Doble, Suite, Boutique), Capacidad máxima de personas.
 *   **Tarifa base:** Tarifa base.
 
