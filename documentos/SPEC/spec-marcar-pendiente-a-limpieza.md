@@ -45,7 +45,7 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
    El caso de uso debe ejecutarse dentro del mismo contexto transaccional (ACID) del flujo que lo invoca. Si "Marcar Pendiente a Limpieza" falla (ej. caída de base de datos), el flujo padre (ej. check-out o finalización de reparaciones) DEBE ejecutar un *rollback*, impidiendo la liberación de la habitación, ofreciendo retroalimentación visual del error y la sugerencia de reintentar la operación.
 
 3. **¿Qué ocurre con la sincronización de la información en el panel de limpieza en tiempo real?**
-   Al no poseer UI, este caso de uso es responsable de propagar el cambio. Debe emitir un evento de dominio o invalidar la caché correspondiente para asegurar que el panel operativo del personal de limpieza se actualice.
+   El panel de limpieza consulta el estado persistido de las habitaciones, por lo que el cambio queda visible en cuanto se confirma la transacción; no se requiere propagación adicional.
 
 4. **¿Qué ocurre si la conexión a internet falla exactamente al momento de confirmar el check-out o el fin de reparación?**
    La operación se ejecuta bajo control transaccional estricto (ACID). Si ocurre un error de red al intentar cambiar el estado a `PendingCleaning`, se ejecutará un *rollback* completo. La habitación permanecerá en su estado de origen (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning`) para evitar inconsistencias en el sistema, ofreciendo retroalimentación visual del error y la sugerencia de reintentar la operación.

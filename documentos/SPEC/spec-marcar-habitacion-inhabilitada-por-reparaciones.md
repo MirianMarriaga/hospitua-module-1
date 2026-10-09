@@ -57,11 +57,11 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 - **FR-004**: El sistema DEBE transicionar el estado de la entidad habitación a `DisabledForRepairs` al procesar el reporte, y desencadenar la actualización reactiva del inventario operativo del hotel *(confirmación visual de éxito de la acción realizada)*.
 - **FR-005**: El sistema DEBE generar el registro de auditoría y trazabilidad extrayendo los metadatos de forma autónoma *(información de la sesión, habitación, fecha y hora serán proporcionadas por la sesión)* sin depender de inserciones manuales del cliente para ser asociadas al reporte de manera automática.
 - **FR-006**: El sistema DEBE garantizar la integridad referencial y de estado frente a peticiones simultáneas, rechazando solicitudes sobre habitaciones que hayan abandonado el estado `Available` milisegundos antes de procesar la petición actual.
-- **FR-007**: El sistema DEBE garantizar la disponibilidad de un recurso de consulta correspondiente al registro del reporte de daño (acción **Ver informe**) de manera persistente para toda unidad habitacional que haya transicionado exitosamente al estado `DisabledForRepairs`.
-   - **FR-007.1**: El recurso **Ver informe** DEBE mostrar la descripción del daño, el autor del reporte y la fecha y hora del reporte en formato DD-MM-YYYY HH:MM.
-   - **FR-007.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones inhabilitadas (`DisabledForRepairs`) aplicando las siguientes políticas de control de acceso según la sesión activa:
-      - **Para el rol `Personal de mantenimiento`**: el sistema expondrá en el panel de mantenimiento la acción de consulta (**Ver informe**) y la acción **Iniciar reparaciones**, ambas definidas en el caso de uso *Confirmar Fin de Reparación de Habitación*.
-      - **Para el rol `Personal de limpieza`**: el sistema no expondrá acciones sobre habitaciones en `DisabledForRepairs`, ya que estas no se listan en el panel de limpieza.
+- **FR-007**: El sistema DEBE ofrecer, mientras la habitación esté en `DisabledForRepairs`, la acción **Ver informe**, que muestra el `DamageReport` que originó ese estado.
+  - **FR-007.1**: El recurso **Ver informe** DEBE mostrar la descripción del daño, el autor del reporte y la fecha y hora del reporte en formato DD-MM-YYYY HH:MM.
+  - **FR-007.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones inhabilitadas (`DisabledForRepairs`) aplicando las siguientes políticas de control de acceso según la sesión activa:
+    - **Para el rol `Personal de mantenimiento`**: el sistema expondrá en el panel de mantenimiento la acción de consulta (**Ver informe**) y la acción **Iniciar reparaciones**, ambas definidas en el caso de uso *Confirmar Fin de Reparación de Habitación*.
+    - **Para el rol `Personal de limpieza`**: el sistema no expondrá acciones sobre habitaciones en `DisabledForRepairs`, ya que estas no se listan en el panel de limpieza.
 - **FR-008**: El sistema DEBE generar `ReportDateTime` exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
 - **FR-009**: El sistema DEBE asignar `ReportDateTime` en el mismo momento en que se procesa la transición a `DisabledForRepairs`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
 - **FR-010**: El sistema DEBE impedir la modificación o eliminación de un `DamageReport` una vez creado.
@@ -72,10 +72,10 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 
 - **Room**: Entidad principal que representa la unidad habitacional del hotel. Su máquina de estados para este caso de uso transita estrictamente de `Available` a `DisabledForRepairs`.
 - **DamageReport**: Entidad diseñada para el registro histórico (log) de anomalías, esta almacena:
-   - **DamageDescription**: Cadena de texto descriptiva del daño reportado
-   - **UserId**: Identificador del usuario (de limpieza o mantenimiento) vinculado al reporte
-   - **RoomId**: Identificador de la habitación vinculada al reporte
-   - **ReportDateTime**: TimeStamp de realización del reporte - Formato DD-MM-YYYY HH:MM
+  - **DamageDescription**: Cadena de texto descriptiva del daño reportado
+  - **UserId**: Identificador del usuario (de limpieza o mantenimiento) vinculado al reporte
+  - **RoomId**: Identificador de la habitación vinculada al reporte
+  - **ReportDateTime**: TimeStamp de realización del reporte - Formato DD-MM-YYYY HH:MM
 - **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se abre el periodo `DisabledForRepairs`.
 
 ---
