@@ -50,11 +50,6 @@ Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del 
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
    - **Entonces** dicha fila se muestra resaltada con una alerta visual de conflicto de habitación ("No disponible: [Estado]"), notificando al Recepcionista para gestionar la reubicación física de la asignación.
 
-8. **Escenario**: Alerta por daño reportado al terminar la limpieza
-   - **Dado** el Recepcionista tiene abierta la pestaña Llegadas y la habitación "101", asignada a la reserva "RES-101" de hoy, se muestra con el indicador "En limpieza: se apartará al terminar"
-   - **Cuando** el personal de limpieza confirma el fin de la limpieza de la habitación "101" reportando un daño y la habitación queda en "DisabledForRepairs"
-   - **Entonces** la fila de la habitación "101" cambia, sin recargar la pantalla, a la alerta visual "No disponible: DisabledForRepairs", para que el Recepcionista gestione la reubicación de la reserva "RES-101".
-
 7. **Escenario**: Indicador informativo por habitación en limpieza
    - **Dado** una reserva en la lista del día cuya habitación asignada se encuentra en Módulo 1 en estado "PendingCleaning" o "InCleaning"
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
@@ -160,8 +155,6 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
   - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
   - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
-
-- **FR-005b**: El panel de Llegadas DEBE reflejar de forma reactiva los cambios de estado de las habitaciones asignadas a las llegadas del día (por ejemplo, de `InCleaning` a `Reserved` o a `DisabledForRepairs`), actualizando la alerta o el indicador de la fila sin que el Recepcionista recargue la pantalla.
 
 - **FR-006**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
   - Número de habitación.
