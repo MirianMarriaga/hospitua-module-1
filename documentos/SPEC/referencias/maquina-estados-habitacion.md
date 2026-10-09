@@ -49,7 +49,7 @@ Estas son las transiciones confirmadas contra el diagrama de casos de uso y la a
 > **Reglas de conflicto y salvaguarda**:
 >
 > 1. Si a las 00:00 una habitación con llegada hoy está en `Occupied` o en aseo (`PendingCleaning` / `InCleaning`), Módulo 1 no sobrescribe su estado; la aparta a `Reserved` en el momento exacto en que complete la limpieza y pase a `Available`.
-> 2. Si a las 00:00 la habitación asignada está en mantenimiento o inactiva (`DisabledForRepairs`, `TechnicalBlock`, `Inactive`), Módulo 1 no transiciona la habitación a `Reserved` y emite una alerta operativa a Recepción.
+> 2. Si a las 00:00 la habitación asignada está en mantenimiento o inactiva (`DisabledForRepairs`, `TechnicalBlock`, `Inactive`), Módulo 1 no transiciona la habitación a `Reserved` y emite una alerta operativa a Recepción. La misma alerta se emite cuando una habitación con llegada hoy queda en `DisabledForRepairs` al confirmarse el fin de su limpieza con un daño reportado.
 > 3. Se eliminan definitivamente los mensajes externos `RoomStateRequest` y las confirmaciones/rechazos hacia Módulo 2 (acuerdos B7 y B8 eliminados).
 > 4. Un bloqueo técnico programado solo se aplica si la habitación está en `Available`. El trabajo autónomo se ejecuta a las 00:00 después de la ingesta de la lista diaria de reservas (la reserva tiene prioridad); si la habitación no está en `Available`, no sobrescribe su estado y reintenta cada 00:00 mientras la fecha actual no supere `EstimatedTechnicalBlockEndDate`; superada esa fecha, la programación caduca.
 

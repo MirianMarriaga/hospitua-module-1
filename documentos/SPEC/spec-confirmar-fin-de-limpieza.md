@@ -37,12 +37,17 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
 5. **Escenario**: Fin de limpieza con reporte de daño
    - **Dado que** El miembro del personal de limpieza está autenticado y la habitación "101" está en `InCleaning` asignada a él
    - **Cuando** El personal de limpieza confirma la finalización de labores de limpieza diligenciando la descripción opcional de un daño encontrado
-   - **Entonces** El sistema transiciona la habitación a `Available` y, en la misma transacción, la inhabilita a `DisabledForRepairs` registrando el reporte de daño; no la aparta a `Reserved` aunque tenga una llegada pendiente hoy
+   - **Entonces** El sistema transiciona la habitación a `Available` y, en la misma transacción, la inhabilita a `DisabledForRepairs` registrando el reporte de daño; no la aparta a `Reserved` aunque tenga una llegada pendiente hoy (ver escenario 7)
 
 6. **Escenario**: Liberación de la tarea activa
    - **Dado que** El miembro del personal de limpieza está autenticado y la habitación "101" está en `InCleaning` asignada a él
    - **Cuando** El miembro pulsa **Liberar tarea** en la vista de tarea activa y confirma la acción
    - **Entonces** El sistema cierra la `CleaningTask` con `EndDateTime` generado por el servidor y `Outcome` = `Released`, transiciona la habitación a `PendingCleaning` mediante el caso de uso *Marcar Pendiente a Limpieza* y redirige al miembro al panel de limpieza, donde cualquier miembro puede retomar la habitación
+
+7. **Escenario**: Fin de limpieza con reporte de daño y llegada pendiente hoy
+   - **Dado que** El miembro del personal de limpieza está autenticado, la habitación "101" está en `InCleaning` asignada a él y la copia local de la lista del día contiene la reserva "RES-101" de hoy asignada a la habitación "101"
+   - **Cuando** El personal de limpieza confirma la finalización de labores de limpieza diligenciando la descripción de un daño encontrado
+   - **Entonces** El sistema transiciona la habitación a `Available` y, en la misma transacción, la inhabilita a `DisabledForRepairs` sin apartarla a `Reserved`; la reserva "RES-101" queda sin habitación apartada y Recepción ve la alerta operativa de esa llegada en su panel (FR-019)
 
 ---
 
@@ -52,7 +57,7 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
    Este es un problema operativo que no puede ser validado técnicamente por el sistema. La responsabilidad recae en la supervisión del gerente, quien puede consultar el historial de estados para auditar tiempos de limpieza inusuales.
 
 2. **¿Qué ocurre si durante la limpieza se encuentra un daño en la habitación?**
-   El miembro del personal de limpieza lo reporta en la misma confirmación de fin de limpieza diligenciando la descripción opcional del daño (HU-1, escenario 5). Así el reporte no depende de que la habitación quede en `Available` después de la confirmación, lo que no ocurre si se aparta a `Reserved` por una llegada pendiente.
+   El miembro del personal de limpieza lo reporta en la misma confirmación de fin de limpieza diligenciando la descripción opcional del daño (HU-1, escenario 5). Así el reporte no depende de que la habitación quede en `Available` después de la confirmación, lo que no ocurre si se aparta a `Reserved` por una llegada pendiente. Si la habitación tenía una llegada pendiente hoy, no se aparta y Recepción ve la alerta operativa de esa llegada (HU-1, escenario 7; FR-019).
 
 3. **¿Qué ocurre si la marca de fin resulta anterior a la marca de inicio de la tarea (ej. por inconsistencia de reloj o dato corrupto)?**
    El sistema rechaza la operación, mantiene la habitación en `InCleaning` y muestra un error de inconsistencia temporal. Los timestamps siempre son generados por el servidor.
@@ -84,6 +89,7 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
 - **FR-016**: El sistema DEBE evitar que dos solicitudes simultáneas de confirmación de fin y/o liberación sobre la misma tarea se procesen con éxito; solo la primera transacción es válida y la segunda recibe un error con el estado actual de la habitación.
 - **FR-017**: El sistema DEBE ejecutar la confirmación de fin o la liberación de la tarea (cierre de la `CleaningTask`, transiciones y registros en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo (`InCleaning`) con la tarea activa, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.
 - **FR-018**: El sistema DEBE requerir confirmación explícita antes de procesar el fin de limpieza *(modal superpuesto indicando "¿Está seguro que desea finalizar la limpieza de la habitación X?", con un campo de texto opcional "Describir daño encontrado" de máximo 500 caracteres)*. Si el campo se deja vacío, el sistema DEBE procesar el fin de limpieza sin reporte de daño (FR-003, FR-011); si se diligencia, DEBE aplicar FR-012 y advertir en el mismo modal que la habitación quedará inhabilitada por reparaciones. Cancelar el modal NO DEBE modificar la tarea ni la habitación.
+- **FR-019**: Cuando se reporta un daño (FR-012) y la copia local de la lista del día (`daily_reservation_room`) contiene una reserva asignada a la habitación, el sistema NO DEBE apartarla a `Reserved` y DEBE aplicar la alerta operativa a Recepción definida en el caso de uso *Marcar habitación como reservada* (FR-012) con el número de la habitación, la `reservationRef` y el estado `DisabledForRepairs`. Este caso de uso no envía mensajes a Módulo 2 (regla 3 de la máquina de estados).
 
 ### Entidades Clave
 
@@ -102,3 +108,4 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
 - **SC-002**: El 100% de las confirmaciones registran correctamente la fecha y hora de finalización de labores de limpieza.
 - **SC-003**: El cambio de estado se refleja en el inventario en menos de 2 segundos.
 - **SC-004**: Cero registros de `CleaningTask` con `EndDateTime` anterior a `StartDateTime` o posterior a la hora del servidor.
+- **SC-005**: El 100% de las confirmaciones con daño reportado sobre habitaciones con llegada pendiente hoy dejan la habitación en `DisabledForRepairs` sin apartarla y generan la alerta operativa a Recepción.

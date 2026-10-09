@@ -50,6 +50,11 @@ Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del 
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
    - **Entonces** dicha fila se muestra resaltada con una alerta visual de conflicto de habitación ("No disponible: [Estado]"), notificando al Recepcionista para gestionar la reubicación física de la asignación.
 
+8. **Escenario**: Alerta por daño reportado al terminar la limpieza
+   - **Dado** el Recepcionista tiene abierta la pestaña Llegadas y la habitación "101", asignada a la reserva "RES-101" de hoy, se muestra con el indicador "En limpieza: se apartará al terminar"
+   - **Cuando** el personal de limpieza confirma el fin de la limpieza de la habitación "101" reportando un daño y la habitación queda en "DisabledForRepairs"
+   - **Entonces** la fila de la habitación "101" cambia, sin recargar la pantalla, a la alerta visual "No disponible: DisabledForRepairs", para que el Recepcionista gestione la reubicación de la reserva "RES-101".
+
 7. **Escenario**: Indicador informativo por habitación en limpieza
    - **Dado** una reserva en la lista del día cuya habitación asignada se encuentra en Módulo 1 en estado "PendingCleaning" o "InCleaning"
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
@@ -147,7 +152,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Cantidad de personas de la habitación (`guestCount` por habitación, o capacidad si no se especifica).
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
-  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con texto explicativo claro para Recepción (ej. "No apartada: En mantenimiento").
+  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-019).
   - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar en limpieza (`PendingCleaning` o `InCleaning`) (ej. "En limpieza: se apartará al terminar").
   - Botón individual de acción "Check-in" por cada habitación.
 
@@ -155,6 +160,8 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
   - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
   - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
+
+- **FR-005b**: El panel de Llegadas DEBE reflejar de forma reactiva los cambios de estado de las habitaciones asignadas a las llegadas del día (por ejemplo, de `InCleaning` a `Reserved` o a `DisabledForRepairs`), actualizando la alerta o el indicador de la fila sin que el Recepcionista recargue la pantalla.
 
 - **FR-006**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
   - Número de habitación.
@@ -178,7 +185,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
 - **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
 - **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida por la cola `m1.reservas.diarias.queue`: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
