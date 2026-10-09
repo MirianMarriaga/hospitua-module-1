@@ -10,7 +10,7 @@
 Implementar el caso de uso de solo lectura **Consultar Información de Mantenimientos**, que responde si un rango de fechas de una habitación es factible frente a los mantenimientos programados o aplicados (FR-002, FR-003). Lo consumen:
 
 1. **Módulo 2**, por REST, antes de asignar una habitación a una reserva (`GET /api/rooms/{roomId}/maintenance-availability`, ya listado en el plan base).
-2. **Programar bloqueo técnico**, de forma interna mediante el puerto `ConsultMaintenanceAvailabilityUseCase` (FR-004 de ese spec).
+2. **Programar Bloqueo Técnico para Habitación**, de forma interna mediante el puerto `ConsultMaintenanceAvailabilityUseCase` (FR-004 de ese spec).
 
 Antes de consultar, valida el rango (fechas reales, fin no anterior al inicio, inicio no anterior a hoy, rango máximo de 90 días y antelación máxima de 365 días) y devuelve un error de validación distinto de la respuesta negativa (FR-005 a FR-009). Hay solapamiento con cualquier informe `Scheduled` que intersecte el rango, o con un informe `Applied` desde su inicio y mientras la reparación no se confirme (FR-010). Una habitación inexistente responde "habitación no encontrada" (FR-012). La consulta no modifica datos (FR-004, FR-011).
 
@@ -22,9 +22,10 @@ Antes de consultar, valida el rango (fechas reales, fin no anterior al inicio, i
 - **Performance Goals**: respuesta en menos de 200 ms (SC-001), con el índice `(room_id, status)` de `technical_block_report`.
 - **Constraints**:
   - Las validaciones de fechas se ejecutan antes de leer la tabla de mantenimientos (FR-009, SC-002).
-  - Los límites de 90 y 365 días son las mismas propiedades configurables de `MaintenanceProperties` que usa *Programar bloqueo técnico* (FR-008).
+  - Los límites de 90 y 365 días son las mismas propiedades configurables de `MaintenanceProperties` que usa *Programar Bloqueo Técnico para Habitación* (FR-008).
   - Sin sugerencias adicionales en la respuesta (FR-002).
   - No genera registros en `room_state_history` (FR-011).
+  - Caso límite sin implementación propia: 2 (si los mantenimientos cambian mientras Módulo 2 procesa la respuesta, Módulo 2 revalida al crear la reserva).
 
 ---
 
@@ -95,8 +96,20 @@ Accept: application/json
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | Falta `startDate` o `endDate`, o no tienen formato de fecha (FR-005) | "Ingresa fechas válidas (DD-MM-YYYY)." |
-| 400 | `INVALID_DATE_RANGE` | Fecha inexistente, fin anterior al inicio, inicio anterior a hoy, rango mayor a 90 días o antelación mayor a 365 días (FR-005 a FR-008, esc. 4, caso límite 4); `details.rule` indica la regla | "{regla incumplida}." |
+| 400 | `INVALID_DATE_RANGE` | Fecha inexistente, fin anterior al inicio, inicio anterior a hoy, rango mayor a 90 días o antelación mayor a 365 días (FR-005 a FR-008, esc. 4, caso límite 4); `details.rule` indica la regla | Mensaje de la regla (tabla siguiente) |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a una habitación registrada (FR-012, caso límite 7) | "No se encontró la habitación." |
+
+**Mensajes por regla (`details.rule`)**, compartidos con *Programar Bloqueo Técnico para Habitación*:
+
+| `rule` | Texto en la interfaz |
+| --- | --- |
+| `INVALID_DATE` | "La fecha no existe en el calendario." |
+| `END_BEFORE_START` | "La fecha de fin no puede ser anterior a la fecha de inicio." |
+| `START_IN_PAST` | "La fecha de inicio no puede ser anterior a hoy." |
+| `RANGE_TOO_LONG` | "El rango no puede superar {max-range-days} días." |
+| `START_TOO_FAR` | "La fecha de inicio no puede estar a más de {max-advance-days} días de hoy." |
+
+Los valores entre llaves salen de `MaintenanceProperties` (90 y 365 días por defecto).
 
 ```json
 {
@@ -186,7 +199,7 @@ backend/src/main/java/com/hospitua/habitaciones/
 - [ ] T012 [US1] Implementar `MaintenanceAvailabilityService` (`@Transactional(readOnly = true)`): validar el rango con `MaintenanceDateRangeValidator`, verificar que la habitación exista y consultar el solapamiento; devolver `feasible` (FR-002 a FR-012).
 - [ ] T013 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenance-availability` (`@PreAuthorize("hasAnyRole('MAINTENANCE_STAFF','MODULE_2')")`) y el mapeo de errores de la tabla (FR-001, FR-009).
 
-**Checkpoint**: Módulo 2 y *Programar bloqueo técnico* pueden verificar la factibilidad de un rango con las mismas reglas.
+**Checkpoint**: Módulo 2 y *Programar Bloqueo Técnico para Habitación* pueden verificar la factibilidad de un rango con las mismas reglas.
 
 ---
 

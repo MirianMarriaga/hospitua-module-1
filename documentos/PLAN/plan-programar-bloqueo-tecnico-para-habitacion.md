@@ -9,7 +9,7 @@
 
 Implementar el caso de uso **Programar Bloqueo Técnico para Habitación** para el Personal de mantenimiento, en dos pasos (FR-002):
 
-1. **Programar** (FR-001, FR-003 a FR-007, FR-009, FR-012 a FR-017, FR-019): desde el botón "Programar mantenimiento" de una habitación `Available` en el panel de mantenimiento, el miembro ingresa la justificación técnica, la fecha de inicio y la fecha estimada de fin. El sistema valida las fechas antes de cualquier consulta, verifica que no haya reservas `ACTIVE`/`CHECKED_IN` (consulta a Módulo 2) ni mantenimientos `Scheduled`/`Applied` (*Consultar información de mantenimientos*) en el rango y registra el `TechnicalBlockReport` en `Scheduled`. Si la fecha de inicio es hoy, en la misma transacción aplica el bloqueo: la habitación pasa a `TechnicalBlock` y el informe a `Applied`.
+1. **Programar** (FR-001, FR-003 a FR-007, FR-009, FR-012 a FR-017, FR-019): desde el botón "Programar mantenimiento" de una habitación `Available` en el panel de mantenimiento, el miembro ingresa la justificación técnica, la fecha de inicio y la fecha estimada de fin. El sistema valida las fechas antes de cualquier consulta, verifica que no haya reservas `ACTIVE`/`CHECKED_IN` (consulta a Módulo 2) ni mantenimientos `Scheduled`/`Applied` (*Consultar Información de Mantenimientos*) en el rango y registra el `TechnicalBlockReport` en `Scheduled`. Si la fecha de inicio es hoy, en la misma transacción aplica el bloqueo: la habitación pasa a `TechnicalBlock` y el informe a `Applied`.
 2. **Aplicar** (FR-002, FR-008, FR-018, FR-020): un trabajo autónomo, que corre después de la ingesta de la lista diaria de las 00:00, aplica los informes `Scheduled` cuyo rango contiene la fecha actual si la habitación está `Available`; si no lo está, reintenta cada 00:00 hasta la fecha estimada de fin y luego marca el informe como `Expired`.
 
 Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Scheduled` o `Applied`. Usa la tabla `technical_block_report` del plan base (T018).
@@ -25,7 +25,8 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
   - Si alguna consulta falla, no se registra nada y la habitación sigue `Available` (casos límite 4 y 5).
   - El trabajo de las 00:00 nunca sobrescribe un estado distinto de `Available` y corre después de la ingesta de reservas (FR-018; regla 10 del plan base).
   - Una programación no se cancela ni se modifica (FR-019).
-  - La salida de `TechnicalBlock` solo ocurre por *Confirmar fin de reparación de habitación* (FR-010), que marca el informe como `Completed`.
+  - La salida de `TechnicalBlock` solo ocurre por *Confirmar Fin de Reparación de Habitación* (FR-010), que marca el informe como `Completed`.
+  - Casos límite sin implementación propia: 6 (una avería durante la intervención se resuelve con *Confirmar Fin de Reparación de Habitación* y un reporte de daño posterior) y 9 (la cancelación queda fuera de alcance; FR-019).
 
 ---
 
@@ -34,6 +35,7 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
 - **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MAINTENANCE_STAFF`. El responsable se toma del token.
 - **Fechas**: las fechas del mantenimiento son de calendario en la API (`YYYY-MM-DD`); la interfaz las pide y muestra como DD-MM-YYYY (FR-012). `reportDateTime` es ISO 8601 con zona de Colombia.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
@@ -109,8 +111,8 @@ Content-Type: application/json
 
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Justificación vacía, solo espacios o de más de 500 caracteres (FR-006, esc. 4) | "La justificación técnica es obligatoria (máximo 500 caracteres)." |
-| 400 | `INVALID_DATE_RANGE` | Fecha nula o inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | "{regla incumplida}. Formato esperado: DD-MM-YYYY." |
+| 400 | `VALIDATION_ERROR` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "La justificación técnica es obligatoria (máximo 500 caracteres) y las fechas deben tener el formato DD-MM-YYYY." |
+| 400 | `INVALID_DATE_RANGE` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available` (FR-001, FR-007) | "La habitación está en estado {estado}; no es posible programar un mantenimiento." |
 | 409 | `RESERVATION_CONFLICT` | Hay reservas `ACTIVE` o `CHECKED_IN` en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista referencia y fechas | "La habitación tiene reservas en ese rango. Coordina su reasignación con Reservas o elige otras fechas." |
@@ -261,7 +263,7 @@ frontend/src/
     └── technicalBlockService.js
 ```
 
-**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T025) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base).
+**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T025) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base). `ScheduleTechnicalBlockCommand` contiene `roomId`, `memberId` (del token), `reason`, `startDate` y `estimatedEndDate`.
 
 ---
 
@@ -290,11 +292,11 @@ frontend/src/
 
 - [ ] T006 [P] [US1] Unit test en `ScheduleTechnicalBlockServiceTest`: inicio hoy aplica en la misma transacción (`Applied`, `TechnicalBlock`, periodo en el historial con el miembro como actor) (esc. 1; FR-002, FR-020).
 - [ ] T007 [P] [US1] Unit test: inicio futuro registra `Scheduled` y deja la habitación `Available`, sin registro en el historial (esc. 6; FR-002, FR-020).
-- [ ] T008 [P] [US1] Unit test: rechazo `RESERVATION_CONFLICT` si la consulta devuelve reservas `ACTIVE` o `CHECKED_IN`; las demás no bloquean (esc. 2; FR-005; caso límite 1).
-- [ ] T009 [P] [US1] Unit test: rechazo `MAINTENANCE_CONFLICT` si *Consultar información de mantenimientos* responde no factible (esc. 3; FR-004, FR-005).
-- [ ] T010 [P] [US1] Unit test: justificación vacía, solo espacios o de más de 500 caracteres se rechaza sin consultar (esc. 4; FR-006; caso límite 3).
+- [ ] T008 [P] [US1] Unit test: rechazo `RESERVATION_CONFLICT` si la consulta devuelve reservas `ACTIVE` o `CHECKED_IN`; las demás no bloquean (esc. 2; FR-005; caso límite 1; SC-002).
+- [ ] T009 [P] [US1] Unit test: rechazo `MAINTENANCE_CONFLICT` si *Consultar Información de Mantenimientos* responde no factible (esc. 3; FR-004, FR-005; SC-002).
+- [ ] T010 [P] [US1] Unit test: justificación vacía, solo espacios o de más de 500 caracteres se rechaza sin consultar (esc. 4; FR-006; caso límite 3; SC-004).
 - [ ] T011 [P] [US1] Unit test con `Clock` fijo: fechas inexistentes, inicio pasado, fin anterior al inicio, rango > 90 días y antelación > 365 días se rechazan sin consultar, con la regla en `details`; fin igual al inicio es válido (esc. 5; FR-012 a FR-016; casos límite 7 y 8; SC-005).
-- [ ] T012 [P] [US1] Unit test: rechazo `ROOM_INVALID_STATE` desde cualquier estado distinto de `Available` (FR-001, FR-007).
+- [ ] T012 [P] [US1] Unit test: rechazo `ROOM_INVALID_STATE` desde cualquier estado distinto de `Available` (FR-001, FR-007; SC-002).
 - [ ] T013 [US1] Integration test: si la consulta a Módulo 2 o la de mantenimientos falla, no se crea el informe y la habitación sigue `Available` (casos límite 4 y 5).
 - [ ] T014 [US1] Integration test con Testcontainers: dos programaciones simultáneas con rangos solapados; solo una se registra (caso límite 2).
 - [ ] T015 [P] [US1] Unit test en `ApplyScheduledTechnicalBlocksServiceTest` con `Clock` fijo: aplica informes cuyo rango contiene hoy con la habitación `Available` (esc. 7); no toca habitaciones en otro estado y las reintenta el día siguiente; marca `Expired` si hoy supera la fecha estimada de fin sin aplicarse (esc. 8; FR-018); el periodo se registra con actor nulo (FR-020).

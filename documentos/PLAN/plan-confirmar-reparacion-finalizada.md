@@ -11,7 +11,7 @@ Implementar el caso de uso **Confirmar Fin de Reparación de Habitación** para 
 
 1. **Panel de mantenimiento** (FR-013, FR-020): lista las habitaciones `Available`, `DisabledForRepairs` y `TechnicalBlock` con número, tipo, estado, mantenimiento programado y acciones (`AVB`: Reportar daño, Programar mantenimiento y Ver informe si hay uno programado; `DFR`/`TB`: Ver informe, Iniciar reparaciones), con búsqueda por número exacto. Redirige a la vista de tarea activa si el miembro tiene una.
 2. **Iniciar reparaciones** (HU-2; FR-011, FR-012): crea la `ReparationTask` del miembro con `StartDateTime` del servidor, sin cambiar el estado de la habitación.
-3. **Vista de tarea activa** (HU-1; FR-001 a FR-010, FR-014 a FR-019): "Confirmar fin" cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar pendiente a limpieza* y, si estaba en `TechnicalBlock`, marca su `TechnicalBlockReport` como `Completed`. "Liberar tarea" la cierra con `outcome = Released` sin tocar la habitación.
+3. **Vista de tarea activa** (HU-1; FR-001 a FR-010, FR-014 a FR-019): "Confirmar fin" cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* y, si estaba en `TechnicalBlock`, marca su `TechnicalBlockReport` como `Completed`. "Liberar tarea" la cierra con `outcome = Released` sin tocar la habitación.
 
 Usa la tabla `reparation_task` del plan base (T018).
 
@@ -28,6 +28,7 @@ Usa la tabla `reparation_task` del plan base (T018).
   - Solo el titular confirma o libera su tarea (FR-003, FR-015); la reasignación de tareas abandonadas queda fuera de alcance (caso límite 5).
   - `StartDateTime` y `EndDateTime` los genera el servidor y no se modifican (FR-008 a FR-011).
   - Iniciar y liberar no cambian el estado de la habitación ni escriben en `room_state_history` (FR-016, FR-017).
+  - Casos límite sin implementación propia: 1 (fallas que persisten tras la reparación: supervisión operativa con el historial de estados) y 2 (una avería nueva se reporta después, como flujo independiente).
 
 ---
 
@@ -36,6 +37,7 @@ Usa la tabla `reparation_task` del plan base (T018).
 - **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MAINTENANCE_STAFF`. El miembro se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia; las fechas de mantenimiento programado son de calendario (`YYYY-MM-DD`) y la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
@@ -246,7 +248,7 @@ Accept: application/json
 
 ## POST /api/maintenance/tasks/{taskId}/complete
 
-**Descripción:** Confirma el fin de las reparaciones: cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar pendiente a limpieza* y, si estaba en `TechnicalBlock`, marca su informe como `Completed` (FR-002 a FR-010, FR-014, FR-016, FR-018, FR-019).
+**Descripción:** Confirma el fin de las reparaciones: cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* y, si estaba en `TechnicalBlock`, marca su informe como `Completed` (FR-002 a FR-010, FR-014, FR-016, FR-018, FR-019).
 **Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)

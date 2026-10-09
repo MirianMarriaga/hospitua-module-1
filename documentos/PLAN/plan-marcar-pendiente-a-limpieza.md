@@ -10,8 +10,8 @@
 Implementar el caso de uso interno **Marcar Pendiente a Limpieza**, que centraliza toda transición de una habitación hacia `PendingCleaning` (FR-005). No tiene interfaz ni endpoint propios: es un puerto de entrada (`MarkPendingCleaningUseCase`) que invocan, dentro de su propia transacción, tres flujos:
 
 1. **Registrar check-out**: `Occupied` → `PendingCleaning`.
-2. **Confirmar fin de reparación de habitación**: `DisabledForRepairs` / `TechnicalBlock` → `PendingCleaning`.
-3. **Liberar tarea de limpieza** (definida en *Confirmar fin de limpieza de habitación*): `InCleaning` → `PendingCleaning`.
+2. **Confirmar Fin de Reparación de Habitación**: `DisabledForRepairs` / `TechnicalBlock` → `PendingCleaning`.
+3. **Liberar tarea de limpieza** (definida en *Confirmar Fin de Limpieza de Habitación*): `InCleaning` → `PendingCleaning`.
 
 El servicio valida el estado de origen según el flujo invocador (FR-001), aplica la transición mediante `Room.transitionTo()` (regla 2 del plan base), registra el periodo en `room_state_history` con fecha y hora del servidor (FR-004, FR-006) y, si rechaza la invocación, devuelve el error al flujo invocador, que es quien lo muestra al usuario (FR-007).
 
@@ -106,7 +106,7 @@ No aplica: usa la infraestructura del plan base.
 
 ---
 
-## Phase 3: User Story 1 - Transición automática a PendingCleaning (Priority: P1)
+## Phase 3: User Story 1 - Transición automática a PendingCleaning tras check-out o fin de reparación (Priority: P1)
 
 **Goal**: Que los tres flujos invocadores muevan la habitación a `PendingCleaning` con una única implementación, registrando el periodo en el historial y devolviendo el error al invocador cuando el estado no es válido.
 
@@ -114,12 +114,12 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `MarkPendingCleaningServiceTest`: transición `Occupied` → `PendingCleaning` con `sourceFlow = CHECK_OUT` (HU-1 esc. 1).
-- [ ] T005 [P] [US1] Unit test: transición desde `DisabledForRepairs` y desde `TechnicalBlock` con `sourceFlow = CONFIRM_REPAIR_END` (HU-1 esc. 2).
-- [ ] T006 [P] [US1] Unit test: transición `InCleaning` → `PendingCleaning` solo con `sourceFlow = RELEASE_CLEANING_TASK`; con otro `sourceFlow`, rechazo (HU-1 esc. 4, FR-001).
-- [ ] T007 [P] [US1] Unit test: rechazo desde `Available` y desde cualquier otro estado no permitido, sin modificar la habitación y con el estado actual en la excepción (HU-1 esc. 3, FR-007).
+- [ ] T004 [P] [US1] Unit test en `MarkPendingCleaningServiceTest`: transición `Occupied` → `PendingCleaning` con `sourceFlow = CHECK_OUT` (HU-1 esc. 1; SC-001).
+- [ ] T005 [P] [US1] Unit test: transición desde `DisabledForRepairs` y desde `TechnicalBlock` con `sourceFlow = CONFIRM_REPAIR_END` (HU-1 esc. 2; SC-001).
+- [ ] T006 [P] [US1] Unit test: transición `InCleaning` → `PendingCleaning` solo con `sourceFlow = RELEASE_CLEANING_TASK`; con otro `sourceFlow`, rechazo (HU-1 esc. 4, FR-001; SC-001).
+- [ ] T007 [P] [US1] Unit test: rechazo desde `Available` y desde cualquier otro estado no permitido, sin modificar la habitación y con el estado actual en la excepción (HU-1 esc. 3, FR-007; SC-003).
 - [ ] T008 [P] [US1] Unit test con `Clock` fijo: `TransitionDateTime` es la hora del servidor y el comando no admite fecha (FR-006).
-- [ ] T009 [P] [US1] Unit test: el registro en el historial cierra el periodo abierto y abre `PendingCleaning` con `previous_status`, `actor_id` y `source_flow` del comando (FR-004).
+- [ ] T009 [P] [US1] Unit test: el registro en el historial cierra el periodo abierto y abre `PendingCleaning` con `previous_status`, `actor_id` y `source_flow` del comando (FR-004; SC-005).
 - [ ] T010 [US1] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el servicio, el rollback deja la habitación en su estado de origen y sin registro nuevo en `room_state_history` (casos límite 2 y 4).
 - [ ] T011 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación; la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1).
 
