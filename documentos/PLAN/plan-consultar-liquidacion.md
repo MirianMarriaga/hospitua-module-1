@@ -141,7 +141,7 @@ No hay tablas ni migraciones. Modelos en memoria:
 | Modelo | Campos |
 |---|---|
 | `SettlementRequest` | `reservationRef`, `checkInDate`, `checkOutDate`, `source`, `roomId`, `categoryRoom` |
-| `SettlementSummary` | `invoiceNumber` (Integer consecutivo o null si informativa), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType` (`INFORMATIVA` \| `FINAL`); nombre y valores pendientes de confirmar con Módulo 3 (montos como `BigDecimal`) |
+| `SettlementSummary` | `invoiceNumber` (Integer consecutivo o null si informativa), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType` (`INFORMATIVA` \| `FINAL`; nombre y valores confirmados por Módulo 3) (montos como `BigDecimal`) |
 | `SettlementAvailabilityStatus` | `AVAILABLE`, `UNAVAILABLE` |
 | `SettlementResponseDto` | `status`, `settlementType`, `invoiceNumber`, `reservationInfo`, `guestSummary`, `stayData`, `unavailableCause` |
 

@@ -22,7 +22,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
    - **Restricción**: Se consulta exactamente **una sola habitación por petición** (no por categoría ni por listas).
    - **Regla para Bloqueo Técnico**: `startDate` = fecha de inicio del mantenimiento, `endDate` = fecha estimada de finalización.
    - **Regla para Dar de Baja Habitación**: `startDate` = fecha actual (`LocalDate.now()`), `endDate` = fecha límite dentro de 30 días (`LocalDate.now().plusDays(30)`). El horizonte máximo permitido hacia el futuro es de **30 días**.
-   - **Puerto REST Desacoplado**: La ruta exacta del endpoint y el formato del payload de respuesta están pendientes de confirmación por Módulo 2. Módulo 1 implementa el puerto desacoplado `Module2ReservationConflictClientPort` con los tres parámetros (`roomId`, `startDate`, `endDate`).
+   - **Contrato REST Confirmado**: La consulta se dirige a `GET /api/reservations?roomId={roomId}&startDate={startDate}&endDate={endDate}` (ruta confirmada con Módulo 2). Módulo 1 implementa el puerto desacoplado `Module2ReservationConflictClientPort` con los tres parámetros (`roomId`, `startDate`, `endDate`) y el adaptador traduce la respuesta al resultado de solapamiento.
    - **Resiliencia y Manejo de Errores**: Timeouts estrictos (conexión 1 s, lectura 2 s), traduciendo caídas, latencias o errores 503 en excepciones controladas (`ExternalModule2UnavailableException`) para informar al usuario sin generar fallos 500 no capturados.
 
 ---
@@ -41,7 +41,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
   - Consulta REST a Módulo 2 para mantenimiento/baja < 1.5 s p95 con timeout estricto a los 2 s.
 - **Constraints**:
   - Mostrador / Recepción / Check-In: **Cero llamadas HTTP/REST a Módulo 2**.
-  - Mantenimiento / Administración: Consulta REST restringida a exactamente 1 habitación y 3 parámetros (`roomId`, `startDate`, `endDate`); consulta pendiente de confirmar con Módulo 2.
+  - Mantenimiento / Administración: Consulta REST restringida a exactamente 1 habitación y 3 parámetros (`roomId`, `startDate`, `endDate`) sobre la ruta confirmada con Módulo 2.
   - Límite de Dar de Baja: `endDate` no puede exceder 30 días a partir de hoy.
   - Fechas sin horas en contratos de negocio (`LocalDate` / YYYY-MM-DD). Cero campo `nights` persistido.
 
@@ -91,7 +91,7 @@ backend/src/
 │   │       └── out/
 │   │           ├── DailyReservationPersistencePort.java
 │   │           ├── RoomPersistencePort.java
-│   │           └── Module2ReservationConflictClientPort.java # Puerto desacoplado (pendiente de confirmar con Módulo 2)
+│   │           └── Module2ReservationConflictClientPort.java # Puerto desacoplado (ruta confirmada con Módulo 2)
 │   ├── application/
 │   │   ├── service/
 │   │   │   ├── DailyReservationIngestionService.java
@@ -117,7 +117,7 @@ backend/src/
 │       │       │   ├── DailyReservationMessageLogJpaEntity.java
 │       │       │   └── DailyReservationPersistenceAdapter.java
 │       │       └── rest/
-│       │           ├── Module2ReservationConflictRestAdapter.java # Cliente REST (ruta y payload pendientes de confirmar con Módulo 2)
+│       │           ├── Module2ReservationConflictRestAdapter.java # Cliente REST (ruta confirmada; traduce la respuesta a solapamiento)
 │       │           └── Module2Properties.java
 frontend/src/
 ├── components/reservation/
@@ -133,6 +133,70 @@ frontend/src/
 
 ---
 
+## Contratos de mensajería recibidos de Módulo 2
+
+Estructuras confirmadas por Módulo 2 para la cola `m1.reservas.diarias.queue` (exchange `hospitua.events`). Se documentan los campos recibidos; Módulo 1 no persiste `status`, `notes` ni `guestRef` en la copia local (el orden se controla por `sequenceNumber` y `updatedAt`).
+
+### Lista del día — `reserva.lista-del-dia` (00:00)
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje; base del control de idempotencia |
+| `sequenceNumber` | entero | Número de secuencia; `1` para la lista diaria inicial |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo al que corresponde la lista |
+| `generatedAt` | fecha-hora | Marca de generación del mensaje |
+| `totalReservations` | entero | Total de reservas incluidas |
+| `totalRooms` | entero | Total de habitaciones incluidas |
+| `totalGuests` | entero | Total de huéspedes del día |
+| `reservations` | array | Reservas incluidas (estado `ACTIVE` con `startDate = hoy`) |
+
+**Campos de cada elemento de `reservations`:**
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `reservationRef` | string | Referencia de la reserva (clave de la copia local) |
+| `status` | string | Estado de la reserva (`ACTIVE`) |
+| `source` | string | Canal de origen (`DIRECTA` o nombre de la OTA) |
+| `startDate` | fecha (YYYY-MM-DD) | Fecha de llegada |
+| `endDate` | fecha (YYYY-MM-DD) | Fecha de salida |
+| `guestCount` | entero | Cantidad de huéspedes de la reserva |
+| `notes` | string | Observaciones operativas (no se persisten) |
+| `updatedAt` | fecha-hora | Marca de la última actualización; gobierna el orden de aplicación |
+| `rooms[]` | array | Habitaciones asignadas (de 1 a 10) |
+| `guest` | objeto | Titular de la reserva |
+
+**Campos de cada elemento de `rooms[]`:** `roomId` (UUID), `roomNumber` (string), `categoryRoom` (string) y `guestCount` (entero, cantidad de personas de esa habitación).
+
+**Campos del objeto `guest` (titular):** `guestRef` (UUID, no se persiste), `firstName`, `lastName`, `documentType`, `documentNumber` y `nationality`.
+
+### Actualización `ADDED` / `UPDATED` — `reserva.lista-del-dia.actualizacion`
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje |
+| `sequenceNumber` | entero | Número de secuencia estrictamente incremental |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo |
+| `updateType` | string | `ADDED` o `UPDATED` |
+| `occurredAt` | fecha-hora | Momento en que ocurrió el cambio |
+| `reservationRef` | string | Referencia de la reserva afectada |
+| `reservation` | objeto | Objeto completo de la reserva con la misma estructura de la lista del día (`reservationRef`, `status`, `source`, `startDate`, `endDate`, `guestCount`, `notes`, `updatedAt`, `rooms[]` y `guest`) |
+
+### Actualización `REMOVED` — `reserva.lista-del-dia.actualizacion`
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje |
+| `sequenceNumber` | entero | Número de secuencia estrictamente incremental |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo |
+| `updateType` | string | `REMOVED` |
+| `occurredAt` | fecha-hora | Momento en que ocurrió la baja |
+| `reservationRef` | string | Referencia de la reserva retirada de la copia local |
+| `removalReason` | string | Motivo de la baja: `CANCELLED`, `DATE_CHANGED` o `NO_SHOW` |
+
+El mensaje `REMOVED` no incluye el objeto `reservation`.
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Configurar propiedades de integración de Módulo 2 en `application.yml`:
@@ -144,19 +208,19 @@ frontend/src/
       read-timeout-ms: 2000
   ```
 - [ ] T002 Configurar beans de RabbitMQ en `RabbitConfig.java`: Queue durable `m1.reservas.diarias.queue`, Topic Exchange `hospitua.events`, y bindings con routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`.
-- [ ] T003 Configurar `RestClient` con timeouts estrictos (1 s conexión, 2 s lectura) y mapeo de errores HTTP 4xx/5xx en `Module2ReservationConflictRestAdapter.java` (ruta y payload pendientes de confirmar con Módulo 2).
+- [ ] T003 Configurar `RestClient` con timeouts estrictos (1 s conexión, 2 s lectura) y mapeo de errores HTTP 4xx/5xx en `Module2ReservationConflictRestAdapter.java` (consume `GET /api/reservations` con `roomId`, `startDate` y `endDate`).
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 Crear migración Flyway `V2__create_daily_reservation_tables.sql` con las tablas:
-  - `daily_reservation`: `reservation_ref` (PK VARCHAR(50)), `guest_first_name`, `guest_last_name`, `guest_document_type` (pendiente de confirmar con Módulo 2), `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`. (Sin campo `nights`).
-  - `daily_reservation_room`: `reservation_ref` (FK), `room_id` (UUID), `room_number`, `category_room`, `guest_count` (pendiente de confirmar con Módulo 2) (PK compuesta `reservation_ref, room_id`).
+  - `daily_reservation`: `reservation_ref` (PK VARCHAR(50)), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`. (Sin campo `nights`).
+  - `daily_reservation_room`: `reservation_ref` (FK), `room_id` (UUID), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`).
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `message_type` VARCHAR(50), `received_at` TIMESTAMP.
 - [ ] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
 - [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery` y `ReservationConflictResult`.
-- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationPersistencePort`, `Module2ReservationConflictClientPort` (puerto desacoplado; ruta y payload pendientes de confirmar con Módulo 2).
+- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationPersistencePort`, `Module2ReservationConflictClientPort` (puerto desacoplado; ruta confirmada con Módulo 2).
 - [ ] T008 Registrar excepciones RFC 7807 (`ApiError`) en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`, `DecommissionHorizonExceededException`.
 
 ---
@@ -216,7 +280,7 @@ frontend/src/
 
 ## Phase 5: User Story 3 - Consulta REST a Módulo 2 para Mantenimiento y Dar de Baja Habitación (Priority: P2)
 
-**Goal**: Permitir al Personal de mantenimiento y al Administrador verificar síncronamente con Módulo 2 si un rango de fechas se solapa con reservas de una habitación física específica antes de programar un bloqueo técnico o darla de baja (consulta pendiente de confirmar con Módulo 2).
+**Goal**: Permitir al Personal de mantenimiento y al Administrador verificar síncronamente con Módulo 2 si un rango de fechas se solapa con reservas de una habitación física específica antes de programar un bloqueo técnico o darla de baja (consulta sobre la ruta confirmada con Módulo 2).
 
 **Especificaciones Técnicas**:
 1. **Parámetros de Entrada**:
@@ -233,8 +297,8 @@ frontend/src/
      - `startDate` = fecha actual (`LocalDate.now()`).
      - `endDate` = fecha límite dentro de 30 días (`LocalDate.now().plusDays(30)`).
      - Validación estricta: Si `endDate > LocalDate.now().plusDays(30)`, el sistema rechaza la consulta localmente con `DecommissionHorizonExceededException` (HTTP 422 Unprocessable Entity) sin emitir la llamada de red.
-4. **Puerto y Adaptador REST (pendiente de confirmar con Módulo 2)**:
-   - Módulo 1 define el puerto desacoplado `Module2ReservationConflictClientPort` con los tres parámetros (`roomId`, `startDate`, `endDate`). La ruta final y la estructura del payload devuelto por Módulo 2 se confirmarán formalmente.
+4. **Puerto y Adaptador REST (ruta confirmada con Módulo 2)**:
+   - Módulo 1 define el puerto desacoplado `Module2ReservationConflictClientPort` con los tres parámetros (`roomId`, `startDate`, `endDate`). La consulta se dirige a `GET /api/reservations?roomId={roomId}&startDate={startDate}&endDate={endDate}` y el adaptador REST traduce la respuesta al resultado de solapamiento.
 5. **Manejo de Resiliencia y Fallos**:
    - Connect timeout: 1000 ms. Read timeout: 2000 ms.
    - Si Módulo 2 responde con error 5xx, timeout o caída de conexión, se captura la excepción y se lanza `ExternalModule2UnavailableException` (mapeada a HTTP 503 con código `MODULE_2_UNAVAILABLE`), informando al usuario la imposibilidad de verificar reservas en ese momento sin generar un 500 no controlado.
@@ -252,7 +316,7 @@ frontend/src/
 ### Implementation for User Story 3
 
 - [ ] T024 [P] [US3] Implementar puerto de salida `Module2ReservationConflictClientPort` con el método:
-  `ReservationConflictResult checkConflicts(UUID roomId, LocalDate startDate, LocalDate endDate)` (ruta y payload pendientes de confirmar con Módulo 2).
+  `ReservationConflictResult checkConflicts(UUID roomId, LocalDate startDate, LocalDate endDate)` (consume `GET /api/reservations` con `roomId`, `startDate` y `endDate`).
 - [ ] T025 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo el endpoint configurado mediante `RestClient` con headers y timeouts estrictos.
 - [ ] T026 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
   - Método `checkMaintenanceConflict(UUID roomId, LocalDate startDate, LocalDate endDate)`
