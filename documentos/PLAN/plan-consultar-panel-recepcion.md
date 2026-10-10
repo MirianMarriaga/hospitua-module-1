@@ -17,7 +17,7 @@ Componentes y lógica operativa:
    - *Habitaciones ocupadas*: Total de habitaciones con `Room.status = Occupied` en el inventario local de Módulo 1.
 2. **Pestaña Llegadas**: Listado obtenido **100% de la copia local** (`daily_reservation` y `daily_reservation_room`), organizado a razón de **una fila por cada habitación**, agrupadas por reserva con etiqueta descriptiva (ej. `RES-10482 · 1 de 2 pendientes`). Enriquecido con el estado físico de la habitación:
    - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]".
-   - Indicador informativo cuando la habitación está en limpieza (`PendingCleaning` o `InCleaning`), indicando "En limpieza: se apartará al terminar".
+   - Indicador informativo cuando la habitación está ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), indicando "[Estado]: se apartará al terminar la limpieza".
    - Buscador en tiempo real por nombre, documento o código de reserva contra la copia local (sin REST a Módulo 2).
    - Botón individual "Check-in" que transfiere `reservationRef` y `roomId` directamente al Paso 1 del flujo de admisión.
 3. **Pestaña Salidas**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida" destacada). Incluye buscador local (nombre, documento, código o número de habitación) y botón "Check-out" que transfiere la estancia directamente al Paso 1 del flujo de salida.
@@ -146,14 +146,14 @@ frontend/src/
 ### Tests for User Story 1
 
 - [ ] T008 [P] [US1] Unit test para `ReceptionPanelQueryService` verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución.
-- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` o en limpieza.
+- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning`.
 - [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.jsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in".
 
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar en `ReceptionPanelQueryService` el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para detectar alertas de indisponibilidad.
 - [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`.
-- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.jsx` y `ReceptionSearchBar.jsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "En limpieza: se apartará al terminar") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}`.
+- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.jsx` y `ReceptionSearchBar.jsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}`.
 
 ---
 

@@ -9,7 +9,7 @@
 
 Implementar el caso de uso **Confirmar Fin de Reparación de Habitación** para el Personal de mantenimiento, con tres piezas:
 
-1. **Panel de mantenimiento** (FR-013, FR-020): lista las habitaciones `Available`, `DisabledForRepairs` y `TechnicalBlock` con número, tipo, estado, mantenimiento programado y acciones (`AVB`: Reportar daño, Programar mantenimiento y Ver informe si hay uno programado; `DFR`/`TB`: Ver informe, Iniciar reparaciones), con búsqueda por número exacto. Redirige a la vista de tarea activa si el miembro tiene una.
+1. **Panel de mantenimiento** (FR-013, FR-020): lista todas las habitaciones excepto las `Inactive`, con número, tipo, estado, mantenimiento programado (el `Scheduled` más próximo) y acciones (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Ver informe e Iniciar reparaciones; demás estados: Ver informe si hay uno programado), con búsqueda por número exacto. Redirige a la vista de tarea activa si el miembro tiene una.
 2. **Iniciar reparaciones** (HU-2; FR-011, FR-012): crea la `ReparationTask` del miembro con `StartDateTime` del servidor, sin cambiar el estado de la habitación.
 3. **Vista de tarea activa** (HU-1; FR-001 a FR-010, FR-014 a FR-019): "Confirmar fin" cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* y, si estaba en `TechnicalBlock`, marca su `TechnicalBlockReport` como `Completed`. "Liberar tarea" la cierra con `outcome = Released` sin tocar la habitación.
 
@@ -78,15 +78,16 @@ Accept: application/json
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
 | `activeTaskId` | UUID \| null | Tarea abierta del miembro; si no es nula, el frontend redirige a la vista de tarea activa y `rooms` llega vacío | `null` |
-| `rooms` | array | Habitaciones en `Available`, `DisabledForRepairs` o `TechnicalBlock`, ordenadas por número | |
+| `rooms` | array | Todas las habitaciones excepto las `Inactive`, ordenadas por número | |
 | `rooms[].roomId` | UUID | Identificador de la habitación | `"9b8a…"` |
 | `rooms[].roomNumber` | string | Número de habitación | `"105"` |
-| `rooms[].roomType` | string | Tipo de habitación | `"Suite"` |
-| `rooms[].status` | string | `Available`, `DisabledForRepairs` o `TechnicalBlock` | `"DisabledForRepairs"` |
-| `rooms[].scheduledMaintenance` | object \| null | Rango del `TechnicalBlockReport` en `Scheduled`; nulo si no hay ("Sin programar") | `null` |
+| `rooms[].categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"SUITE"` |
+| `rooms[].status` | string | Estado actual de la habitación (cualquiera salvo `Inactive`) | `"DisabledForRepairs"` |
+| `rooms[].scheduledMaintenance` | object \| null | Rango del `TechnicalBlockReport` en `Scheduled` de inicio más temprano; nulo si no hay ("Sin programar"), incluso si tuvo uno que pasó a `Expired` | `null` |
 | `rooms[].scheduledMaintenance.startDate` | string | Inicio programado | `"2026-10-20"` |
 | `rooms[].scheduledMaintenance.estimatedEndDate` | string | Fin estimado | `"2026-10-22"` |
 | `rooms[].hasOpenTask` | boolean | La habitación ya tiene una `ReparationTask` abierta (oculta "Iniciar reparaciones") | `false` |
+| `rooms[].overdue` | boolean | `true` si la habitación está en `TechnicalBlock` y su informe `Applied` tiene la fecha estimada de fin anterior a hoy ("Bloqueo técnico (vencido)") | `false` |
 
 **Body (JSON):**
 
@@ -97,18 +98,20 @@ Accept: application/json
     {
       "roomId": "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
       "roomNumber": "105",
-      "roomType": "Suite",
+      "categoryRoom": "SUITE",
       "status": "DisabledForRepairs",
       "scheduledMaintenance": null,
-      "hasOpenTask": false
+      "hasOpenTask": false,
+      "overdue": false
     },
     {
       "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
       "roomNumber": "106",
-      "roomType": "Doble",
+      "categoryRoom": "DOBLE",
       "status": "Available",
       "scheduledMaintenance": { "startDate": "2026-10-20", "estimatedEndDate": "2026-10-22" },
-      "hasOpenTask": false
+      "hasOpenTask": false,
+      "overdue": false
     }
   ]
 }
@@ -220,7 +223,7 @@ Accept: application/json
 | `startDateTime` | string | Inicio de reparaciones | `"2026-10-08T13:00:00-05:00"` |
 | `room.roomId` | UUID | Habitación | `"9b8a…"` |
 | `room.roomNumber` | string | Número de habitación | `"105"` |
-| `room.roomType` | string | Tipo de habitación | `"Suite"` |
+| `room.categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"SUITE"` |
 | `room.status` | string | `DisabledForRepairs` o `TechnicalBlock` | `"DisabledForRepairs"` |
 
 **Body (JSON):**
@@ -232,7 +235,7 @@ Accept: application/json
   "room": {
     "roomId": "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
     "roomNumber": "105",
-    "roomType": "Suite",
+    "categoryRoom": "SUITE",
     "status": "DisabledForRepairs"
   }
 }
@@ -463,15 +466,15 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 - [ ] T006 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 3; FR-012).
 - [ ] T007 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 4; FR-012).
 - [ ] T008 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito (FR-012).
-- [ ] T009 [P] [US2] Unit test en `MaintenancePanelQueryServiceTest`: estados listados, rango del informe `Scheduled`, `hasOpenTask`, búsqueda exacta y `activeTaskId` (FR-013).
-- [ ] T010 [P] [US2] Component test en `MaintenancePanelPage`: botones por estado (`AVB`: Reportar daño, Programar mantenimiento y Ver informe si hay programación; `DFR`/`TB`: Ver informe e Iniciar reparaciones solo sin tarea abierta), "Sin programar", mensajes de FR-020 y redirección con `activeTaskId` (FR-013, FR-020).
+- [ ] T009 [P] [US2] Unit test en `MaintenancePanelQueryServiceTest`: estados listados, rango del informe `Scheduled`, `hasOpenTask`, `overdue` (con `Clock` fijo), búsqueda exacta y `activeTaskId` (FR-013).
+- [ ] T010 [P] [US2] Component test en `MaintenancePanelPage`: botones por estado (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Ver informe e Iniciar reparaciones solo sin tarea abierta; demás estados: Ver informe si hay programación), "Sin programar", "Bloqueo técnico (vencido)" cuando `overdue` es `true`, mensajes de FR-020 y redirección con `activeTaskId` (FR-013, FR-020).
 
 ### Implementation for User Story 2
 
 - [ ] T011 [US2] Implementar `StartRepairService` (`@Transactional`): validar estado y tareas abiertas, tomar la hora con `Clock` y crear la `ReparationTask` (FR-011, FR-012).
-- [ ] T012 [US2] Implementar `MaintenancePanelQueryService` con el filtro de estados, la búsqueda exacta, el rango `Scheduled` de `technical_block_report`, `hasOpenTask` y la detección de tarea activa (FR-013).
+- [ ] T012 [US2] Implementar `MaintenancePanelQueryService` con todas las habitaciones salvo las `Inactive`, la búsqueda exacta, el rango `Scheduled` de inicio más temprano de `technical_block_report`, `hasOpenTask`, `overdue` (con `TechnicalBlockReport.isOverdue(today)`, `plan-programar-bloqueo-tecnico-para-habitacion.md` T003) y la detección de tarea activa (FR-013).
 - [ ] T013 [US2] Implementar en `MaintenanceController` `GET /api/maintenance/panel` y `POST /api/maintenance/tasks` con `@PreAuthorize("hasRole('MAINTENANCE_STAFF')")`.
-- [ ] T014 [US2] Construir `MaintenancePanelPage.jsx` y `MaintenanceRoomTable.jsx`: columnas número, tipo, estado ("Disponible", "Inhabilitada por reparaciones", "Bloqueo técnico"), mantenimiento programado (DD-MM-YYYY a DD-MM-YYYY o "Sin programar") y botones por estado; búsqueda exacta; mensajes de FR-020; "Reportar daño" y "Ver informe" (`DFR`) abren los diálogos de `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`; "Programar mantenimiento" y "Ver informe" (`TB` o `AVB` programada) abren los de `plan-programar-bloqueo-tecnico-para-habitacion.md`; "Iniciar reparaciones" llama al endpoint y redirige a la vista de tarea activa (FR-011, FR-013, FR-020).
+- [ ] T014 [US2] Construir `MaintenancePanelPage.jsx` y `MaintenanceRoomTable.jsx`: columnas número, tipo, estado (nombre en español, regla 12 del plan base, o "Bloqueo técnico (vencido)"), mantenimiento programado (DD-MM-YYYY a DD-MM-YYYY o "Sin programar") y botones por estado; búsqueda exacta; mensajes de FR-020; "Reportar daño" y "Ver informe" (`DFR`) abren los diálogos de `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`; "Programar mantenimiento" y "Ver informe" (`TB` o habitación con programación, salvo `DFR`) abren los de `plan-programar-bloqueo-tecnico-para-habitacion.md`; "Iniciar reparaciones" llama al endpoint y redirige a la vista de tarea activa (FR-011, FR-013, FR-020).
 
 **Checkpoint**: El panel de mantenimiento funciona y permite tomar habitaciones para reparar.
 

@@ -78,7 +78,7 @@ Accept: application/json
 | `startDateTime` | string | Inicio de labores | `"2026-10-08T09:15:00-05:00"` |
 | `room.roomId` | UUID | Habitación de la tarea | `"3f1c…"` |
 | `room.roomNumber` | string | Número de habitación | `"101"` |
-| `room.roomType` | string | Tipo de habitación | `"Doble"` |
+| `room.categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"DOBLE"` |
 | `room.status` | string | Estado actual (`InCleaning`) | `"InCleaning"` |
 | `room.lastCleaningDateTime` | string \| null | Última limpieza, con el mismo formato del panel | `"2026-10-07T16:40:00-05:00"` |
 
@@ -91,7 +91,7 @@ Accept: application/json
   "room": {
     "roomId": "3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60",
     "roomNumber": "101",
-    "roomType": "Doble",
+    "categoryRoom": "DOBLE",
     "status": "InCleaning",
     "lastCleaningDateTime": "2026-10-07T16:40:00-05:00"
   }
@@ -338,6 +338,7 @@ No aplica: usa la infraestructura del plan base.
 ### Implementation for User Story 1
 
 - [ ] T015 [US1] Implementar `CompleteCleaningService` (`@Transactional`) (FR-002 a FR-006, FR-008 a FR-013, FR-015, FR-017):
+  - Bloquear la fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de validar el estado y de consultar la copia local, para que un `ADDED` simultáneo no deje la llegada sin apartar.
   - Validar que la tarea exista, esté abierta, sea del miembro y que la habitación esté en `InCleaning`.
   - Cerrar la tarea con la hora de `Clock`.
   - Invocar `MarkRoomAvailableUseCase` (`InCleaning` → `Available`) con `sourceFlow = CONFIRM_CLEANING_END`.
@@ -357,7 +358,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T020 Integration test: tras confirmar el fin, `GET /api/rooms?status=Available` (o `Reserved`) refleja la habitación en menos de 2 segundos (SC-003).
 - [ ] T021 Integration test: ninguna `CleaningTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-004).
-- [ ] T022 Integration test: con una reserva de hoy asignada a la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref`, y `GET /api/reception/panel` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
+- [ ] T022 Integration test: con una reserva de hoy asignada a la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref`, y `GET /api/reception/arrivals` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
 
 ---
 

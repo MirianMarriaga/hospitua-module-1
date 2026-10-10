@@ -23,7 +23,7 @@ Usa la tabla `damage_report` del plan base (T018).
 - **Storage**: PostgreSQL 16+. Usa `damage_report`, `room` y `room_state_history` del plan base (T018 y T007).
 - **Performance Goals**:
   - Completar el reporte, incluida la redacción, en un máximo de 45 segundos (SC-001).
-  - La habitación sale del inventario operativo y aparece en el panel de mantenimiento en un máximo de 3 segundos (SC-003).
+  - La habitación deja de listarse en el panel de limpieza y aparece como inhabilitada en el panel de mantenimiento en un máximo de 3 segundos (SC-003).
 - **Constraints**:
   - Solo desde `Available` (FR-002); la transición, el reporte y el historial van en la misma transacción (SC-002, FR-012).
   - `ReportDateTime` lo genera el servidor y coincide con el inicio del periodo en el historial (FR-008, FR-009); el reporte no se modifica ni se elimina (FR-010).
@@ -112,7 +112,7 @@ Content-Type: application/json
 ```json
 {
   "errorCode": "ROOM_INVALID_STATE",
-  "message": "La habitación está en estado Occupied; no es posible reportar un daño.",
+  "message": "La habitación está en estado Ocupada; no es posible reportar un daño.",
   "timestamp": "2026-10-08T11:20:01-05:00",
   "path": "/api/rooms/3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60/damage-reports",
   "details": { "currentStatus": "Occupied" }
@@ -289,7 +289,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Integration test: tras el reporte, la habitación deja de aparecer en `GET /api/rooms?status=Available` y aparece con `DisabledForRepairs` en menos de 3 segundos (SC-003).
+- [ ] T017 Integration test: tras el reporte, la habitación deja de aparecer en `GET /api/cleaning/panel` y aparece con `DisabledForRepairs` en `GET /api/maintenance/panel` en menos de 3 segundos (SC-003).
 
 ---
 

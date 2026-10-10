@@ -83,8 +83,7 @@ backend/src/
 │   │           ├── StayPersistencePort.java
 │   │           ├── RoomGuestPersistencePort.java
 │   │           ├── SettlementRestQueryPort.java
-│   │           ├── OutboxEventPublisherPort.java
-│   │           └── RoomAuditLogPort.java
+│   │           └── OutboxEventPublisherPort.java
 │   ├── application/
 │   │   ├── service/
 │   │   │   ├── CheckOutExecutionService.java

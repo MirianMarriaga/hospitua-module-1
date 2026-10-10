@@ -20,7 +20,7 @@ Responsabilidades:
    - `status` (String con uno de los 8 estados canónicos de `RoomStatus`)
    - `floor` (Integer)
 3. **Consulta sin mutación de estado**: Operación idempotente de solo lectura (`@Transactional(readOnly = true)`) que no ejecuta transiciones de estado ni interfiere en la máquina de estados de la habitación.
-4. **Manejo controlado de errores**: Si la habitación no existe en el inventario de Módulo 1, responder con HTTP 404 Not Found estructurado según RFC 7807 (`ApiError`).
+4. **Manejo controlado de errores**: Si la habitación no existe en el inventario de Módulo 1, responder con HTTP 404 Not Found con el formato `ApiError` del plan base.
 
 ---
 
@@ -91,7 +91,7 @@ backend/src/
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar la configuración del repositorio `RoomPersistencePort` en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Asegurar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (RFC 7807).
+- [ ] T002 Asegurar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`).
 
 ---
 
@@ -130,7 +130,7 @@ backend/src/
 ### Tests for User Story 2
 
 - [ ] T010 [P] [US2] Unit test para `RoomBaseRateQueryService` arrojando `RoomNotFoundException` ante ID no existente.
-- [ ] T011 [P] [US2] Integration test para `GET /api/rooms/{randomUUID}/base-rate` verificando status 404 y estructura RFC 7807 (`ApiError`).
+- [ ] T011 [P] [US2] Integration test para `GET /api/rooms/{randomUUID}/base-rate` verificando status 404 y estructura `ApiError`.
 
 ### Implementation for User Story 2
 

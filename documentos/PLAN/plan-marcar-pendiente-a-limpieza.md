@@ -13,7 +13,7 @@ Implementar el caso de uso interno **Marcar Pendiente a Limpieza**, que centrali
 2. **Confirmar Fin de Reparación de Habitación**: `DisabledForRepairs` / `TechnicalBlock` → `PendingCleaning`.
 3. **Liberar tarea de limpieza** (definida en *Confirmar Fin de Limpieza de Habitación*): `InCleaning` → `PendingCleaning`.
 
-El servicio valida el estado de origen según el flujo invocador (FR-001), aplica la transición mediante `Room.transitionTo()` (regla 2 del plan base), registra el periodo en `room_state_history` con fecha y hora del servidor (FR-004, FR-006) y, si rechaza la invocación, devuelve el error al flujo invocador, que es quien lo muestra al usuario (FR-007).
+El servicio valida el estado de origen según el flujo invocador (FR-001), aplica la transición con `TransitionRoomStateUseCase.transition(...)` (regla 8 del plan base), que valida la matriz con `Room.transitionTo()` y registra el periodo en `room_state_history` con fecha y hora del servidor (FR-004, FR-006) y, si rechaza la invocación, devuelve el error al flujo invocador, que es quien lo muestra al usuario (FR-007).
 
 ---
 

@@ -19,7 +19,7 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
 4. **Check-In**: Ejecución atómica y transaccional local (`@Transactional`):
    - Creación de la entidad `Stay` por habitación con: `source` (`DIRECTA` o nombre de la OTA), `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`.
    - Persistencia inmutable de los ocupantes en `RoomGuest` (con campos migratorios para extranjeros).
-   - Transición física de `Room.status` de `Reserved` a `Occupied` mediante el método centralizado de dominio con bitácora `room_state_audit` (motivo: `CHECK_IN`).
+   - Transición física de `Room.status` de `Reserved` a `Occupied` mediante `TransitionRoomStateUseCase`, que registra el periodo en `room_state_history` (`SourceFlow` = `CHECK_IN`).
    - Inserción en `outbox_notification` del mensaje plano hacia `m2.habitacion.checkin.queue` con el arreglo unificado `guests[]` (nacionales y extranjeros).
    - Despliegue de pantalla de éxito con badges "Habitación: Ocupada", "Reserva: En curso" y botón "Volver al inicio".
 
@@ -29,7 +29,7 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
 
 - **Language/Version**: Java 21 (LTS)
 - **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
-- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `outbox_notification`, `room_state_audit`)
+- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `outbox_notification`, `room_state_history`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ)
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador
 - **Performance Goals**:
@@ -90,8 +90,7 @@ backend/src/
 │   │           ├── StayPersistencePort.java
 │   │           ├── RoomGuestPersistencePort.java
 │   │           ├── DailyReservationQueryPort.java
-│   │           ├── OutboxEventPublisherPort.java
-│   │           └── RoomAuditLogPort.java
+│   │           └── OutboxEventPublisherPort.java
 │   ├── application/
 │   │   ├── service/
 │   │   │   ├── CheckInExecutionService.java
@@ -166,7 +165,7 @@ backend/src/
 - [ ] T009 [P] [US1] Unit test: Verificar que el titular queda precargado con `isReservationGuest = true`, selector de país bloqueado y campos de solo lectura.
 - [ ] T010 [P] [US1] Unit test: Validar rechazo si un huésped extranjero no incluye `birthDate`, `originPlace` o `destinationPlace`, o si `birthDate` es igual o posterior a hoy.
 - [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `birthDate`, `originPlace` y `destinationPlace` se persisten como null y no se exigen.
-- [ ] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `room_state_audit` con motivo `CHECK_IN`.
+- [ ] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `TransitionRoomStateUseCase` con `SourceFlow` = `CHECK_IN`.
 - [ ] T013 [P] [US1] Integration test: Verificar payload insertado en `outbox_notification`: formato plano (sin EventEnvelope), `movementType = ENTRY`, `movementDate = checkInDate`, `guests[]` con todos los ocupantes y `messageId` inmutable en reintentos.
 - [ ] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`.
 
@@ -183,7 +182,7 @@ backend/src/
   - Validar unicidad de documento dentro de la habitación (`DuplicateGuestDocumentException`).
   - Crear y guardar entidad `Stay` con `source`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
   - Persistir ocupantes en `RoomGuest`.
-  - Ejecutar transición `Reserved → Occupied` vía método de dominio centralizado con historial de auditoría `room_state_audit`.
+  - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base).
   - Construir mensaje plano `CheckInMessagePayload` con `messageId` (UUIDv4) y `sequenceNumber` creciente del día.
   - Insertar mensaje en `outbox_notification` para publicación asíncrona hacia `m2.habitacion.checkin.queue`.
 - [ ] T017 [US1] Implementar controlador REST `CheckInController`:

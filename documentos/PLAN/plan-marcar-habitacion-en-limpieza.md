@@ -10,7 +10,7 @@
 Implementar el caso de uso **Marcar Habitación en Limpieza** para el actor Personal de limpieza, con dos piezas:
 
 1. **Panel de limpieza** (FR-007, FR-008, FR-012, FR-017): lista las habitaciones en `PendingCleaning` y `Available` con número, tipo, estado, última limpieza y acciones (`PC`: Iniciar limpieza; `AVB`: Reportar daño, Iniciar limpieza), con búsqueda por número exacto. Si el miembro tiene una tarea activa, el panel lo redirige a la vista de tarea activa (FR-009), que define *Confirmar Fin de Limpieza de Habitación*.
-2. **Iniciar limpieza** (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016): en una sola transacción, transiciona la habitación de `PendingCleaning` o `Available` a `InCleaning` con `Room.transitionTo()`, crea la `CleaningTask` del miembro con `StartDateTime` del servidor y registra el periodo en `room_state_history`.
+2. **Iniciar limpieza** (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016): en una sola transacción, transiciona la habitación de `PendingCleaning` o `Available` a `InCleaning` con `TransitionRoomStateUseCase.transition(...)` (regla 8 del plan base), crea la `CleaningTask` del miembro con `StartDateTime` del servidor y registra el periodo en `room_state_history`.
 
 Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar Fin de Limpieza de Habitación* (cierre y liberación) y el panel (última limpieza).
 
@@ -79,7 +79,7 @@ Accept: application/json
 | `rooms` | array | Habitaciones en `PendingCleaning` o `Available`, ordenadas por número (FR-007) | |
 | `rooms[].roomId` | UUID | Identificador de la habitación | `"3f1c…"` |
 | `rooms[].roomNumber` | string | Número de habitación | `"101"` |
-| `rooms[].roomType` | string | Tipo: Sencilla, Doble, Suite o Boutique | `"Doble"` |
+| `rooms[].categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"DOBLE"` |
 | `rooms[].status` | string | `PendingCleaning` o `Available` | `"PendingCleaning"` |
 | `rooms[].lastCleaningDateTime` | string \| null | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; nulo si no existe (el frontend muestra "Sin registro", FR-012) | `"2026-10-07T16:40:00-05:00"` |
 
@@ -92,14 +92,14 @@ Accept: application/json
     {
       "roomId": "3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60",
       "roomNumber": "101",
-      "roomType": "Doble",
+      "categoryRoom": "DOBLE",
       "status": "PendingCleaning",
       "lastCleaningDateTime": "2026-10-07T16:40:00-05:00"
     },
     {
       "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
       "roomNumber": "102",
-      "roomType": "Sencilla",
+      "categoryRoom": "SENCILLA",
       "status": "Available",
       "lastCleaningDateTime": null
     }
@@ -176,7 +176,7 @@ Content-Type: application/json
 ```json
 {
   "errorCode": "ROOM_INVALID_STATE",
-  "message": "La habitación está en estado Occupied; no es posible iniciar la limpieza.",
+  "message": "La habitación está en estado Ocupada; no es posible iniciar la limpieza.",
   "timestamp": "2026-10-08T09:15:02-05:00",
   "path": "/api/cleaning/tasks",
   "details": { "currentStatus": "Occupied" }
