@@ -7,12 +7,12 @@
 
 ## Summary
 
-Implementar el caso de uso **Marcar Habitación en Limpieza** para el actor Personal de limpieza, con dos piezas:
+Implementar el caso de uso **Marcar Habitación en Limpieza** para el actor Personal de limpieza:
 
-1. **Panel de limpieza** (FR-007, FR-008, FR-012, FR-017): lista las habitaciones en `PendingCleaning` y `Available` con número, tipo, estado, última limpieza y acciones (`PC`: Iniciar limpieza; `AVB`: Reportar daño, Iniciar limpieza), con búsqueda por número exacto. Si el miembro tiene una tarea activa, el panel lo redirige a la vista de tarea activa (FR-009), que define *Confirmar Fin de Limpieza de Habitación*.
-2. **Iniciar limpieza** (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016): en una sola transacción, transiciona la habitación de `PendingCleaning` o `Available` a `InCleaning` con `TransitionRoomStateUseCase.transition(...)` (regla 8 del plan base), crea la `CleaningTask` del miembro con `StartDateTime` del servidor y registra el periodo en `room_state_history`.
+- **Origen** (FR-007, FR-008, FR-012): la acción **Iniciar limpieza** del panel de limpieza, que implementa `plan-consultar-panel-limpieza.md`.
+- **Iniciar limpieza** (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016): en una sola transacción, transiciona la habitación de `PendingCleaning` o `Available` a `InCleaning` con `TransitionRoomStateUseCase.transition(...)` (regla 8 del plan base), crea la `CleaningTask` del miembro con `StartDateTime` del servidor y registra el periodo en `room_state_history`. Al terminar, redirige a la vista de tarea activa (FR-009); si se rechaza, informa el motivo y vuelve al panel recargado (FR-017).
 
-Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar Fin de Limpieza de Habitación* (cierre y liberación) y el panel (última limpieza).
+Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar Fin de Limpieza de Habitación* (cierre y liberación) y *Consultar Panel de Limpieza* (última limpieza).
 
 ---
 
@@ -42,76 +42,6 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 | --- | --- | --- | --- |
 | 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
 | 403 | `FORBIDDEN` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." |
-
----
-
-## GET /api/cleaning/panel
-
-**Descripción:** Devuelve el panel de limpieza del miembro autenticado: las habitaciones en `PendingCleaning` y `Available` con su última limpieza, o la tarea activa del miembro para redirigirlo a su vista (FR-007, FR-008, FR-009, FR-012, FR-017).
-**Rol autorizado:** `CLEANING_STAFF`
-
-### Petición (Request)
-
-**Headers:**
-
-```http
-Authorization: Bearer <JWT>
-Accept: application/json
-```
-
-**Parámetros:**
-
-| Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
-| --- | --- | --- | --- | --- | --- |
-| `roomNumber` | query | string | No | Filtra por número de habitación con coincidencia exacta (FR-008) | `101` |
-
-**Body (JSON):** No aplica.
-
-### Respuesta (Response)
-
-**Status Code:** `200 OK`
-
-**Campos de la Respuesta:**
-
-| Campo | Tipo | Descripción | Ejemplo |
-| --- | --- | --- | --- |
-| `activeTaskId` | UUID \| null | Tarea abierta del miembro; si no es nula, el frontend redirige a la vista de tarea activa y `rooms` llega vacío (FR-009) | `null` |
-| `rooms` | array | Habitaciones en `PendingCleaning` o `Available`, ordenadas por número (FR-007) | |
-| `rooms[].roomId` | UUID | Identificador de la habitación | `"3f1c…"` |
-| `rooms[].roomNumber` | string | Número de habitación | `"101"` |
-| `rooms[].categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"DOBLE"` |
-| `rooms[].status` | string | `PendingCleaning` o `Available` | `"PendingCleaning"` |
-| `rooms[].lastCleaningDateTime` | string \| null | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; nulo si no existe (el frontend muestra "Sin registro", FR-012) | `"2026-10-07T16:40:00-05:00"` |
-
-**Body (JSON):**
-
-```json
-{
-  "activeTaskId": null,
-  "rooms": [
-    {
-      "roomId": "3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60",
-      "roomNumber": "101",
-      "categoryRoom": "DOBLE",
-      "status": "PendingCleaning",
-      "lastCleaningDateTime": "2026-10-07T16:40:00-05:00"
-    },
-    {
-      "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
-      "roomNumber": "102",
-      "categoryRoom": "SENCILLA",
-      "status": "Available",
-      "lastCleaningDateTime": null
-    }
-  ]
-}
-```
-
-Una búsqueda sin coincidencias o un panel sin habitaciones responde `200` con `rooms` vacío; el frontend muestra "No se encontró la habitación X" o "No hay habitaciones pendientes de limpieza ni disponibles" (FR-017).
-
-### Respuestas de error
-
-Solo los errores comunes (401, 403).
 
 ---
 
@@ -169,14 +99,14 @@ Content-Type: application/json
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a ninguna habitación | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está en estado {estado}; no es posible iniciar la limpieza." |
-| 409 | `ACTIVE_TASK_EXISTS` | El miembro ya tiene una `CleaningTask` abierta (FR-013, HU-1 esc. 4) | "Ya tienes una tarea de limpieza activa." |
-| 409 | `CONCURRENT_UPDATE` | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro miembro acaba de tomar esta habitación (estado actual: En limpieza)." |
+| 409 | `ROOM_INVALID_STATE` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede limpiar." |
+| 409 | `ACTIVE_TASK_EXISTS` | El miembro ya tiene una `CleaningTask` abierta (FR-013, HU-1 esc. 4) | "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." |
+| 409 | `CONCURRENT_UPDATE` | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro compañero ya está limpiando esta habitación." |
 
 ```json
 {
   "errorCode": "ROOM_INVALID_STATE",
-  "message": "La habitación está en estado Ocupada; no es posible iniciar la limpieza.",
+  "message": "La habitación está Ocupada; ahora no se puede limpiar.",
   "timestamp": "2026-10-08T09:15:02-05:00",
   "path": "/api/cleaning/tasks",
   "details": { "currentStatus": "Occupied" }
@@ -215,18 +145,15 @@ backend/src/
 │   │   │   └── CleaningTask.java                 # Definido en el plan base; aquí se implementa
 │   │   └── ports/
 │   │       ├── in/
-│   │       │   ├── StartCleaningUseCase.java
-│   │       │   └── GetCleaningPanelUseCase.java
+│   │       │   └── StartCleaningUseCase.java
 │   │       └── out/
 │   │           └── CleaningTaskRepositoryPort.java
 │   ├── application/
 │   │   ├── service/
-│   │   │   ├── StartCleaningService.java
-│   │   │   └── CleaningPanelQueryService.java
+│   │   │   └── StartCleaningService.java
 │   │   └── dto/
 │   │       ├── StartCleaningCommand.java
-│   │       ├── CleaningTaskStartedDto.java
-│   │       └── CleaningPanelDto.java
+│   │       └── CleaningTaskStartedDto.java
 │   └── infrastructure/
 │       └── adapters/
 │           ├── in/web/
@@ -237,15 +164,11 @@ backend/src/
 └── main/resources/db/migration/
     └── (sin migración propia: `cleaning_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
-├── pages/limpieza/
-│   ├── CleaningPanelPage.jsx
-│   ├── CleaningRoomTable.jsx
-│   └── RoomNumberSearch.jsx
 └── api/
     └── cleaningService.js
 ```
 
-**Structure Decision**: `CleaningController` agrupa los endpoints `/api/cleaning/...`; `plan-confirmar-fin-de-limpieza.md` le agrega los de la tarea activa. El botón "Reportar daño" del panel abre el diálogo que define `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`. `StartCleaningCommand` contiene `roomId` y `memberId` (tomado del token).
+**Structure Decision**: `CleaningController` agrupa los endpoints `/api/cleaning/...`; `plan-consultar-panel-limpieza.md` le agrega el del panel y `plan-confirmar-fin-de-limpieza.md` los de la tarea activa. El panel y sus componentes de interfaz pertenecen a `plan-consultar-panel-limpieza.md`. `StartCleaningCommand` contiene `roomId` y `memberId` (tomado del token).
 
 ---
 
@@ -265,9 +188,9 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 
 ## Phase 3: User Story 1 - Marcar habitación en limpieza (Priority: P1)
 
-**Goal**: Que un miembro del Personal de limpieza vea su panel, busque una habitación e inicie su limpieza, quedando vinculado a la tarea y redirigido a la vista de tarea activa.
+**Goal**: Que un miembro del Personal de limpieza inicie desde el panel la limpieza de una habitación, quedando vinculado a la tarea y redirigido a la vista de tarea activa.
 
-**Independent Test**: Con un miembro sin tareas abiertas, cargar el panel, iniciar la limpieza de una habitación en `PendingCleaning` y otra vez (con otro miembro) en `Available`; verificar el estado `InCleaning`, la `CleaningTask` y el registro en `room_state_history`. Intentarlo sobre `Occupied` y con un miembro que ya tiene tarea, y verificar los rechazos.
+**Independent Test**: Con un miembro sin tareas abiertas, iniciar la limpieza de una habitación en `PendingCleaning` y otra vez (con otro miembro) en `Available`; verificar el estado `InCleaning`, la `CleaningTask` y el registro en `room_state_history`. Intentarlo sobre `Occupied` y con un miembro que ya tiene tarea, y verificar los rechazos.
 
 ### Tests for User Story 1
 
@@ -278,28 +201,25 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 - [ ] T008 [P] [US1] Unit test con `Clock` fijo: `startDateTime` de la tarea y `start_date_time` del periodo en `room_state_history` son iguales y no se toman del cliente (FR-010, FR-011, FR-014; caso límite 4; SC-002).
 - [ ] T009 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409` con el estado `InCleaning` (FR-006; caso límite 1).
 - [ ] T010 [US1] Integration test: un fallo forzado al guardar el registro del historial revierte la transición y la tarea (FR-016).
-- [ ] T011 [P] [US1] Unit test en `CleaningPanelQueryServiceTest`: lista solo `PendingCleaning` y `Available`; `lastCleaningDateTime` ignora tareas `Released` y es nulo sin registro; con tarea abierta devuelve `activeTaskId` y `rooms` vacío; búsqueda por número exacto (FR-007, FR-008, FR-009, FR-012).
-- [ ] T012 [P] [US1] Component test en `CleaningPanelPage`: botones por estado (`PC`: Iniciar limpieza; `AVB`: Reportar daño, Iniciar limpieza), "Sin registro", mensajes de búsqueda vacía y panel vacío, y redirección cuando hay `activeTaskId` (FR-007, FR-009, FR-012, FR-017).
-- [ ] T013 [US1] Integration test: un usuario sin token recibe `401` y uno sin rol `CLEANING_STAFF` recibe `403` (FR-001; caso límite 2).
+- [ ] T011 [P] [US1] Component test de la acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el motivo y vuelve al panel recargado (FR-001, FR-009, FR-017).
+- [ ] T012 [US1] Integration test: un usuario sin token recibe `401` y uno sin rol `CLEANING_STAFF` recibe `403` (FR-001; caso límite 2).
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implementar `StartCleaningService` (`@Transactional`) (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016):
+- [ ] T013 [US1] Implementar `StartCleaningService` (`@Transactional`) (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016):
   - Rechazar si el miembro tiene una tarea abierta (`ACTIVE_TASK_EXISTS`).
   - Validar que la habitación exista y esté en `PendingCleaning` o `Available` (`ROOM_INVALID_STATE` con `currentStatus`).
   - Tomar la hora con `Clock`; invocar `TransitionRoomStateUseCase.transition(roomId, InCleaning, miembro, START_CLEANING, null)`, que registra el periodo en `room_state_history` (FR-014), y crear la `CleaningTask` con la marca de tiempo del periodo que devuelve la transición (FR-010, FR-011).
-- [ ] T015 [US1] Implementar `CleaningPanelQueryService` con el filtro de estados, la búsqueda exacta por número, el cálculo de la última limpieza y la detección de tarea activa (FR-007, FR-008, FR-009, FR-012).
-- [ ] T016 [US1] Implementar en `CleaningController` los endpoints `GET /api/cleaning/panel` y `POST /api/cleaning/tasks` con `@PreAuthorize("hasRole('CLEANING_STAFF')")`, tomando el miembro del token.
-- [ ] T017 [US1] Construir en el frontend `CleaningPanelPage.jsx`, `CleaningRoomTable.jsx` y `RoomNumberSearch.jsx`: tabla con número, tipo, estado ("Disponible" / "Pendiente de limpieza"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta; mensajes de FR-017; redirección a la vista de tarea activa al iniciar la limpieza o si `activeTaskId` no es nulo; el botón "Reportar daño" abre el diálogo de `plan-marcar-habitacion-inhabilitada-por-reparaciones.md` (FR-007, FR-008, FR-009, FR-012, FR-017).
-- [ ] T018 [US1] Mostrar los errores de `POST /api/cleaning/tasks` con el texto de la tabla de errores y, ante fallos de red, la sugerencia de reintentar (FR-001, FR-016).
+- [ ] T014 [US1] Implementar `CleaningController` con el endpoint `POST /api/cleaning/tasks` y `@PreAuthorize("hasRole('CLEANING_STAFF')")`, tomando el miembro del token. `plan-consultar-panel-limpieza.md` le agrega `GET /api/cleaning/panel`.
+- [ ] T015 [US1] Mostrar la retroalimentación de "Iniciar limpieza" en el panel: éxito con redirección a la vista de tarea activa y errores con el texto de la tabla de errores (y, ante fallos de red, la sugerencia de reintentar), volviendo al panel recargado (FR-001, FR-009, FR-016, FR-017).
 
-**Checkpoint**: El Personal de limpieza puede ver su panel, buscar e iniciar limpiezas de forma aislada; la vista de tarea activa a la que se redirige se completa con `plan-confirmar-fin-de-limpieza.md`.
+**Checkpoint**: El Personal de limpieza puede iniciar limpiezas desde el panel (`plan-consultar-panel-limpieza.md`); la vista de tarea activa a la que se redirige se completa con `plan-confirmar-fin-de-limpieza.md`.
 
 ---
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T019 Integration test: tras iniciar la limpieza, `GET /api/rooms?status=InCleaning` incluye la habitación en menos de 2 segundos (SC-003).
+- [ ] T016 Integration test: tras iniciar la limpieza, `GET /api/rooms?status=InCleaning` incluye la habitación en menos de 2 segundos (SC-003).
 
 ---
 
@@ -307,7 +227,7 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 
 - **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `cleaning_task` (T018), `SourceFlow` y `ActiveTaskExistsException` (T020), el rol `CLEANING_STAFF` (T015) y el layout de limpieza (T016).
 - **Planes relacionados**:
+  - `plan-consultar-panel-limpieza.md`: implementa el panel desde el que se inicia la limpieza.
   - `plan-confirmar-fin-de-limpieza.md`: implementa la vista de tarea activa a la que redirige este plan, y el cierre y la liberación de la `CleaningTask`.
-  - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: implementa el diálogo "Reportar daño" que abre el botón del panel.
-  - `plan-marcar-pendiente-a-limpieza.md`: deja las habitaciones en `PendingCleaning` que este panel lista.
+  - `plan-marcar-pendiente-a-limpieza.md`: deja las habitaciones en `PendingCleaning` que se pueden limpiar.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. Este plan va antes de `plan-confirmar-fin-de-limpieza.md`.
