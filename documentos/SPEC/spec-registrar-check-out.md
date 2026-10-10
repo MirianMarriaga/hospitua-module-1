@@ -85,7 +85,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
   3. *Pago*
   4. *Confirmación*
   5. *Liberar habitación*
-- **FR-003**: La estancia se selecciona previamente en el **Panel de Recepción**. El paso 1 DEBE obtener y mostrar la información desde `Stay` + `Room` + `RoomGuest` sin peticiones externas a Módulo 2. Muestra: código de reserva, titular (`Stay.titularFirstName`, `Stay.titularLastName`), rango de fechas, fuente (`Stay.source`: `DIRECTA` o nombre de la OTA), habitación en `Occupied`. El paso 1 NO dispone de barra de búsqueda propia y NO muestra "Estado de la reserva en Módulo 2".
+- **FR-003**: La estancia se selecciona previamente en el **Panel de Recepción**, que entrega la referencia de la reserva y la habitación; con ambas se identifica la estancia, porque una reserva puede tener varias habitaciones. El paso 1 DEBE obtener y mostrar la información desde `Stay` + `Room` + `RoomGuest` sin peticiones externas a Módulo 2. Muestra: código de reserva, titular (`Stay.titularFirstName`, `Stay.titularLastName`), rango de fechas, fuente (`Stay.source`: `DIRECTA` o nombre de la OTA), habitación en `Occupied`. El paso 1 NO dispone de barra de búsqueda propia y NO muestra "Estado de la reserva en Módulo 2".
 - **FR-004**: El sistema DEBE validar que la habitación esté en `Occupied`. Cualquier otro estado produce rechazo con mensaje de error controlado.
 - **FR-005**: En el paso 2, el sistema DEBE consultar mediante `<<includes>>` a "Consultar liquidación" (`spec-consultar-liquidacion.md`) enviando: `reservationRef`, `checkInDate`, `checkOutDate`, `source` (de `Stay.source`), `roomId`, `categoryRoom`. Los parámetros `eventType`, `startDate` y `endDate` **no se envían**.
 - **FR-006**: El sistema DEBE presentar la información de liquidación distribuida en dos etapas:
@@ -108,13 +108,13 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
   - Identificador único para control de duplicados e idempotencia.
   - Referencia de reserva e identificador de habitación.
   - Tipo de movimiento (salida) y fecha de egreso (`checkOutDate`).
-  - Lista completa de todos los huéspedes alojados con sus nombres, apellidos, tipo y número de documento y nacionalidad.
-  - Para los huéspedes de nacionalidad extranjera, los datos migratorios complementarios: fecha de nacimiento, lugar de procedencia y lugar de destino (reutilizados de los registros de `RoomGuest` capturados en el Check-In).
+  - Lista completa de todos los huéspedes alojados con sus nombres, apellidos, tipo y número de documento, fecha de nacimiento y nacionalidad (reutilizados de los registros de `RoomGuest` capturados en el Check-In).
+  - Para los huéspedes de nacionalidad extranjera, los datos migratorios complementarios: lugar de procedencia y lugar de destino (reutilizados de `RoomGuest`).
   - Validaciones previas a la emisión: presencia de los datos de todos los huéspedes y coherencia cronológica (la fecha de salida no puede ser anterior a la fecha de entrada del mismo huésped).
 
 - **FR-013**: En el paso 5, el sistema DEBE mostrar: "Habitación: Pendiente de limpieza", etiqueta de notificación enviada (sin mencionar módulos), sin horas, botón único "Volver al inicio". Las etiquetas de estado se muestran en español.
 - **FR-014**: Si Módulo 2 o Módulo 3 experimentan fallas, el sistema NO DEBE bloquear la liberación física a `PendingCleaning`. Las notificaciones se programan para reintento en segundo plano.
-- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría el ID de la habitación, la referencia de la reserva, el ID de la Estancia, el recepcionista responsable, `checkOutDate` y la referencia de liquidación.
+- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría (evento `CHECK_OUT`, dentro de la misma transacción) el ID de la habitación, la referencia de la reserva, el ID de la Estancia, el recepcionista responsable, `checkOutDate` y la referencia de liquidación.
 
 ---
 
