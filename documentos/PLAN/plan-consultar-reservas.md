@@ -157,6 +157,44 @@ Estructuras confirmadas por Módulo 2 para la cola `m1.reservas.diarias.queue` (
 
 **Campos del objeto `guest` (titular):** `guestRef` (UUID, no se persiste), `firstName`, `lastName`, `documentType`, `documentNumber` y `nationality`.
 
+**Ejemplo:**
+
+```json
+{
+  "messageId": "UUIDv4",
+  "sequenceNumber": 1,
+  "operationalDate": "2026-10-09",
+  "generatedAt": "2026-10-09T00:00:02-05:00",
+  "totalReservations": 1,
+  "totalRooms": 2,
+  "totalGuests": 3,
+  "reservations": [
+    {
+      "reservationRef": "RSV-3F9A1C7B",
+      "status": "ACTIVE",
+      "source": "BOOKING",
+      "startDate": "2026-10-09",
+      "endDate": "2026-10-12",
+      "guestCount": 3,
+      "notes": "Llegada tarde",
+      "updatedAt": "2026-10-08T15:42:10.123456-05:00",
+      "rooms": [
+        { "roomId": "uuid-1", "roomNumber": "201", "categoryRoom": "DOBLE", "guestCount": 2 },
+        { "roomId": "uuid-2", "roomNumber": "202", "categoryRoom": "SENCILLA", "guestCount": 1 }
+      ],
+      "guest": {
+        "guestRef": "uuid",
+        "firstName": "Ana",
+        "lastName": "Pérez",
+        "documentType": "CC",
+        "documentNumber": "123456",
+        "nationality": "Colombia"
+      }
+    }
+  ]
+}
+```
+
 ### Actualización `ADDED` / `UPDATED` — `reserva.lista-del-dia.actualizacion`
 
 | Campo | Tipo | Descripción |
@@ -168,6 +206,41 @@ Estructuras confirmadas por Módulo 2 para la cola `m1.reservas.diarias.queue` (
 | `occurredAt` | fecha-hora | Momento en que ocurrió el cambio |
 | `reservationRef` | string | Referencia de la reserva afectada |
 | `reservation` | objeto | Objeto completo de la reserva con la misma estructura de la lista del día (`reservationRef`, `status`, `source`, `startDate`, `endDate`, `guestCount`, `notes`, `updatedAt`, `rooms[]` y `guest`) |
+
+**Ejemplo:**
+
+```json
+{
+  "messageId": "UUIDv4",
+  "sequenceNumber": 2,
+  "operationalDate": "2026-10-09",
+  "updateType": "UPDATED",
+  "occurredAt": "2026-10-09T09:15:00-05:00",
+  "reservationRef": "RSV-3F9A1C7B",
+  "reservation": {
+    "reservationRef": "RSV-3F9A1C7B",
+    "status": "ACTIVE",
+    "source": "BOOKING",
+    "startDate": "2026-10-09",
+    "endDate": "2026-10-13",
+    "guestCount": 3,
+    "notes": "Llegada tarde",
+    "updatedAt": "2026-10-09T09:15:00.000000-05:00",
+    "rooms": [
+      { "roomId": "uuid-1", "roomNumber": "201", "categoryRoom": "DOBLE", "guestCount": 2 },
+      { "roomId": "uuid-2", "roomNumber": "202", "categoryRoom": "SENCILLA", "guestCount": 1 }
+    ],
+    "guest": {
+      "guestRef": "uuid",
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "documentType": "CC",
+      "documentNumber": "123456",
+      "nationality": "Colombia"
+    }
+  }
+}
+```
 
 ### Actualización `REMOVED` — `reserva.lista-del-dia.actualizacion`
 
@@ -182,6 +255,20 @@ Estructuras confirmadas por Módulo 2 para la cola `m1.reservas.diarias.queue` (
 | `removalReason` | string | Motivo de la baja: `CANCELLED`, `DATE_CHANGED` o `NO_SHOW` |
 
 El mensaje `REMOVED` no incluye el objeto `reservation`.
+
+**Ejemplo:**
+
+```json
+{
+  "messageId": "UUIDv4",
+  "sequenceNumber": 3,
+  "operationalDate": "2026-10-09",
+  "updateType": "REMOVED",
+  "occurredAt": "2026-10-09T23:59:00-05:00",
+  "reservationRef": "RSV-8D02E5A4",
+  "removalReason": "NO_SHOW"
+}
+```
 
 ---
 
