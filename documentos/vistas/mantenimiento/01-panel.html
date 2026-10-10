@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel de mantenimiento — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152A4E; --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --primary-dark:#1D4ED8; --primary-bg:#EAF1FF;
+    --due:#D14343; --red-bg:#FEE2E2; --amber:#B45309; --amber-bg:#FFF7E6;
+    --green:#16A34A; --green-bg:#E7F7EE; --purple:#7C3AED; --purple-bg:#F3ECFE;
+    --gray:#6B7280; --gray-bg:#F1F5F9;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  h1{font-family:'Inter',sans-serif; margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+  .app{display:flex; min-height:100vh;}
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .pagehead h1{font-size:21px; font-weight:700;}
+  .sub{color:var(--text-lo); font-size:14px; margin-top:3px;}
+  .content{max-width:1180px; margin:0 auto; padding:24px 26px;}
+  .hero{background:repeating-linear-gradient(135deg,#DCE2EB 0 14px,#D3DAE5 14px 28px); border-bottom:1px solid var(--line);}
+  .hero-inner{max-width:1180px; margin:0 auto; padding:30px 26px; min-height:130px; display:flex; justify-content:space-between; align-items:center; gap:16px;}
+  .ph-label{font-size:13px; color:var(--text-lo); border:1px dashed #9AA8BC; border-radius:6px; padding:6px 10px; background:rgba(255,255,255,.6); white-space:nowrap;}
+  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px;}
+  .kpi-ic{width:44px; height:44px; flex:0 0 44px; border-radius:50%; background:var(--primary-bg); color:var(--primary); display:flex; align-items:center; justify-content:center;}
+  .kpi.due .kpi-ic{background:var(--red-bg); color:var(--due);} .kpi.due .num{color:var(--due);}
+  .kpi.warn .kpi-ic{background:var(--amber-bg); color:var(--amber);}
+  .kpi .num{font-size:26px; line-height:1;}
+  .kpi .lbl{color:var(--text-lo); font-size:13px; margin-top:5px;}
+  .kpi .lbl b{color:var(--due);}
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .panel-title{font-size:17px; font-weight:600;}
+  .refresh{font-size:12.5px; color:var(--text-lo);}
+  .toolbar{display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .search{flex:1; border:1px solid var(--line); border-radius:6px; padding:9px 12px; font:inherit; background:var(--paper-dim); color:var(--text-hi);}
+  .search:focus{outline:none; border-color:var(--primary);}
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:left; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-lo); font-weight:600; padding:10px 16px; border-bottom:1px solid var(--line);}
+  td{padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFAF7;}
+  tr.group td{background:var(--paper-dim); font-size:12.5px; font-weight:700; color:var(--text-lo); text-transform:uppercase; letter-spacing:.04em; padding:8px 16px;}
+  .room-num{font-size:20px; font-weight:600;}
+  .meta{color:var(--text-lo); font-size:13px; margin-top:2px;}
+  .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap;}
+  .b-red{background:var(--red-bg); color:var(--due);} .b-amber{background:var(--amber-bg); color:var(--amber);}
+  .b-green{background:var(--green-bg); color:var(--green);} .b-blue{background:var(--primary-bg); color:var(--primary-dark);}
+  .b-purple{background:var(--purple-bg); color:var(--purple);} .b-gray{background:var(--gray-bg); color:var(--gray);}
+  .tag{display:inline-block; margin-top:6px; font-size:11.5px; font-weight:700; color:var(--purple); background:var(--purple-bg); padding:2px 8px; border-radius:6px;}
+  .actions{display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;}
+  .actions .btn{padding:7px 11px; font-size:13px;}
+  .btn{border:none; border-radius:6px; padding:8px 14px; font:inherit; font-size:14px; font-weight:600; white-space:nowrap;}
+  .btn-primary{background:var(--primary); color:#fff;} .btn-primary:hover{background:var(--primary-dark);}
+  .btn-primary:disabled{background:#a9c1f2; cursor:not-allowed;}
+  .btn-outline{background:#fff; border:1px solid var(--line); color:var(--text-hi);} .btn-outline:hover{background:var(--gray-bg);}
+  .btn-danger-outline{background:#fff; border:1px solid #F3C4C4; color:var(--due);} .btn-danger-outline:hover{background:var(--red-bg);}
+  .empty{padding:36px 16px; text-align:center; color:var(--text-lo);}
+  .toast{display:none; margin-bottom:16px; padding:12px 15px; border-radius:10px; font-size:14px; background:var(--green-bg); color:#166534;}
+  .toast.error{background:var(--red-bg); color:#9B1C1C;}
+  .overlay{display:none; position:fixed; inset:0; background:rgba(15,27,51,.45); align-items:center; justify-content:center; padding:16px; z-index:10;}
+  .overlay.open{display:flex;}
+  .dialog{background:#fff; border-radius:12px; width:100%; max-width:520px; padding:22px; box-shadow:0 20px 50px rgba(15,27,51,.25); max-height:calc(100vh - 32px); overflow-y:auto;}
+  .dialog h2{font-size:17px; margin:0 0 8px;}
+  .dialog p{margin:0 0 14px; color:var(--text-lo); font-size:14px; line-height:1.5;}
+  .dialog label{display:block; font-size:13px; font-weight:600; margin:12px 0 6px;}
+  .dialog textarea,.dialog input{width:100%; border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; font-size:14px;}
+  .dialog textarea{min-height:100px; resize:vertical;}
+  .dialog textarea:focus,.dialog input:focus{outline:2px solid var(--primary); border-color:var(--primary);}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .hint{font-size:12px; color:var(--text-lo); margin-top:4px;}
+  .counter{font-size:12px; color:var(--text-lo); text-align:right; margin-top:4px;}
+  .counter.over{color:var(--due); font-weight:600;}
+  .form-error{display:none; margin-top:14px; padding:10px 12px; border-radius:8px; background:var(--red-bg); color:#9B1C1C; font-size:13px;}
+  .report{display:grid; grid-template-columns:140px 1fr; gap:8px 14px; font-size:14px; margin:6px 0 4px;}
+  .report dt{color:var(--text-lo);} .report dd{margin:0; font-weight:600;}
+  .dialog-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  @media (max-width:900px){
+    .topbar{padding:0 16px;} .content{padding:20px 16px;} .hero-inner{padding:22px 16px;}
+    .kpis{grid-template-columns:1fr;}
+    table,thead,tbody,tr,td,th{display:block;} thead{display:none;}
+    tbody tr{padding:12px 16px; border-bottom:1px solid var(--line);}
+    td{border:none; padding:3px 0;}
+    tr.group td{padding:8px 0;}
+    .actions{justify-content:flex-start; margin-top:8px;}
+    .two,.report{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Mantenimiento</div></div></div>
+      <div class="user-chip"><div class="user-avatar">JC</div><div><div class="user-name">Jorge Castro</div><div class="user-role">Personal de mantenimiento</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </header>
+    <section class="hero"><div class="hero-inner">
+      <div class="pagehead"><h1>Bienvenido, Jorge Castro</h1><div class="sub">Reparaciones y mantenimientos programados</div></div>
+      <div class="ph-label">Imagen del hotel</div>
+    </div></section>
+    <div class="content">
+      <div class="toast" id="toast"></div>
+      <div class="kpis">
+        <div class="kpi due"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="num" id="kDfr">0</div><div class="lbl">Inhabilitadas por reparaciones</div></div></div>
+        <div class="kpi warn"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="num" id="kTb">0</div><div class="lbl" id="kTbLbl">En bloqueo técnico</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="num" id="kSch">0</div><div class="lbl">Con mantenimiento programado</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Habitaciones</div><div class="refresh">La lista se actualiza sola cada minuto</div></div>
+        <div class="toolbar">
+          <input class="search" id="search" inputmode="numeric" placeholder="Buscar habitación por número…">
+        </div>
+        <table><thead><tr><th>Hab.</th><th>Tipo</th><th>Estado</th><th>Mantenimiento programado</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Diálogo: programar mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md) -->
+<div class="overlay" id="dlgSchedule"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgScheduleTitle">
+  <h2 id="dlgScheduleTitle">Programar mantenimiento</h2>
+  <p id="dlgScheduleText"></p>
+  <label for="reason">Motivo del mantenimiento *</label>
+  <textarea id="reason" maxlength="600" placeholder="Describe el mantenimiento preventivo que se realizará."></textarea>
+  <div class="counter" id="reasonCounter">0 / 500</div>
+  <div class="two">
+    <div><label for="startDate">Fecha de inicio *</label><input type="date" id="startDate"><div class="hint">Si inicia hoy, la habitación debe estar disponible.</div></div>
+    <div><label for="endDate">Fecha estimada de fin *</label><input type="date" id="endDate"><div class="hint">Máximo 90 días.</div></div>
+  </div>
+  <div class="form-error" id="scheduleError"></div>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnSchedule">Programar</button></div>
+</div></div>
+
+<!-- Diálogo: reportar daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md) -->
+<div class="overlay" id="dlgDamage"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgDamageTitle">
+  <h2 id="dlgDamageTitle">Reportar daño</h2>
+  <p id="dlgDamageText"></p>
+  <label for="damageText">Descripción del daño *</label>
+  <textarea id="damageText" maxlength="600" placeholder="Describe el daño encontrado."></textarea>
+  <div class="counter" id="damageCounter">0 / 500</div>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnDamage" disabled>Reportar daño</button></div>
+</div></div>
+
+<!-- Diálogo: ver informe -->
+<div class="overlay" id="dlgReport"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgReportTitle">
+  <h2 id="dlgReportTitle"></h2>
+  <dl class="report" id="reportBody"></dl>
+  <div class="dialog-actions"><button class="btn btn-primary" data-close>Cerrar</button></div>
+</div></div>
+
+<script>
+// Datos de ejemplo: respuesta de GET /api/maintenance/panel (plan-consultar-panel-mantenimiento.md)
+const TIPOS = { SENCILLA:'Sencilla', DOBLE:'Doble', SUITE:'Suite', BOUTIQUE:'Boutique' };
+const ESTADOS = { Available:'Disponible', Reserved:'Reservada', Occupied:'Ocupada', PendingCleaning:'Pendiente de limpieza', InCleaning:'En limpieza', DisabledForRepairs:'Inhabilitada por reparaciones', TechnicalBlock:'Bloqueo técnico' };
+const BADGE = { Available:'b-green', Reserved:'b-blue', Occupied:'b-blue', PendingCleaning:'b-amber', InCleaning:'b-amber', DisabledForRepairs:'b-red', TechnicalBlock:'b-amber' };
+const today = new Date(); today.setHours(0,0,0,0);
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const plus = n => { const d = new Date(today); d.setDate(d.getDate()+n); return iso(d); };
+const ddmm = s => { const [y,m,d] = s.split('-'); return `${d}-${m}-${y}`; };
+
+let rooms = [
+  { roomNumber:'105', categoryRoom:'SUITE',    status:'DisabledForRepairs', hasOpenTask:false, overdue:false, scheduled:null,
+    damage:{ text:'Fuga constante en el lavamanos del baño principal.', author:'Luis Torres (limpieza)', at:`${ddmm(plus(-1))} 10:05` } },
+  { roomNumber:'201', categoryRoom:'DOBLE',    status:'DisabledForRepairs', hasOpenTask:true,  overdue:false, scheduled:null,
+    damage:{ text:'Ventana del balcón no cierra.', author:'Jorge Castro (mantenimiento)', at:`${ddmm(plus(-2))} 16:40` } },
+  { roomNumber:'202', categoryRoom:'DOBLE',    status:'TechnicalBlock',     hasOpenTask:false, overdue:true,  scheduled:null,
+    block:{ reason:'Cambio del sistema de aire acondicionado.', author:'Jorge Castro', from:plus(-5), to:plus(-1), at:`${ddmm(plus(-12))} 09:30` } },
+  { roomNumber:'108', categoryRoom:'SENCILLA', status:'TechnicalBlock',     hasOpenTask:false, overdue:false, scheduled:null,
+    block:{ reason:'Pintura y resane de paredes.', author:'Sara Gil', from:plus(-1), to:plus(2), at:`${ddmm(plus(-6))} 14:10` } },
+  { roomNumber:'203', categoryRoom:'SUITE',    status:'Occupied',           hasOpenTask:false, overdue:false, scheduled:{ from:plus(15), to:plus(16), reason:'Revisión de la red eléctrica.', author:'Sara Gil', at:`${ddmm(plus(-3))} 11:00` } },
+  { roomNumber:'106', categoryRoom:'DOBLE',    status:'Available',          hasOpenTask:false, overdue:false, scheduled:{ from:plus(10), to:plus(12), reason:'Cambio de alfombra.', author:'Jorge Castro', at:`${ddmm(plus(-2))} 08:45` } },
+  { roomNumber:'110', categoryRoom:'BOUTIQUE', status:'Available',          hasOpenTask:false, overdue:false, scheduled:null },
+  { roomNumber:'112', categoryRoom:'SENCILLA', status:'PendingCleaning',    hasOpenTask:false, overdue:false, scheduled:null },
+  { roomNumber:'114', categoryRoom:'DOBLE',    status:'Reserved',           hasOpenTask:false, overdue:false, scheduled:null }
+];
+
+const $ = id => document.getElementById(id);
+let current = null;
+const intervention = r => r.status === 'DisabledForRepairs' || r.status === 'TechnicalBlock';
+
+// Orden: primero las que requieren intervención (vencidas antes), luego el resto, cada grupo por número (FR-006)
+function sorted(list){
+  const rank = r => intervention(r) ? (r.overdue ? 0 : 1) : 2;
+  return [...list].sort((a,b) => rank(a) - rank(b) || a.roomNumber.localeCompare(b.roomNumber,'es',{numeric:true}));
+}
+
+function stateCell(r){
+  const label = r.overdue ? 'Bloqueo técnico (vencido)' : ESTADOS[r.status];
+  const cls = r.overdue ? 'b-red' : BADGE[r.status];
+  return `<span class="badge ${cls}">${label}</span>${r.hasOpenTask ? '<div><span class="tag">En reparación</span></div>' : ''}`;
+}
+
+function actionsCell(r){
+  const b = [];
+  if(r.status === 'Available') b.push(`<button class="btn btn-danger-outline" data-act="damage" data-room="${r.roomNumber}">Reportar daño</button>`);
+  if(r.status === 'DisabledForRepairs') b.push(`<button class="btn btn-outline" data-act="viewDamage" data-room="${r.roomNumber}">Ver informe</button>`);
+  if(r.status === 'TechnicalBlock' || (!intervention(r) && r.scheduled)) b.push(`<button class="btn btn-outline" data-act="viewBlock" data-room="${r.roomNumber}">Ver informe</button>`);
+  b.push(`<button class="btn btn-outline" data-act="schedule" data-room="${r.roomNumber}">Programar mantenimiento</button>`);
+  if(intervention(r) && !r.hasOpenTask) b.push(`<button class="btn btn-primary" data-act="start" data-room="${r.roomNumber}">Iniciar reparaciones</button>`);
+  return `<div class="actions">${b.join('')}</div>`;
+}
+
+function render(){
+  const tb = rooms.filter(r => r.status === 'TechnicalBlock');
+  $('kDfr').textContent = rooms.filter(r => r.status === 'DisabledForRepairs').length;
+  $('kTb').textContent = tb.length;
+  const overdue = tb.filter(r => r.overdue).length;
+  $('kTbLbl').innerHTML = overdue ? `En bloqueo técnico · <b>${overdue} vencido${overdue > 1 ? 's' : ''}</b>` : 'En bloqueo técnico';
+  $('kSch').textContent = rooms.filter(r => r.scheduled).length;
+
+  const q = $('search').value.trim();
+  const list = sorted(rooms).filter(r => !q || r.roomNumber === q);
+  const body = $('tbody');
+  if(!rooms.length){ body.innerHTML = '<tr><td colspan="5"><div class="empty">No hay habitaciones para listar</div></td></tr>'; return; }
+  if(!list.length){ body.innerHTML = `<tr><td colspan="5"><div class="empty">No se encontró la habitación ${q.replace(/</g,'&lt;')}</div></td></tr>`; return; }
+  let html = '', lastGroup = null;
+  list.forEach(r => {
+    const group = intervention(r) ? 'Requieren intervención' : 'Demás habitaciones';
+    if(!q && group !== lastGroup){ html += `<tr class="group"><td colspan="5">${group}</td></tr>`; lastGroup = group; }
+    html += `<tr>
+      <td><div class="room-num">${r.roomNumber}</div></td>
+      <td>${TIPOS[r.categoryRoom]}</td>
+      <td>${stateCell(r)}</td>
+      <td>${r.scheduled ? `${ddmm(r.scheduled.from)} a ${ddmm(r.scheduled.to)}` : '<span class="meta">Sin programar</span>'}</td>
+      <td>${actionsCell(r)}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+}
+
+function openDlg(id){ $(id).classList.add('open'); }
+function closeAll(){ document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeAll(); });
+function toast(msg, error){ const t = $('toast'); t.textContent = msg; t.className = 'toast' + (error ? ' error' : ''); t.style.display = 'block'; window.scrollTo({top:0, behavior:'smooth'}); }
+const byNum = n => rooms.find(r => r.roomNumber === n);
+
+$('tbody').onclick = e => {
+  const btn = e.target.closest('[data-act]'); if(!btn) return;
+  current = byNum(btn.dataset.room);
+  const act = btn.dataset.act;
+  if(act === 'start') window.location.href = `02-tarea-activa.html?room=${encodeURIComponent(current.roomNumber)}`;
+  if(act === 'damage'){ $('dlgDamageText').textContent = `La habitación ${current.roomNumber} quedará fuera de servicio hasta que se repare.`; $('damageText').value = ''; updateDamage(); openDlg('dlgDamage'); }
+  if(act === 'schedule'){
+    $('dlgScheduleText').textContent = `Habitación ${current.roomNumber} · ${ESTADOS[current.status]}. Desde ahora no se podrán reservar esas fechas.`;
+    $('reason').value = ''; $('startDate').value = ''; $('endDate').value = ''; $('startDate').min = iso(today);
+    $('scheduleError').style.display = 'none'; updateReason(); openDlg('dlgSchedule');
+  }
+  if(act === 'viewDamage'){
+    $('dlgReportTitle').textContent = `Reporte de daño · Habitación ${current.roomNumber}`;
+    $('reportBody').innerHTML = `<dt>Qué se dañó</dt><dd>${current.damage.text}</dd><dt>Reportado por</dt><dd>${current.damage.author}</dd><dt>Fecha y hora</dt><dd>${current.damage.at}</dd>`;
+    openDlg('dlgReport');
+  }
+  if(act === 'viewBlock'){
+    const b = current.block || current.scheduled;
+    $('dlgReportTitle').textContent = `Mantenimiento · Habitación ${current.roomNumber}`;
+    $('reportBody').innerHTML = `<dt>Motivo</dt><dd>${b.reason}</dd><dt>Programado por</dt><dd>${b.author}</dd><dt>Fechas</dt><dd>${ddmm(b.from)} a ${ddmm(b.to)}</dd><dt>Programado el</dt><dd>${b.at}</dd><dt>Situación</dt><dd>${current.block ? (current.overdue ? 'En curso · ya pasó la fecha estimada de fin' : 'En curso') : 'Programado'}</dd>`;
+    openDlg('dlgReport');
+  }
+};
+
+function updateDamage(){
+  const n = $('damageText').value.trim().length;
+  $('damageCounter').textContent = `${n} / 500`;
+  $('damageCounter').classList.toggle('over', n > 500);
+  $('btnDamage').disabled = n === 0 || n > 500;
+}
+$('damageText').oninput = updateDamage;
+$('btnDamage').onclick = () => {
+  current.status = 'DisabledForRepairs';
+  current.damage = { text: $('damageText').value.trim(), author:'Jorge Castro (mantenimiento)', at:`${ddmm(iso(today))} ${new Date().toTimeString().slice(0,5)}` };
+  closeAll(); render();
+  toast(`Daño reportado. La habitación ${current.roomNumber} quedó fuera de servicio para reparación.`);
+};
+
+function updateReason(){
+  const n = $('reason').value.trim().length;
+  $('reasonCounter').textContent = `${n} / 500`;
+  $('reasonCounter').classList.toggle('over', n > 500);
+}
+$('reason').oninput = updateReason;
+
+// Validaciones en el orden del plan: justificación y fechas (FR-012 a FR-016), estado (FR-007) y cruces (FR-005)
+function scheduleError(){
+  const reason = $('reason').value.trim(), s = $('startDate').value, e = $('endDate').value;
+  if(!reason || reason.length > 500 || !s || !e) return 'Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas.';
+  const start = new Date(s + 'T00:00'), end = new Date(e + 'T00:00');
+  if(start < today) return 'La fecha de inicio no puede ser anterior a hoy.';
+  if(end < start) return 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+  if((end - start) / 86400000 > 90) return 'El mantenimiento no puede durar más de 90 días.';
+  if((start - today) / 86400000 > 365) return 'Solo se puede programar con hasta 365 días de anticipación.';
+  if(s === iso(today) && current.status !== 'Available') return `Hoy la habitación está ${ESTADOS[current.status].toLowerCase()}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.`;
+  if(current.roomNumber === '114') return 'La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.';
+  const other = current.scheduled || current.block;
+  if(other && s <= other.to && e >= other.from) return `Ya hay un mantenimiento programado del ${ddmm(other.from)} al ${ddmm(other.to)}. Elige otras fechas.`;
+  return null;
+}
+$('btnSchedule').onclick = () => {
+  const err = scheduleError();
+  if(err){ $('scheduleError').textContent = err; $('scheduleError').style.display = 'block'; return; }
+  const s = $('startDate').value, e = $('endDate').value;
+  const info = { from:s, to:e, reason:$('reason').value.trim(), author:'Jorge Castro', at:`${ddmm(iso(today))} ${new Date().toTimeString().slice(0,5)}` };
+  closeAll();
+  if(s === iso(today)){
+    current.status = 'TechnicalBlock'; current.block = info; current.overdue = false;
+    toast(`Mantenimiento iniciado. La habitación ${current.roomNumber} queda fuera de servicio hasta el ${ddmm(e)} (fecha estimada).`);
+  } else {
+    if(!current.scheduled || s < current.scheduled.from) current.scheduled = info;
+    toast(`Mantenimiento programado del ${ddmm(s)} al ${ddmm(e)} para la habitación ${current.roomNumber}.`);
+  }
+  render();
+};
+
+$('search').oninput = render;
+
+const p = new URLSearchParams(location.search);
+if(p.get('msg') === 'liberada') toast(`Dejaste la habitación ${p.get('room')} para otro compañero.`);
+
+// Actualización automática cada 60 s (FR-010)
+setInterval(render, 60000);
+
+render();
+</script>
+</body>
+</html>
