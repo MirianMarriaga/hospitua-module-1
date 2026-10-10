@@ -106,13 +106,13 @@ Content-Type: application/json
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available` (FR-002, HU-1 esc. 3) | "La habitación está en estado {estado}; no es posible reportar un daño." |
-| 409 | `CONCURRENT_UPDATE` | Otra solicitud cambió el estado de la habitación justo antes (FR-006, caso límite 1) | "La habitación cambió de estado (estado actual: {estado})." |
+| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available` (FR-002, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede reportar un daño en ella." |
+| 409 | `CONCURRENT_UPDATE` | Otra solicitud cambió el estado de la habitación justo antes (FR-006, caso límite 1) | "La habitación acaba de cambiar: ahora está {estado}." |
 
 ```json
 {
   "errorCode": "ROOM_INVALID_STATE",
-  "message": "La habitación está en estado Ocupada; no es posible reportar un daño.",
+  "message": "La habitación está Ocupada; ahora no se puede reportar un daño en ella.",
   "timestamp": "2026-10-08T11:20:01-05:00",
   "path": "/api/rooms/3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60/damage-reports",
   "details": { "currentStatus": "Occupied" }
@@ -176,7 +176,7 @@ Accept: application/json
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 404 | `DAMAGE_REPORT_NOT_FOUND` | La habitación no está en `DisabledForRepairs` (FR-007) | "Esta habitación no tiene un reporte de daño vigente." |
+| 404 | `DAMAGE_REPORT_NOT_FOUND` | La habitación no está en `DisabledForRepairs` (FR-007) | "Esta habitación no tiene un daño reportado." |
 
 ---
 
@@ -281,7 +281,7 @@ No aplica: usa la infraestructura del plan base.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, DisabledForRepairs, autor, sourceFlow, null)` con `sourceFlow = REPORT_DAMAGE`, o `CONFIRM_CLEANING_END` cuando el comando viene de ese flujo; crear el `DamageReport` usando como `reportDateTime` la marca de tiempo del periodo que devuelve la transición (FR-008, FR-009, FR-011).
 - [ ] T014 [US1] Implementar `DamageReportQueryService` y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (`CLEANING_STAFF`, `MAINTENANCE_STAFF`) y `GET /api/rooms/{roomId}/damage-reports/latest` (`MAINTENANCE_STAFF`) (FR-001, FR-007).
 - [ ] T015 [US1] Construir `DamageReportDialog.jsx` (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.jsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007.1).
-- [ ] T016 [US1] Conectar el botón "Reportar daño" del panel de limpieza (`plan-marcar-habitacion-en-limpieza.md`, T017) con `DamageReportDialog.jsx` y refrescar el panel al terminar, para que la habitación desaparezca de él.
+- [ ] T016 [US1] Conectar el botón "Reportar daño" del panel de limpieza (`plan-consultar-panel-limpieza.md`, T012) con `DamageReportDialog.jsx` y refrescar el panel al terminar, para que la habitación desaparezca de él.
 
 **Checkpoint**: El reporte de daño funciona desde el panel de limpieza y queda disponible para el panel de mantenimiento y para *Confirmar Fin de Limpieza de Habitación*.
 
