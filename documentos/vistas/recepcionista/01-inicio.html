@@ -116,8 +116,8 @@ const arrivalReservations = [
     src: 'DIRECTA',
     s: 0, e: 3,
     rooms: [
-      { room: '304', tipo: 'Doble', guests: 2, status: 'Reserved' },
-      { room: '305', tipo: 'Doble', guests: 2, status: 'InCleaning' }
+      { room: '304', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null },
+      { room: '305', tipo: 'Doble', guests: 2, status: 'Available', alert: null }
     ]
   },
   {
@@ -127,7 +127,7 @@ const arrivalReservations = [
     src: 'BOOKING',
     s: 0, e: 3,
     rooms: [
-      { room: '204', tipo: 'Boutique', guests: 1, status: 'Reserved' }
+      { room: '204', tipo: 'Boutique', guests: 1, status: 'Reserved', alert: null }
     ]
   },
   {
@@ -137,7 +137,7 @@ const arrivalReservations = [
     src: 'EXPEDIA',
     s: 0, e: 3,
     rooms: [
-      { room: '205', tipo: 'Boutique', guests: 2, status: 'Reserved' }
+      { room: '205', tipo: 'Boutique', guests: 2, status: 'Reserved', alert: null }
     ]
   },
   {
@@ -147,8 +147,8 @@ const arrivalReservations = [
     src: 'BOOKING',
     s: 0, e: 2,
     rooms: [
-      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock' },
-      { room: '109', tipo: 'Sencilla', guests: 1, status: 'Occupied', checkedIn: true }
+      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock', alert: null },
+      { room: '109', tipo: 'Sencilla', guests: 1, status: 'Reserved', alert: null }
     ]
   },
   {
@@ -158,7 +158,7 @@ const arrivalReservations = [
     src: 'DIRECTA',
     s: 0, e: 2,
     rooms: [
-      { room: '227', tipo: 'Doble', guests: 2, status: 'Reserved' }
+      { room: '227', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null }
     ]
   }
 ];
@@ -175,22 +175,14 @@ const departuresData = [
 let tab = 'in';
 const $ = id => document.getElementById(id);
 
-// Aviso de la fila según el estado de la habitación (spec-consultar-panel-recepcion.md FR-005)
-const ESTADOS = { Available:'Disponible', Reserved:'Reservada', Occupied:'Ocupada', PendingCleaning:'Pendiente de limpieza', InCleaning:'En limpieza', DisabledForRepairs:'Inhabilitada por reparaciones', TechnicalBlock:'Bloqueo técnico', Inactive:'Inactiva' };
-function notice(status){
-  if(['DisabledForRepairs','TechnicalBlock','Inactive'].includes(status)) return { type:'UNAVAILABLE', text:`No disponible: ${ESTADOS[status]}` };
-  if(['Occupied','PendingCleaning','InCleaning'].includes(status)) return { type:'PENDING_ASSIGNMENT', text:`${ESTADOS[status]}: se apartará al terminar la limpieza` };
-  return null;
-}
-
 // En llegadas: aplanar las habitaciones de las reservas con su contexto
 function getArrivalRows(){
   const list = [];
   arrivalReservations.forEach(r => {
     const total = r.rooms.length;
-    // Habitaciones pendientes: las que aún no tienen Check-In (sin Stay)
-    const pending = r.rooms.filter(rm => !rm.checkedIn);
-    pending.forEach((rm, idx) => {
+    // Habitaciones pendientes: aquellas en estado Reserved o Available (sin estancia previa)
+    const pendingCount = r.rooms.filter(rm => rm.status === 'Reserved' || rm.status === 'Available').length;
+    r.rooms.forEach((rm, idx) => {
       list.push({
         ref: r.ref,
         resLabel: r.ref,
@@ -202,10 +194,9 @@ function getArrivalRows(){
         tipo: rm.tipo,
         guests: rm.guests,
         status: rm.status,
-        notice: notice(rm.status),
+        alert: rm.alert,
         canCheckIn: true,
         isFirstInGroup: idx === 0,
-        pendingCount: pending.length,
         groupSize: total
       });
     });
@@ -224,27 +215,22 @@ function render(){
     );
 
     if(!rows.length){
-      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas que mostrar.</div></td></tr>`;
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas de llegada que mostrar.</div></td></tr>`;
       return;
     }
 
     let lastRef = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
-      // Aviso de la fila: alerta (UNAVAILABLE) o indicador informativo (PENDING_ASSIGNMENT)
-      const n = r.notice;
-      const alertHtml = !n ? '' : n.type === 'UNAVAILABLE'
+      // Alerta de habitación no apartada
+      const alertHtml = r.alert
         ? `<div style="margin-top:4px;padding:3px 8px;border-radius:4px;background:#FEF2F2;color:#991B1B;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-             ${n.text}
+             ${r.alert}
            </div>`
-        : `<div style="margin-top:4px;padding:3px 8px;border-radius:4px;background:#EAF1FF;color:#1D4ED8;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
-             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-             ${n.text}
-           </div>`;
-      if(n && n.type === 'UNAVAILABLE') tr.style.background = '#FFF8F8';
+        : '';
 
-      const groupTag = `<span style="font-size:12px;font-weight:700;color:var(--primary);background:#EAF1FF;padding:2px 8px;border-radius:6px;display:inline-block">${r.resLabel}</span><div class="meta">${r.pendingCount} de ${r.groupSize} pendiente${r.groupSize > 1 ? 's' : ''}</div>`;
+      const groupTag = `<span style="font-size:12px;font-weight:700;color:var(--primary);background:#EAF1FF;padding:2px 8px;border-radius:6px;display:inline-block">${r.resLabel}</span>`;
 
       tr.innerHTML = `
         <td>${groupTag}</td>
@@ -270,7 +256,7 @@ function render(){
     );
 
     if(!rows.length){
-      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas que mostrar.</div></td></tr>`;
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay salidas que mostrar.</div></td></tr>`;
       return;
     }
 
@@ -310,8 +296,6 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 });
 $('search').oninput = render;
 renderAll();
-// Llegadas y KPIs se vuelven a consultar cada 60 segundos (FR-005a)
-setInterval(renderAll, 60000);
 </script>
 </body>
 </html>

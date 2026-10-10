@@ -241,8 +241,7 @@ select.tbl-input{padding:6px 6px;height:34px}
 <div><label>Tipo de documento</label><input class="tbl-input" value="CC — Cédula de ciudadanía" readonly></div>
 <div><label>Número de documento</label><input class="tbl-input" value="1.032.456.789" readonly></div>
 <div><label>Nacionalidad</label><select class="tbl-input" disabled><option>Colombia</option></select></div>
-<div><label>Fecha de nacimiento *</label><input type="date" class="tbl-input" id="titularBirth" value=""></div></div>
-<p class="page-sub" style="margin:8px 0 0">La fecha de nacimiento no llega con la reserva: captúrala si el titular se aloja.</p></div>
+</div></div>
 <div id="g2"></div>
 <div id="addRow"></div>
 <div id="validationError" class="alert alert-red" style="display:none;margin-top:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div id="validationMsg"></div></div>
@@ -253,7 +252,6 @@ const TRASH='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke=
 const PLUS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 const todayStr = new Date().toISOString().split('T')[0];
 const DOCS=[['CC','Cédula de ciudadanía'],['CE','Cédula de extranjería'],['TI','Tarjeta de identidad'],['RC','Registro civil'],['PAS','Pasaporte'],['NIT','NIT']];
-document.getElementById('titularBirth').max = todayStr;
 
 // Huésped 2 (editable). Inicialmente extranjero para ilustrar el panel migratorio
 let g2={
@@ -348,14 +346,7 @@ function render(){
 $('btnContinuar').onclick = () => {
   $('validationError').style.display = 'none';
   const fail = m => { $('validationMsg').textContent = m; $('validationError').style.display = 'flex'; };
-  const titularBirth = $('titularBirth').value;
-  if(!titularBirth || titularBirth >= todayStr){
-    return fail('Ingresa la fecha de nacimiento del titular; debe ser anterior al día de hoy.');
-  }
   if(g2){
-    if(!g2.birthDate || g2.birthDate >= todayStr){
-      return fail('La fecha de nacimiento es obligatoria para todos los huéspedes y debe ser anterior al día de hoy.');
-    }
     if(!g2.nombres || !g2.apellidos || !g2.tipo || !g2.num){
       $('validationMsg').textContent = 'Por favor completa todos los campos de identificación del acompañante.';
       $('validationError').style.display = 'flex';
