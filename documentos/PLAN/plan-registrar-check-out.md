@@ -154,7 +154,7 @@ Routing key: habitacion.checkout
 | --- | --- | --- | --- |
 | `firstName` | string | Sí | Nombres del huésped |
 | `lastName` | string | Sí | Apellidos del huésped |
-| `documentType` | string | Sí | Tipo de documento de identidad |
+| `documentType` | string | Sí | Tipo de documento: `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT` |
 | `documentNumber` | string | Sí | Número de documento de identidad |
 | `birthDate` | fecha (YYYY-MM-DD) | Sí | Fecha de nacimiento |
 | `nationality` | string | Sí | Nacionalidad del huésped |
@@ -183,7 +183,7 @@ Routing key: habitacion.checkout
     {
       "firstName": "John",
       "lastName": "Smith",
-      "documentType": "PASSPORT",
+      "documentType": "PAS",
       "documentNumber": "X99",
       "birthDate": "1990-05-12",
       "nationality": "Estados Unidos",
@@ -228,7 +228,7 @@ Routing key: habitacion.checkout
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por `reservationRef` o `roomId`, obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
+- [ ] T012 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por el par `reservationRef` y `roomId` (una reserva puede tener varias habitaciones, cada una con su `Stay`), obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
 - [ ] T013 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
@@ -257,10 +257,11 @@ Routing key: habitacion.checkout
       ]
     }
     ```
-    Los campos `birthDate`, `originPlace` y `destinationPlace` se incluyen únicamente si `nationality != "Colombia"`, reutilizando los valores registrados en Check-In (`RoomGuest`).
+    `birthDate` se incluye para todos los huéspedes; `originPlace` y `destinationPlace` únicamente si `nationality != "Colombia"`. Todos se reutilizan de los registros de Check-In (`RoomGuest`).
+  - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación, mediante `RoomAuditLogPort` (FR-015).
   - Guardar mensaje outbox en `outbox_notification` (tipo `habitacion.checkout`).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
-  - `GET /api/check-out/active-stay/{reservationRef}`: Datos locales de la estancia para el Paso 1.
+  - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par.
   - `POST /api/check-out`: Confirmación y formalización del Check-Out.
 - [ ] T015 [US1] Construir los componentes frontend en React:
   - `Step1ActiveStay.jsx`: Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
