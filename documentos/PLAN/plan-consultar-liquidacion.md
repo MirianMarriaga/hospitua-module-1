@@ -298,7 +298,7 @@ Errores propios de Módulo 1 (estancia inexistente `404`, sin sesión `401`) sig
 ### Implementation for User Story 1
 
 - [ ] T004 [P] [US1] Crear `SettlementRequest`, `SettlementSummary` (sin `source`) y `SettlementAvailabilityStatus` en `domain/model/`
-- [ ] T005 [P] [US1] Crear `Module3Properties` (base-url, timeout) y el `RestClient` hacia Módulo 3 en `infrastructure/adapters/out/rest/`
+- [ ] T005 [P] [US1] Crear `Module3Properties` (base-url, timeout y credencial de servicio de Módulo 1 en Módulo 3) y el `RestClient` hacia Módulo 3 en `infrastructure/adapters/out/rest/`, que envía `Authorization: Bearer <JWT>` obtenido con esa credencial (plan base, T013)
 - [ ] T006 [P] [US1] Crear `SettlementQueryCommand` y `SettlementResponseDto` en `application/dto/`
 - [ ] T007 [US1] Implementar `SettlementRestAdapter` (GET con query params desde `SettlementRequest`, mapeo a `SettlementSummary`) (depende de T004, T005, T009)
 - [ ] T008 [P] [US1] Implementar `settlementService.js` en `frontend/src/services/`
