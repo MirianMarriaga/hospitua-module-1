@@ -164,7 +164,7 @@ Como **Módulo 1**, quiero procesar los eventos de forma idempotente ante reinte
   - *Comportamiento en este caso de uso*: Transiciona exclusivamente de `Available` a `Reserved`, también en la transición encadenada, después de que "Marcar habitación como disponible" la deja en `Available`.
 - **Module2 (Actor Externo / Sistema)**: Módulo de Reservas y Cumplimiento Legal que publica la lista diaria de reservas y sus actualizaciones, origen de la asignación de habitación.
 - **Reservation (Referencia Externa de Módulo 2)**: Entidad de reserva externa consumida solo por referencia (`reservationRef`) para vincular el compromiso comercial a la unidad física.
-- **RoomStateHistory**: Historial común de transiciones de estado definido en documentos/SPEC/referencias/maquina-estados-habitacion.md. Registra cada transición exitosa `Available → Reserved`.
+- **RoomStateHistory**: Historial común de los estados de la habitación por periodos. Registra cada transición exitosa `Available → Reserved`.
 - **Bitácora de auditoría**: Registra los eventos de discrepancia operativa (`RESERVATION_STATE_CONFLICT`), que no generan transición.
 
 ---
