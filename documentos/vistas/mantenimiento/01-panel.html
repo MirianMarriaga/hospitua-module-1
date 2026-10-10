@@ -86,7 +86,7 @@
   .hint{font-size:12px; color:var(--text-lo); margin-top:4px;}
   .counter{font-size:12px; color:var(--text-lo); text-align:right; margin-top:4px;}
   .counter.over{color:var(--due); font-weight:600;}
-  .form-error{display:none; margin-top:14px; padding:10px 12px; border-radius:8px; background:var(--red-bg); color:#9B1C1C; font-size:13px;}
+  .form-error{display:none; white-space:pre-line; margin-top:14px; padding:10px 12px; border-radius:8px; background:var(--red-bg); color:#9B1C1C; font-size:13px;}
   .report{display:grid; grid-template-columns:140px 1fr; gap:8px 14px; font-size:14px; margin:6px 0 4px;}
   .report dt{color:var(--text-lo);} .report dd{margin:0; font-weight:600;}
   .dialog-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
@@ -305,7 +305,9 @@ function scheduleError(){
   if((end - start) / 86400000 > 90) return 'El mantenimiento no puede durar más de 90 días.';
   if((start - today) / 86400000 > 365) return 'Solo se puede programar con hasta 365 días de anticipación.';
   if(s === iso(today) && current.status !== 'Available') return `Hoy la habitación está ${ESTADOS[current.status].toLowerCase()}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.`;
-  if(current.roomNumber === '114') return 'La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.';
+  // Ejemplo: la 114 tiene una reserva en las fechas elegidas (details.reservations)
+  if(current.roomNumber === '114') return 'La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.\n'
+    + [{ ref:'RES-10502', from:s, to:e }].map(r => `• Reserva ${r.ref}: llega el ${ddmm(r.from)} y sale el ${ddmm(r.to)}`).join('\n');
   const other = current.scheduled || current.block;
   if(other && s <= other.to && e >= other.from) return `Ya hay un mantenimiento programado del ${ddmm(other.from)} al ${ddmm(other.to)}. Elige otras fechas.`;
   return null;

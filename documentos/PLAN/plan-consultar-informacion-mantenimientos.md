@@ -42,10 +42,10 @@ Reglas principales:
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto. Siempre se responde con un error controlado, nunca con un 500 (Módulo 2 bloquea la reserva si no recibe respuesta). La columna "Texto en la interfaz" es el `message` que recibe Módulo 2.
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Credenciales de servicio inválidas o vencidas." |
-| 403 | `FORBIDDEN` | El token no tiene el rol `MODULE_2` (FR-001, caso límite 1) | "El consumidor no está autorizado para esta consulta." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Credenciales de servicio inválidas o vencidas." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El token no tiene el rol `MODULE_2` (FR-001, caso límite 1) | "El consumidor no está autorizado para esta consulta." |
 
 ---
 
@@ -111,11 +111,11 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
-| 400 | `INVALID_DATE_RANGE` | Fecha inexistente, salida anterior a la llegada o rango que termina antes de hoy (FR-005 a FR-007, esc. 4, caso límite 4); `details.rule` indica la regla | Mensaje de la regla (tabla siguiente) |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a una habitación registrada (FR-012, caso límite 7) | "No se encontró la habitación." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
+| 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Fecha inexistente, salida anterior a la llegada o rango que termina antes de hoy (FR-005 a FR-007, esc. 4, caso límite 4); `details.rule` indica la regla | Mensaje de la regla (tabla siguiente) |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a una habitación registrada (FR-012, caso límite 7) | "No se encontró la habitación." |
 
 **Mensajes por regla (`details.rule`)**, compartidos con *Programar Bloqueo Técnico para Habitación*:
 

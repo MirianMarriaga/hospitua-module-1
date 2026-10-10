@@ -39,10 +39,10 @@ Al terminar muestra una confirmación con los datos de la habitación y las opci
 - **Categorías**: la API usa `categoryRoom` con los valores `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE`, los mismos que usan Módulo 2 y Módulo 3; la interfaz los muestra como "Sencilla", "Doble", "Suite" y "Boutique".
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -112,14 +112,14 @@ Content-Type: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Falta un campo obligatorio (FR-003, esc. 3); `details.fields` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
-| 400 | `VALIDATION_ERROR` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
-| 400 | `VALIDATION_ERROR` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
-| 400 | `VALIDATION_ERROR` | Tarifa igual a 0 o negativa (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0." |
-| 400 | `VALIDATION_ERROR` | Tipo fuera del catálogo (FR-005, caso borde 4) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
-| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | Ya existe una habitación con ese número, en cualquier estado o piso, incluida una registrada al mismo tiempo (FR-004, esc. 2, caso borde 3) | "Ya existe una habitación con el número {número}." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.fields` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (FR-005, caso borde 4) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
+| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Ya existe una habitación con ese número, en cualquier estado o piso, incluida una registrada al mismo tiempo (FR-004, esc. 2, caso borde 3) | "Ya existe una habitación con el número {número}." |
 
 ```json
 {

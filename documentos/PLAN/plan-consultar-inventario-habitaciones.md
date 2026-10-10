@@ -38,10 +38,10 @@ En las vistas, el listado incluye por defecto las habitaciones `Inactive` (FR-00
 - **Módulo 2**: es el GET "Consultar inventario de habitaciones" (M2 → M1) del diagrama `mod-1-2-3`, y coincide con el contrato de su plan `consult-room-inventory` (A1 y A2). Usa un JWT de servicio con rol `MODULE_2` (plan base, T015) y recibe solo habitaciones vendibles, nunca `Inactive`, con los campos `id`, `roomNumber`, `categoryRoom` y `maxCapacity` (FR-010, FR-011).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene un rol autorizado | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene un rol autorizado | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -130,10 +130,20 @@ Una consulta sin coincidencias responde `200` con `items` vacío. El frontend mu
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `categoryRoom`, `status`, `sort` o `direction` fuera de sus valores; `floor`, `page` o `size` no son enteros positivos; `size` mayor a 100 | "Revisa los filtros aplicados." |
-| 400 | `VALIDATION_ERROR` | Con el rol `MODULE_2`: falta `categoryRoom` o no es una categoría válida (FR-011) | Sin interfaz (Módulo 2) |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `categoryRoom`, `status`, `sort` o `direction` fuera de sus valores; `floor`, `page` o `size` no son enteros positivos; `size` mayor a 100 | "Revisa los filtros aplicados." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Con el rol `MODULE_2`: falta `categoryRoom` o no es una categoría válida (FR-011) | Sin interfaz (Módulo 2) |
+
+```json
+{
+  "errorCode": "VALIDATION_ERROR",
+  "message": "Revisa los filtros aplicados.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms",
+  "details": { "field": "size" }
+}
+```
 
 ---
 
@@ -186,10 +196,19 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `roomId` no tiene formato de UUID (FR-011) | "No se encontró la habitación." |
-| 404 | `ROOM_NOT_FOUND` | No existe la habitación; para `MODULE_2`, también si está `Inactive`, sin revelar sus datos (FR-011, esc. 9) | "No se encontró la habitación." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `roomId` no tiene formato de UUID (FR-011) | "No se encontró la habitación." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación; para `MODULE_2`, también si está `Inactive`, sin revelar sus datos (FR-011, esc. 9) | "No se encontró la habitación." |
+
+```json
+{
+  "errorCode": "ROOM_NOT_FOUND",
+  "message": "No se encontró la habitación.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/9b2e7c1a-4d3f-4e8a-b1c2-3d4e5f607182"
+}
+```
 
 ---
 

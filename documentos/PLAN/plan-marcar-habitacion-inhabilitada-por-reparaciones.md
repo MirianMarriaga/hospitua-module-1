@@ -39,10 +39,10 @@ Usa la tabla `damage_report` del plan base (T018).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene un rol autorizado para el endpoint | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene un rol autorizado para el endpoint | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -102,12 +102,12 @@ Content-Type: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available` (FR-002, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede reportar un daño en ella." |
-| 409 | `CONCURRENT_UPDATE` | Otra solicitud cambió el estado de la habitación justo antes (FR-006, caso límite 1) | "La habitación acaba de cambiar: ahora está {estado}." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede reportar un daño en ella." |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra solicitud cambió el estado de la habitación justo antes (FR-006, caso límite 1) | "La habitación acaba de cambiar: ahora está {estado}." |
 
 ```json
 {
@@ -173,10 +173,20 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 404 | `DAMAGE_REPORT_NOT_FOUND` | La habitación no está en `DisabledForRepairs` (FR-007) | "Esta habitación no tiene un daño reportado." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
+| 404 | `DAMAGE_REPORT_NOT_FOUND` | `DamageReportNotFoundException` | La habitación no está en `DisabledForRepairs` (FR-007) | "Esta habitación no tiene un daño reportado." |
+
+```json
+{
+  "errorCode": "DAMAGE_REPORT_NOT_FOUND",
+  "message": "Esta habitación no tiene un daño reportado.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60/damage-reports/latest",
+  "details": { "currentStatus": "Available" }
+}
+```
 
 ---
 
@@ -208,6 +218,8 @@ backend/src/
 │   ├── domain/
 │   │   ├── model/
 │   │   │   └── DamageReport.java                 # Definido en el plan base; aquí se implementa
+│   │   ├── exception/
+│   │   │   └── DamageReportNotFoundException.java # 404 DAMAGE_REPORT_NOT_FOUND
 │   │   └── ports/
 │   │       ├── in/
 │   │       │   ├── ReportDamageUseCase.java
@@ -252,7 +264,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T001 Verificar que la tabla `damage_report` y su índice por `(room_id, report_date_time DESC)` existan (plan base, T018).
 - [ ] T002 [P] Implementar `DamageReport` (dominio, sin métodos de modificación), `DamageReportJpaEntity`, `DamageReportRepositoryPort` (solo insertar y consultar el último por habitación) y su adaptador JPA (FR-010).
-- [ ] T003 [P] Registrar en `GlobalExceptionHandler` el código `DAMAGE_REPORT_NOT_FOUND` y la validación de la descripción como `VALIDATION_ERROR`.
+- [ ] T003 [P] Registrar en `GlobalExceptionHandler` el código `DAMAGE_REPORT_NOT_FOUND` (`DamageReportNotFoundException`) y la validación de la descripción como `VALIDATION_ERROR`.
 
 ---
 

@@ -37,10 +37,10 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
 - **Estados**: la API usa el nombre en inglés; la interfaz muestra el nombre en español (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `MANAGER` (FR-001) | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MANAGER` (FR-001) | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -123,10 +123,20 @@ Una consulta sin coincidencias responde `200` con `items` vacío y el frontend m
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `INVALID_DATE_RANGE` | `from` es posterior a `to` (FR-006, esc. 4); `details.rule` = `FROM_AFTER_TO` | "La fecha \"Desde\" no puede ser posterior a \"Hasta\"." |
-| 400 | `VALIDATION_ERROR` | `categoryRoom` o `status` fuera de sus valores, fecha con formato inválido o `page` no es un entero positivo | "Revisa los filtros aplicados." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | `from` es posterior a `to` (FR-006, esc. 4); `details.rule` = `FROM_AFTER_TO` | "La fecha \"Desde\" no puede ser posterior a \"Hasta\"." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `categoryRoom` o `status` fuera de sus valores, fecha con formato inválido o `page` no es un entero positivo | "Revisa los filtros aplicados." |
+
+```json
+{
+  "errorCode": "INVALID_DATE_RANGE",
+  "message": "La fecha \"Desde\" no puede ser posterior a \"Hasta\".",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/room-state-history",
+  "details": { "rule": "FROM_AFTER_TO" }
+}
+```
 
 El frontend también valida el rango antes de consultar, y no muestra resultados mientras el rango sea inválido (FR-006).
 

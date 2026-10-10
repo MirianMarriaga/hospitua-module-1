@@ -39,10 +39,10 @@ Usa la tabla `reparation_task` del plan base (T018).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -96,13 +96,13 @@ Content-Type: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 4) | "La habitación está {estado}; no necesita reparación." |
-| 409 | `ROOM_TASK_EXISTS` | La habitación ya tiene una tarea abierta de otro miembro, incluida una solicitud simultánea (HU-2 esc. 2) | "Otro compañero ya está reparando esta habitación." |
-| 409 | `ACTIVE_TASK_EXISTS` | El miembro ya tiene una tarea abierta (HU-2 esc. 3) | "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 4) | "La habitación está {estado}; no necesita reparación." |
+| 409 | `ROOM_TASK_EXISTS` | `DataIntegrityViolationException` del índice único de tarea abierta por habitación (T003) | La habitación ya tiene una tarea abierta de otro miembro, incluida una solicitud simultánea (HU-2 esc. 2) | "Otro compañero ya está reparando esta habitación." |
+| 409 | `ACTIVE_TASK_EXISTS` | `ActiveTaskExistsException` o `DataIntegrityViolationException` del índice único del miembro (T003) | El miembro ya tiene una tarea abierta (HU-2 esc. 3) | "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." |
 
 ```json
 {
@@ -164,9 +164,18 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 404 | `NO_ACTIVE_TASK` | El miembro no tiene una tarea abierta; el frontend redirige al panel | (sin mensaje; redirección al panel) |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 404 | `NO_ACTIVE_TASK` | `NoActiveTaskException` | El miembro no tiene una tarea abierta; el frontend redirige al panel | (sin mensaje; redirección al panel) |
+
+```json
+{
+  "errorCode": "NO_ACTIVE_TASK",
+  "message": "No tienes una reparación en curso.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/maintenance/tasks/active"
+}
+```
 
 ---
 
@@ -219,12 +228,22 @@ Authorization: Bearer <JWT>
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-003, HU-1 esc. 3) | "Esta reparación la está haciendo otro compañero." |
-| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (FR-003, HU-1 esc. 2) | "La habitación está {estado}; ya no se puede terminar esta reparación." |
-| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-019) | "Esta reparación ya se había terminado o dejado." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-003, HU-1 esc. 3) | "Esta reparación la está haciendo otro compañero." |
+| 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (FR-003, HU-1 esc. 2) | "La habitación está {estado}; ya no se puede terminar esta reparación." |
+| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-019) | "Esta reparación ya se había terminado o dejado." |
+
+```json
+{
+  "errorCode": "ROOM_INVALID_STATE",
+  "message": "La habitación está Disponible; ya no se puede terminar esta reparación.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/maintenance/tasks/7e6d5c4b-3a2f-4e1d-9c0b-a1b2c3d4e5f6/complete",
+  "details": { "currentStatus": "Available" }
+}
+```
 
 Si falla la persistencia o la conexión, la transacción se revierte completa (habitación y tarea sin cambios) y la interfaz sugiere reintentar (caso límite 3).
 
@@ -279,11 +298,20 @@ Authorization: Bearer <JWT>
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-015) | "Esta reparación la está haciendo otro compañero." |
-| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
-| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada (FR-019) | "Esta reparación ya se había terminado o dejado." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-015) | "Esta reparación la está haciendo otro compañero." |
+| 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
+| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada (FR-019) | "Esta reparación ya se había terminado o dejado." |
+
+```json
+{
+  "errorCode": "TASK_NOT_OWNED",
+  "message": "Esta reparación la está haciendo otro compañero.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/maintenance/tasks/7e6d5c4b-3a2f-4e1d-9c0b-a1b2c3d4e5f6/release"
+}
+```
 
 ---
 

@@ -38,10 +38,10 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -95,13 +95,13 @@ Content-Type: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a ninguna habitación | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede limpiar." |
-| 409 | `ACTIVE_TASK_EXISTS` | El miembro ya tiene una `CleaningTask` abierta (FR-013, HU-1 esc. 4) | "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." |
-| 409 | `CONCURRENT_UPDATE` | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro compañero ya está limpiando esta habitación." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a ninguna habitación | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede limpiar." |
+| 409 | `ACTIVE_TASK_EXISTS` | `ActiveTaskExistsException` o `DataIntegrityViolationException` del índice único del miembro (T003) | El miembro ya tiene una `CleaningTask` abierta (FR-013, HU-1 esc. 4) | "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` o `DataIntegrityViolationException` del índice único de la habitación (T003) | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro compañero ya está limpiando esta habitación." |
 
 ```json
 {

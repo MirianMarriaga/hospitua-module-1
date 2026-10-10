@@ -207,7 +207,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Integration test: una llegada de hoy cuya habitación quedó en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` aparece en `GET /api/reception/panel` con ese estado, que es la alerta a Recepción; y no se publica ningún mensaje hacia Módulo 2 (esc. 7 y 8; FR-012; SC-006).
+- [ ] T017 Integration test: una llegada de hoy cuya habitación quedó en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` aparece en `GET /api/reception/arrivals` con ese estado, que es la alerta a Recepción; y no se publica ningún mensaje hacia Módulo 2 (esc. 7 y 8; FR-012; SC-006).
 - [ ] T018 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
 - [ ] T019 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
 - [ ] T020 Medir en la prueba de integración T006 que cada invocación tome menos de 200 ms (NFR-001; SC-001).

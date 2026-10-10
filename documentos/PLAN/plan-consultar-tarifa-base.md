@@ -111,9 +111,18 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto |
-| --- | --- | --- | --- |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a una habitación registrada (FR-004) | "No se encontró la habitación." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto |
+| --- | --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a una habitación registrada (FR-004) | "No se encontró la habitación." |
+
+```json
+{
+  "errorCode": "ROOM_NOT_FOUND",
+  "message": "No se encontró la habitación.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/base-rate"
+}
+```
 
 ---
 
@@ -141,7 +150,7 @@ backend/src/
 │   │   │   ├── Room.java
 │   │   │   └── RoomStatus.java
 │   │   ├── exception/
-│   │   │   └── RoomNotFoundException.java
+│   │   │   └── RoomNotFoundException.java   # Definida en el plan base (catálogo de errores)
 │   │   └── ports/
 │   │       ├── in/
 │   │       │   └── GetRoomBaseRateUseCase.java

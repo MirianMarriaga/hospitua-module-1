@@ -62,10 +62,10 @@ Ante un origen no válido lanza `InvalidRoomTransitionException` (plan base) con
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `ADMINISTRATOR` (FR-002) | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-002) | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -129,10 +129,20 @@ Si `decommissionId` es nulo, la confirmación muestra "Sin registro" en la fecha
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 404 | `ROOM_NOT_FOUND` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Inactive` (esc. 3) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Inactive` (esc. 3) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
+
+```json
+{
+  "errorCode": "ROOM_INVALID_STATE",
+  "message": "La habitación no está Inactiva (estado actual: Disponible); no es posible marcarla como disponible.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/9b2e7c1a-4d3f-4e8a-b1c2-3d4e5f607182/decommission",
+  "details": { "currentStatus": "Available" }
+}
+```
 
 ---
 
@@ -196,10 +206,20 @@ El resultado indica que la habitación ya puede recibir reservas y estancias; co
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 404 | `ROOM_NOT_FOUND` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Inactive` y no es un reintento de la misma baja (esc. 3; FR-006) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Inactive` y no es un reintento de la misma baja (esc. 3; FR-006) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
+
+```json
+{
+  "errorCode": "ROOM_INVALID_STATE",
+  "message": "La habitación no está Inactiva (estado actual: Ocupada); no es posible marcarla como disponible.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/9b2e7c1a-4d3f-4e8a-b1c2-3d4e5f607182/reactivation",
+  "details": { "currentStatus": "Occupied" }
+}
+```
 
 Si falla la persistencia o la conexión, la transacción se revierte completa y la habitación sigue `Inactive` (caso borde 3).
 

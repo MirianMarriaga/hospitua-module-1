@@ -37,10 +37,10 @@ Las acciones no se implementan aquí: **Iniciar limpieza** usa `POST /api/cleani
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
 - **Errores comunes**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." (caso límite 2) |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." (caso límite 2) |
 
 ---
 
@@ -117,7 +117,21 @@ Una búsqueda sin coincidencias o un panel sin habitaciones responde `200` con `
 
 ### Respuestas de error
 
-Solo los errores comunes (401, 403).
+Solo los errores comunes de la sección "Convenciones de los endpoints":
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." (caso límite 2) |
+
+```json
+{
+  "errorCode": "FORBIDDEN",
+  "message": "No tienes permiso para realizar esta acción.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/cleaning/panel"
+}
+```
 
 ---
 

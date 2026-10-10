@@ -55,10 +55,10 @@ Componentes y lógica operativa:
 - **Actualización (FR-005a)**: el frontend vuelve a consultar `arrivals` y `panel/kpis` cada 60 segundos y al volver de un Check-In o Check-Out. El backend ya refleja los `ADDED`, `UPDATED` y `REMOVED` porque el consumidor de la cola actualiza la copia local (`plan-consultar-reservas.md`); no hay notificaciones en tiempo real.
 - **Errores comunes**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -165,7 +165,21 @@ Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` 
 
 ### Respuestas de error
 
-Solo los errores comunes (401, 403).
+Solo los errores comunes de la sección "Convenciones de los endpoints":
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
+
+```json
+{
+  "errorCode": "FORBIDDEN",
+  "message": "No tienes permiso para realizar esta acción.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/reception/arrivals"
+}
+```
 
 ---
 
@@ -242,7 +256,21 @@ Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "N
 
 ### Respuestas de error
 
-Solo los errores comunes (401, 403).
+Solo los errores comunes de la sección "Convenciones de los endpoints":
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
+
+```json
+{
+  "errorCode": "FORBIDDEN",
+  "message": "No tienes permiso para realizar esta acción.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/reception/departures"
+}
+```
 
 ---
 
@@ -290,7 +318,21 @@ Accept: application/json
 
 ### Respuestas de error
 
-Solo los errores comunes (401, 403).
+Solo los errores comunes de la sección "Convenciones de los endpoints":
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
+
+```json
+{
+  "errorCode": "FORBIDDEN",
+  "message": "No tienes permiso para realizar esta acción.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/reception/panel/kpis"
+}
+```
 
 ---
 

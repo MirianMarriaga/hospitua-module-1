@@ -41,10 +41,10 @@ Implementar el caso de uso **Dar de Baja Habitación** para el Administrador, de
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
 
 Los datos de la habitación del paso del motivo se cargan con `GET /api/rooms/{roomId}` (`plan-consultar-inventario-habitaciones.md`).
 
@@ -122,16 +122,16 @@ El resultado indica que la habitación ya no aparece entre las habitaciones disp
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Falta la categoría o no es válida (FR-008, caso borde "Motivo sin categoría") | "Selecciona el motivo de la baja." |
-| 400 | `VALIDATION_ERROR` | Categoría `OTHER` con detalle vacío o solo espacios (FR-008, caso borde "Otro sin descripción") | "Escribe el motivo de la baja." |
-| 400 | `VALIDATION_ERROR` | Detalle de más de 500 caracteres (FR-008, caso borde "Detalle demasiado largo") | "El detalle admite máximo 500 caracteres." |
-| 404 | `ROOM_NOT_FOUND` | No existe la habitación | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available`, antes de la consulta o al ejecutar la baja (FR-003, esc. 2) | "No es posible dar de baja la habitación: está en estado {estado} y debe estar Disponible." (con `Occupied`: "La habitación tiene un huésped activo; debe estar Disponible para darla de baja.") |
-| 409 | `RESERVATION_CONFLICT` | Módulo 2 devolvió al menos una reserva vigente desde hoy (FR-004, esc. 3); `details.reservations` lista `reservationRef`, `startDate`, `endDate` y `status` de cada una | "La habitación tiene reservas vigentes. Deben reasignarse antes de darla de baja." |
-| 409 | `ROOM_INVALID_STATE` | La habitación cambió de estado mientras se verificaban las reservas (se detecta al bloquear la fila) | "La habitación cambió de estado (estado actual: {estado}); no se dio de baja." |
-| 503 | `MODULE_2_UNAVAILABLE` | Módulo 2 no respondió, superó el timeout o respondió con error (FR-004, FR-009, caso borde "Fallo de Módulo 2") | "No fue posible verificar las reservas de la habitación; no se dio de baja." con el botón "Reintentar" |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta la categoría o no es válida (FR-008, caso borde "Motivo sin categoría") | "Selecciona el motivo de la baja." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Categoría `OTHER` con detalle vacío o solo espacios (FR-008, caso borde "Otro sin descripción") | "Escribe el motivo de la baja." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Detalle de más de 500 caracteres (FR-008, caso borde "Detalle demasiado largo") | "El detalle admite máximo 500 caracteres." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available`, antes de la consulta o al ejecutar la baja (FR-003, esc. 2) | "No es posible dar de baja la habitación: está en estado {estado} y debe estar Disponible." (con `Occupied`: "La habitación tiene un huésped activo; debe estar Disponible para darla de baja.") |
+| 409 | `RESERVATION_CONFLICT` | `ReservationConflictException` | Módulo 2 devolvió al menos una reserva vigente desde hoy (FR-004, esc. 3); `details.reservations` lista `reservationRef`, `startDate`, `endDate` y `status` de cada una | "La habitación tiene reservas vigentes. Deben reasignarse antes de darla de baja." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación cambió de estado mientras se verificaban las reservas (se detecta al bloquear la fila) | "La habitación cambió de estado (estado actual: {estado}); no se dio de baja." |
+| 503 | `MODULE_2_UNAVAILABLE` | `ExternalModule2UnavailableException` | Módulo 2 no respondió, superó el timeout o respondió con error (FR-004, FR-009, caso borde "Fallo de Módulo 2") | "No fue posible verificar las reservas de la habitación; no se dio de baja." con el botón "Reintentar" |
 
 ```json
 {
@@ -206,7 +206,7 @@ frontend/src/
     └── roomService.js                             # Se agrega decommissionRoom()
 ```
 
-**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T026), que consulta desde hoy sin límite superior (`dateTo = 9999-12-31`, *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. El frontend no usa el endpoint `GET /api/rooms/{roomId}/decommission-conflicts` de ese plan, porque la verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`. La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (del token).
+**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T026), que consulta desde hoy sin límite superior (`dateTo = 9999-12-31`, *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (del token).
 
 ---
 

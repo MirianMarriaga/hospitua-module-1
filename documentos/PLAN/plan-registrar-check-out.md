@@ -70,7 +70,6 @@ backend/src/
 │   │   │   ├── SettlementSummary.java
 │   │   │   └── CheckOutDetails.java
 │   │   ├── exception/
-│   │   │   ├── InvalidRoomStateException.java
 │   │   │   ├── ActiveStayNotFoundException.java
 │   │   │   ├── SettlementUnavailableException.java
 │   │   │   └── MandatoryConfirmationMissingException.java
@@ -196,6 +195,102 @@ Routing key: habitacion.checkout
 
 ---
 
+## Endpoints REST internos (Frontend → Módulo 1)
+
+Ambos exigen `Authorization: Bearer <JWT>` con rol Recepcionista (FR-001); el recepcionista responsable se toma del token. Los errores usan `ApiError` del plan base; los `401` y `403` son los generales. La liquidación de los pasos 2 y 3 se obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2).
+
+### Endpoint 1 — Estancia activa de la habitación (Paso 1)
+
+```http
+GET /api/check-out/active-stay?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+Authorization: Bearer <JWT>
+```
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `reservationRef` | string | Sí | Referencia que entrega el botón "Check-out" del panel de recepción (FR-003) |
+| `roomId` | UUID | Sí | Habitación seleccionada; con la referencia identifica la estancia, porque una reserva puede tener varias habitaciones |
+
+Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`ActiveStayResponseDto`):
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "categoryRoom": "DOBLE",
+  "roomStatus": "Occupied",
+  "titularFirstName": "Ana",
+  "titularLastName": "Pérez",
+  "checkInDate": "2026-10-09",
+  "expectedCheckoutTime": "2026-10-11",
+  "source": "BOOKING",
+  "guests": [
+    { "firstName": "Ana", "lastName": "Pérez", "documentType": "CC", "documentNumber": "123", "nationality": "Colombia" },
+    { "firstName": "John", "lastName": "Smith", "documentType": "PAS", "documentNumber": "X99", "nationality": "Estados Unidos" }
+  ]
+}
+```
+
+### Endpoint 2 — Registrar el Check-Out (confirmación del Paso 4)
+
+```http
+POST /api/check-out
+Authorization: Bearer <JWT>
+Content-Type: application/json
+```
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "confirmed": true,
+  "invoiceNumber": 40001
+}
+```
+
+| Campo | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `stayId` | UUID | Sí | Estancia del Paso 1 |
+| `confirmed` | boolean | Sí | Casilla obligatoria del Paso 4; debe ser `true` (FR-008) |
+| `invoiceNumber` | entero | No | Factura recibida en el Paso 2; `null` si la liquidación es informativa o no estuvo disponible. Es la referencia de liquidación del evento `CHECK_OUT` (FR-015) |
+
+Los huéspedes de la notificación no se envían: se reutilizan de `RoomGuest` (Contrato 1). Respuesta `200 OK` (`CheckOutResultDto`):
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "roomStatus": "PendingCleaning",
+  "checkOutDate": "2026-10-11"
+}
+```
+
+La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en el outbox (FR-014).
+
+### Errores de los dos endpoints
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, o tiene formato inválido | 1 y 2 |
+| 400 | `CONFIRMATION_REQUIRED` | `MandatoryConfirmationMissingException` | `confirmed` no es `true` (FR-008) | 2 |
+| 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` | No hay una estancia activa para ese par o ese `stayId` | 1 y 2 |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Occupied`; `details.currentStatus` lleva el estado actual (FR-004) | 1 y 2 |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (regla 13 del plan base); se puede reintentar | 2 |
+
+```json
+{
+  "errorCode": "ACTIVE_STAY_NOT_FOUND",
+  "message": "No hay una estancia activa de la reserva RSV-8D02E5A4 en la habitación 204.",
+  "timestamp": "2026-10-11T11:20:40-05:00",
+  "path": "/api/check-out/active-stay",
+  "details": { "reservationRef": "RSV-8D02E5A4", "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d" }
+}
+```
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
@@ -208,7 +303,7 @@ Routing key: habitacion.checkout
 
 - [ ] T004 Implementar el modelo de dominio `SettlementSummary` con campos: `settlementType`, `invoiceNumber` (Integer, nullable), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (BigDecimal, nullable), `netIncomeAmount`, `totalAmount` (BigDecimal, nullable).
 - [ ] T005 Implementar el puerto de salida `SettlementRestQueryPort` y su adaptador REST `SettlementRestAdapter` llamando a `GET /api/settlements` con query params (`reservationRef`, `checkInDate`, `checkOutDate`, `source`, `roomId`, `categoryRoom`).
-- [ ] T006 Implementar las excepciones de dominio (`InvalidRoomStateException`, `ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`, `SettlementUnavailableException`) en `GlobalExceptionHandler`.
+- [ ] T006 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`, `SettlementUnavailableException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
 
 ---
 
@@ -259,10 +354,10 @@ Routing key: habitacion.checkout
     ```
     `birthDate` se incluye para todos los huéspedes; `originPlace` y `destinationPlace` únicamente si `nationality != "Colombia"`. Todos se reutilizan de los registros de Check-In (`RoomGuest`).
   - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación, mediante `RoomAuditLogPort` (FR-015).
-  - Guardar mensaje outbox en `outbox_notification` (tipo `habitacion.checkout`).
+  - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkout", "CHECK_OUT", payload)` dentro de la misma transacción; `messageId` y `sequenceNumber` los asigna el outbox (plan base, T012).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
-  - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par.
-  - `POST /api/check-out`: Confirmación y formalización del Check-Out.
+  - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
+  - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
 - [ ] T015 [US1] Construir los componentes frontend en React:
   - `Step1ActiveStay.jsx`: Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
   - `Step2SettlementSummary.jsx`: Muestra `settlementType`, `invoiceNumber` (entero o "Pendiente de facturación"), canal local `Stay.source`, comisión OTA e ingreso neto.
@@ -280,7 +375,7 @@ Routing key: habitacion.checkout
 
 ### Tests for User Story 2
 
-- [ ] T016 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomStateException`.
+- [ ] T016 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomTransitionException`.
 - [ ] T017 [P] [US2] Unit test: Rechazar Check-Out si no existe estancia activa vinculada arrojando `ActiveStayNotFoundException`.
 - [ ] T018 [P] [US2] Unit test: Rechazar Check-Out si `isConfirmed == false` arrojando `MandatoryConfirmationMissingException`.
 - [ ] T019 [P] [US2] Integration test: Manejo de fallback cuando Módulo 3 no responde (timeout 3000 ms), permitiendo liberar a `PendingCleaning`.

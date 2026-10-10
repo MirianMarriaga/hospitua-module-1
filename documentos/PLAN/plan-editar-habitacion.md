@@ -40,10 +40,10 @@ Editar no cambia el estado de la habitación, así que no escribe en `room_state
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `ADMINISTRATOR` | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` | "No tienes permiso para realizar esta acción." |
 
 El formulario se carga con `GET /api/rooms/{roomId}` (`plan-consultar-inventario-habitaciones.md`), que devuelve los datos actuales y la `version`.
 
@@ -122,17 +122,17 @@ Con `changed: false` el frontend muestra "No se modificó ningún dato" y no hay
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
-| 400 | `VALIDATION_ERROR` | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
-| 400 | `VALIDATION_ERROR` | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
-| 400 | `VALIDATION_ERROR` | Tarifa menor o igual a 0 (esc. 11) | "La tarifa base debe ser mayor a 0." |
-| 400 | `VALIDATION_ERROR` | Capacidad menor o igual a 0 (esc. 12) | "La capacidad máxima debe ser un número entero mayor a 0." |
-| 404 | `ROOM_NOT_FOUND` | No existe la habitación (caso borde 3) | "No se encontró ninguna habitación con ese identificador." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9) | "La habitación no está disponible para edición (estado actual: {estado})." |
-| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | Otra habitación, activa o inactiva, ya tiene ese número (FR-009, esc. 13) | "Ya existe una habitación con el número {número} (aunque esté inactiva)." |
-| 409 | `CONCURRENT_UPDATE` | Otra edición cambió la habitación después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa menor o igual a 0 (esc. 11) | "La tarifa base debe ser mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad menor o igual a 0 (esc. 12) | "La capacidad máxima debe ser un número entero mayor a 0." |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 3) | "No se encontró ninguna habitación con ese identificador." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9) | "La habitación no está disponible para edición (estado actual: {estado})." |
+| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Otra habitación, activa o inactiva, ya tiene ese número (FR-009, esc. 13) | "Ya existe una habitación con el número {número} (aunque esté inactiva)." |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra edición cambió la habitación después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 
 ```json
 {

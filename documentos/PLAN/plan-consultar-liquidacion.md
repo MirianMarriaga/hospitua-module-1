@@ -166,6 +166,7 @@ GET /api/settlements
 
 | Nombre | Obligatorio | Descripción |
 |---|---|---|
+| `Authorization` | Sí | `Bearer <JWT>` obtenido con la credencial de servicio de Módulo 1 en Módulo 3 (T005) |
 | `Accept` | No | `application/json` (por defecto) |
 
 **Query Parameters** (sin path params ni body):
@@ -184,6 +185,7 @@ GET /api/settlements
 ```http
 GET /api/settlements?reservationRef=RES-000123&checkInDate=2026-10-04&checkOutDate=2026-10-06&source=BOOKING&roomId=123e4567-e89b-12d3-a456-426614174000&categoryRoom=Suite HTTP/1.1
 Host: modulo3.sistema.local
+Authorization: Bearer <JWT>
 ```
 
 **Respuesta `200 OK`** (no incluye `source`):
@@ -207,13 +209,13 @@ Host: modulo3.sistema.local
 
 **Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista):
 
-| Código | Caso | Resultado en Módulo 1 |
-|---|---|---|
-| `404` | Reserva no encontrada (`RESERVATION_NOT_FOUND`) | `UNAVAILABLE` + causa `RESERVATION_NOT_FOUND` |
-| `404` | Cotización no encontrada (`QUOTE_NOT_FOUND`) | `UNAVAILABLE` + causa `QUOTE_NOT_FOUND` |
-| `404` | Módulo 2 no disponible (`MODULE2_UNAVAILABLE`) | `UNAVAILABLE` + causa `MODULE2_UNAVAILABLE` |
-| Timeout | Sin respuesta en 3 s | `UNAVAILABLE` + causa `TIMEOUT` |
-| Red | Error de red | `UNAVAILABLE` + causa `CONNECTION_ERROR` |
+| Código | Caso | Excepción en Módulo 1 | Resultado en Módulo 1 |
+|---|---|---|---|
+| `404` | Reserva no encontrada (`RESERVATION_NOT_FOUND`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `RESERVATION_NOT_FOUND` |
+| `404` | Cotización no encontrada (`QUOTE_NOT_FOUND`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `QUOTE_NOT_FOUND` |
+| `404` | Módulo 2 no disponible (`MODULE2_UNAVAILABLE`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `MODULE2_UNAVAILABLE` |
+| Timeout | Sin respuesta en 3 s | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `TIMEOUT` |
+| Red | Error de red | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `CONNECTION_ERROR` |
 
 Los códigos `400`, `401`, `403`, `422` y el circuit breaker no son códigos confirmados por Módulo 3.
 
@@ -223,7 +225,14 @@ Los códigos `400`, `401`, `403`, `422` y el circuit breaker no son códigos con
 
 ```
 GET /api/stays/{stayId}/settlement
+Authorization: Bearer <JWT del recepcionista>
 ```
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `stayId` (path) | UUID | Sí | Estancia activa devuelta por `GET /api/check-out/active-stay` (`plan-registrar-check-out.md`, Endpoint 1) |
+
+Sin query params ni body. Módulo 1 arma los parámetros de Módulo 3 desde `Stay` y `Room` (`checkOutDate` = fecha actual) y llama al Endpoint 1.
 
 **Respuesta `200 OK` (`AVAILABLE`):**
 
@@ -267,7 +276,23 @@ GET /api/stays/{stayId}/settlement
 }
 ```
 
-Errores propios de Módulo 1 (estancia inexistente `404`, sin sesión `401`) siguen el formato unificado del plan general.
+Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de Módulo 3 nunca son errores, sino la respuesta controlada anterior:
+
+| Status Code | errorCode | Excepción | Cuándo ocurre |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `stayId` no es un UUID |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | Falta el token o venció |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no es Recepcionista |
+| 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` (`plan-registrar-check-out.md`) | No existe una estancia activa con ese `stayId` (mismo código que `plan-registrar-check-out.md`) |
+
+```json
+{
+  "errorCode": "ACTIVE_STAY_NOT_FOUND",
+  "message": "No hay una estancia activa con ese identificador.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/stays/7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f/settlement"
+}
+```
 
 ---
 

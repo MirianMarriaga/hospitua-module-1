@@ -41,10 +41,10 @@ Las acciones no se implementan aquí:
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
 - **Errores comunes**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -133,7 +133,21 @@ Una búsqueda sin coincidencias (incluida una habitación `Inactive`) o un panel
 
 ### Respuestas de error
 
-Solo los errores comunes (401, 403).
+Solo los errores comunes de la sección "Convenciones de los endpoints":
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
+
+```json
+{
+  "errorCode": "FORBIDDEN",
+  "message": "No tienes permiso para realizar esta acción.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/maintenance/panel"
+}
+```
 
 ---
 

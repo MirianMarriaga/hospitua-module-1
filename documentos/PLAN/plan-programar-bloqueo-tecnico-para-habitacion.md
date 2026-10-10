@@ -39,10 +39,10 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 - **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | El usuario no tiene el rol `MAINTENANCE_STAFF` (FR-003) | "No tienes permiso para realizar esta acción." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
+| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` (FR-003) | "No tienes permiso para realizar esta acción." |
 
 ---
 
@@ -110,14 +110,14 @@ Content-Type: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
-| 400 | `INVALID_DATE_RANGE` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación está `Inactive`, o el bloqueo inicia hoy y la habitación no está en `Available` (FR-001, FR-007, esc. 10) | "Hoy la habitación está {estado}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior." |
-| 409 | `RESERVATION_CONFLICT` | *Consultar reservas* devuelve al menos una reserva en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista referencia y fechas | "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas." |
-| 409 | `MAINTENANCE_CONFLICT` | *Consultar Información de Mantenimientos* responde `available = false`, incluida una programación simultánea (FR-005, esc. 3, caso límite 2); `details.conflicts` lista el inicio y el fin estimado de cada mantenimiento que se cruza | "Ya hay un mantenimiento programado del {inicio} al {fin}. Elige otras fechas." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
+| 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación está `Inactive`, o el bloqueo inicia hoy y la habitación no está en `Available` (FR-001, FR-007, esc. 10) | "Hoy la habitación está {estado}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior." |
+| 409 | `RESERVATION_CONFLICT` | `ReservationConflictException` | *Consultar reservas* devuelve al menos una reserva en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista cada reserva con `reservationRef`, `startDate`, `endDate` y `status` (la misma estructura y la misma `ReservationConflictException` que usa `plan-dar-de-baja-habitacion.md`) | "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.", seguido de cada reserva con su código y sus fechas de llegada y salida |
+| 409 | `MAINTENANCE_CONFLICT` | `MaintenanceConflictException` | *Consultar Información de Mantenimientos* responde `available = false`, incluida una programación simultánea (FR-005, esc. 3, caso límite 2); `details.conflicts` lista el inicio y el fin estimado de cada mantenimiento que se cruza | "Ya hay un mantenimiento programado del {inicio} al {fin}. Elige otras fechas." |
 
 ```json
 {
@@ -126,6 +126,20 @@ Content-Type: application/json
   "timestamp": "2026-10-08T15:00:01-05:00",
   "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/technical-blocks",
   "details": { "rule": "END_BEFORE_START" }
+}
+```
+
+```json
+{
+  "errorCode": "RESERVATION_CONFLICT",
+  "message": "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.",
+  "timestamp": "2026-10-08T15:00:01-05:00",
+  "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/technical-blocks",
+  "details": {
+    "reservations": [
+      { "reservationRef": "RES-10502", "startDate": "2026-10-21", "endDate": "2026-10-24", "status": "ACTIVE" }
+    ]
+  }
 }
 ```
 
@@ -189,10 +203,19 @@ Accept: application/json
 
 ### Respuestas de error
 
-| Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- |
-| 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 404 | `TECHNICAL_BLOCK_NOT_FOUND` | La habitación no tiene un informe `Scheduled` ni `Applied` | "Esta habitación no tiene un mantenimiento programado." |
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
+| 404 | `TECHNICAL_BLOCK_NOT_FOUND` | `TechnicalBlockNotFoundException` | La habitación no tiene un informe `Scheduled` ni `Applied` | "Esta habitación no tiene un mantenimiento programado." |
+
+```json
+{
+  "errorCode": "TECHNICAL_BLOCK_NOT_FOUND",
+  "message": "Esta habitación no tiene un mantenimiento programado.",
+  "timestamp": "2026-10-08T10:00:00-05:00",
+  "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/technical-blocks/current"
+}
+```
 
 ---
 
@@ -226,7 +249,8 @@ backend/src/
 │   │   │   └── TechnicalBlockReport.java          # Definido en el plan base; aquí se implementa
 │   │   ├── exception/
 │   │   │   ├── ReservationConflictException.java
-│   │   │   └── MaintenanceConflictException.java
+│   │   │   ├── MaintenanceConflictException.java
+│   │   │   └── TechnicalBlockNotFoundException.java # 404 TECHNICAL_BLOCK_NOT_FOUND
 │   │   └── ports/
 │   │       ├── in/
 │   │       │   ├── ScheduleTechnicalBlockUseCase.java
@@ -278,7 +302,7 @@ frontend/src/
 
 - [ ] T002 Verificar que la tabla `technical_block_report` y su índice por `(room_id, status)` existan (plan base, T018) (FR-009).
 - [ ] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`, sin edición de campos, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA, `TechnicalBlockReportRepositoryPort` y su adaptador (FR-019).
-- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `INVALID_DATE_RANGE`, `RESERVATION_CONFLICT`, `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND`.
+- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `INVALID_DATE_RANGE`, `RESERVATION_CONFLICT`, `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`).
 - [ ] T005 Verificar que la ingesta de la lista diaria publique `DailyReservationListIngestedEvent` (regla 10 del plan base).
 
 ---

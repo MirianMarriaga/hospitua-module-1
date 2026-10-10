@@ -76,7 +76,6 @@ backend/src/
 │   │   │   ├── DailyReservation.java
 │   │   │   └── DailyReservationRoom.java
 │   │   ├── exception/
-│   │   │   ├── InvalidRoomStateException.java
 │   │   │   ├── GuestCountMismatchException.java
 │   │   │   ├── RoomCapacityExceededException.java
 │   │   │   ├── DuplicateGuestDocumentException.java
@@ -191,6 +190,128 @@ Routing key: habitacion.checkin
 
 ---
 
+## Endpoints REST internos (Frontend → Módulo 1)
+
+Ambos exigen `Authorization: Bearer <JWT>` con rol Recepcionista (FR-001); el recepcionista responsable se toma del token. Los errores usan `ApiError` del plan base; los `401` y `403` son los generales.
+
+### Endpoint 1 — Validar la reserva y la habitación (Paso 1)
+
+```http
+GET /api/check-in/validate?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+Authorization: Bearer <JWT>
+```
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `reservationRef` | string | Sí | Referencia que entrega el botón "Check-in" del panel de recepción (FR-003) |
+| `roomId` | UUID | Sí | Habitación seleccionada en el panel |
+
+Valida solo contra la copia local (`DailyReservationQueryPort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
+
+```json
+{
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "categoryRoom": "DOBLE",
+  "guestCount": 2,
+  "maxCapacity": 3,
+  "startDate": "2026-10-09",
+  "endDate": "2026-10-11",
+  "nights": 2,
+  "source": "BOOKING",
+  "holder": {
+    "firstName": "Ana",
+    "lastName": "Pérez",
+    "documentType": "CC",
+    "documentNumber": "123",
+    "nationality": "Colombia"
+  }
+}
+```
+
+`holder` son los datos del titular en solo lectura (FR-007); `nights` se calcula como `endDate − startDate`.
+
+### Endpoint 2 — Registrar el Check-In (confirmación del Paso 3)
+
+```http
+POST /api/check-in
+Authorization: Bearer <JWT>
+Content-Type: application/json
+```
+
+```json
+{
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "guests": [
+    {
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "documentType": "CC",
+      "documentNumber": "123",
+      "birthDate": "1995-03-20",
+      "nationality": "Colombia",
+      "isReservationGuest": true
+    },
+    {
+      "firstName": "John",
+      "lastName": "Smith",
+      "documentType": "PAS",
+      "documentNumber": "X99",
+      "birthDate": "1990-05-12",
+      "nationality": "Estados Unidos",
+      "originPlace": "Miami, Estados Unidos",
+      "destinationPlace": "Cartagena, Colombia",
+      "isReservationGuest": false
+    }
+  ]
+}
+```
+
+Cada elemento de `guests[]` (`GuestInputDto`) tiene los campos del Contrato 1 más `isReservationGuest` (FR-007): `birthDate` obligatoria para todos y anterior a hoy, `documentType` uno de `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`, y `originPlace`/`destinationPlace` obligatorios solo si `nationality ≠ Colombia` (FR-006, FR-009). El servidor repite las validaciones del Paso 1.
+
+Respuesta `201 Created` (`CheckInResultDto`):
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "roomStatus": "Occupied",
+  "checkInDate": "2026-10-09"
+}
+```
+
+La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-014).
+
+### Errores de los dos endpoints
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
+| --- | --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, `documentType` no admitido, `birthDate` no anterior a hoy, o extranjero sin `originPlace`/`destinationPlace`; `details.field` y `details.guestIndex` señalan el campo (FR-006, FR-009) | 1 y 2 |
+| 400 | `GUEST_COUNT_MISMATCH` | `GuestCountMismatchException` | La cantidad de huéspedes difiere de `guestCount` de la habitación (FR-008) | 2 |
+| 400 | `ROOM_CAPACITY_EXCEEDED` | `RoomCapacityExceededException` | La cantidad de huéspedes supera `maxCapacity` (FR-008) | 2 |
+| 400 | `DUPLICATE_GUEST_DOCUMENT` | `DuplicateGuestDocumentException` | Dos huéspedes de la habitación tienen el mismo tipo y número de documento | 2 |
+| 404 | `RESERVATION_NOT_FOUND` | `ReservationNotFoundException` (`plan-consultar-reservas.md`) | El par `reservationRef`, `roomId` no está en la copia local del día | 1 y 2 |
+| 409 | `INVALID_CHECK_IN_DATE` | `InvalidCheckInDateException` | La reserva no inicia hoy (`startDate ≠ fechaActual`, FR-005) | 1 y 2 |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Reserved` o está apartada para otra reserva; `details.currentStatus` lleva el estado actual (FR-004) | 1 y 2 |
+| 409 | `STAY_ALREADY_EXISTS` | `StayAlreadyExistsException` | Ya existe una estancia para ese par (FR-003) | 1 y 2 |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (regla 13 del plan base); se puede reintentar | 2 |
+
+```json
+{
+  "errorCode": "ROOM_INVALID_STATE",
+  "message": "La habitación 204 está Disponible; solo se puede hacer el Check-In de una habitación Reservada para esta reserva.",
+  "timestamp": "2026-10-09T14:05:12-05:00",
+  "path": "/api/check-in/validate",
+  "details": { "currentStatus": "Available" }
+}
+```
+
+---
+
 ## Phase 1: Setup & Database Migrations
 
 - [ ] T001 Migración Flyway: Actualizar tabla `stay` agregando columnas `titular_first_name`, `titular_last_name`, `titular_document_number` y asegurando que `source` almacene `DIRECTA` o el nombre de la OTA.
@@ -221,7 +342,7 @@ Routing key: habitacion.checkin
 - [ ] T006 Implementar DTOs para el contrato plano hacia `m2.habitacion.checkin.queue`:
   - `CheckInMessagePayload`: `messageId` (UUID), `sequenceNumber` (int), `reservationRef` (String), `roomId` (UUID), `movementType` ("ENTRY"), `movementDate` (String: YYYY-MM-DD), `guests` (List<GuestMessageDto>).
   - `GuestMessageDto`: `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace`, `destinationPlace`.
-- [ ] T007 Implementar excepciones de dominio en `GlobalExceptionHandler`: `InvalidRoomStateException`, `GuestCountMismatchException`, `RoomCapacityExceededException`, `DuplicateGuestDocumentException`, `InvalidCheckInDateException`, `StayAlreadyExistsException`.
+- [ ] T007 Implementar excepciones de dominio en `GlobalExceptionHandler`: `GuestCountMismatchException`, `RoomCapacityExceededException`, `DuplicateGuestDocumentException`, `InvalidCheckInDateException`, `StayAlreadyExistsException`, con los códigos de la tabla "Errores de los dos endpoints"; `ReservationNotFoundException` es de `plan-consultar-reservas.md`. `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
 
 ---
 
@@ -244,7 +365,7 @@ Routing key: habitacion.checkin
 ### Implementation for User Story 1
 
 - [ ] T015 [P] [US1] Implementar en `CheckInValidationService`:
-  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room`.
+  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationQueryPort`: puerto de solo lectura que implementa el mismo adaptador de la copia local de `plan-consultar-reservas.md`, sin un segundo origen de datos.
   - Validación de existencia y no duplicidad de `Stay` previo para ese `(reservationRef, roomId)`.
   - Validación de habitación física en estado `Reserved` con `reservedByReservationRef == reservationRef`.
 - [ ] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
@@ -256,11 +377,11 @@ Routing key: habitacion.checkin
   - Persistir ocupantes en `RoomGuest`.
   - Registrar en `room_audit_log` el evento `CHECK_IN` con `stayId`, `reservationRef`, recepcionista y marca de tiempo, mediante `RoomAuditLogPort` (FR-015).
   - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base).
-  - Construir mensaje plano `CheckInMessagePayload` con `messageId` (UUIDv4) y `sequenceNumber` creciente por cola, que nunca se reinicia (contrato de Módulo 2).
-  - Insertar mensaje en `outbox_notification` para publicación asíncrona hacia `m2.habitacion.checkin.queue`.
+  - Construir el mensaje plano `CheckInMessagePayload`; `messageId` y `sequenceNumber` (creciente por cola, nunca reiniciado) los asigna `OutboxEventPublisherPort.enqueue(...)` (plan base, T012).
+  - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkin", "CHECK_IN", payload)` dentro de la misma transacción, para su publicación asíncrona hacia `m2.habitacion.checkin.queue`.
 - [ ] T017 [US1] Implementar controlador REST `CheckInController`:
-  - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1).
-  - `POST /api/check-in` (Confirmación final del Paso 4).
+  - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1; Endpoint 1).
+  - `POST /api/check-in` (confirmación del Paso 3; Endpoint 2).
 - [ ] T018 [US1] Adaptar componentes de UI en frontend:
   - Formulario con nombres y apellidos separados.
   - Panel migratorio condicional visible exclusivamente para extranjeros con validación de fecha de nacimiento en el pasado.
@@ -275,7 +396,7 @@ Routing key: habitacion.checkin
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación no está en `Reserved`, incluido `Available`, o si está apartada para otra reserva (`InvalidRoomStateException`).
+- [ ] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación no está en `Reserved`, incluido `Available`, o si está apartada para otra reserva (`InvalidRoomTransitionException`).
 - [ ] T020 [P] [US2] Unit test: Rechazar Check-In si ya existe un `Stay` activo para esa habitación (`StayAlreadyExistsException`).
 - [ ] T021 [P] [US2] Unit test: Rechazar Check-In si el número de ocupantes supera el `guest_count` de la habitación (`GuestCountMismatchException`) o la capacidad física (`RoomCapacityExceededException`).
 - [ ] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
@@ -283,7 +404,7 @@ Routing key: habitacion.checkin
 
 ### Implementation for User Story 2
 
-- [ ] T024 [P] [US2] Implementar el scheduler/worker de despacho Outbox con reintentos exponenciales y conservación estricta de `messageId` original.
+- [ ] T024 [P] [US2] Verificar con el worker del outbox del plan base (T012) que un Check-In no publicado se reintenta con el mismo `messageId` y `sequenceNumber`, sin frenar otros mensajes, y que agotados los reintentos queda en `FAILED` con alerta.
 - [ ] T025 [US2] Implementar manejo de contingencia en frontend: mensajes controlados sin jerga técnica cuando no se pueda registrar el Check-In.
 
 ---

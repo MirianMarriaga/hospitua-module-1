@@ -104,10 +104,8 @@ backend/src/
 │   └── infrastructure/
 │       ├── adapters/
 │       │   ├── in/
-│       │   │   ├── amqp/
-│       │   │   │   └── DailyReservationRabbitListener.java # Listener m1.reservas.diarias.queue
-│       │   │   └── web/
-│       │   │       └── RoomMaintenanceReservationController.java # Endpoint de Administración (/api/rooms/{id}/decommission-conflicts)
+│       │   │   └── amqp/
+│       │   │       └── DailyReservationRabbitListener.java # Listener m1.reservas.diarias.queue
 │       │   └── out/
 │       │       ├── persistence/
 │       │       │   ├── DailyReservationJpaEntity.java
@@ -118,10 +116,7 @@ backend/src/
 │       │           ├── Module2ReservationConflictRestAdapter.java # Cliente REST de GET /api/reservations
 │       │           └── Module2Properties.java
 frontend/src/
-├── components/maintenance/
-│   └── RoomDecommissionConflictChecker.jsx
-└── services/
-    └── roomConflictService.js
+└── (sin componentes propios: la búsqueda de llegadas es del panel de recepción y la verificación de reservas ocurre dentro de la baja y del bloqueo técnico)
 ```
 
 ---
@@ -239,9 +234,9 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar `DailyReservationPersistenceAdapter` para operaciones CRUD y purga atómica de la copia local.
-- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación, control de `sequenceNumber` y transiciones automáticas de habitaciones (`Available ↔ Reserved`), ejecutando primero las liberaciones a las 00:00. Por cada habitación, bloquea su fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de apartarla, liberarla o registrar el conflicto. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003).
+- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación, control de `sequenceNumber` y transiciones automáticas de habitaciones (`Available ↔ Reserved`), ejecutando primero las liberaciones a las 00:00. Por cada habitación, bloquea su fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de apartarla, liberarla o registrar el conflicto. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` (regla 10 del plan base).
 - [ ] T013 [P] [US1] Implementar en la ingesta de las 00:00 la liberación a `Available` (mediante `MarkRoomAvailableUseCase`) de cada habitación en `Reserved` cuya reserva no figura en la nueva lista, con la salvaguarda de `reservedByReservationRef`. No se implementa un corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
-- [ ] T014 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`.
+- [ ] T014 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`. Los mensajes ilegibles o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` van, sin aplicarse, a la cola de mensajes fallidos `m1.reservas.diarias.dlq` (Dead-Letter Exchange del plan base, T011). Un fallo temporal se reintenta con espera creciente (3 intentos) y luego va a la misma cola (FR-003).
 
 ---
 
@@ -266,7 +261,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 - [ ] T017 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
 - [ ] T018 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomPersistencePort` (estado `Reserved`).
-- [ ] T019 [P] [US2] Exponer `SearchDailyReservationsUseCase` como puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
+- [ ] T019 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `List<ArrivalGroup> searchPendingArrivals(String query)`: cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día. Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
 - [ ] T020 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.jsx` y `ReceptionSearchBar.jsx`, `plan-consultar-panel-recepcion.md` T013).
 
 ---
@@ -290,9 +285,56 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
    - **Dar de Baja Habitación (Administrador)**:
      - `startDate` = fecha actual (`LocalDate.now()`).
      - `endDate` = `9999-12-31` (`NO_UPPER_LIMIT`): sin límite superior, cualquier reserva vigente desde hoy cuenta.
-4. **Puerto y Adaptador REST** (*Consultar reservas* FR-023 de Módulo 2, con la credencial de servicio de Módulo 1):
-   - Ruta: `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}`. El puerto `Module2ReservationConflictClientPort` usa `startDate`/`endDate`; el adaptador los envía como `dateFrom`/`dateTo`, ambos inclusivos.
-   - Respuesta 200 OK: `items[]` con las reservas vigentes (`PENDING`, `ACTIVE` o `IN_PROGRESS`) de la habitación cuya estadía se cruza con el rango (Módulo 2 aplica `startDate` ≤ `dateTo` y `endDate` > `dateFrom`). Cada reserva devuelta es un conflicto; una lista vacía significa que la operación es segura. El servicio arma `ReservationConflictResult` con `hasConflict = items no vacío` y las reservas recibidas, sin reevaluar estados ni fechas.
+4. **Puerto y Adaptador REST** (*Consultar reservas* FR-023 de Módulo 2, con la credencial de servicio de Módulo 1). El puerto `Module2ReservationConflictClientPort` usa `startDate`/`endDate` y el adaptador los envía como `dateFrom`/`dateTo`, ambos inclusivos. Cada reserva devuelta es un conflicto; una lista vacía significa que la operación es segura. El servicio arma `ReservationConflictResult` con `hasConflict = items no vacío` y las reservas recibidas, sin reevaluar estados ni fechas.
+
+   **Contrato de la llamada (Módulo 1 → Módulo 2)**
+
+   ```http
+   GET /api/reservations?dateFrom=2026-10-20&dateTo=2026-10-22&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+   Authorization: Bearer <JWT de la credencial de servicio de Módulo 1 (rol MODULE1 de Módulo 2)>
+   Accept: application/json
+   ```
+
+   | Parámetro | Tipo | Obligatorio | Descripción |
+   | --- | --- | --- | --- |
+   | `dateFrom` | fecha (`AAAA-MM-DD`) | Sí | Inicio del rango (inclusivo) |
+   | `dateTo` | fecha (`AAAA-MM-DD`) | Sí | Fin del rango (inclusivo); `9999-12-31` para la baja |
+   | `roomId` | UUID | Sí para Módulo 1 (opcional en Módulo 2) | Habitación consultada; siempre una por petición |
+
+   Respuesta `200 OK`. Los campos son los de FR-023 de Módulo 2; la envoltura `items` es la acordada con Módulo 2 y está **pendiente de confirmar** en su plan, junto con la paginación:
+
+   | Campo | Tipo | Descripción |
+   | --- | --- | --- |
+   | `items[]` | array | Reservas vigentes cuya estadía se cruza con el rango (`startDate` ≤ `dateTo` y `endDate` > `dateFrom`); vacía si no hay |
+   | `items[].reservationRef` | string | Referencia de la reserva |
+   | `items[].status` | string | `PENDING`, `ACTIVE` o `IN_PROGRESS` |
+   | `items[].startDate` | fecha | Llegada |
+   | `items[].endDate` | fecha | Salida (no se considera ocupada) |
+   | `items[].rooms[]` | array | Habitaciones de la reserva: `roomId`, `roomNumber`, `categoryRoom` |
+
+   ```json
+   {
+     "items": [
+       {
+         "reservationRef": "RSV-3F9A1C7B",
+         "status": "ACTIVE",
+         "startDate": "2026-10-21",
+         "endDate": "2026-10-24",
+         "rooms": [
+           { "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", "roomNumber": "106", "categoryRoom": "DOBLE" }
+         ]
+       }
+     ]
+   }
+   ```
+
+   | Respuesta de Módulo 2 | Excepción en Módulo 1 | Qué responde Módulo 1 |
+   | --- | --- | --- |
+   | `200` con `items` vacío | — | Sin conflicto: la operación continúa |
+   | `200` con reservas | `ReservationConflictException` | `409 RESERVATION_CONFLICT` con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada una) |
+   | `400` (`INVALID_DATE`, `INCOMPLETE_DATE_RANGE`, `INVALID_ROOM_ID`), `5xx`, timeout o caída | `ExternalModule2UnavailableException` | `503 MODULE_2_UNAVAILABLE`; la operación se cancela sin cambiar la habitación |
+
+   Los ejemplos de esos errores están en los endpoints que los devuelven: `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
 5. **Manejo de Resiliencia y Fallos**:
    - Connect timeout: 1000 ms. Read timeout: 2000 ms.
    - Si Módulo 2 responde con un error (400 o 5xx), timeout o caída de conexión, se captura la excepción y se lanza `ExternalModule2UnavailableException` (mapeada a HTTP 503 con código `MODULE_2_UNAVAILABLE`), informando al usuario la imposibilidad de verificar reservas en ese momento sin generar un 500 no controlado.
@@ -305,7 +347,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - Mapeo de `items` vacío (`hasConflict = false`) y de `items` con reservas (`hasConflict = true`, con cada reserva devuelta).
   - Lanzamiento de `ExternalModule2UnavailableException` ante fallo o timeout del cliente REST.
 - [ ] T022 [P] [US3] Integration test con `MockRestServiceServer` para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout o error.
-- [ ] T023 [P] [US3] Component test frontend para `RoomDecommissionConflictChecker.jsx`.
+- [ ] T023 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: header `Authorization`, parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
 
 ### Implementation for User Story 3
 
@@ -315,9 +357,8 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 - [ ] T026 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
   - Método `checkMaintenanceConflict(UUID roomId, LocalDate startDate, LocalDate endDate)`
   - Método `checkDecommissionConflict(UUID roomId)` (calcula automáticamente `startDate = LocalDate.now()` y `endDate = 9999-12-31`).
-- [ ] T027 [P] [US3] Implementar controlador REST interno en Módulo 1 `RoomMaintenanceReservationController.java`:
-  - `GET /api/rooms/{roomId}/decommission-conflicts` (para baja de habitación, desde hoy y sin límite superior)
-- [ ] T028 [P] [US3] Implementar componentes en frontend `roomConflictService.js` y `RoomDecommissionConflictChecker.jsx`. *Programar bloqueo técnico* no tiene verificación previa propia: `POST /api/rooms/{roomId}/technical-blocks` consulta las reservas con `checkMaintenanceConflict` y responde `RESERVATION_CONFLICT`.
+- [ ] T027 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
+- [ ] T028 [P] [US3] Implementar `ReservationConflictException` (409 `RESERVATION_CONFLICT`) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
 
 ---
 
