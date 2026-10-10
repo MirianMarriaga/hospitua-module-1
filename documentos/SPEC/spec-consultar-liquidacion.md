@@ -101,7 +101,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
   5. `taxAmount` (decimal, null si informativa)
   6. `netIncomeAmount` (decimal — fórmula confirmada: hospedaje − comisión OTA)
   7. `totalAmount` (decimal, null si informativa — lo calcula M3; Módulo 1 **no** lo recalcula)
-  8. `settlementType` (string: `"INFORMATIVA"` | `"FINAL"`)
+  8. `settlementType` (string: `"INFORMATIVA"` | `"FINAL"`) [NEEDS_CONFIRMATION_MODULO_3: Nombre exacto del campo de tipo de liquidación y valores devueltos por Módulo 3]
   
   *Nota*: `source` NO regresa en la respuesta de M3; Módulo 1 lo recupera de `Stay.source`.
 
@@ -135,7 +135,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
 - **SettlementRequest**: Parámetros enviados a M3: `reservationRef`, `checkInDate`, `checkOutDate`, `source` (de `Stay.source`), `roomId`, `categoryRoom`.
 - **SettlementSummary**: Respuesta de M3: `invoiceNumber` (entero o null), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType`. No incluye `source`.
 - **Stay**: Fuente de `source`, `checkInDate`, `checkOutDate`, `reservationRef`, `roomId`.
-- **Module3**: Sistema externo responsable del cálculo, comisiones, IVA y generación de factura oficial. Consume notificaciones de Check-Out vía `m2.habitacion.checkout.queue`. No recibe ni espera datos de huéspedes en peticiones directas.
+- **Module3**: Sistema externo responsable del cálculo, comisiones, IVA y generación de factura oficial. Consume notificaciones de Check-Out de forma asíncrona. No recibe ni espera datos de huéspedes en peticiones directas.
 
 ---
 
