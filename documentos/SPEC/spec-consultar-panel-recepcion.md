@@ -51,10 +51,10 @@ Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del 
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
    - **Entonces** dicha fila se muestra resaltada con una alerta visual de conflicto de habitación ("No disponible: [Estado]"), notificando al Recepcionista para gestionar la reubicación física de la asignación.
 
-7. **Escenario**: Indicador informativo por habitación en limpieza
-   - **Dado** una reserva en la lista del día cuya habitación asignada se encuentra en Módulo 1 en estado "PendingCleaning" o "InCleaning"
+7. **Escenario**: Indicador informativo por habitación ocupada o en limpieza
+   - **Dado** una reserva en la lista del día cuya habitación asignada se encuentra en Módulo 1 en estado "Occupied" (el huésped anterior aún no sale), "PendingCleaning" o "InCleaning"
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
-   - **Entonces** dicha fila muestra un indicador informativo, sin resaltado de conflicto ("En limpieza: se apartará al terminar"), ya que la habitación pasará a "Reserved" automáticamente al confirmarse el fin de la limpieza; mientras tanto, el Check-in de esa habitación será rechazado indicando su estado actual.
+   - **Entonces** dicha fila muestra un indicador informativo, sin resaltado de conflicto ("[Estado]: se apartará al terminar la limpieza", por ejemplo "Ocupada: se apartará al terminar la limpieza"), ya que la habitación pasará a "Reserved" automáticamente al confirmarse el fin de su limpieza; mientras tanto, el Check-in de esa habitación será rechazado indicando su estado actual.
 
 ---
 
@@ -149,7 +149,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
   - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-019).
-  - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar en limpieza (`PendingCleaning` o `InCleaning`) (ej. "En limpieza: se apartará al terminar").
+  - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), con el texto "[Estado]: se apartará al terminar la limpieza" (escenario 7).
   - Botón individual de acción "Check-in" por cada habitación.
 
 - **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas por la cola `m1.reservas.diarias.queue` (`reserva.lista-del-dia.actualizacion`):

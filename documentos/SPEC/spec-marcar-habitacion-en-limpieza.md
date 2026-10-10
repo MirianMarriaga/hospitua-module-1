@@ -10,7 +10,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 
 **Por qué esta prioridad**: Es la acción principal del personal de limpieza. Sin ella, las habitaciones no avanzan en su ciclo de vida y quedan estancadas, reduciendo la capacidad operativa del hotel y empeorando la experiencia del usuario.
 
-**Prueba independiente**: Puede ser probada indicando que se va a iniciar la limpieza en una habitación en estado `PendingCleaning` o `Available`, verificando que el sistema la marca como `InCleaning`, asigna la labor al miembro que indicó el inicio de labores de limpieza, registra la fecha y hora de inicio y la excluye de la lista de habitaciones disponibles al público y del panel general de limpieza, haciéndola visible única y exclusivamente para el miembro del personal de limpieza vinculado a la labor.
+**Prueba independiente**: Puede ser probada indicando que se va a iniciar la limpieza en una habitación en estado `PendingCleaning` o `Available`, verificando que el sistema la marca como `InCleaning`, asigna la labor al miembro que indicó el inicio de labores de limpieza, registra la fecha y hora de inicio y la excluye del panel general de limpieza, haciéndola visible única y exclusivamente para el miembro del personal de limpieza vinculado a la labor.
 
 **Escenarios de aceptación**:
 
@@ -94,7 +94,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
    - **StartDateTime**: TimeStamp de inicio de labores de limpieza - Formato DD-MM-YYYY HH:MM
    - **EndDateTime**: TimeStamp de finalización de labores de limpieza - Formato DD-MM-YYYY HH:MM
    - **Outcome**: Resultado de la tarea, asignado al cerrarla - `Completed` (limpieza confirmada), `DamageReported` (limpieza confirmada con reporte de daño) o `Released` (tarea liberada sin terminar); nulo mientras la tarea está activa
-- **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se abre el periodo `InCleaning`.
+- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se abre el periodo `InCleaning`.
 
 ---
 

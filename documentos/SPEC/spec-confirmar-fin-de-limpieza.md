@@ -96,7 +96,7 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
 - **Room**: Entidad que representa una habitación del hotel. En este caso de uso transita de `InCleaning` a `Available`, completando el ciclo de limpieza, o de `InCleaning` a `PendingCleaning` cuando se libera la tarea.
 - **CleaningTask**: Entidad definida en el caso de uso *Marcar Habitación en Limpieza* (`RoomId`, `CleaningStaffMemberId`, `StartDateTime`, `EndDateTime`, `Outcome`). En este caso de uso se completan los campos `EndDateTime` y `Outcome`.
 - **DamageReport**: Entidad definida en el caso de uso *Marcar Habitación Inhabilitada por Reparaciones*. Se crea solo cuando se diligencia la descripción opcional del daño (FR-012).
-- **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se cierra el periodo `InCleaning` y se abren los periodos de las transiciones ejecutadas.
+- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se cierra el periodo `InCleaning` y se abren los periodos de las transiciones ejecutadas.
 
 ---
 

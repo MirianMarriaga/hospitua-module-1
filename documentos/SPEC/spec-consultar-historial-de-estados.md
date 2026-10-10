@@ -55,7 +55,7 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
   - tipo de habitación
   - estado
   - rango de fechas (startTime / endTime).
-- **FR-003**: Cada fila de la vista DEBE mostrar: habitación, tipo de habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista).
+- **FR-003**: Cada fila de la vista DEBE mostrar: habitación, tipo de habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista), responsable (usuario que provocó la transición, o "Sistema" cuando la transición es autónoma) y flujo de origen (nombre del caso de uso que provocó la transición). Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó.
 - **FR-004**: Cuando una transición no tiene fecha de finalización, la vista DEBE mostrar "En curso" como fecha de finalización.
 - **FR-005**: La consulta DEBE ser **solo lectura**; no debe modificar datos ni ejecutar transiciones de estado.
 - **FR-006**: El sistema DEBE validar que la fecha "Desde" no sea posterior a la fecha "Hasta"; si lo es, DEBE informar el error y no mostrar resultados hasta que el rango sea válido.
@@ -65,7 +65,7 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida).
-- **RoomStateHistory**: Historial común de transiciones de estado definido en documentos/SPEC/referencias/maquina-estados-habitacion.md. Es la fuente de datos de esta consulta: cada fila corresponde a un periodo de la habitación en un estado (estado, inicio, fin, actor y flujo de origen).
+- **RoomStateHistory**: Historial común de transiciones de estado. Es la fuente de datos de esta consulta: cada fila corresponde a un periodo de la habitación en un estado (estado, inicio, fin, actor y flujo de origen).
 - **Manager**: Nombre de código del actor Gerente, que realiza la consulta del historial de estados.
 
 ## Criterios de Éxito *(obligatorio)*

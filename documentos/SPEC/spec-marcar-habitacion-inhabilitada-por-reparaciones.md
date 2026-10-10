@@ -8,9 +8,9 @@
 
 Como miembro del personal de limpieza o mantenimiento quiero poder reportar daños físicos o estructurales en una habitación, para así poder formalizar la labor de reporte de anomalías sobre unidades habitacionales, agilizando la intervención del personal calificado en la resolución de los conflictos descritos en el informe generado por el reporte.
 
-**Por qué esta prioridad**: Es una funcionalidad crítica para mantener los estándares de calidad del hotel. Las habitaciones con daños deben ser reportadas y retiradas del inventario operativo del hotel de forma temporal para evitar asignaciones, mitigar malas experiencias con los huéspedes y prevenir el deterioro prolongado de la infraestructura.
+**Por qué esta prioridad**: Es una funcionalidad crítica para mantener los estándares de calidad del hotel. Las habitaciones con daños deben ser reportadas y retiradas temporalmente de la operación (no pueden asignarse para el día actual ni recibir huéspedes) para evitar asignaciones, mitigar malas experiencias con los huéspedes y prevenir el deterioro prolongado de la infraestructura.
 
-**Prueba independiente**: Puede ser probada autenticándose en el sistema como miembro del personal de limpieza o mantenimiento, seleccionando una habitación con estado `Available`, diligenciando y enviando el formulario de reporte con una descripción textual válida del daño y verificando que el sistema transiciona la habitación a `DisabledForRepairs`, persiste un nuevo registro transaccional en la entidad de reportes vinculado al usuario en sesión, la habitación junto con la fecha y hora del reporte, retira la habitación del inventario operativo y del panel de limpieza y verificando su aparición en el panel de mantenimiento (definido en el caso de uso *Confirmar Fin de Reparación de Habitación*) con el estado `DisabledForRepairs`.
+**Prueba independiente**: Puede ser probada autenticándose en el sistema como miembro del personal de limpieza o mantenimiento, seleccionando una habitación con estado `Available`, diligenciando y enviando el formulario de reporte con una descripción textual válida del daño y verificando que el sistema transiciona la habitación a `DisabledForRepairs`, persiste un nuevo registro transaccional en la entidad de reportes vinculado al usuario en sesión, la habitación junto con la fecha y hora del reporte, la retira del panel de limpieza y verificando su aparición en el panel de mantenimiento (definido en el caso de uso *Confirmar Fin de Reparación de Habitación*) con el estado `DisabledForRepairs`.
 
 **Escenarios de aceptación**:
 
@@ -54,7 +54,7 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 - **FR-001**: El sistema DEBE proveer al personal autenticado (actores: limpieza, mantenimiento) la interfaz de captura de datos para el reporte *(despliegue de un formulario modal superpuesto que exija un input de texto plano para la descripción del daño)*.
 - **FR-002**: El sistema DEBE validar de manera estricta que la ejecución de la inhabilitación proceda única y exclusivamente cuando la habitación objetivo se encuentre en estado `Available`; en caso contrario, arrojará un error *(ofreciendo retroalimentación visual a través de un modal superpuesto indicando el estado de la habitación y la causa del error, en este caso, una operación no válida)*.
 - **FR-003**: El sistema DEBE exigir la presencia de la descripción del daño, evaluando que la cadena de texto no sea nula, vacía, ni exceda el límite de caracteres preestablecido *(validación ejecutada previamente al envío del reporte)*.
-- **FR-004**: El sistema DEBE transicionar el estado de la entidad habitación a `DisabledForRepairs` al procesar el reporte, y desencadenar la actualización reactiva del inventario operativo del hotel *(confirmación visual de éxito de la acción realizada)*.
+- **FR-004**: El sistema DEBE transicionar el estado de la entidad habitación a `DisabledForRepairs` al procesar el reporte *(confirmación visual de éxito de la acción realizada)*. Desde ese momento la habitación deja de listarse en el panel de limpieza, figura como inhabilitada en el panel de mantenimiento y no puede asignarse para el día actual (*Consultar Información de Mantenimientos* FR-014).
 - **FR-005**: El sistema DEBE generar el registro de auditoría y trazabilidad extrayendo los metadatos de forma autónoma *(información de la sesión, habitación, fecha y hora serán proporcionadas por la sesión)* sin depender de inserciones manuales del cliente para ser asociadas al reporte de manera automática.
 - **FR-006**: El sistema DEBE garantizar la integridad referencial y de estado frente a peticiones simultáneas, rechazando solicitudes sobre habitaciones que hayan abandonado el estado `Available` milisegundos antes de procesar la petición actual.
 - **FR-007**: El sistema DEBE ofrecer, mientras la habitación esté en `DisabledForRepairs`, la acción **Ver informe**, que muestra el `DamageReport` que originó ese estado.
@@ -76,7 +76,7 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
   - **UserId**: Identificador del usuario (de limpieza o mantenimiento) vinculado al reporte
   - **RoomId**: Identificador de la habitación vinculada al reporte
   - **ReportDateTime**: TimeStamp de realización del reporte - Formato DD-MM-YYYY HH:MM
-- **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). En este caso de uso se abre el periodo `DisabledForRepairs`.
+- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se abre el periodo `DisabledForRepairs`.
 
 ---
 
@@ -86,5 +86,5 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 
 - **SC-001**: El miembro del personal puede ejecutar el flujo de inhabilitación, incluyendo la redacción de la justificación, en un tiempo máximo de 45 segundos.
 - **SC-002**: El 100% de las inhabilitaciones transicionan el estado de la habitación y simultáneamente generan el registro íntegro `DamageReport` dentro de la misma transacción de base de datos.
-- **SC-003**: La habitación afectada es purgada del inventario operativo y transferida al panel de mantenimiento en un máximo de 3 segundos.
+- **SC-003**: La habitación afectada deja de listarse en el panel de limpieza y aparece como inhabilitada en el panel de mantenimiento en un máximo de 3 segundos.
 - **SC-004**: El 100% de las inhabilitaciones quedan registradas en `RoomStateHistory` con el mismo timestamp de servidor que `ReportDateTime`.

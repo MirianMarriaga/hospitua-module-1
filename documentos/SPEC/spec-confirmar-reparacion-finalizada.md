@@ -92,8 +92,8 @@ Como miembro del personal de mantenimiento quiero poder indicar que voy a interv
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE proporcionar una vista alternativa al panel general de mantenimiento para restringir la acción de los miembros del personal con tareas activas vinculadas a la acción de **Confirmación de finalización de labores de reparación**.
-   - **FR-001.1**: En la vista alternativa o vista de tarea activa únicamente debe estar presente la habitación cuyas labores activas estén vinculadas al usuario autenticado en dicha sesión, con sus datos operativos (número de habitación, tipo, estado actual).
-   - **FR-001.2**: La cinta de opciones disponibles a realizar sobre la habitación debe ser limitada a las acciones "Confirmar fin", que representa la intención inicial de confirmar la finalización de la reparación en la unidad habitacional, y "Liberar tarea" (FR-017).
+  - **FR-001.1**: En la vista alternativa o vista de tarea activa únicamente debe estar presente la habitación cuyas labores activas estén vinculadas al usuario autenticado en dicha sesión, con sus datos operativos (número de habitación, tipo, estado actual).
+  - **FR-001.2**: La cinta de opciones disponibles a realizar sobre la habitación debe ser limitada a las acciones "Confirmar fin", que representa la intención inicial de confirmar la finalización de la reparación en la unidad habitacional, y "Liberar tarea" (FR-017).
 - **FR-002**: El sistema DEBE permitir al personal de mantenimiento autenticado solicitar la finalización de sus labores y requerir confirmación explícita *(confirmación a través de un modal superpuesto indicando "¿Está seguro que desea finalizar las reparaciones de la habitación X?", advirtiendo que la acción trasladará la habitación a la cola de limpieza).*
 - **FR-003**: El sistema DEBE validar estrictamente que la habitación objetivo se encuentre en estado `DisabledForRepairs` (o `TechnicalBlock`) Y que el usuario solicitante sea el titular de la tarea activa vinculada a dicha habitación.
 - **FR-004**: El sistema DEBE delegar la transición de la habitación a `PendingCleaning` en el caso de uso *Marcar Pendiente a Limpieza*, invocándolo dentro del mismo contexto transaccional, sin reimplementar su lógica.
@@ -105,15 +105,15 @@ Como miembro del personal de mantenimiento quiero poder indicar que voy a interv
 - **FR-010**: El sistema DEBE impedir que `StartDateTime` y `EndDateTime` sean modificados manualmente una vez registrados.
 - **FR-011**: El sistema DEBE permitir al personal de mantenimiento autenticado iniciar reparaciones (acción **Iniciar reparaciones**) sobre una habitación en estado `DisabledForRepairs` o `TechnicalBlock`, creando una `ReparationTask` con `StartDateTime` generado exclusivamente por el servidor, sin modificar el estado de la habitación, y redirigiendo al miembro a la vista de tarea activa (FR-001).
 - **FR-012**: El sistema DEBE rechazar el inicio de reparaciones si la habitación ya tiene una `ReparationTask` sin `EndDateTime`, si el miembro autenticado ya tiene una `ReparationTask` sin `EndDateTime` o si la habitación no se encuentra en `DisabledForRepairs` o `TechnicalBlock`, informando el motivo; ante dos solicitudes simultáneas sobre la misma habitación, solo la primera DEBE procesarse con éxito.
-- **FR-013**: El sistema DEBE permitir a los miembros del personal de mantenimiento sin tarea activa acceder a un panel de mantenimiento, donde se encontrarán listadas las habitaciones en estados `Available`, `DisabledForRepairs` o `TechnicalBlock`
-   - Cada habitación listada debe presentar los siguientes datos:
-      - Número de habitación (ej. 1, 2, ...)
-      - Tipo (Sencilla, Doble, Suite, Boutique)
-      - Estado (Disponible, Inhabilitada por reparaciones, Bloqueo técnico)
-      - Mantenimiento programado (rango del `TechnicalBlockReport` en estado `Scheduled`, formato DD-MM-YYYY a DD-MM-YYYY, o "Sin programar")
-      - Cinta de opciones - `AVB`: Reportar daño, Programar mantenimiento (y Ver informe si tiene un mantenimiento programado) ; `DFR` y `TB`: Ver informe, Iniciar reparaciones (esta última solo si la habitación no tiene una tarea abierta) - Formato: Botón con el nombre de la acción
-   - El sistema DEBE permitir buscar en el listado por número de habitación con coincidencia exacta, presentando el resultado con el mismo formato
-   - Los miembros con una tarea activa DEBEN ser redirigidos a la vista de tarea activa (FR-001)
+- **FR-013**: El sistema DEBE permitir a los miembros del personal de mantenimiento sin tarea activa acceder a un panel de mantenimiento, donde se encontrarán listadas todas las habitaciones, excepto las que están en `Inactive`
+  - Cada habitación listada debe presentar los siguientes datos:
+    - Número de habitación (ej. 1, 2, ...)
+    - Tipo (Sencilla, Doble, Suite, Boutique)
+    - Estado (nombre en español del estado actual, ej. Disponible, Ocupada, Inhabilitada por reparaciones, Bloqueo técnico); una habitación en `TechnicalBlock` cuyo `TechnicalBlockReport` en estado `Applied` tiene la fecha estimada de fin anterior a la fecha actual se muestra como "Bloqueo técnico (vencido)", para indicar que debe confirmarse el fin de la reparación o programarse un nuevo mantenimiento
+    - Mantenimiento programado (rango del `TechnicalBlockReport` en estado `Scheduled` de fecha de inicio más temprana, formato DD-MM-YYYY a DD-MM-YYYY, o "Sin programar"). Los informes `Expired` no se muestran: la habitación vuelve a "Sin programar" y se puede programar de nuevo
+    - Cinta de opciones - todas las habitaciones listadas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`: además Ver informe (reporte de daño) e Iniciar reparaciones; `TB`: además Ver informe (informe del bloqueo) e Iniciar reparaciones; en los demás estados, Ver informe (informe del bloqueo) si tiene un mantenimiento programado. Iniciar reparaciones solo aparece si la habitación no tiene una tarea abierta - Formato: Botón con el nombre de la acción
+  - El sistema DEBE permitir buscar en el listado por número de habitación con coincidencia exacta, presentando el resultado con el mismo formato
+  - Los miembros con una tarea activa DEBEN ser redirigidos a la vista de tarea activa (FR-001)
 - **FR-014**: Al confirmar el fin de reparación de una habitación en `TechnicalBlock`, el sistema DEBE marcar como `Completed`, dentro de la misma transacción, el `TechnicalBlockReport` en estado `Applied` de esa habitación.
 - **FR-015**: El sistema DEBE permitir liberar una `ReparationTask` abierta únicamente a su miembro titular, desde la vista de tarea activa (FR-017); el sistema NO DEBE permitir transferir la tarea a un miembro específico ni liberar tareas de otros miembros.
 - **FR-016**: El sistema DEBE registrar la transición a `PendingCleaning` en `RoomStateHistory` a través del caso de uso *Marcar Pendiente a Limpieza* (FR-004), indicando como `ActorId` al miembro del personal de mantenimiento titular de la tarea y como `SourceFlow` *Confirmar Fin de Reparación de Habitación*. El inicio de reparaciones (FR-011) no genera registros en `RoomStateHistory`, ya que no cambia el estado de la habitación.
@@ -126,14 +126,14 @@ Como miembro del personal de mantenimiento quiero poder indicar que voy a interv
 
 - **Room**: Entidad que representa la habitación del hotel. Transita de `DisabledForRepairs` (o `TechnicalBlock`) a `PendingCleaning`.
 - **ReparationTask**: Entidad que representa la vinculación del miembro del personal técnico con la labor que realizó, esta almacena:
-   - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento
-   - **RoomId**: Identificador de la habitación sobre la que se realizaron las labores
-   - **StartDateTime**: TimeStamp del inicio de reparaciones - Formato DD-MM-YYYY HH:MM
-   - **EndDateTime**: TimeStamp de la finalización de las reparaciones o de la liberación de la tarea - Formato DD-MM-YYYY HH:MM
-   - **Outcome**: Resultado de la tarea, asignado al cerrarla - `Completed` (reparación confirmada) o `Released` (tarea liberada sin terminar); nulo mientras la tarea está abierta
+  - **MaintenanceStaffMemberId**: Identificador del miembro del personal de mantenimiento
+  - **RoomId**: Identificador de la habitación sobre la que se realizaron las labores
+  - **StartDateTime**: TimeStamp del inicio de reparaciones - Formato DD-MM-YYYY HH:MM
+  - **EndDateTime**: TimeStamp de la finalización de las reparaciones o de la liberación de la tarea - Formato DD-MM-YYYY HH:MM
+  - **Outcome**: Resultado de la tarea, asignado al cerrarla - `Completed` (reparación confirmada) o `Released` (tarea liberada sin terminar); nulo mientras la tarea está abierta
 - **TechnicalBlockReport**: Entidad definida en el caso de uso *Programar Bloqueo Técnico para Habitación*. En este caso de uso se consulta para el panel y la acción **Ver informe**, y pasa a `Completed` al confirmar el fin de reparación de una habitación en `TechnicalBlock`.
 - **DamageReport**: Entidad definida en el caso de uso *Marcar Habitación Inhabilitada por Reparaciones*. En este caso de uso se consulta mediante la acción **Ver informe**.
-- **RoomStateHistory**: Historial común de estados de la habitación (campos en documentos/SPEC/referencias/maquina-estados-habitacion.md). El periodo `PendingCleaning` se abre a través de *Marcar Pendiente a Limpieza*.
+- **RoomStateHistory**: Historial común de estados de la habitación. El periodo `PendingCleaning` se abre a través de *Marcar Pendiente a Limpieza*.
 
 ---
 
