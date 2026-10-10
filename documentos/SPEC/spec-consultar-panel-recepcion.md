@@ -15,14 +15,14 @@
 
 Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del día obtenido desde la copia local de reservas (`daily_reservation`, `daily_reservation_room`) y buscar rápidamente cualquier reserva por nombre, documento o código, para localizar al huésped y acceder directamente al flujo de Check-In con la reserva ya identificada, sin realizar consultas externas a Módulo 2.
 
-**Por qué esta prioridad**: Es el punto de entrada operativo del turno. El listado de llegadas y el buscador de Check-In operan sobre la copia local de la lista del día recibida a las 00:00 y actualizada en tiempo real mediante la cola `m1.reservas.diarias.queue` (routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`), eliminando consultas reactivas GET a Módulo 2 y garantizando autonomía en recepción. Presenta una fila por cada habitación reservada (una reserva de varias habitaciones genera varias filas).
+**Por qué esta prioridad**: Es el punto de entrada operativo del turno. El listado de llegadas y el buscador de Check-In operan sobre la copia local de la lista del día recibida a las 00:00 y actualizada en tiempo real mediante notificaciones desde Módulo 2, eliminando consultas reactivas directas y garantizando autonomía en recepción. Presenta una fila por cada habitación reservada (una reserva de varias habitaciones genera varias filas).
 
 **Prueba Independiente**: Se prueba cargando el panel con la pestaña Llegadas activa, verificando que los 4 KPIs se calculen correctamente de forma local, que la tabla muestre las columnas requeridas (Hab. · Huésped · Estadía en noches · Personas · Tipo habitación · Fuente · Acción) con una fila por habitación a partir de la copia local (`daily_reservation` y `daily_reservation_room`), alertando visualmente si una habitación asignada no es apartable por estar en mantenimiento o fuera de servicio, que el buscador de Llegadas filtre en tiempo real por nombre, documento o código de reserva sobre la copia local, y que al pulsar "Check-in" el flujo de admisión inicie con la reserva y habitación pre-cargadas sin solicitar ningún criterio de búsqueda adicional.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Carga del panel con llegadas del día (Happy Path)
-   - **Dado** que el Recepcionista inicia sesión en el sistema y se cuenta con la copia local de la lista del día recibida por la cola a las 00:00
+   - **Dado** que el Recepcionista inicia sesión en el sistema y se cuenta con la copia local de la lista del día recibida a las 00:00
    - **Cuando** accede al panel de inicio
    - **Entonces** el sistema muestra el saludo personalizado ("Bienvenida, [nombre del Recepcionista]", con subtítulo "Estancias · llegadas y salidas del día"), los 4 KPIs calculados localmente, la pestaña Llegadas activa por defecto y la tabla con las llegadas pendientes organizadas a razón de **una fila por habitación** a partir de `daily_reservation_room` y `daily_reservation`, en columnas: Hab. · Huésped (`firstName` y `lastName`, con documento debajo) · Estadía (noches calculadas) · Personas (`guestCount` de la habitación) · Tipo habitación · Fuente (`DIRECTA` o nombre de la OTA) · botón de acción "Check-in". La fila se considera pendiente de llegada mientras no exista una estancia (`Stay`) registrada para esa combinación de `reservationRef` y `roomId`.
 
@@ -111,7 +111,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 - **Sin reservas de llegada para el día**: Cuando no existen habitaciones pendientes de llegada en la copia local de la lista del día, la tabla de Llegadas muestra el mensaje "No hay reservas que mostrar." y el KPI "Llegadas de hoy" indica 0.
 - **Sin estancias activas para salida**: Cuando no existen estancias activas con salida programada o vencida, la tabla de Salidas muestra el mensaje "No hay reservas que mostrar." y los KPIs "Salidas de hoy" y "Salidas vencidas" indican 0.
-- **Lista de las 00:00 no recibida o copia local no disponible**: Si la cola `m1.reservas.diarias.queue` no ha entregado la lista del día a las 00:00 o la copia local se encuentra vacía o dañada, el sistema presenta un aviso informativo controlado en la pestaña Llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") [pendiente de definición por Módulo 2 respecto a protocolo de reemisión o consulta de respaldo]; la pestaña Salidas y los KPIs locales de estancias y habitaciones continúan operando con total normalidad.
+- **Lista de las 00:00 no recibida o copia local no disponible**: Si no se ha recibido la lista del día a las 00:00 o la copia local se encuentra vacía o dañada, el sistema presenta un aviso informativo controlado en la pestaña Llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") [pendiente de definición por Módulo 2 respecto a protocolo de reemisión o consulta de respaldo]; la pestaña Salidas y los KPIs locales de estancias y habitaciones continúan operando con total normalidad.
 - **Búsqueda sin coincidencias**: Cuando el texto ingresado en cualquiera de los dos buscadores no coincide con ningún registro, la tabla muestra el mensaje "No hay reservas que mostrar." sin emitir errores técnicos.
 - **Tolerancia de formato en la búsqueda**: El sistema elimina espacios iniciales y finales (trim) y es insensible a mayúsculas/minúsculas en ambos buscadores.
 
@@ -145,14 +145,14 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Número de habitación asignada.
   - Nombre del huésped titular (`firstName`, `lastName` con número de documento debajo).
   - Estadía en noches (calculada localmente entre `startDate` y `endDate`).
-  - Cantidad de personas de la habitación (`guestCount` por habitación, o capacidad si no se especifica).
+  - Cantidad de personas de la habitación (`guestCount` por habitación, confirmado por Módulo 2 en `rooms[]` de la lista del día).
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
   - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-019).
   - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), con el texto "[Estado]: se apartará al terminar la limpieza" (escenario 7).
   - Botón individual de acción "Check-in" por cada habitación.
 
-- **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas por la cola `m1.reservas.diarias.queue` (`reserva.lista-del-dia.actualizacion`):
+- **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas desde Módulo 2:
   - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
   - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
   - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
@@ -173,17 +173,17 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 - **FR-009**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
 
-- **FR-010**: Si la lista del día de las 00:00 no ha llegado por la cola o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
+- **FR-010**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
 
 ---
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
 - **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
-- **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida por la cola `m1.reservas.diarias.queue`: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
-- **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación, pendiente de confirmación por Módulo 2).
+- **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida asíncronamente desde Módulo 2: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
+- **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación, con `maxCapacity` de `Room` como respaldo).
 - **Receptionist**: Actor de recepcionista que opera el flujo de recepción, consultas, registro de check-in y registro de check-out en el hotel.
 
 ---

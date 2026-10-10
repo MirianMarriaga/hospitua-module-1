@@ -117,7 +117,7 @@ const arrivalReservations = [
     s: 0, e: 3,
     rooms: [
       { room: '304', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null },
-      { room: '305', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null }
+      { room: '305', tipo: 'Doble', guests: 2, status: 'Available', alert: null }
     ]
   },
   {
@@ -147,7 +147,7 @@ const arrivalReservations = [
     src: 'BOOKING',
     s: 0, e: 2,
     rooms: [
-      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock', alert: 'Habitación en mantenimiento / bloqueo técnico — no apartada automáticamente' },
+      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock', alert: null },
       { room: '109', tipo: 'Sencilla', guests: 1, status: 'Reserved', alert: null }
     ]
   },
@@ -180,12 +180,12 @@ function getArrivalRows(){
   const list = [];
   arrivalReservations.forEach(r => {
     const total = r.rooms.length;
-    // Habitaciones pendientes: aquellas en estado Reserved (o con alerta) que no tienen estancia registrada
-    const pendingCount = r.rooms.filter(rm => rm.status === 'Reserved').length;
+    // Habitaciones pendientes: aquellas en estado Reserved o Available (sin estancia previa)
+    const pendingCount = r.rooms.filter(rm => rm.status === 'Reserved' || rm.status === 'Available').length;
     r.rooms.forEach((rm, idx) => {
       list.push({
         ref: r.ref,
-        resLabel: `${r.ref} · ${pendingCount} de ${total} pendientes`,
+        resLabel: r.ref,
         titular: r.titular,
         doc: r.doc,
         src: r.src,
@@ -195,7 +195,7 @@ function getArrivalRows(){
         guests: rm.guests,
         status: rm.status,
         alert: rm.alert,
-        canCheckIn: rm.status === 'Reserved',
+        canCheckIn: true,
         isFirstInGroup: idx === 0,
         groupSize: total
       });
@@ -244,10 +244,7 @@ function render(){
         <td>${r.tipo}</td>
         <td><span style="font-weight:600">${r.src}</span></td>
         <td>
-          ${r.canCheckIn
-            ? `<a class="btn in" href="02-checkin-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-in</a>`
-            : `<button class="btn" style="background:#E2E8F0;color:#94A3B8;cursor:not-allowed" disabled title="Habitación no disponible para Check-in">Bloqueada</button>`
-          }
+          <a class="btn in" href="02-checkin-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-in</a>
         </td>`;
       tb.appendChild(tr);
     });

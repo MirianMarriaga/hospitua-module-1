@@ -126,6 +126,70 @@ frontend/src/
 
 ---
 
+## Contratos de mensajería recibidos de Módulo 2
+
+Estructuras confirmadas por Módulo 2 para la cola `m1.reservas.diarias.queue` (exchange `hospitua.events`). Se documentan los campos recibidos; Módulo 1 no persiste `status`, `notes` ni `guestRef` en la copia local (el orden se controla por `sequenceNumber` y `updatedAt`).
+
+### Lista del día — `reserva.lista-del-dia` (00:00)
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje; base del control de idempotencia |
+| `sequenceNumber` | entero | Número de secuencia; `1` para la lista diaria inicial |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo al que corresponde la lista |
+| `generatedAt` | fecha-hora | Marca de generación del mensaje |
+| `totalReservations` | entero | Total de reservas incluidas |
+| `totalRooms` | entero | Total de habitaciones incluidas |
+| `totalGuests` | entero | Total de huéspedes del día |
+| `reservations` | array | Reservas incluidas (estado `ACTIVE` con `startDate = hoy`) |
+
+**Campos de cada elemento de `reservations`:**
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `reservationRef` | string | Referencia de la reserva (clave de la copia local) |
+| `status` | string | Estado de la reserva (`ACTIVE`) |
+| `source` | string | Canal de origen (`DIRECTA` o nombre de la OTA) |
+| `startDate` | fecha (YYYY-MM-DD) | Fecha de llegada |
+| `endDate` | fecha (YYYY-MM-DD) | Fecha de salida |
+| `guestCount` | entero | Cantidad de huéspedes de la reserva |
+| `notes` | string | Observaciones operativas (no se persisten) |
+| `updatedAt` | fecha-hora | Marca de la última actualización; gobierna el orden de aplicación |
+| `rooms[]` | array | Habitaciones asignadas (de 1 a 10) |
+| `guest` | objeto | Titular de la reserva |
+
+**Campos de cada elemento de `rooms[]`:** `roomId` (UUID), `roomNumber` (string), `categoryRoom` (string) y `guestCount` (entero, cantidad de personas de esa habitación).
+
+**Campos del objeto `guest` (titular):** `guestRef` (UUID, no se persiste), `firstName`, `lastName`, `documentType`, `documentNumber` y `nationality`.
+
+### Actualización `ADDED` / `UPDATED` — `reserva.lista-del-dia.actualizacion`
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje |
+| `sequenceNumber` | entero | Número de secuencia estrictamente incremental |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo |
+| `updateType` | string | `ADDED` o `UPDATED` |
+| `occurredAt` | fecha-hora | Momento en que ocurrió el cambio |
+| `reservationRef` | string | Referencia de la reserva afectada |
+| `reservation` | objeto | Objeto completo de la reserva con la misma estructura de la lista del día (`reservationRef`, `status`, `source`, `startDate`, `endDate`, `guestCount`, `notes`, `updatedAt`, `rooms[]` y `guest`) |
+
+### Actualización `REMOVED` — `reserva.lista-del-dia.actualizacion`
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `messageId` | UUID | Identificador único del mensaje |
+| `sequenceNumber` | entero | Número de secuencia estrictamente incremental |
+| `operationalDate` | fecha (YYYY-MM-DD) | Día operativo |
+| `updateType` | string | `REMOVED` |
+| `occurredAt` | fecha-hora | Momento en que ocurrió la baja |
+| `reservationRef` | string | Referencia de la reserva retirada de la copia local |
+| `removalReason` | string | Motivo de la baja: `CANCELLED`, `DATE_CHANGED` o `NO_SHOW` |
+
+El mensaje `REMOVED` no incluye el objeto `reservation`.
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Configurar propiedades de integración de Módulo 2 en `application.yml`:
@@ -146,8 +210,8 @@ frontend/src/
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 Crear migración Flyway `V2__create_daily_reservation_tables.sql` con las tablas:
-  - `daily_reservation`: `reservation_ref` (PK VARCHAR(50)), `guest_first_name`, `guest_last_name`, `guest_document_type` [NEEDS_CONFIRMATION_MODULO_2], `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`. (Sin campo `nights`).
-  - `daily_reservation_room`: `reservation_ref` (FK), `room_id` (UUID), `room_number`, `category_room`, `guest_count` [NEEDS_CONFIRMATION_MODULO_2] (PK compuesta `reservation_ref, room_id`).
+  - `daily_reservation`: `reservation_ref` (PK VARCHAR(50)), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`. (Sin campo `nights`).
+  - `daily_reservation_room`: `reservation_ref` (FK), `room_id` (UUID), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`).
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `message_type` VARCHAR(50), `received_at` TIMESTAMP.
 - [ ] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
 - [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery` y `ReservationConflictResult`.

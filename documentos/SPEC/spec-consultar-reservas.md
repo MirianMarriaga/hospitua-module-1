@@ -25,24 +25,24 @@ Existen por lo tanto dos modos de consulta:
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Recepción automática de la lista diaria y actualizaciones por cola (Prioridad: P1)
+### Historia de Usuario 1 - Recepción automática de la lista diaria y actualizaciones asíncronas (Prioridad: P1)
 
-Como **Sistema autónomo de Módulo 1**, quiero recibir la lista diaria de reservas a las 00:00 y sus actualizaciones continuas a través de la cola de mensajería para mantener sincronizada la copia local de llegadas del día sin intervención humana.
+Como **Sistema autónomo de Módulo 1**, quiero recibir la lista diaria de reservas a las 00:00 y sus actualizaciones continuas de forma asíncrona para mantener sincronizada la copia local de llegadas del día sin intervención humana.
 
 **Por qué esta prioridad**: Alimenta la copia local que sustenta la operación de recepción y Check-In, eliminando llamadas síncronas por red durante la atención al huésped.
 
-**Prueba Independiente**: Enviar un mensaje de lista diaria a las 00:00 por `m1.reservas.diarias.queue` (`reserva.lista-del-dia`), verificar la purga de registros del día anterior, la persistencia en `daily_reservation` y `daily_reservation_room`, el descarte de duplicados por `messageId` y la aplicación ordenada por `sequenceNumber` de mensajes de actualización posteriores (`reserva.lista-del-dia.actualizacion`).
+**Prueba Independiente**: Procesar la recepción de la lista diaria a las 00:00, verificar la purga de registros del día anterior, la persistencia en `daily_reservation` y `daily_reservation_room`, el descarte de duplicados por identificador de mensaje y la aplicación ordenada por número de secuencia de las actualizaciones posteriores.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Ingesta de lista diaria de las 00:00 y purga de la copia anterior
    - **Dado** que son las 00:00 (hora de Colombia, UTC-5)
-   - **Cuando** arriba el mensaje `DailyReservationList` con routing key `reserva.lista-del-dia` (con `sequenceNumber = 1`) conteniendo únicamente reservas en estado `ACTIVE` con `startDate = hoy`
+   - **Cuando** arriba la notificación de lista diaria inicial (con `sequenceNumber = 1`) conteniendo únicamente reservas en estado `ACTIVE` con `startDate = hoy`
    - **Entonces** el sistema purga completamente los datos de la copia local del día anterior (`daily_reservation` y `daily_reservation_room`), reinicia el contador de `sequenceNumber`, persiste las nuevas reservas y registra el `messageId` en `daily_reservation_message_log`.
 
-2. **Escenario**: Procesamiento ordenado de actualizaciones del día (`DailyReservationUpdate`)
+2. **Escenario**: Procesamiento ordenado de actualizaciones del día
    - **Dado** que la copia local del día ya fue inicializada
-   - **Cuando** se recibe un mensaje con routing key `reserva.lista-del-dia.actualizacion` con `sequenceNumber` creciente:
+   - **Cuando** se recibe una actualización del día con `sequenceNumber` creciente:
      - Si es `ADDED`: agrega la reserva y sus habitaciones a la copia local.
      - Si es `UPDATED`: actualiza los datos de la reserva y habitaciones solo si el `updatedAt` del mensaje es estrictamente más reciente que el registrado localmente.
      - Si es `REMOVED` (por motivo `CANCELLED`, `DATE_CHANGED` o `NO_SHOW`): elimina la reserva y sus habitaciones de la copia local.
@@ -133,18 +133,18 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE mantener una copia local de las reservas del día (`daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`) alimentada a través de la cola de mensajería `m1.reservas.diarias.queue`.
-- **FR-002**: El sistema DEBE procesar dos routing keys en `m1.reservas.diarias.queue`:
-  - `reserva.lista-del-dia`: Mensaje `DailyReservationList` recibido a las 00:00 (hora Colombia), con `sequenceNumber = 1` y reservas en estado `ACTIVE` con `startDate = hoy`.
-  - `reserva.lista-del-dia.actualizacion`: Mensaje `DailyReservationUpdate` recibido durante el día con acciones `ADDED`, `UPDATED` o `REMOVED` y `sequenceNumber` estrictamente incremental.
+- **FR-001**: El sistema DEBE mantener una copia local de las reservas del día (`daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`) alimentada a través de mensajería asíncrona proveniente de Módulo 2.
+- **FR-002**: El sistema DEBE procesar dos modalidades de notificación asíncrona de reservas:
+  - Notificación de lista del día: recibida a las 00:00 (hora Colombia), con secuencia inicial (`sequenceNumber = 1`) y conteniendo únicamente reservas en estado `ACTIVE` con `startDate = hoy`.
+  - Notificación de actualización del día: recibida en tiempo real durante el día con acciones `ADDED`, `UPDATED` o `REMOVED` y `sequenceNumber` estrictamente incremental.
 - **FR-003**: Control de idempotencia y secuencia:
   - Todo mensaje DEBE incluir un `messageId` único. Si el `messageId` ya existe en `daily_reservation_message_log`, el mensaje DEBE ser descartado.
   - Los mensajes DEBEN aplicarse en estricto orden de `sequenceNumber` dentro del mismo `operationalDate` (día operativo que Módulo 2 indica en cada mensaje). Un mensaje cuyo `operationalDate` sea anterior al día de la copia local (por ejemplo, un `REMOVED` por no-show del día anterior que llega atrasado después de la lista de las 00:00) DEBE descartarse sin aplicarse, registrando su `messageId`; las habitaciones de esas reservas ya se liberan a las 00:00 al no figurar en la nueva lista (FR-009).
   - Un mensaje `UPDATED` solo DEBE aplicarse si su `updatedAt` es más reciente que el almacenado localmente.
   - Al recibir la lista de las 00:00, el sistema DEBE reiniciar el contador de `sequenceNumber` y purgar la copia local del día anterior.
 - **FR-004**: Estructura de la copia local:
-  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type` [NEEDS_CONFIRMATION_MODULO_2], `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
-  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` [NEEDS_CONFIRMATION_MODULO_2] (cantidad de personas por habitación; respaldo: `maxCapacity` de `Room` si Módulo 2 no envía este campo por habitación).
+  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
+  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity` de `Room`).
   - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
   - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
 - **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).

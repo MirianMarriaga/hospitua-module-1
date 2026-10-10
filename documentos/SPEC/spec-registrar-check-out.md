@@ -11,18 +11,18 @@
 
 ### Historia de Usuario 1 - Formalización de Check-Out y liberación de habitación (Prioridad: P1)
 
-Como Recepcionista, quiero formalizar la salida física del huésped recorriendo el flujo de 5 pasos de la interfaz (Consultar reserva → Liquidación → Pago → Confirmación → Liberar habitación), localizando la estancia desde los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), consultando la liquidación a Módulo 3 y confirmando la operación, para que la habitación transicione inmediatamente a "PendingCleaning" y se notifique a Módulo 2 mediante la cola `m2.habitacion.checkout.queue` con **todos los huéspedes** en `guests[]`.
+Como Recepcionista, quiero formalizar la salida física del huésped recorriendo el flujo de 5 pasos de la interfaz (Consultar reserva → Liquidación → Pago → Confirmación → Liberar habitación), localizando la estancia desde los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), consultando la liquidación a Módulo 3 y confirmando la operación, para que la habitación transicione inmediatamente a "PendingCleaning" y se notifique de forma asíncrona a Módulo 2 la salida física de todos los huéspedes.
 
-**Por qué esta prioridad**: Es la operación misional de cierre de la estancia. Módulo 1 opera de forma 100% autónoma en recepción (datos de la estancia desde `Stay`, titular desde `Stay.titularFirstName/LastName`). La notificación lleva el formato plano: `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate` y `guests[]` con **todos** los huéspedes (nacionales y extranjeros, reutilizando `originPlace`/`destinationPlace` del Check-In [NEEDS_CONFIRMATION_MODULO_2]). No existe cola separada de extranjeros.
+**Por qué esta prioridad**: Es la operación misional de cierre de la estancia. Módulo 1 opera de forma 100% autónoma en recepción (datos de la estancia desde `Stay`, titular desde `Stay.titularFirstName/LastName`). La notificación asíncrona hacia Módulo 2 consolida a la totalidad de los huéspedes (nacionales y extranjeros) en un único aviso con el movimiento de salida y la fecha de egreso (reutilizando los lugares de procedencia y destino registrados en el Check-In en `RoomGuest`). No existe notificación separada para extranjeros.
 
-**Prueba Independiente**: Iniciar desde el Panel de Recepción con una estancia seleccionada. Recorrer los 5 pasos: (1) datos de la estancia desde `Stay`/`Room`/`RoomGuest` — titular desde `Stay.titularFirstName/LastName`, fuente desde `Stay.source`; (2) liquidación de Módulo 3 mostrando `settlementType`, `invoiceNumber` (o "Pendiente de facturación" si null), fuente desde `Stay.source`, comisión OTA, ingreso neto; (3) pago con `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (o "Pendiente de facturación" si null), noches, `checkInDate`, `checkOutDate`; (4) confirmación; (5) pantalla de éxito con habitación en PendingCleaning. Verificar payload del outbox con `movementType = DEPARTURE`, `movementDate = checkOutDate` y `guests[]` completo.
+**Prueba Independiente**: Iniciar desde el Panel de Recepción con una estancia seleccionada. Recorrer los 5 pasos: (1) datos de la estancia desde `Stay`/`Room`/`RoomGuest` — titular desde `Stay.titularFirstName/LastName`, fuente desde `Stay.source`; (2) liquidación de Módulo 3 mostrando `settlementType`, `invoiceNumber` (o "Pendiente de facturación" si null), fuente desde `Stay.source`, comisión OTA, ingreso neto; (3) pago con `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (o "Pendiente de facturación" si null), noches, `checkInDate`, `checkOutDate`; (4) confirmación; (5) pantalla de éxito con habitación en PendingCleaning. Verificar el registro de la notificación saliente para Módulo 2 con el movimiento de salida, fecha de egreso y la nómina completa de todos los huéspedes.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Flujo completo de Check-Out en fecha pactada (Happy Path)
    - **Dado** una habitación en `Occupied` con `Stay` activo, `source` en `Stay`, titular identificado en `Stay.titularFirstName`/`Stay.titularLastName`
    - **Cuando** el Recepcionista recorre los 5 pasos, confirma en el paso 4 la casilla obligatoria
-   - **Entonces** el sistema transiciona la habitación a `PendingCleaning` de forma síncrona, cierra la `Estancia` registrando `checkOutDate` y `receptionistIdCheckOut`, despacha por `m2.habitacion.checkout.queue` el mensaje plano con `movementType = DEPARTURE`, `movementDate = checkOutDate` y `guests[]` con todos los huéspedes. En el paso 2 se muestra el `settlementType` ("Liquidación informativa" o "Liquidación final") y el `invoiceNumber` (entero consecutivo o no mostrado si informativa). En el paso 3 el `totalAmount` viene de M3; en liquidación informativa se muestra solo hospedaje, comisión e ingreso neto, sin IVA, sin total y sin factura.
+   - **Entonces** el sistema transiciona la habitación a `PendingCleaning` de forma síncrona, cierra la `Estancia` registrando `checkOutDate` y `receptionistIdCheckOut`, y emite la notificación asíncrona hacia Módulo 2 con el movimiento de salida, fecha de egreso y la nómina de todos los huéspedes. En el paso 2 se muestra el `settlementType` ("Liquidación informativa" o "Liquidación final") y el `invoiceNumber` (entero consecutivo o no mostrado si informativa). En el paso 3 el `totalAmount` viene de M3; en liquidación informativa se muestra solo hospedaje, comisión e ingreso neto, sin IVA, sin total y sin factura.
 
 2. **Escenario**: Check-Out con salida anticipada (Early Check-Out)
    - **Dado** una estancia cuya `expectedCheckoutTime` es posterior a hoy
@@ -55,10 +55,10 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
    - **Cuando** el Recepcionista gestiona la salida
    - **Entonces** Módulo 1 presenta el informe de indisponibilidad temporal y ofrece al Recepcionista la opción de liberar la habitación a `PendingCleaning` sin bloquear al huésped
 
-3. **Escenario**: Resiliencia ante falla de la cola hacia Módulo 2
+3. **Escenario**: Resiliencia ante falla de comunicación con Módulo 2
    - **Dado** que el Check-Out fue confirmado y la habitación pasó a `PendingCleaning`
-   - **Cuando** la cola experimenta interrupción
-   - **Entonces** el cambio físico se mantiene firme, las notificaciones permanecen en el outbox para reintento
+   - **Cuando** la comunicación con Módulo 2 experimenta interrupción temporal
+   - **Entonces** la liberación física se mantiene firme y la notificación queda registrada para entrega garantizada en segundo plano
 
 ---
 
@@ -68,8 +68,8 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 - **Sin gestión de consumos locales**: Este flujo no incluye minibar, lavandería ni pasarelas de pago.
 - **`totalAmount` de M3**: Si Módulo 3 devuelve `totalAmount = null` (liquidación informativa), Módulo 1 muestra "Pendiente de facturación" en el paso 3. No recalcula localmente.
 - **`invoiceNumber` como entero**: El número de factura es un entero consecutivo (no lleva prefijo como "F-2026-").
-- **Idempotencia del `messageId`**: Todo mensaje lleva `messageId` único. En reintentos se usa el mismo `messageId`.
-- **Reutilización de `originPlace`/`destinationPlace`**: [NEEDS_CONFIRMATION_MODULO_2] En el mensaje de salida, `originPlace` y `destinationPlace` de extranjeros se reutilizan de los registros del Check-In (`RoomGuest`).
+- **Idempotencia en notificaciones**: Toda notificación saliente cuenta con un identificador único que permite reconocer reintentos y descartar duplicados.
+- **Reutilización de procedencia y destino migratorios**: En la notificación de salida, la procedencia y el destino de extranjeros se reutilizan de los registros del Check-In (`RoomGuest`).
 - **Día operativo fijo**: `checkOutDate` corresponde a la fecha del sistema en hora Colombia (UTC-5), solo fecha, sin hora.
 
 ---
@@ -104,34 +104,13 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
   1. Transición `Occupied → PendingCleaning` (vía `<<includes>>` a "Marcar pendiente a limpieza").
   2. Cierre de `Stay` registrando `checkOutDate` (solo fecha, UTC-5) y `receptionistIdCheckOut`.
 - **FR-011**: La habitación en `PendingCleaning` DEBE aparecer de inmediato en la bandeja del Personal de limpieza.
-- **FR-012**: Al confirmar la salida, el sistema DEBE insertar en el outbox un mensaje con formato plano hacia `m2.habitacion.checkout.queue`:
-  ```json
-  {
-    "messageId": "UUIDv4",
-    "sequenceNumber": <entero>,
-    "reservationRef": "RES-000123",
-    "roomId": "uuid",
-    "movementType": "DEPARTURE",
-    "movementDate": "YYYY-MM-DD",
-    "guests": [
-      {
-        "firstName": "string", "lastName": "string",
-        "documentType": "string", "documentNumber": "string",
-        "nationality": "string",
-        "birthDate": "YYYY-MM-DD",
-        "originPlace": "Ciudad, País",
-        "destinationPlace": "Ciudad, País"
-      }
-    ]
-  }
-  ```
-  Los campos `birthDate`, `originPlace` y `destinationPlace` **solo** se incluyen para huéspedes con `nationality ≠ Colombia`. `originPlace` y `destinationPlace` se reutilizan de los registros del Check-In [NEEDS_CONFIRMATION_MODULO_2]. El array `guests[]` contiene **todos** los huéspedes. No existe cola separada de extranjeros.
-
-  Validaciones aplicadas antes de publicar:
-  - Todos los campos de `guests[]` presentes.
-  - Para extranjeros: `birthDate` en el pasado; campos migratorios obligatorios.
-  - `movementDate` nunca futura.
-  - La salida (`DEPARTURE`) no es anterior a la entrada (`ENTRY`) del mismo huésped.
+- **FR-012**: Al confirmar la salida, el sistema DEBE generar una notificación asíncrona de movimiento de salida dirigida a Módulo 2 que consolide a la totalidad de los huéspedes alojados (nacionales y extranjeros) en un único aviso, sin canales separados para extranjeros. La notificación DEBE incluir:
+  - Identificador único para control de duplicados e idempotencia.
+  - Referencia de reserva e identificador de habitación.
+  - Tipo de movimiento (salida) y fecha de egreso (`checkOutDate`).
+  - Lista completa de todos los huéspedes alojados con sus nombres, apellidos, tipo y número de documento y nacionalidad.
+  - Para los huéspedes de nacionalidad extranjera, los datos migratorios complementarios: fecha de nacimiento, lugar de procedencia y lugar de destino (reutilizados de los registros de `RoomGuest` capturados en el Check-In).
+  - Validaciones previas a la emisión: presencia de los datos de todos los huéspedes y coherencia cronológica (la fecha de salida no puede ser anterior a la fecha de entrada del mismo huésped).
 
 - **FR-013**: En el paso 5, el sistema DEBE mostrar: "Habitación: Pendiente de limpieza", etiqueta de notificación enviada (sin mencionar módulos), sin horas, botón único "Volver al inicio". Las etiquetas de estado se muestran en español.
 - **FR-014**: Si Módulo 2 o Módulo 3 experimentan fallas, el sistema NO DEBE bloquear la liberación física a `PendingCleaning`. Las notificaciones se programan para reintento en segundo plano.

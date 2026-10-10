@@ -12,7 +12,7 @@ Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepc
 2. **Liquidación**: Invocación reactiva mediante REST GET a Módulo 3 (`plan-consultar-liquidacion.md`), desplegando el tipo de liquidación (`settlementType`: "Liquidación informativa" o "Liquidación final"), el número de factura oficial (`invoiceNumber`, entero consecutivo o "Pendiente de facturación" si null), la fuente local (`Stay.source`), comisión OTA e ingreso neto (`netIncomeAmount`).
 3. **Pago**: Visualización del resumen financiero para revisión con el huésped. En liquidación final: número de factura, hospedaje (`accommodationTotalAmount`), IVA (`taxAmount`) y total a pagar (`totalAmount` devuelto directamente por Módulo 3, sin recálculo local en Módulo 1), junto con noches y fechas reales (`checkInDate` y `checkOutDate` sin horas). En liquidación informativa: muestra exclusivamente hospedaje, comisión e ingreso neto; sin IVA, sin total y sin factura. Cero transacciones monetarias o cobros de consumos locales en Módulo 1.
 4. **Confirmación**: Exigencia obligatoria de marcar la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta") para habilitar el botón de salida. Presenta la nota informativa única de contingencia ante fallas de sincronización (sin jerga técnica ni mención de colas o módulos).
-5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate` y `receptionistIdCheckOut`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` del Check-In [NEEDS_CONFIRMATION_MODULO_2]). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
+5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate` y `receptionistIdCheckOut`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` registrados en `RoomGuest` durante el Check-In). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
 
 ---
 
@@ -125,6 +125,77 @@ frontend/src/
 
 ---
 
+## Contratos de integración
+
+### Contrato 1 — Notificación de Check-Out (Módulo 1 → Módulo 2)
+
+**Cola y routing key:**
+
+```text
+Cola: m2.habitacion.checkout.queue
+Routing key: habitacion.checkout
+```
+
+**Campos del mensaje:**
+
+| Nombre | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `messageId` | UUID | Sí | Identificador único del mensaje; se conserva idéntico en reintentos para la idempotencia del receptor |
+| `sequenceNumber` | entero | Sí | Número de secuencia creciente por cola |
+| `reservationRef` | string | Sí | Referencia de la reserva (ej. `RSV-8D02E5A4`) |
+| `roomId` | UUID | Sí | Identificador de la habitación |
+| `movementType` | string | Sí | Tipo de movimiento; para el Check-Out es siempre `DEPARTURE` |
+| `movementDate` | fecha (YYYY-MM-DD) | Sí | Fecha de salida; igual a `checkOutDate` |
+| `guests[]` | array | Sí | Totalidad de los huéspedes que ocuparon la habitación (nacionales y extranjeros) |
+
+**Campos de cada elemento de `guests[]`:** misma estructura que la notificación de Check-In; `originPlace` y `destinationPlace` se reutilizan de los valores registrados en `RoomGuest` durante el Check-In.
+
+| Nombre | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `firstName` | string | Sí | Nombres del huésped |
+| `lastName` | string | Sí | Apellidos del huésped |
+| `documentType` | string | Sí | Tipo de documento de identidad |
+| `documentNumber` | string | Sí | Número de documento de identidad |
+| `birthDate` | fecha (YYYY-MM-DD) | Sí | Fecha de nacimiento |
+| `nationality` | string | Sí | Nacionalidad del huésped |
+| `originPlace` | string | Solo si `nationality ≠ Colombia` | Lugar de procedencia reutilizado del Check-In, formato "Ciudad, País" |
+| `destinationPlace` | string | Solo si `nationality ≠ Colombia` | Lugar de destino reutilizado del Check-In, formato "Ciudad, País" |
+
+**Ejemplo de mensaje (misma estructura que Check-In, con `DEPARTURE`):**
+
+```json
+{
+  "messageId": "UUIDv4",
+  "sequenceNumber": 1,
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "uuid",
+  "movementType": "DEPARTURE",
+  "movementDate": "2026-10-13",
+  "guests": [
+    {
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "documentType": "CC",
+      "documentNumber": "123",
+      "birthDate": "1995-03-20",
+      "nationality": "Colombia"
+    },
+    {
+      "firstName": "John",
+      "lastName": "Smith",
+      "documentType": "PASSPORT",
+      "documentNumber": "X99",
+      "birthDate": "1990-05-12",
+      "nationality": "Estados Unidos",
+      "originPlace": "Miami, Estados Unidos",
+      "destinationPlace": "Cartagena, Colombia"
+    }
+  ]
+}
+```
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
@@ -186,7 +257,7 @@ frontend/src/
       ]
     }
     ```
-    Los campos `birthDate`, `originPlace` y `destinationPlace` se incluyen únicamente si `nationality != "Colombia"`, reutilizando los valores registrados en Check-In (`RoomGuest`) [NEEDS_CONFIRMATION_MODULO_2].
+    Los campos `birthDate`, `originPlace` y `destinationPlace` se incluyen únicamente si `nationality != "Colombia"`, reutilizando los valores registrados en Check-In (`RoomGuest`).
   - Guardar mensaje outbox en `outbox_notification` (tipo `habitacion.checkout`).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
   - `GET /api/check-out/active-stay/{reservationRef}`: Datos locales de la estancia para el Paso 1.
