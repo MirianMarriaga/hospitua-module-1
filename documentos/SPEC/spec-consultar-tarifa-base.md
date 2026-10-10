@@ -66,7 +66,7 @@ Como sistema del Módulo 3 (Facturación), quiero recibir una respuesta clara y 
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir la consulta de tarifa base exclusivamente al actor "Módulo 3" (Facturación) como operación de solo lectura. Módulo 3 se autentica como Módulo 2: con un usuario de servicio de Módulo 1 con rol `MODULE_3`, que obtiene su JWT con el mismo inicio de sesión y lo envía en el header `Authorization`; una petición sin token o con otro rol se rechaza.
+- **FR-001**: El sistema DEBE permitir la consulta de tarifa base exclusivamente al actor "Módulo 3" (Facturación) como operación de solo lectura. Módulo 3 se autentica como Módulo 2: con un usuario de servicio de Módulo 1 con rol `MODULE_3`
 - **FR-002**: El sistema DEBE permitir la consulta de la tarifa base por identificador único de habitación (`roomId`) o número de habitación (`numberRoom`), y NO por tipo o categoría de habitación.
 - **FR-003**: El sistema DEBE retornar únicamente el valor numérico decimal de la tarifa base almacenada para la habitación consultada, con hasta dos decimales. No se retorna un objeto completo de Room; solo baseRate.
 - **FR-004**: El sistema DEBE retornar un error controlado cuando la habitación consultada no exista en el inventario de Módulo 1.

@@ -11,14 +11,10 @@ Implementar el caso de uso técnico de consulta **Consultar Tarifa Base**, expue
 
 Responsabilidades:
 1. **Endpoint REST de solo lectura**: Exponer `GET /api/rooms/{roomId}/base-rate` permitiendo la consulta por el identificador único de habitación (`roomId`) o número de habitación.
-2. **Payload de respuesta**: Retornar los atributos estructurales y comerciales de la habitación:
-   - `roomId` (UUID)
-   - `roomNumber` (String)
-   - `categoryRoom` (String)
-   - `maxCapacity` (Integer)
-   - `baseRate` (BigDecimal con hasta dos decimales)
-   - `status` (String con uno de los 8 estados canónicos de `RoomStatus`)
-   - `floor` (Integer)
+2. **Payload de respuesta**: Retornar únicamente los datos necesarios para la tarifación:
+    - `roomId` (UUID)
+    - `roomNumber` (String)
+    - `baseRate` (BigDecimal con hasta dos decimales)
 3. **Consulta sin mutación de estado**: Operación idempotente de solo lectura (`@Transactional(readOnly = true)`) que no ejecuta transiciones de estado ni interfiere en la máquina de estados de la habitación.
 4. **Manejo controlado de errores**: Si la habitación no existe en el inventario de Módulo 1, responder con HTTP 404 Not Found con el formato `ApiError` del plan base.
 
@@ -33,11 +29,11 @@ Responsabilidades:
 - **Target Platform**: Servidor Linux/Windows
 - **Project Type**: Web Application REST API endpoint
 - **Performance Goals**:
-  - Tiempo de respuesta < 200 ms p95.
-  - Cero locks de base de datos (`readOnly = true`).
+    - Tiempo de respuesta < 200 ms p95.
+    - Cero locks de base de datos (`readOnly = true`).
 - **Constraints**:
-  - Consulta estricta de solo lectura: sin modificación de atributos ni de estados en `Room`.
-  - Tarifa base con hasta dos decimales (`BigDecimal`).
+    - Consulta estricta de solo lectura: sin modificación de atributos ni de estados en `Room`.
+    - Tarifa base con hasta dos decimales (`BigDecimal`).
 
 ---
 
@@ -51,7 +47,7 @@ Responsabilidades:
 
 ## Integración M3 → M1: GET /api/rooms/{roomId}/base-rate
 
-**Descripción:** Consulta de solo lectura de la tarifa base y los atributos de una habitación (FR-001 a FR-006).
+**Descripción:** Consulta de solo lectura del número y la tarifa base de una habitación (FR-001 a FR-006).
 **Rol autorizado:** `MODULE_3` (Módulo 3 — Facturación).
 
 ### Petición (Request)
@@ -89,11 +85,7 @@ Accept: application/json
 | --- | --- | --- | --- |
 | `roomId` | UUID | Identificador único de la habitación | `"1a2b3c4d-…"` |
 | `roomNumber` | string | Número de habitación | `"101"` |
-| `categoryRoom` | string | Categoría de la habitación | `"Suite"` |
-| `maxCapacity` | integer | Capacidad máxima de personas | `4` |
 | `baseRate` | decimal | Tarifa base almacenada, con hasta dos decimales | `150000.00` |
-| `status` | string | Uno de los 8 estados canónicos de `RoomStatus` | `"Available"` |
-| `floor` | integer | Piso de la habitación | `3` |
 
 **Body (JSON):**
 
@@ -101,11 +93,7 @@ Accept: application/json
 {
   "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
   "roomNumber": "101",
-  "categoryRoom": "Suite",
-  "maxCapacity": 4,
-  "baseRate": 150000.00,
-  "status": "Available",
-  "floor": 3
+  "baseRate": 150000.00
 }
 ```
 
@@ -182,21 +170,21 @@ backend/src/
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T003 Implementar el DTO de salida `RoomBaseRateResponseDto` con los atributos: `roomId`, `roomNumber`, `categoryRoom`, `maxCapacity`, `baseRate`, `status`, `floor`.
+- [ ] T003 Implementar el DTO de salida `RoomBaseRateResponseDto` con los atributos: `roomId`, `roomNumber`, `baseRate`.
 - [ ] T004 Definir la interfaz del puerto de entrada `GetRoomBaseRateUseCase`.
 
 ---
 
 ## Phase 3: User Story 1 - Consulta de tarifa base de una habitación existente (Priority: P1)
 
-**Goal**: Permitir al Módulo 3 obtener la tarifa base y atributos complementarios de una habitación específica mediante una petición REST GET.
+**Goal**: Permitir al Módulo 3 obtener el número y la tarifa base de una habitación específica mediante una petición REST GET.
 
 **Independent Test**: Invocar `GET /api/rooms/{roomId}/base-rate` con el UUID de una habitación previamente persistida, verificando respuesta HTTP 200 OK con el valor numérico exacto de `baseRate` y sus atributos correspondientes.
 
 ### Tests for User Story 1
 
 - [ ] T005 [P] [US1] Unit test para `RoomBaseRateQueryService` comprobando la recuperación de la habitación y el mapeo exacto a `RoomBaseRateResponseDto`.
-- [ ] T006 [P] [US1] Verificar que la consulta de una habitación existente retorna HTTP 200 con los siete atributos correctos (`roomId`, `roomNumber`, `categoryRoom`, `maxCapacity`, `baseRate`, `status`, `floor`).
+- [ ] T006 [P] [US1] Verificar que la consulta de una habitación existente retorna HTTP 200 con los tres atributos correctos (`roomId`, `roomNumber`, `baseRate`) y sin ningún otro campo.
 - [ ] T007 [P] [US1] Unit test verificando que la consulta puede ejecutarse sobre habitaciones en cualquiera de los 8 estados canónicos sin alterar su estado.
 
 ### Implementation for User Story 1
@@ -239,4 +227,4 @@ backend/src/
 
 ## Puntos abiertos
 
-- Formato exacto de empaquetado que Módulo 3 prefiere para la respuesta de tarifa base. Mientras no responden, se expone el objeto completo de Room con todos sus atributos (roomId, roomNumber, categoryRoom, maxCapacity, baseRate, status, floor). baseRate se mantiene por habitación en la entidad Room sin cambios estructurales. Cualquier ajuste queda pendiente para el próximo ciclo de cambios.
+- Formato exacto de empaquetado que Módulo 3 prefiere para la respuesta de tarifa base. Mientras no responden, se expone solo `roomId`, `roomNumber` y `baseRate`. `baseRate` se mantiene por habitación en la entidad Room sin cambios estructurales. Si Módulo 3 llega a necesitar más atributos (categoría, capacidad, estado o piso), se agregan en el próximo ciclo de cambios.
