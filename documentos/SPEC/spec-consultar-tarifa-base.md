@@ -68,7 +68,7 @@ Como sistema del Módulo 3 (Facturación), quiero recibir una respuesta clara y 
 
 - **FR-001**: El sistema DEBE permitir la consulta de tarifa base exclusivamente al actor "Módulo 3" (Facturación) como operación de solo lectura.
 - **FR-002**: El sistema DEBE permitir la consulta de la tarifa base por identificador único de habitación (`roomId`) o número de habitación (`numberRoom`), y NO por tipo o categoría de habitación.
-- **FR-003**: El sistema DEBE retornar el valor numérico de la tarifa base almacenada para la habitación física consultada, incluyendo decimales si aplica.
+- **FR-003**: El sistema DEBE retornar el valor numérico de la tarifa base almacenada para la habitación física consultada, incluyendo decimales si aplica. [NEEDS_CONFIRMATION_MODULO_3: Confirmar si Módulo 3 espera únicamente el valor numérico decimal o una estructura JSON con identificador y tarifa base]
 - **FR-004**: El sistema DEBE retornar un error controlado cuando la habitación consultada no exista en el inventario de Módulo 1.
 - **FR-005**: El sistema DEBE retornar la tarifa base vigente de la habitación física consultada independientemente de su estado operativo actual.
 - **FR-006**: El sistema NO DEBE modificar ningún dato de la habitación ni ejecutar transiciones de estado al atender esta consulta.
