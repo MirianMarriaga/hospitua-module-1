@@ -169,15 +169,15 @@ Content-Type: application/json
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | `damageDescription` supera 500 caracteres | "La descripción del daño admite máximo 500 caracteres." |
-| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-005, HU-1 esc. 3) | "Esta tarea pertenece a otro miembro del personal de limpieza." |
-| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No se encontró la tarea." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `InCleaning` (FR-005, HU-1 esc. 2) | "La habitación está en estado {estado}; no es posible confirmar el fin de limpieza." |
-| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-006, FR-016) | "Esta tarea ya fue cerrada (estado actual de la habitación: {estado})." |
+| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-005, HU-1 esc. 3) | "Esta habitación la está limpiando otro compañero." |
+| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No encontramos esta limpieza. Vuelve al panel." |
+| 409 | `ROOM_INVALID_STATE` | La habitación no está en `InCleaning` (FR-005, HU-1 esc. 2) | "La habitación está {estado}; ya no se puede terminar esta limpieza." |
+| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-006, FR-016) | "Esta limpieza ya se había terminado o dejado. La habitación está {estado}." |
 
 ```json
 {
   "errorCode": "TASK_NOT_OWNED",
-  "message": "Esta tarea pertenece a otro miembro del personal de limpieza.",
+  "message": "Esta habitación la está limpiando otro compañero.",
   "timestamp": "2026-10-08T10:05:01-05:00",
   "path": "/api/cleaning/tasks/c0ffee00-1234-4abc-9def-0123456789ab/complete",
   "details": { "currentStatus": "InCleaning" }
@@ -239,10 +239,10 @@ Authorization: Bearer <JWT>
 
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
-| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-014) | "Esta tarea pertenece a otro miembro del personal de limpieza." |
-| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No se encontró la tarea." |
-| 409 | `ROOM_INVALID_STATE` | La habitación no está en `InCleaning` | "La habitación está en estado {estado}; no es posible liberar la tarea." |
-| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada (FR-016) | "Esta tarea ya fue cerrada (estado actual de la habitación: {estado})." |
+| 403 | `TASK_NOT_OWNED` | La tarea pertenece a otro miembro (FR-014) | "Esta habitación la está limpiando otro compañero." |
+| 404 | `TASK_NOT_FOUND` | No existe la tarea | "No encontramos esta limpieza. Vuelve al panel." |
+| 409 | `ROOM_INVALID_STATE` | La habitación no está en `InCleaning` | "La habitación está {estado}; ya no se puede dejar esta limpieza." |
+| 409 | `TASK_ALREADY_CLOSED` | La tarea ya fue confirmada o liberada (FR-016) | "Esta limpieza ya se había terminado o dejado. La habitación está {estado}." |
 
 ---
 
