@@ -125,8 +125,8 @@ Accept: application/json
 | `END_BEFORE_START` | Ambos | "La fecha de fin no puede ser anterior a la fecha de inicio." |
 | `RANGE_IN_PAST` | Esta consulta | "El rango consultado termina antes de hoy." |
 | `START_IN_PAST` | *Programar Bloqueo Técnico para Habitación* | "La fecha de inicio no puede ser anterior a hoy." |
-| `RANGE_TOO_LONG` | *Programar Bloqueo Técnico para Habitación* | "El rango no puede superar {max-range-days} días." |
-| `START_TOO_FAR` | *Programar Bloqueo Técnico para Habitación* | "La fecha de inicio no puede estar a más de {max-advance-days} días de hoy." |
+| `RANGE_TOO_LONG` | *Programar Bloqueo Técnico para Habitación* | "El mantenimiento no puede durar más de {max-range-days} días." |
+| `START_TOO_FAR` | *Programar Bloqueo Técnico para Habitación* | "Solo se puede programar con hasta {max-advance-days} días de anticipación." |
 
 Los valores entre llaves salen de `MaintenanceProperties` (90 y 365 días por defecto).
 
