@@ -72,7 +72,7 @@ Regla arquitectónica de HOSPITUA:
 | **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con `guests[]` completo plano | Proactiva | `plan-registrar-check-out.md` |
 | **Ingestión de Reservas Diarias** | M2 → M1 | Cola RabbitMQ (`m1.reservas.diarias.queue` / routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`) | Reactiva (push) | `plan-consultar-reservas.md` |
 | **Consultar Inventario de Habitaciones** | M2 → M1 | REST GET (`/api/rooms`) | Reactiva | `spec-consultar-inventario-habitaciones.md` |
-| **Consultar Disponibilidad de Reservas para Mantenimiento/Baja** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`) [NEEDS_CONFIRMATION_MODULO_2] — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
+| **Consultar Disponibilidad de Reservas para Mantenimiento/Baja** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`, ruta y forma de respuesta pendientes de confirmar con Módulo 2) — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
 | **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}&categoryRoom={cat}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
 | **Consultar Tarifa Base** | M3 → M1 | REST GET (`/api/rooms/{roomId}/base-rate`) | Reactiva | `plan-consultar-tarifa-base.md`, `spec-consultar-tarifa-base.md` |
 | **Consultar Información de Mantenimientos** | M2 → M1 | REST GET (`/api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}`) — M2 la consulta antes de asignar una habitación a una reserva | Reactiva | `spec-consultar-informacion-mantenimientos.md` |
@@ -82,7 +82,7 @@ Regla arquitectónica de HOSPITUA:
 - **Exchange**: `hospitua.events` (Tipo: `topic`, durable).
 - **Colas / Routing Keys emitidas por Módulo 1 hacia Módulo 2**:
   - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = ENTRY`, `movementDate = checkInDate`, y el array `guests[]` con todos los ocupantes (nacionales y extranjeros; campos migratorios `birthDate`, `originPlace`, `destinationPlace` incluidos únicamente si la nacionalidad es distinta de Colombia). Sin cola separada de extranjeros.
-  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate`, y el array `guests[]` con todos los ocupantes (reutilizando los datos migratorios capturados en Check-In [NEEDS_CONFIRMATION_MODULO_2]).
+  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate`, y el array `guests[]` con todos los ocupantes (reutilizando los datos migratorios capturados en Check-In; reutilización pendiente de confirmar con Módulo 2).
 - **Cola recibida por Módulo 1 desde Módulo 2**:
   - `m1.reservas.diarias.queue`: Ingesta asíncrona para alimentar y actualizar la copia local de reservas del día:
     - Routing key `reserva.lista-del-dia`: Lista diaria de reservas `ACTIVE` con `startDate = hoy` recibida a las 00:00 (purga del día anterior, `sequenceNumber = 1`, transiciones automáticas `Available → Reserved`).
@@ -159,7 +159,7 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 
 | Servicio Externo | Método y Ruta | Propósito |
 | --- | --- | --- |
-| **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` [NEEDS_CONFIRMATION_MODULO_2] | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
+| **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` (ruta y forma de respuesta pendientes de confirmar con Módulo 2) | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
 | **Módulo 3 (Liquidación)** | `GET /api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}&categoryRoom={cat}` | Consulta reactiva síncrona de la liquidación (informativa o final) y desglose financiero en el paso 2 de Check-Out |
 
 ### Formato Estándar de Error (`ApiError`)

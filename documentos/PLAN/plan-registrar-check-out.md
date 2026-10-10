@@ -12,7 +12,7 @@ Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepc
 2. **Liquidación**: Invocación reactiva mediante REST GET a Módulo 3 (`plan-consultar-liquidacion.md`), desplegando el tipo de liquidación (`settlementType`: "Liquidación informativa" o "Liquidación final"), el número de factura oficial (`invoiceNumber`, entero consecutivo o "Pendiente de facturación" si null), la fuente local (`Stay.source`), comisión OTA e ingreso neto (`netIncomeAmount`).
 3. **Pago**: Visualización del resumen financiero para revisión con el huésped. En liquidación final: número de factura, hospedaje (`accommodationTotalAmount`), IVA (`taxAmount`) y total a pagar (`totalAmount` devuelto directamente por Módulo 3, sin recálculo local en Módulo 1), junto con noches y fechas reales (`checkInDate` y `checkOutDate` sin horas). En liquidación informativa: muestra exclusivamente hospedaje, comisión e ingreso neto; sin IVA, sin total y sin factura. Cero transacciones monetarias o cobros de consumos locales en Módulo 1.
 4. **Confirmación**: Exigencia obligatoria de marcar la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta") para habilitar el botón de salida. Presenta la nota informativa única de contingencia ante fallas de sincronización (sin jerga técnica ni mención de colas o módulos).
-5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate` y `receptionistIdCheckOut`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` del Check-In [NEEDS_CONFIRMATION_MODULO_2]). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
+5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate` y `receptionistIdCheckOut`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` del Check-In; reutilización pendiente de confirmar con Módulo 2). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
 
 ---
 
@@ -84,7 +84,7 @@ backend/src/
 │   │           ├── RoomGuestPersistencePort.java
 │   │           ├── SettlementRestQueryPort.java
 │   │           ├── OutboxEventPublisherPort.java
-│   │           └── RoomAuditLogPort.java
+│   │           └── RoomStateHistoryPort.java
 │   ├── application/
 │   │   ├── service/
 │   │   │   ├── CheckOutExecutionService.java
@@ -187,7 +187,7 @@ frontend/src/
       ]
     }
     ```
-    Los campos `birthDate`, `originPlace` y `destinationPlace` se incluyen únicamente si `nationality != "Colombia"`, reutilizando los valores registrados en Check-In (`RoomGuest`) [NEEDS_CONFIRMATION_MODULO_2].
+    Los campos `birthDate`, `originPlace` y `destinationPlace` se incluyen únicamente si `nationality != "Colombia"`, reutilizando los valores registrados en Check-In (`RoomGuest`); reutilización pendiente de confirmar con Módulo 2.
   - Guardar mensaje outbox en `outbox_notification` (tipo `habitacion.checkout`).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
   - `GET /api/check-out/active-stay/{reservationRef}`: Datos locales de la estancia para el Paso 1.

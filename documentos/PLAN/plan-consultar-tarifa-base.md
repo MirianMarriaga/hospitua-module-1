@@ -41,6 +41,82 @@ Responsabilidades:
 
 ---
 
+## Convenciones del endpoint
+
+- **Autenticación**: integración entre módulos M3 → M1 **sin** header `Authorization` (FR-001).
+- **Formatos**: sin marcas de tiempo; la respuesta expone la tarifa base como decimal de solo lectura.
+- **Errores**: esquema `ApiError` del plan base (RFC 7807) con `errorCode`.
+
+---
+
+## Integración M3 → M1: GET /api/rooms/{roomId}/base-rate
+
+**Descripción:** Consulta de solo lectura de la tarifa base y los atributos de una habitación (FR-001 a FR-006).
+**Rol autorizado:** `MODULE_3` (Módulo 3 — Facturación).
+
+### Petición (Request)
+
+**Headers:** no se envía `Authorization` entre módulos.
+
+| Header | Valor | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `Accept` | `application/json` | Sí | Formato de respuesta esperado |
+| `Authorization` | — | No | **No se envía** entre módulos (FR-001) |
+
+**Parámetros (path):**
+
+| Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
+| --- | --- | --- | --- | --- | --- |
+| `roomId` | path | UUID | Sí | Identificador único de la habitación | `1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d` |
+
+**Body (JSON):** No aplica.
+
+**Ejemplo de petición HTTP completo:**
+
+```http
+GET /api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/base-rate HTTP/1.1
+Host: localhost:8081
+Accept: application/json
+```
+
+### Respuesta (Response)
+
+**Status Code:** `200 OK`
+
+**Campos de la Respuesta:**
+
+| Campo | Tipo | Descripción | Ejemplo |
+| --- | --- | --- | --- |
+| `roomId` | UUID | Identificador único de la habitación | `"1a2b3c4d-…"` |
+| `roomNumber` | string | Número de habitación | `"101"` |
+| `categoryRoom` | string | Categoría de la habitación | `"Suite"` |
+| `maxCapacity` | integer | Capacidad máxima de personas | `4` |
+| `baseRate` | decimal | Tarifa base almacenada, con hasta dos decimales | `150000.00` |
+| `status` | string | Uno de los 8 estados canónicos de `RoomStatus` | `"Available"` |
+| `floor` | integer | Piso de la habitación | `3` |
+
+**Body (JSON):**
+
+```json
+{
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "101",
+  "categoryRoom": "Suite",
+  "maxCapacity": 4,
+  "baseRate": 150000.00,
+  "status": "Available",
+  "floor": 3
+}
+```
+
+### Respuestas de error
+
+| Status Code | errorCode | Cuándo ocurre | Texto |
+| --- | --- | --- | --- |
+| 404 | `ROOM_NOT_FOUND` | El `roomId` no corresponde a una habitación registrada (FR-004) | "No se encontró la habitación." |
+
+---
+
 ## Project Structure
 
 ### Documentation
@@ -90,7 +166,7 @@ backend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar la configuración del repositorio `RoomPersistencePort` en [PLAN/base/plan.md](base/plan.md).
+- [ ] T001 Verificar que `RoomPersistencePort` del plan base ya expone la consulta por `roomId`. No crear un puerto nuevo; reutilizar el existente.
 - [ ] T002 Asegurar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (RFC 7807).
 
 ---
@@ -111,12 +187,12 @@ backend/src/
 ### Tests for User Story 1
 
 - [ ] T005 [P] [US1] Unit test para `RoomBaseRateQueryService` comprobando la recuperación de la habitación y el mapeo exacto a `RoomBaseRateResponseDto`.
-- [ ] T006 [P] [US1] Integration test con `MockMvc` para `GET /api/rooms/{roomId}/base-rate` verificando status 200 y JSON con `roomId`, `categoryRoom`, `maxCapacity`, `baseRate`, `status`, `floor`, `roomNumber`.
+- [ ] T006 [P] [US1] Verificar que la consulta de una habitación existente retorna HTTP 200 con los siete atributos correctos (`roomId`, `roomNumber`, `categoryRoom`, `maxCapacity`, `baseRate`, `status`, `floor`).
 - [ ] T007 [P] [US1] Unit test verificando que la consulta puede ejecutarse sobre habitaciones en cualquiera de los 8 estados canónicos sin alterar su estado.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Implementar en `RoomBaseRateQueryService` el método `@Transactional(readOnly = true) RoomBaseRateResponseDto getRoomBaseRate(UUID roomId)`.
+- [ ] T008 [P] [US1] Implementar el método de consulta de tarifa base en el servicio de aplicación, garantizando que la operación es de solo lectura y no altera el estado de la habitación.
 - [ ] T009 [P] [US1] Implementar en `RoomBaseRateController.java` el endpoint `GET /api/rooms/{roomId}/base-rate`.
 
 ---
@@ -149,3 +225,9 @@ backend/src/
 
 - **Foundational**: Requiere la entidad `Room` y tabla `room` de [PLAN/base/plan.md](base/plan.md).
 - **Consumidores**: Consumido por Módulo 3 (Facturación) para la tarifación de estancias.
+
+---
+
+## Puntos abiertos
+
+- Formato exacto de empaquetado que Módulo 3 prefiere para la respuesta de tarifa base. Mientras no responden, se expone el objeto completo de Room con todos sus atributos (roomId, roomNumber, categoryRoom, maxCapacity, baseRate, status, floor). baseRate se mantiene por habitación en la entidad Room sin cambios estructurales. Cualquier ajuste queda pendiente para el próximo ciclo de cambios.
