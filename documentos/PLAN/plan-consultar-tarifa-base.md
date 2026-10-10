@@ -43,9 +43,9 @@ Responsabilidades:
 
 ## Convenciones del endpoint
 
-- **Autenticación**: integración entre módulos M3 → M1 **sin** header `Authorization` (FR-001).
+- **Autenticación**: igual que Módulo 2. Módulo 3 usa un usuario de servicio de `user_account` con rol `MODULE_3`, obtiene su JWT con el mismo inicio de sesión y lo envía en `Authorization: Bearer <JWT>` (FR-001; plan base, T015).
 - **Formatos**: sin marcas de tiempo; la respuesta expone la tarifa base como decimal de solo lectura.
-- **Errores**: esquema `ApiError` del plan base (RFC 7807) con `errorCode`.
+- **Errores**: esquema `ApiError` del plan base, con `errorCode`.
 
 ---
 
@@ -56,12 +56,12 @@ Responsabilidades:
 
 ### Petición (Request)
 
-**Headers:** no se envía `Authorization` entre módulos.
+**Headers:**
 
 | Header | Valor | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `Accept` | `application/json` | Sí | Formato de respuesta esperado |
-| `Authorization` | — | No | **No se envía** entre módulos (FR-001) |
+| `Authorization` | `Bearer <JWT>` | Sí | JWT del usuario de servicio con rol `MODULE_3` (FR-001) |
 
 **Parámetros (path):**
 
