@@ -140,7 +140,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Número de habitación asignada.
   - Nombre del huésped titular (`firstName`, `lastName` con número de documento debajo).
   - Estadía en noches (calculada localmente entre `startDate` y `endDate`).
-  - Cantidad de personas de la habitación (`guestCount` por habitación, o capacidad si no se especifica).
+  - Cantidad de personas de la habitación (`guestCount` por habitación, confirmado por Módulo 2 en `rooms[]` de la lista del día).
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
   - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con texto explicativo claro para Recepción (ej. "No apartada: En mantenimiento"). El estado `Available` no genera alertas ni advertencias de conflicto.
@@ -177,7 +177,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 - **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinTime`, `expectedCheckoutTime` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
 - **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida asíncronamente desde Módulo 2: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
-- **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación, pendiente de confirmación por Módulo 2).
+- **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación, con `maxCapacity` de `Room` como respaldo).
 - **Receptionist**: Actor de recepcionista que opera el flujo de recepción, consultas, registro de check-in y registro de check-out en el hotel.
 
 ---

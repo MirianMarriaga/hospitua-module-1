@@ -13,7 +13,7 @@
 
 Como Recepcionista, quiero formalizar la salida física del huésped recorriendo el flujo de 5 pasos de la interfaz (Consultar reserva → Liquidación → Pago → Confirmación → Liberar habitación), localizando la estancia desde los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), consultando la liquidación a Módulo 3 y confirmando la operación, para que la habitación transicione inmediatamente a "PendingCleaning" y se notifique de forma asíncrona a Módulo 2 la salida física de todos los huéspedes.
 
-**Por qué esta prioridad**: Es la operación misional de cierre de la estancia. Módulo 1 opera de forma 100% autónoma en recepción (datos de la estancia desde `Stay`, titular desde `Stay.titularFirstName/LastName`). La notificación asíncrona hacia Módulo 2 consolida a la totalidad de los huéspedes (nacionales y extranjeros) en un único aviso con el movimiento de salida y la fecha de egreso (reutilizando los lugares de procedencia y destino registrados en el Check-In [NEEDS_CONFIRMATION_MODULO_2]). No existe notificación separada para extranjeros.
+**Por qué esta prioridad**: Es la operación misional de cierre de la estancia. Módulo 1 opera de forma 100% autónoma en recepción (datos de la estancia desde `Stay`, titular desde `Stay.titularFirstName/LastName`). La notificación asíncrona hacia Módulo 2 consolida a la totalidad de los huéspedes (nacionales y extranjeros) en un único aviso con el movimiento de salida y la fecha de egreso (reutilizando los lugares de procedencia y destino registrados en el Check-In en `RoomGuest`). No existe notificación separada para extranjeros.
 
 **Prueba Independiente**: Iniciar desde el Panel de Recepción con una estancia seleccionada. Recorrer los 5 pasos: (1) datos de la estancia desde `Stay`/`Room`/`RoomGuest` — titular desde `Stay.titularFirstName/LastName`, fuente desde `Stay.source`; (2) liquidación de Módulo 3 mostrando `settlementType`, `invoiceNumber` (o "Pendiente de facturación" si null), fuente desde `Stay.source`, comisión OTA, ingreso neto; (3) pago con `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (o "Pendiente de facturación" si null), noches, `checkInDate`, `checkOutDate`; (4) confirmación; (5) pantalla de éxito con habitación en PendingCleaning. Verificar el registro de la notificación saliente para Módulo 2 con el movimiento de salida, fecha de egreso y la nómina completa de todos los huéspedes.
 
@@ -69,7 +69,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 - **`totalAmount` de M3**: Si Módulo 3 devuelve `totalAmount = null` (liquidación informativa), Módulo 1 muestra "Pendiente de facturación" en el paso 3. No recalcula localmente.
 - **`invoiceNumber` como entero**: El número de factura es un entero consecutivo (no lleva prefijo como "F-2026-").
 - **Idempotencia en notificaciones**: Toda notificación saliente cuenta con un identificador único que permite reconocer reintentos y descartar duplicados.
-- **Reutilización de procedencia y destino migratorios**: [NEEDS_CONFIRMATION_MODULO_2] En la notificación de salida, la procedencia y el destino de extranjeros se reutilizan de los registros del Check-In (`RoomGuest`).
+- **Reutilización de procedencia y destino migratorios**: En la notificación de salida, la procedencia y el destino de extranjeros se reutilizan de los registros del Check-In (`RoomGuest`).
 - **Día operativo fijo**: `checkOutDate` corresponde a la fecha del sistema en hora Colombia (UTC-5), solo fecha, sin hora.
 
 ---
@@ -109,7 +109,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
   - Referencia de reserva e identificador de habitación.
   - Tipo de movimiento (salida) y fecha de egreso (`checkOutDate`).
   - Lista completa de todos los huéspedes alojados con sus nombres, apellidos, tipo y número de documento y nacionalidad.
-  - Para los huéspedes de nacionalidad extranjera, los datos migratorios complementarios: fecha de nacimiento, lugar de procedencia y lugar de destino (reutilizados de los registros de Check-In [NEEDS_CONFIRMATION_MODULO_2]).
+  - Para los huéspedes de nacionalidad extranjera, los datos migratorios complementarios: fecha de nacimiento, lugar de procedencia y lugar de destino (reutilizados de los registros de `RoomGuest` capturados en el Check-In).
   - Validaciones previas a la emisión: presencia de los datos de todos los huéspedes y coherencia cronológica (la fecha de salida no puede ser anterior a la fecha de entrada del mismo huésped).
 
 - **FR-013**: En el paso 5, el sistema DEBE mostrar: "Habitación: Pendiente de limpieza", etiqueta de notificación enviada (sin mencionar módulos), sin horas, botón único "Volver al inicio". Las etiquetas de estado se muestran en español.
