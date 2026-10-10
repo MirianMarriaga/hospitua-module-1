@@ -144,6 +144,12 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 | `GET /api/rooms/{roomId}/decommission-conflicts` | Administrador (Frontend M1) | Verificación de reservas vigentes antes de dar de baja una habitación (`plan-consultar-reservas.md`) |
 | `GET /api/rooms` | Gerente, Administrador, Recepcionista, Módulo 2 | Consulta del inventario de habitaciones. Vistas internas: paginada (10) y filtrable por número, tipo, piso y estado. Módulo 2 (`?categoryRoom={cat}`): lista sin paginar de las habitaciones vendibles de la categoría, sin `Inactive`, con `id`, `roomNumber`, `categoryRoom` y `maxCapacity` (`spec-consultar-inventario-habitaciones.md` FR-010 y FR-011) |
 | `GET /api/rooms/{roomId}` | Módulo 2, Módulo 3, Recepcionista | Detalle físico y estado actual de una habitación específica. Para Módulo 2 responde solo `id`, `roomNumber`, `categoryRoom` y `maxCapacity`, y 404 `ROOM_NOT_FOUND` si la habitación no existe o está `Inactive` |
+| `POST /api/rooms` | Administrador (Frontend M1) | Registrar habitación en `Available` con su periodo inicial en el historial (`plan-registrar-habitacion.md`) |
+| `PATCH /api/rooms/{roomId}` | Administrador (Frontend M1) | Editar los atributos de una habitación `Available` (`plan-editar-habitacion.md`) |
+| `POST /api/rooms/{roomId}/decommission` | Administrador (Frontend M1) | Dar de baja: consulta a Módulo 2 las reservas vigentes desde hoy y, si no hay, pasa la habitación a `Inactive` (`plan-dar-de-baja-habitacion.md`) |
+| `GET /api/rooms/{roomId}/decommission` | Administrador (Frontend M1) | Datos de la baja vigente para confirmar la reactivación (`plan-marcar-habitacion-como-disponible.md`) |
+| `POST /api/rooms/{roomId}/reactivation` | Administrador (Frontend M1) | Reactivar una habitación: `Inactive` → `Available` (`plan-marcar-habitacion-como-disponible.md`) |
+| `GET /api/room-state-history` | Gerente (Frontend M1) | Historial de estados paginado con filtros por habitación, categoría, estado y fechas, con responsable y flujo de origen (`plan-consultar-historial-de-estados.md`) |
 | `GET /api/rooms/{roomId}/base-rate` | Módulo 3 (usuario de servicio con rol `MODULE_3`) | Consulta reactiva de la tarifa base configurada para la habitación |
 | `GET /api/stays/{stayId}` | Recepcionista, Auditoría | Detalle de la estancia física, fechas reales y ocupantes registrados |
 | `GET /api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}` | Módulo 2 (usuario de servicio con rol `MODULE_2`); *Programar Bloqueo Técnico* lo usa de forma interna, sin REST | Verificación de cruces con mantenimientos programados o en curso para una estadía (`startDate` = llegada, `endDate` = salida, que no se considera ocupada); responde `available` (solo mantenimientos) y la lista `conflicts` con `maintenanceStart` y `maintenanceEnd` de cada cruce, o "habitación no encontrada" (`spec-consultar-informacion-mantenimientos.md`) |
@@ -360,6 +366,7 @@ frontend/
 | `room` | `RoomJpaEntity` | Unidad habitacional física. `id` (UUID PK), `room_number` (VARCHAR único), `floor` (INT, mayor a 0), `room_category` (`SENCILLA`, `DOBLE`, `SUITE`, `BOUTIQUE`), `max_capacity` (INT), `base_rate` (NUMERIC), `status` (VARCHAR: 8 estados canónicos), `reserved_by_reservation_ref` (VARCHAR nullable: reserva que aparta la habitación, solo en `Reserved`), `version` (optimistic lock). |
 | `room_state_history` | `RoomStateHistoryJpaEntity` | Historial común de estados por periodos. `id`, `room_id`, `status`, `previous_status` (nullable), `start_date_time`, `end_date_time` (nullable mientras el periodo está abierto), `actor_id` (nullable en transiciones autónomas), `source_flow`, `reservation_ref` (nullable). |
 | `room_audit_log` | `RoomAuditLogJpaEntity` | Bitácora de auditoría de eventos de una habitación que no son transiciones de estado o que necesitan datos que `room_state_history` no guarda (estancia, liquidación). `id` (UUID PK), `room_id` (FK a `room`), `event_type` (`RESERVATION_STATE_CONFLICT`, `ROOM_EDITED`, `CHECK_IN`, `CHECK_OUT`), `actor_id` (nullable en eventos autónomos), `details` (JSON: estado actual, referencias de reserva o campos editados), `event_date_time`. Las transiciones de estado se registran solo en `room_state_history`. |
+| `room_decommission` | `RoomDecommissionJpaEntity` | Bajas de habitaciones. `id` (UUID PK), `room_id` (FK a `room`), `reason_category` (`PERMANENT_REMODELING`, `FLOOR_CLOSURE`, `ADMINISTRATIVE_DECISION`, `OTHER`), `reason_detail` (VARCHAR 500 nullable; obligatorio con `OTHER`), `decommissioned_by`, `decommission_date_time`, `reactivated_by` (nullable), `reactivation_date_time` (nullable). Índice por `(room_id, decommission_date_time DESC)`. La usan `plan-dar-de-baja-habitacion.md` y `plan-marcar-habitacion-como-disponible.md`. |
 | `cleaning_task` | `CleaningTaskJpaEntity` | Tarea de limpieza. `id` (UUID PK), `room_id` (FK a `room`), `cleaning_staff_member_id`, `start_date_time`, `end_date_time` (nullable mientras está abierta), `outcome` (`Completed`, `DamageReported`, `Released`; nullable), `version`. Índices únicos parciales por miembro y por habitación con `end_date_time IS NULL` (Regla 9). |
 | `reparation_task` | `ReparationTaskJpaEntity` | Tarea de reparación. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `start_date_time`, `end_date_time` (nullable), `outcome` (`Completed`, `Released`; nullable), `version`. Índices únicos parciales como en `cleaning_task`. |
 | `damage_report` | `DamageReportJpaEntity` | Reporte de daño inmutable. `id` (UUID PK), `room_id` (FK a `room`), `user_id`, `damage_description` (VARCHAR 500), `report_date_time`. Índice por `(room_id, report_date_time DESC)`. |
@@ -379,6 +386,7 @@ erDiagram
   ROOM ||--o{ STAY : aloja
   ROOM ||--o{ ROOM_STATE_HISTORY : registra
   ROOM ||--o{ ROOM_AUDIT_LOG : audita
+  ROOM ||--o{ ROOM_DECOMMISSION : da_de_baja
   ROOM ||--o{ CLEANING_TASK : limpia
   ROOM ||--o{ REPARATION_TASK : repara
   ROOM ||--o{ DAMAGE_REPORT : reporta
@@ -418,6 +426,16 @@ erDiagram
     string actor_id
     string details
     timestamp event_date_time
+  }
+  ROOM_DECOMMISSION {
+    uuid id PK
+    uuid room_id FK
+    string reason_category
+    string reason_detail
+    string decommissioned_by
+    timestamp decommission_date_time
+    string reactivated_by
+    timestamp reactivation_date_time
   }
   STAY {
     uuid id PK
@@ -530,7 +548,7 @@ erDiagram
 
 **Cómo leer el diagrama:**
 
-- **Línea continua**: clave foránea real en la base de datos (`stay.room_id → room`, `room_guest.stay_id → stay`, `room_state_history.room_id → room`, `room_audit_log.room_id → room`, y `room_id → room` en `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`).
+- **Línea continua**: clave foránea real en la base de datos (`stay.room_id → room`, `room_guest.stay_id → stay`, `room_state_history.room_id → room`, `room_audit_log.room_id → room`, `room_decommission.room_id → room`, y `room_id → room` en `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`).
 - **Línea punteada**: relación lógica hacia `user_account`. Los campos `receptionist_id_check_in`, `receptionist_id_check_out` y `actor_id` se almacenan como cadenas simples, sin FK declarada en el esquema.
 - **`outbox_notification`**: no tiene FK. Se vincula lógicamente con la estancia y la habitación a través del campo `payload` (JSONB con `reservationRef` y `roomId`) y se inserta en la misma transacción ACID que el cambio físico de estado (Regla 3).
 - **`room_guest`**: registro inmutable tras el Check-In (Regla 4). Los campos `origin_place` y `destination_place` son **nullable** — solo aplican a extranjeros y van en el payload migratorio hacia Módulo 2 (SIRE), no como FK. Aceptan texto libre `"Ciudad, País"` (ej. `"Madrid, España"`).
@@ -592,7 +610,7 @@ erDiagram
 
 **CRÍTICO**: Ningún plan de feature puede comenzar su implementación hasta completar satisfactoriamente esta fase base.
 
-- [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `room_audit_log`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`)
+- [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `room_audit_log`, `room_decommission`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`)
 - [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`, `DailyReservationPersistencePort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/`
 - [ ] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`
 - [ ] T010 Implementar el servicio de validación de máquina de estados habitacional (`RoomStateTransitionService` implementando `TransitionRoomStateUseCase`) garantizando el cumplimiento estricto de los 8 estados canónicos
