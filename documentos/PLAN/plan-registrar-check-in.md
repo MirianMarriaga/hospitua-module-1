@@ -9,12 +9,12 @@
 
 Implementar el caso de uso central **Registrar Check-In** para el actor Recepcionista en Módulo 1, mediante un flujo guiado de 4 pasos en la interfaz de usuario:
 
-1. **Validar reserva**: Selección de la habitación desde el Panel de Recepción (`reservationRef`, `roomId`). Consulta exclusiva **en la copia local** (`daily_reservation`, `daily_reservation_room`) mantenida por `plan-consultar-reservas.md`. Verificación de que la habitación asignada se encuentre en estado `Reserved` **o `Available`** en Módulo 1 con `startDate = hoy` y sin `Stay` previo para ese par `(reservationRef, roomId)`. **No se realiza ninguna llamada REST a Módulo 2** en este paso.
+1. **Validar reserva**: Selección de la habitación desde el Panel de Recepción (`reservationRef`, `roomId`). Consulta exclusiva **en la copia local** (`daily_reservation`, `daily_reservation_room`) mantenida por `plan-consultar-reservas.md`. Verificación de que la habitación asignada se encuentre en estado `Reserved` con `reservedByReservationRef` igual a la reserva, con `startDate = hoy` y sin `Stay` previo para ese par `(reservationRef, roomId)`. **No se realiza ninguna llamada REST a Módulo 2** en este paso.
 2. **Datos de huéspedes**: Captura directa y unificada de los ocupantes de esa habitación específica (integrando la lógica de captura y validaciones anteriormente delegada a `procesar-datos-huespedes`):
    - Titular precargado desde la copia local (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`), en solo lectura y con `isReservationGuest = true`. El titular llega siempre con nombres y apellidos separados.
-   - Captura de acompañantes (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`).
+   - Captura de acompañantes (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`). `documentType` es uno de `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`. `birthDate` es obligatoria para todos los huéspedes, incluido el titular si se aloja (la lista del día no la trae).
    - Validación de aforo contra `guest_count` de la habitación en `daily_reservation_room` (respaldo: `room.maxCapacity`).
-   - Para huéspedes extranjeros (`nationality ≠ Colombia`), despliegue obligatorio del panel de control migratorio con: `birthDate`, `originPlace`, `destinationPlace`. `movementType` ("ENTRY") y `movementDate` (fecha de hoy) son asignados automáticamente por el sistema.
+   - Para huéspedes extranjeros (`nationality ≠ Colombia`), despliegue obligatorio del panel de control migratorio con: `originPlace` y `destinationPlace`. `movementType` ("ENTRY") y `movementDate` (fecha de hoy) son asignados automáticamente por el sistema.
 3. **Confirmación**: Resumen visual de la habitación asignada, titular, ocupantes, estadía (noches calculadas y fechas) y texto informativo de que la habitación pasará a `Occupied` y la reserva a **En curso** (sin menciones técnicas a módulos externos).
 4. **Check-In**: Ejecución atómica y transaccional local (`@Transactional`):
    - Creación de la entidad `Stay` por habitación con: `source` (`DIRECTA` o nombre de la OTA), `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`.
@@ -41,7 +41,7 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
   - Un `Stay` por cada par `(reservationRef, roomId)` (check-in individual por habitación).
   - No exponer horas en fechas de negocio (`LocalDate` / YYYY-MM-DD).
   - Resiliencia: La caída o lentitud de la cola nunca bloquea la entrega de la habitación ni revierte la transacción física local (patrón Outbox).
-  - Integridad de la máquina de estados: Check-In procede si la habitación se encuentra en estado `Reserved` o `Available` (sin `Stay` activo para ese par `reservationRef/roomId`).
+  - Integridad de la máquina de estados: Check-In procede solo si la habitación está en `Reserved` apartada para esa reserva (sin `Stay` activo para ese par `reservationRef/roomId`); `Available → Occupied` no existe (`maquina-estados-habitacion.md`).
   - Formato de mensaje plano acordado con M2 (sin `EventEnvelope`, sin `foreignGuestCount`, sin cola separada de extranjeros).
 
 ---
@@ -149,7 +149,7 @@ Routing key: habitacion.checkin
 | --- | --- | --- | --- |
 | `firstName` | string | Sí | Nombres del huésped |
 | `lastName` | string | Sí | Apellidos del huésped |
-| `documentType` | string | Sí | Tipo de documento de identidad |
+| `documentType` | string | Sí | Tipo de documento: `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT` |
 | `documentNumber` | string | Sí | Número de documento de identidad |
 | `birthDate` | fecha (YYYY-MM-DD) | Sí | Fecha de nacimiento |
 | `nationality` | string | Sí | Nacionalidad del huésped |
@@ -178,7 +178,7 @@ Routing key: habitacion.checkin
     {
       "firstName": "John",
       "lastName": "Smith",
-      "documentType": "PASSPORT",
+      "documentType": "PAS",
       "documentNumber": "X99",
       "birthDate": "1990-05-12",
       "nationality": "Estados Unidos",
@@ -194,7 +194,7 @@ Routing key: habitacion.checkin
 ## Phase 1: Setup & Database Migrations
 
 - [ ] T001 Migración Flyway: Actualizar tabla `stay` agregando columnas `titular_first_name`, `titular_last_name`, `titular_document_number` y asegurando que `source` almacene `DIRECTA` o el nombre de la OTA.
-- [ ] T002 Migración Flyway: Actualizar tabla `room_guest` reemplazando `full_name` por `first_name` y `last_name`, y agregando columnas `birth_date` (DATE nullable), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable).
+- [ ] T002 Migración Flyway: Actualizar tabla `room_guest` reemplazando `full_name` por `first_name` y `last_name`, y agregando columnas `birth_date` (DATE NOT NULL), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable).
 - [ ] T003 Configurar exchange y cola RabbitMQ `m2.habitacion.checkin.queue` (enrutamiento para check-in con mensaje plano).
 
 ---
@@ -215,7 +215,7 @@ Routing key: habitacion.checkin
   - `firstName` (String), `lastName` (String)
   - `documentType` (String), `documentNumber` (String)
   - `nationality` (String), `isReservationGuest` (boolean)
-  - `birthDate` (LocalDate nullable, obligatorio si `nationality ≠ Colombia`)
+  - `birthDate` (LocalDate, obligatorio para todos los huéspedes)
   - `originPlace` (String nullable, obligatorio si `nationality ≠ Colombia`)
   - `destinationPlace` (String nullable, obligatorio si `nationality ≠ Colombia`)
 - [ ] T006 Implementar DTOs para el contrato plano hacia `m2.habitacion.checkin.queue`:
@@ -235,8 +235,8 @@ Routing key: habitacion.checkin
 
 - [ ] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationQueryPort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
 - [ ] T009 [P] [US1] Unit test: Verificar que el titular queda precargado con `isReservationGuest = true`, selector de país bloqueado y campos de solo lectura.
-- [ ] T010 [P] [US1] Unit test: Validar rechazo si un huésped extranjero no incluye `birthDate`, `originPlace` o `destinationPlace`, o si `birthDate` es igual o posterior a hoy.
-- [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `birthDate`, `originPlace` y `destinationPlace` se persisten como null y no se exigen.
+- [ ] T010 [P] [US1] Unit test: Validar rechazo si cualquier huésped no incluye `birthDate` o si es igual o posterior a hoy, si un extranjero no incluye `originPlace` o `destinationPlace`, o si `documentType` no es uno de los códigos admitidos.
+- [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
 - [ ] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `TransitionRoomStateUseCase` con `SourceFlow` = `CHECK_IN`.
 - [ ] T013 [P] [US1] Integration test: Verificar payload insertado en `outbox_notification`: formato plano (sin EventEnvelope), `movementType = ENTRY`, `movementDate = checkInDate`, `guests[]` con todos los ocupantes y `messageId` inmutable en reintentos.
 - [ ] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`.
@@ -249,13 +249,14 @@ Routing key: habitacion.checkin
   - Validación de habitación física en estado `Reserved` con `reservedByReservationRef == reservationRef`.
 - [ ] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
   - Validar lista de huéspedes: presencia obligatoria de nombres, apellidos y documentos.
-  - Validar campos migratorios para extranjeros: `birthDate < LocalDate.now()`, `originPlace` y `destinationPlace` no vacíos.
+  - Validar `birthDate < LocalDate.now()` y `documentType` admitido para todos los huéspedes, y `originPlace` y `destinationPlace` no vacíos para extranjeros.
   - Validar aforo contra `guest_count` de la habitación en `daily_reservation_room` (respaldo: `room.maxCapacity`).
   - Validar unicidad de documento dentro de la habitación (`DuplicateGuestDocumentException`).
   - Crear y guardar entidad `Stay` con `source`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
   - Persistir ocupantes en `RoomGuest`.
+  - Registrar en `room_audit_log` el evento `CHECK_IN` con `stayId`, `reservationRef`, recepcionista y marca de tiempo, mediante `RoomAuditLogPort` (FR-015).
   - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base).
-  - Construir mensaje plano `CheckInMessagePayload` con `messageId` (UUIDv4) y `sequenceNumber` creciente del día.
+  - Construir mensaje plano `CheckInMessagePayload` con `messageId` (UUIDv4) y `sequenceNumber` creciente por cola, que nunca se reinicia (contrato de Módulo 2).
   - Insertar mensaje en `outbox_notification` para publicación asíncrona hacia `m2.habitacion.checkin.queue`.
 - [ ] T017 [US1] Implementar controlador REST `CheckInController`:
   - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1).
@@ -274,7 +275,7 @@ Routing key: habitacion.checkin
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación se encuentra en estado distinto a `Reserved` o `Available` (`InvalidRoomStateException`).
+- [ ] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación no está en `Reserved`, incluido `Available`, o si está apartada para otra reserva (`InvalidRoomStateException`).
 - [ ] T020 [P] [US2] Unit test: Rechazar Check-In si ya existe un `Stay` activo para esa habitación (`StayAlreadyExistsException`).
 - [ ] T021 [P] [US2] Unit test: Rechazar Check-In si el número de ocupantes supera el `guest_count` de la habitación (`GuestCountMismatchException`) o la capacidad física (`RoomCapacityExceededException`).
 - [ ] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
