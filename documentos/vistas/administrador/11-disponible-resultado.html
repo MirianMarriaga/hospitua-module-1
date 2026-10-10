@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resultado de la reactivación — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Estilo visual del grupo (tomado de miWIRE): colores, tipografía, botones,
+   tarjetas, etiquetas, avisos y pasos. Solo contiene apariencia y maquetación. */
+
+:root{
+  --navy:#152B4D; --navy-2:#1C3A63; --ink:#152A4E;
+  --blue:#2F6FED; --blue-dark:#1D4ED8; --blue-bg:#EAF1FF;
+  --green:#16A34A; --green-bg:#E7F7EE;
+  --amber:#B45309; --amber-bg:#FFF7E6;
+  --red:#DC2626; --red-bg:#FEE2E2;
+  --purple:#7C3AED; --purple-bg:#F3ECFE;
+  --orange:#C2410C; --orange-bg:#FFEDD5;
+  --crimson:#9F1239; --crimson-bg:#FFE4E6;
+  --gray:#6B7280; --gray-bg:#F1F5F9;
+  --bg:#F4F6FA; --card:#FFFFFF; --border:#E5E9F0;
+  --text:#1E2433; --text-dim:#64748B; --radius:12px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',Inter,system-ui,-apple-system,Arial,sans-serif;font-size:15px;}
+h1,h2,h3,p,dl,dd,ol,ul{margin:0;}
+ol,ul{padding:0;list-style:none;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:15px;}
+[hidden]{display:none!important;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.mono{font-family:'Consolas',ui-monospace,monospace;}
+.num{font-variant-numeric:tabular-nums;}
+.dim{color:var(--text-dim);}
+.link{color:var(--blue);font-weight:600;}
+.link:hover{text-decoration:underline;}
+
+/* ---------- Barra superior ---------- */
+.topbar{min-height:64px;background:var(--navy);display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:10px 30px;color:#fff;}
+.tb-brand{display:flex;align-items:center;gap:12px;}
+.tb-logo{width:36px;height:36px;flex:0 0 36px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;}
+.tb-name{font-weight:700;font-size:16px;color:#fff;line-height:1.2;}
+.tb-sub{font-size:12px;color:#9db2d8;}
+.topnav{display:flex;gap:4px;flex-wrap:wrap;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;color:#c3d1ec;font-size:14.5px;font-weight:500;}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.nav-item.active{background:var(--blue);color:#fff;}
+.user-chip{display:flex;align-items:center;gap:12px;margin-left:auto;}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:#33507f;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;}
+.user-name{font-size:13.5px;font-weight:600;line-height:1.1;}
+.user-role{font-size:12px;color:#9db2d8;}
+.user-exit{font-size:12.5px;color:#9db2d8;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 10px;}
+.user-exit:hover{background:rgba(255,255,255,.08);color:#fff;}
+
+/* ---------- Franja de bienvenida (panel general) ---------- */
+.hero{background:repeating-linear-gradient(135deg,#DCE2EB 0 14px,#D3DAE5 14px 28px);border-bottom:1px solid var(--border);}
+.hero-inner{max-width:1180px;margin:0 auto;padding:30px 26px;min-height:130px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+.hero h1{font-size:21px;font-weight:700;}
+.ph-label{font-size:13px;color:var(--text-dim);border:1px dashed #9AA8BC;border-radius:6px;padding:6px 10px;background:rgba(255,255,255,.6);white-space:nowrap;}
+
+/* ---------- Contenido ---------- */
+.content{padding:26px 30px 40px;}
+.content-inner{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px;}
+.content-inner.narrow{max-width:860px;}
+h1{font-size:22px;}
+.page-sub{color:var(--text-dim);font-size:14px;margin-top:3px;}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.back-row{display:flex;align-items:center;gap:12px;}
+.icon-btn{background:none;border:none;color:var(--text);padding:6px;border-radius:8px;display:flex;}
+.icon-btn:hover{background:var(--gray-bg);}
+
+/* ---------- Tarjetas ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:16px;}
+.card.flush{padding:0;gap:0;overflow:hidden;}
+.card-title{font-size:15.5px;font-weight:700;}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));row-gap:14px;column-gap:14px;}
+.info-grid.box{background:#F8FAFF;border:1px solid var(--border);border-radius:10px;padding:16px;}
+.info-label{font-size:12.5px;color:var(--text-dim);margin-bottom:3px;}
+.info-value{font-size:14.5px;font-weight:600;}
+.info-value.normal{font-weight:400;}
+.divider{border-top:1px solid var(--border);padding-top:16px;}
+
+/* ---------- Etiquetas ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-blue{background:var(--blue-bg);color:var(--blue-dark);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-purple{background:var(--purple-bg);color:var(--purple);}
+.badge-orange{background:var(--orange-bg);color:var(--orange);}
+.badge-crimson{background:var(--crimson-bg);color:var(--crimson);}
+.badge-gray{background:var(--gray-bg);color:var(--gray);}
+
+/* ---------- Botones ---------- */
+.btn{padding:11px 20px;border-radius:9px;border:none;font-size:14.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-dark);}
+.btn-ink{background:var(--ink);color:#fff;}
+.btn-ink:hover{background:var(--navy-2);}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#B91C1C;}
+.btn-outline{background:#fff;border:1px solid var(--border);color:var(--text);}
+.btn-outline:hover{background:var(--gray-bg);}
+.btn-sm{padding:7px 12px;font-size:13.5px;}
+.btn[disabled],.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-text{background:none;border:none;color:var(--blue);font-weight:600;font-size:14px;padding:6px 4px;}
+.btn-text:hover{text-decoration:underline;}
+.actions-row{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ---------- Formularios ---------- */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+.field label,.field .lbl{font-size:12.5px;color:var(--text-dim);display:block;margin-bottom:4px;}
+.req{color:var(--red);}
+.tbl-input{width:100%;height:40px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:14.5px;background:#fff;color:var(--text);}
+textarea.tbl-input{height:auto;min-height:84px;resize:vertical;}
+.tbl-input:focus{outline:1.5px solid var(--blue);border-color:var(--blue);}
+.tbl-input[readonly]{background:var(--gray-bg);color:var(--text-dim);cursor:not-allowed;}
+.tbl-input.invalid{border-color:var(--red);}
+.field-err{font-size:12.5px;color:var(--red);margin-top:4px;}
+.field-help{font-size:12px;color:var(--text-dim);margin-top:4px;}
+.section-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+.checkbox-row{display:flex;align-items:center;gap:9px;font-size:14px;}
+.checkbox-row input{width:16px;height:16px;accent-color:var(--blue);}
+
+/* ---------- Barra de filtros ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:14px 16px;border-bottom:1px solid var(--border);}
+.toolbar .field{flex:1 1 150px;}
+.toolbar .field.wide{flex:2 1 240px;}
+.toolbar .tbl-input{background:#F1F4F9;}
+.toolbar-foot{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);}
+
+/* ---------- Tablas ---------- */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{text-align:left;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);font-weight:600;padding:10px 16px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:#FAFAF7;}
+tr.attention{background:#FFFBF2;}
+th.right,td.right{text-align:right;}
+.room-num{font-size:20px;font-weight:600;}
+.meta{color:var(--text-dim);font-size:13px;margin-top:2px;}
+.empty{padding:36px 16px;text-align:center;color:var(--text-dim);}
+.table-simple th{text-transform:none;letter-spacing:0;padding:8px 10px;}
+.table-simple td{padding:9px 10px;border-bottom:1px solid #F0F2F6;}
+.old{color:var(--text-dim);text-decoration:line-through;}
+
+/* ---------- Paginación ---------- */
+.pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--border);}
+.pagination .pages{display:flex;gap:6px;flex-wrap:wrap;}
+.pagination .btn{min-width:38px;}
+
+/* ---------- Pasos ---------- */
+.stepper{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;}
+.step{display:flex;align-items:center;gap:8px;color:#9AA6B8;font-size:13.5px;font-weight:700;white-space:nowrap;}
+.step .circle{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12.5px;border:2px solid #D6DCE6;color:#9AA6B8;background:#fff;flex:0 0 24px;}
+.step.active{color:var(--blue);}
+.step.active .circle{background:var(--blue);border-color:var(--blue);color:#fff;}
+.step.done{color:var(--green);}
+.step.done .circle{background:var(--green);border-color:var(--green);color:#fff;}
+.step-line{flex:1;height:2px;background:#E2E8F0;min-width:16px;margin:0 10px;}
+.step-line.done{background:var(--green);}
+
+/* ---------- Avisos ---------- */
+.alert{display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border-radius:10px;font-size:14px;line-height:1.5;}
+.alert svg{flex:0 0 18px;margin-top:1px;}
+.alert-red{background:var(--red-bg);color:#9B1C1C;}
+.alert-amber{background:var(--amber-bg);color:#92400E;}
+.alert-blue{background:var(--blue-bg);color:#1D4ED8;}
+.alert-green{background:var(--green-bg);color:#166534;}
+.alert b{font-weight:700;}
+.alert .close{margin-left:auto;background:none;border:none;color:inherit;opacity:.7;font-size:13px;}
+.alert .close:hover{opacity:1;text-decoration:underline;}
+.flash{max-width:1180px;margin:18px auto 0;padding:0 30px;}
+
+/* ---------- Pantalla de éxito ---------- */
+.success-wrap{align-items:center;text-align:center;padding:34px 20px;}
+.success-icon{width:62px;height:62px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;}
+.success-title{font-size:20px;font-weight:700;}
+.success-sub{color:var(--text-dim);font-size:14.5px;max-width:460px;}
+.success-wrap .info-grid{width:100%;text-align:left;}
+.success-wrap .table-simple{text-align:left;}
+
+/* ---------- Carga ---------- */
+.loading{display:flex;align-items:center;gap:14px;padding:18px 0;}
+.spinner{width:30px;height:30px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--blue);animation:giro 1s linear infinite;}
+@keyframes giro{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none;}}
+
+/* ---------- Ingreso ---------- */
+.login{min-height:100vh;display:grid;place-items:center;padding:30px 16px;}
+.login-box{width:100%;max-width:440px;display:flex;flex-direction:column;gap:18px;}
+.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;}
+.login-brand .tb-logo{background:var(--navy);}
+.login-brand .tb-name{color:var(--text);}
+.role-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.role-card:hover{border-color:var(--blue);background:#F8FAFF;}
+.role-ic{width:36px;height:36px;border-radius:9px;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex:0 0 36px;}
+
+/* ---------- Pie ---------- */
+.foot{max-width:1180px;margin:0 auto;padding:10px 30px 30px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--text-dim);}
+.foot button{background:none;border:none;color:var(--text-dim);text-decoration:underline;font-size:12.5px;padding:0;}
+.foot button:hover{color:var(--text);}
+
+@media(max-width:900px){
+  .topbar{padding:10px 16px;} .content{padding:18px 16px 30px;} .flash{padding:0 16px;} .foot{padding:10px 16px 24px;}
+  .hero-inner{padding:24px 16px;min-height:0;}
+}
+@media(max-width:560px){
+  .user-chip .user-text{display:none;}
+  .step span{display:none;} .step.active span{display:inline;}
+  .actions-row{flex-direction:column;} .actions-row .btn{width:100%;}
+}
+
+</style>
+<script>
+// Datos de demostración compartidos por todas las vistas.
+// Se guardan en localStorage para que los cambios hechos en una vista
+// (registrar, editar, dar de baja, reactivar) se vean en las demás.
+
+const CLAVE_DATOS = "hospitua-m1-demo-v3";
+const HORA = 3600 * 1000;
+
+const ESTADOS = {
+  disponible:  { etiqueta: "Disponible",                     clase: "badge-green" },
+  reservada:   { etiqueta: "Reservada",                      clase: "badge-amber" },
+  ocupada:     { etiqueta: "Ocupada",                        clase: "badge-blue" },
+  pendiente:   { etiqueta: "Pendiente de limpieza",          clase: "badge-purple" },
+  en_limpieza: { etiqueta: "En limpieza",                    clase: "badge-orange" },
+  reparacion:  { etiqueta: "Inhabilitada por reparaciones",  clase: "badge-red" },
+  bloqueo:     { etiqueta: "Bloqueo técnico",                clase: "badge-crimson" },
+  inactiva:    { etiqueta: "Inactiva",                       clase: "badge-gray" }
+};
+
+const TIPOS = ["Sencilla", "Doble", "Suite", "Boutique"];
+const MOTIVOS_BAJA = ["Remodelación permanente", "Cierre definitivo de piso", "Decisión administrativa", "Otro"];
+// Estados de reserva de Módulo 2 que se consideran vigentes (diccionario de Módulo 2).
+const ESTADOS_RESERVA = { PENDING: "Pendiente de confirmación", ACTIVE: "Confirmada", IN_PROGRESS: "En curso" };
+
+// [número, piso, tipo, capacidad, tarifa, estado, reserva vinculada]
+const HABITACIONES_INICIALES = [
+  ["101", 1, "Sencilla", 1, 180000, "disponible"],
+  ["102", 1, "Doble",    2, 250000, "reservada", "RES-10421"],
+  ["103", 1, "Doble",    2, 250000, "ocupada"],
+  ["104", 1, "Suite",    4, 520000, "disponible"],
+  ["105", 1, "Sencilla", 1, 180000, "pendiente"],
+  ["106", 1, "Doble",    2, 250000, "en_limpieza"],
+  ["201", 2, "Suite",    4, 520000, "ocupada"],
+  ["202", 2, "Doble",    2, 250000, "disponible"],
+  ["203", 2, "Doble",    2, 250000, "en_limpieza"],
+  ["204", 2, "Boutique", 2, 380000, "inactiva"],
+  ["205", 2, "Sencilla", 1, 180000, "disponible"],
+  ["206", 2, "Doble",    3, 270000, "reparacion"],
+  ["301", 3, "Sencilla", 1, 180000, "reparacion"],
+  ["302", 3, "Doble",    2, 250000, "disponible"],
+  ["303", 3, "Boutique", 2, 380000, "reservada", "RES-10477"],
+  ["304", 3, "Doble",    2, 250000, "ocupada"],
+  ["305", 3, "Suite",    4, 520000, "bloqueo"],
+  ["306", 3, "Sencilla", 1, 180000, "disponible"],
+  ["401", 4, "Suite",    5, 610000, "disponible"],
+  ["402", 4, "Boutique", 2, 380000, "inactiva"],
+  ["403", 4, "Doble",    2, 250000, "pendiente"],
+  ["404", 4, "Doble",    2, 250000, "ocupada"],
+  ["405", 4, "Sencilla", 1, 180000, "disponible"],
+  ["406", 4, "Suite",    4, 520000, "disponible"]
+];
+
+// Reservas asignadas en el sistema de reservas, por número de habitación.
+const RESERVAS_ASIGNADAS = {
+  "102": [{ ref: "RES-10421", llegada: 0.5, salida: 3.5, estado: "ACTIVE" }],
+  "202": [
+    { ref: "RES-10502", llegada: 15, salida: 18, estado: "ACTIVE" },
+    { ref: "RES-10588", llegada: 34, salida: 37, estado: "PENDING" }
+  ],
+  "303": [{ ref: "RES-10477", llegada: 0.4, salida: 2.4, estado: "ACTIVE" }],
+  "401": [{ ref: "RES-10611", llegada: 120, salida: 125, estado: "ACTIVE" }]
+};
+// Habitaciones para las que el sistema de reservas no responde (demostración del error).
+const SIN_RESPUESTA_RESERVAS = ["405"];
+
+const CICLO = ["disponible", "reservada", "ocupada", "pendiente", "en_limpieza"];
+
+// Responsable y flujo de origen de cada periodo del historial (Consultar historial de estados, FR-003).
+// actor nulo = transición autónoma: la vista muestra "Sistema".
+const FLUJOS = {
+  registrar:  "Registrar habitación",
+  reservada:  "Marcar habitación como reservada",
+  disponible: "Marcar habitación como disponible",
+  checkin:    "Registrar check-in",
+  checkout:   "Registrar check-out",
+  limpieza:   "Marcar habitación en limpieza",
+  finLimpieza:"Confirmar fin de limpieza de habitación",
+  reparacion: "Marcar habitación inhabilitada por reparaciones",
+  finRep:     "Confirmar fin de reparación de habitación",
+  bloqueo:    "Programar bloqueo técnico para habitación",
+  baja:       "Dar de baja habitación"
+};
+const PERSONAL = {
+  recepcion: "Carolina Pérez", limpieza: "Jorge Ramírez", mantenimiento: "Diana Torres", admin: "Laura Méndez"
+};
+function origenDe(estado, anterior) {
+  if (anterior == null) return { actor: PERSONAL.admin, flujo: FLUJOS.registrar };
+  switch (estado) {
+    case "reservada":   return { actor: null, flujo: FLUJOS.reservada };
+    case "ocupada":     return { actor: PERSONAL.recepcion, flujo: FLUJOS.checkin };
+    case "pendiente":   return anterior === "ocupada" ? { actor: PERSONAL.recepcion, flujo: FLUJOS.checkout }
+                                                      : { actor: PERSONAL.mantenimiento, flujo: FLUJOS.finRep };
+    case "en_limpieza": return { actor: PERSONAL.limpieza, flujo: FLUJOS.limpieza };
+    case "reparacion":  return { actor: PERSONAL.mantenimiento, flujo: FLUJOS.reparacion };
+    case "bloqueo":     return { actor: null, flujo: FLUJOS.bloqueo };
+    case "inactiva":    return { actor: PERSONAL.admin, flujo: FLUJOS.baja };
+    case "disponible":  return anterior === "en_limpieza" ? { actor: PERSONAL.limpieza, flujo: FLUJOS.finLimpieza }
+                             : anterior === "reservada" ? { actor: null, flujo: FLUJOS.disponible }
+                             : { actor: PERSONAL.admin, flujo: FLUJOS.disponible };
+  }
+  return { actor: null, flujo: "" };
+}
+
+function uuid(n) {
+  const h = (n * 2654435761 >>> 0).toString(16).padStart(8, "0");
+  return `${h}-${h.slice(0, 4)}-4${h.slice(1, 4)}-a${h.slice(2, 5)}-${(h + h).slice(0, 12)}`;
+}
+
+function historialInicial(estadoActual, ahora, semilla) {
+  // Un ciclo completo de estancia y luego el camino válido hasta el estado actual.
+  const cicloCompleto = [...CICLO, "disponible"];
+  const secuencia = CICLO.includes(estadoActual)
+    ? [...cicloCompleto, ...CICLO.slice(1, CICLO.indexOf(estadoActual) + 1)]
+    : [...cicloCompleto, estadoActual];
+  const duraciones = { disponible: 20, reservada: 12, ocupada: 60, pendiente: 1.5, en_limpieza: 1, reparacion: 30, bloqueo: 24, inactiva: 200 };
+  const tramos = [];
+  let fin = null;
+  let t = ahora - ((semilla % 5) + 1) * HORA;
+  for (let k = secuencia.length - 1; k >= 0; k--) {
+    const estado = secuencia[k];
+    const inicio = t - duraciones[estado] * HORA * (1 + (semilla % 3) * 0.2);
+    tramos.unshift({ estado, inicio, fin, ...origenDe(estado, k > 0 ? secuencia[k - 1] : null) });
+    fin = inicio;
+    t = inicio;
+  }
+  return tramos;
+}
+
+function crearDatosIniciales() {
+  const ahora = Date.now();
+  const habitaciones = HABITACIONES_INICIALES.map((r, i) => {
+    const [numero, piso, tipo, capacidad, tarifa, estado, reserva] = r;
+    return {
+      id: uuid(i + 17), numero, piso, tipo, capacidad, tarifa, estado,
+      reserva: reserva || null,
+      baja: estado === "inactiva" ? { motivo: "Decisión administrativa", detalle: "", fecha: ahora - 210 * HORA } : null,
+      historial: historialInicial(estado, ahora, i)
+    };
+  });
+  return { habitaciones, creado: ahora };
+}
+
+let memoria = null;
+function cargarDatos() {
+  if (memoria) return memoria;
+  try {
+    const guardado = localStorage.getItem(CLAVE_DATOS);
+    if (guardado) { memoria = JSON.parse(guardado); return memoria; }
+  } catch (e) { /* almacenamiento no disponible: se usan datos en memoria */ }
+  memoria = crearDatosIniciales();
+  guardarDatos();
+  return memoria;
+}
+function guardarDatos() {
+  try { localStorage.setItem(CLAVE_DATOS, JSON.stringify(memoria)); } catch (e) {}
+}
+// Vuelve a leer los datos guardados (por ejemplo, cambios hechos por otro usuario en otra pestaña).
+function recargarDatos() { memoria = null; return cargarDatos(); }
+
+function restablecerDatos() {
+  try { localStorage.removeItem(CLAVE_DATOS); sessionStorage.clear(); } catch (e) {}
+  memoria = null;
+}
+
+function habitaciones() { return cargarDatos().habitaciones; }
+function buscarHabitacion(id) { return habitaciones().find(h => h.id === id) || null; }
+function buscarPorNumero(numero) { return habitaciones().find(h => h.numero === String(numero).trim()) || null; }
+
+function cambiarEstado(hab, nuevo, actor, flujo) {
+  const ahora = Date.now();
+  const actual = hab.historial[hab.historial.length - 1];
+  if (actual && actual.fin === null) actual.fin = ahora;
+  hab.historial.push({ estado: nuevo, inicio: ahora, fin: null, actor, flujo });
+  hab.estado = nuevo;
+}
+
+function registrarHabitacion(datos, usuario) {
+  const d = cargarDatos();
+  const ahora = Date.now();
+  const hab = {
+    id: uuid(d.habitaciones.length + 101 + (ahora % 997)),
+    numero: datos.numero, piso: datos.piso, tipo: datos.tipo,
+    capacidad: datos.capacidad, tarifa: datos.tarifa,
+    estado: "disponible", reserva: null, baja: null,
+    // Trazabilidad de la creación: se guarda, pero no se muestra en la interfaz.
+    registro: { usuario, fecha: ahora },
+    historial: [{ estado: "disponible", inicio: ahora, fin: null, actor: usuario, flujo: FLUJOS.registrar }]
+  };
+  d.habitaciones.push(hab);
+  guardarDatos();
+  return hab;
+}
+
+// Simula la consulta de reservas a Módulo 2 desde hoy, sin límite superior de fechas
+// (Dar de baja habitación, FR-002): Módulo 2 solo devuelve las reservas vigentes.
+function consultarReservasDeHabitacion(numero) {
+  return new Promise((resolver, rechazar) => {
+    setTimeout(() => {
+      if (SIN_RESPUESTA_RESERVAS.includes(numero)) return rechazar(new Error("sin_respuesta"));
+      const lista = (RESERVAS_ASIGNADAS[numero] || []).map(r => ({
+        ref: r.ref,
+        llegada: cargarDatos().creado + r.llegada * 24 * HORA,
+        salida: cargarDatos().creado + r.salida * 24 * HORA,
+        estado: r.estado
+      }));
+      resolver(lista.filter(r => r.estado in ESTADOS_RESERVA && r.salida > Date.now()));
+    }, 1400);
+  });
+}
+
+</script>
+<script>
+// Elementos de interfaz compartidos: encabezado por rol, etiquetas de estado,
+// formato de moneda y fechas, avisos entre vistas y paginación.
+// La apariencia viene de la hoja de estilos del grupo.
+
+const USUARIOS = {
+  admin:   { nombre: "Laura Méndez", rol: "Administrador", inicial: "LM" },
+  gerente: { nombre: "Andrés Rojas", rol: "Gerente",       inicial: "AR" }
+};
+
+const MENUS = {
+  admin: [
+    { href: "01-inventario.html", texto: "Inventario", clave: "panel" }
+  ],
+  gerente: [
+    { href: "../gerente/01-inventario.html", texto: "Inventario", clave: "panel" },
+    { href: "../gerente/02-historial.html", texto: "Historial de estados", clave: "historial" }
+  ]
+};
+
+// Íconos de línea (mismo trazo que los del grupo).
+const ICONOS = {
+  casa: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  atras: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  exito: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  alerta: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  info: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  ok: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  usuario: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+};
+
+function montarEncabezado(rol, activo) {
+  const u = USUARIOS[rol];
+  const enlaces = MENUS[rol].map(m => {
+    const on = m.clave === activo;
+    return `<a href="${m.href}" class="nav-item${on ? " active" : ""}"${on ? ' aria-current="page"' : ""}>${m.texto}</a>`;
+  }).join("");
+  const cab = document.createElement("header");
+  cab.className = "topbar";
+  cab.innerHTML = `
+    <a href="01-inventario.html" class="tb-brand">
+      <div class="tb-logo">${ICONOS.casa}</div>
+      <div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Gestión de habitaciones</div></div>
+    </a>
+    <nav class="topnav">${enlaces}</nav>
+    <div class="user-chip">
+      <div class="user-avatar">${u.inicial}</div>
+      <div class="user-text"><div class="user-name">${u.nombre}</div><div class="user-role">${u.rol}</div></div>
+      <a href="01-inventario.html" class="user-exit">Salir</a>
+    </div>`;
+  document.body.prepend(cab);
+  mostrarAviso();
+}
+
+function etiquetaEstado(estado) {
+  const e = ESTADOS[estado];
+  return `<span class="badge ${e.clase}">${e.etiqueta}</span>`;
+}
+
+const fmtMoneda = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+function moneda(v) { return fmtMoneda.format(v); }
+function fecha(ms) { return new Date(ms).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }); }
+function fechaHora(ms) { return new Date(ms).toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function ubicacion(h) { return `Piso ${h.piso}`; }
+function esc(t) { const d = document.createElement("div"); d.textContent = t == null ? "" : String(t); return d.innerHTML; }
+
+function parametro(nombre) { return new URLSearchParams(location.search).get(nombre); }
+
+// Habitación sobre la que trabaja la vista (llega en la dirección desde el inventario).
+// Si la vista se abre directamente, sin elegir una habitación, se usa una de ejemplo:
+// "inactiva" para Marcar como disponible y "disponible" (sin reservas pendientes) para los demás flujos.
+function habitacionDeLaUrl(estadoEjemplo = "disponible") {
+  const id = parametro("id");
+  if (id) return buscarHabitacion(id);
+  const ejemplo = habitaciones().find(h => h.estado === estadoEjemplo &&
+    !(RESERVAS_ASIGNADAS[h.numero] || []).length && !SIN_RESPUESTA_RESERVAS.includes(h.numero));
+  if (ejemplo) return ejemplo;
+  avisar("Selecciona una habitación en el inventario para continuar.", "aviso");
+  location.replace("01-inventario.html");
+  throw new Error("sin_habitacion");
+}
+
+// Piezas visuales reutilizables.
+function cabeceraPagina(titulo, subtitulo, volverA) {
+  return `<div>
+    <div class="back-row">${volverA ? `<a class="icon-btn" href="${volverA}" aria-label="Volver">${ICONOS.atras}</a>` : ""}<h1>${titulo}</h1></div>
+    ${subtitulo ? `<p class="page-sub">${subtitulo}</p>` : ""}
+  </div>`;
+}
+function alerta(tipo, html) {
+  const icono = { amber: ICONOS.alerta, red: ICONOS.alerta, blue: ICONOS.info, green: ICONOS.ok }[tipo];
+  return `<div class="alert alert-${tipo}">${icono}<div>${html}</div></div>`;
+}
+function tarjetaExito(titulo, subtitulo, cuerpo, botones) {
+  return `<div class="card success-wrap">
+    <div class="success-icon">${ICONOS.exito}</div>
+    <div class="success-title">${titulo}</div>
+    ${subtitulo ? `<div class="success-sub">${subtitulo}</div>` : ""}
+    ${cuerpo || ""}
+    <div class="actions-row" style="justify-content:center">${botones}</div>
+  </div>`;
+}
+function pasos(nombres, actual) {
+  return `<div class="stepper">${nombres.map((p, i) => {
+    const n = i + 1, hecho = n < actual, activo = n === actual;
+    const linea = i ? `<div class="step-line${n <= actual ? " done" : ""}"></div>` : "";
+    return `${linea}<div class="step${hecho ? " done" : activo ? " active" : ""}"><div class="circle">${hecho ? ICONOS.check : n}</div><span>${p}</span></div>`;
+  }).join("")}</div>`;
+}
+
+// Aviso de una vista a la siguiente (por ejemplo, "Habitación registrada").
+function avisar(texto, tipo = "exito") {
+  try { sessionStorage.setItem("aviso", JSON.stringify({ texto, tipo })); } catch (e) {}
+}
+function mostrarAviso() {
+  let a = null;
+  try { a = JSON.parse(sessionStorage.getItem("aviso") || "null"); sessionStorage.removeItem("aviso"); } catch (e) {}
+  if (!a) return;
+  const caja = document.createElement("div");
+  caja.setAttribute("role", "status");
+  caja.className = "flash";
+  caja.innerHTML = `<div class="alert ${a.tipo === "exito" ? "alert-green" : "alert-amber"}">${a.tipo === "exito" ? ICONOS.ok : ICONOS.alerta}
+      <div>${esc(a.texto)}</div>
+      <button type="button" class="close" onclick="this.closest('[role=status]').remove()">Cerrar</button></div>`;
+  document.querySelector("header").after(caja);
+}
+
+// Paginación: devuelve los elementos de la página y pinta los controles en el contenedor.
+function paginar(lista, pagina, porPagina, contenedor, alCambiar) {
+  const total = lista.length;
+  const paginas = Math.max(1, Math.ceil(total / porPagina));
+  const actual = Math.min(Math.max(1, pagina), paginas);
+  const desde = total === 0 ? 0 : (actual - 1) * porPagina + 1;
+  const hasta = Math.min(total, actual * porPagina);
+  const btn = (p, texto, deshabilitado, activo) =>
+    `<button type="button" data-p="${p}" ${deshabilitado ? "disabled" : ""} ${activo ? 'aria-current="page"' : ""}
+      class="btn btn-sm ${activo ? "btn-primary" : "btn-outline"}">${texto}</button>`;
+  let numeros = "";
+  for (let p = 1; p <= paginas; p++) numeros += btn(p, p, false, p === actual);
+  contenedor.className = "pagination";
+  contenedor.innerHTML = `
+    <p class="dim" style="font-size:14px">Mostrando <b>${desde}</b>–<b>${hasta}</b> de <b>${total}</b></p>
+    <div class="pages">${btn(actual - 1, "Anterior", actual === 1)}${numeros}${btn(actual + 1, "Siguiente", actual === paginas)}</div>`;
+  contenedor.querySelectorAll("button[data-p]").forEach(b => b.addEventListener("click", () => alCambiar(Number(b.dataset.p))));
+  return lista.slice((actual - 1) * porPagina, actual * porPagina);
+}
+
+// Pie de página común.
+function montarPie() {
+  const pie = document.createElement("footer");
+  pie.className = "foot";
+  pie.innerHTML = `<span>Hotel Hospitua · Gestión de habitaciones</span>
+    <button type="button" id="restablecer">Restablecer datos de demostración</button>`;
+  document.body.append(pie);
+  pie.querySelector("#restablecer").addEventListener("click", () => { restablecerDatos(); location.reload(); });
+}
+
+</script>
+<script>
+// Utilidades compartidas por las vistas del flujo "Dar de baja habitación"
+// (también usadas por "Marcar como disponible").
+function bajaPendiente() {
+  try { return JSON.parse(sessionStorage.getItem("baja-pendiente") || "null"); } catch (e) { return null; }
+}
+function guardarBajaPendiente(d) { try { sessionStorage.setItem("baja-pendiente", JSON.stringify(d)); } catch (e) {} }
+
+function pasosBaja(actual) {
+  return pasos(["Motivo", "Confirmación", "Verificación", "Resultado"], actual);
+}
+
+function resumenHabitacion(h) {
+  return `<dl class="info-grid box">
+    <div><dt class="info-label">Habitación</dt><dd class="info-value">${esc(h.numero)}</dd></div>
+    <div><dt class="info-label">Piso</dt><dd class="info-value">${ubicacion(h)}</dd></div>
+    <div><dt class="info-label">Tipo</dt><dd class="info-value">${h.tipo}</dd></div>
+    <div><dt class="info-label">Estado</dt><dd>${etiquetaEstado(h.estado)}</dd></div>
+  </dl>`;
+}
+
+function noEncontrada(c) {
+  c.innerHTML = `<div class="card-title">Habitación no encontrada</div>
+    <p class="dim">No existe ninguna habitación con ese identificador.</p>
+    <div class="actions-row"><a href="01-inventario.html" class="btn btn-primary">Volver al inventario</a></div>`;
+}
+
+function noDisponibleParaBaja(c, h) {
+  c.innerHTML = `<div class="card-title">No se puede dar de baja la habitación ${esc(h.numero)}</div>
+    ${alerta("amber", `La habitación está en estado <b>${ESTADOS[h.estado].etiqueta}</b>${h.estado === "ocupada" ? " y tiene un huésped alojado" : ""}. Solo se pueden dar de baja habitaciones disponibles.`)}
+    <div class="actions-row"><a href="01-inventario.html" class="btn btn-primary">Volver al inventario</a></div>`;
+}
+
+</script>
+</head>
+<body>
+<main class="content"><div class="content-inner narrow">
+  <div id="cabecera"></div>
+  <div id="contenido"></div>
+</div></main>
+<script>
+  montarEncabezado("admin", "panel");
+  const h = habitacionDeLaUrl("inactiva");
+  const res = parametro("res");
+  if (!res) { location.replace("10-disponible-confirmar.html?id=" + encodeURIComponent(h.id)); throw new Error("sin_resultado"); }
+  const c = document.getElementById("contenido");
+  document.getElementById("cabecera").innerHTML = cabeceraPagina("Marcar como disponible", "", "01-inventario.html");
+  const volver = `<a href="01-inventario.html" class="btn btn-primary">Volver al inventario</a>`;
+  if (!h) { c.className = "card"; noEncontrada(c); }
+  else if (res === "exito" || res === "ya-disponible") {
+    c.innerHTML = tarjetaExito(
+      `Habitación ${esc(h.numero)} disponible`,
+      res === "exito" ? "Ya puede recibir reservas y estancias." : "La habitación ya había sido reactivada; no fue necesario hacer cambios.",
+      resumenHabitacion(h),
+      volver
+    );
+  } else {
+    c.className = "card";
+    c.innerHTML = `<div class="card-title">No se aplicó la reactivación</div>
+      ${alerta("amber", `La habitación ${esc(h.numero)} ya no está inactiva (estado actual: <b>${ESTADOS[h.estado].etiqueta}</b>). No se hizo ningún cambio.`)}
+      <div class="actions-row">${volver}</div>`;
+  }
+  montarPie();
+</script>
+</body>
+</html>
