@@ -9,7 +9,7 @@
 
 El **Módulo 1 (Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out)** digitaliza la infraestructura física del hotel, controla la disponibilidad en tiempo real y gestiona directamente la admisión (`Check-In`) y salida (`Check-Out`) física de los huéspedes. Es la fuente de verdad del inventario habitacional (`Room`), de los 8 estados canónicos de su ciclo de vida y de las ocupaciones físicas reales (`Stay` y ocupantes inmutables `RoomGuest`).
 
-Opera el **Panel de Recepción** al inicio de la jornada, consultando la copia local de la lista diaria de reservas (alimentada por la cola `m1.reservas.diarias.queue`) para las llegadas del día y las estancias activas locales para las salidas. Durante el Check-In formaliza la ocupación transicionando atómicamente la habitación de `Reserved` a `Occupied`, captura los datos de identidad de los huéspedes (titular precargado e inmutable, acompañantes) y notifica de forma asíncrona por cola a Módulo 2 con datos migratorios consolidados si existen extranjeros (alimentando `MigratoryMovement` para el reporte SIRE). Durante el Check-Out consulta síncronamente a Módulo 3 la liquidación financiera informativa (`SettlementSummary`), formaliza la salida transicionando la habitación a `PendingCleaning` (pasando de inmediato a la bandeja del Personal de limpieza) y notifica de forma asíncrona a Módulo 2 para el cierre de la reserva a `CHECKED_OUT`. Además, atiende solicitudes síncronas de Módulo 2 (consultar inventario por categoría o estado y consultar información de mantenimientos) y de Módulo 3 (consultar tarifa base).
+Opera el **Panel de Recepción** al inicio de la jornada, consultando la copia local de la lista diaria de reservas (alimentada por la cola `m1.reservas.diarias.queue`) para las llegadas del día y las estancias activas locales para las salidas, operando de forma 100% autónoma sin peticiones REST a Módulo 2 para llegadas ni para Check-In. Durante el Check-In formaliza la ocupación transicionando atómicamente la habitación de `Reserved` a `Occupied`, captura y valida los datos de identidad de los huéspedes (`RoomGuest`: titular y acompañantes con nombres y apellidos separados, campos migratorios si extranjero) y notifica de forma asíncrona por la cola `m2.habitacion.checkin.queue` en un mensaje plano con `guests[]` conteniendo a todos los ocupantes (sin cola separada de extranjeros). Durante el Check-Out consulta síncronamente a Módulo 3 la liquidación (`SettlementSummary`: informativa o final), formaliza la salida transicionando la habitación a `PendingCleaning` (pasando de inmediato a la bandeja del Personal de limpieza) y notifica de forma asíncrona por la cola `m2.habitacion.checkout.queue` con `guests[]` conteniendo a todos los ocupantes para el cierre de la reserva a `CHECKED_OUT`. Además, atiende solicitudes síncronas de Módulo 2 (consultar inventario por categoría o estado y consultar información de mantenimientos) y de Módulo 3 (consultar tarifa base).
 
 Gestiona además el inventario (registro, edición, baja y reactivación de habitaciones por el Administrador; consulta del inventario y del historial de estados por el Gerente) y el ciclo operativo de limpieza y mantenimiento: el Personal de limpieza toma habitaciones desde su panel y confirma o libera su tarea activa; el Personal de mantenimiento reporta daños, programa bloqueos técnicos que un trabajo autónomo aplica en su fecha de inicio (o que se aplican de inmediato si inician el mismo día) e interviene las habitaciones mediante tareas de reparación. Toda transición de estado queda registrada por periodos en el historial de estados (`room_state_history`).
 
@@ -68,34 +68,50 @@ Regla arquitectónica de HOSPITUA:
 
 | Interacción | Dirección | Mecanismo | Tipo | Feature / Caso de Uso |
 | --- | --- | --- | --- | --- |
-| **Notificación de Check-In** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkin.queue` / routing key `habitacion.checkin`) | Proactiva | `plan-registrar-check-in.md` |
-| **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) | Proactiva | `plan-registrar-check-out.md` |
-| **Datos de Huéspedes Extranjeros** | M1 → M2 | Cola RabbitMQ (`m2.huespedes.extranjeros.queue`) — 1 mensaje por extranjero | Proactiva | `plan-enviar-datos-huespedes-extranjeros.md` |
+| **Notificación de Check-In** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkin.queue` / routing key `habitacion.checkin`) con `guests[]` completo plano | Proactiva | `plan-registrar-check-in.md` |
+| **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con `guests[]` completo plano | Proactiva | `plan-registrar-check-out.md` |
 | **Ingestión de Reservas Diarias** | M2 → M1 | Cola RabbitMQ (`m1.reservas.diarias.queue` / routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`) | Reactiva (push) | `plan-consultar-reservas.md` |
 | **Consultar Inventario de Habitaciones** | M2 → M1 | REST GET (`/api/rooms`) | Reactiva | `spec-consultar-inventario-habitaciones.md` |
-| **Consultar Disponibilidad de Reservas** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`) — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
-| **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
-| **Consultar Tarifa Base** | M3 → M1 | REST GET (`/api/rooms/{roomId}/base-rate`) | Reactiva | `spec-consultar-tarifa-base.md` |
+| **Consultar Disponibilidad de Reservas para Mantenimiento/Baja** | M1 → M2 | REST GET (`/api/reservations?roomId={id}&startDate={d1}&endDate={d2}`) [NEEDS_CONFIRMATION_MODULO_2] — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
+| **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}&categoryRoom={cat}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
+| **Consultar Tarifa Base** | M3 → M1 | REST GET (`/api/rooms/{roomId}/base-rate`) | Reactiva | `plan-consultar-tarifa-base.md`, `spec-consultar-tarifa-base.md` |
 | **Consultar Información de Mantenimientos** | M2 → M1 | REST GET (`/api/rooms/{roomId}/maintenance-availability?startDate={d1}&endDate={d2}`) — M2 la consulta antes de asignar una habitación a una reserva | Reactiva | `spec-consultar-informacion-mantenimientos.md` |
 
 ### Convenciones de Mensajería (RabbitMQ)
 
 - **Exchange**: `hospitua.events` (Tipo: `topic`, durable).
 - **Colas / Routing Keys emitidas por Módulo 1 hacia Módulo 2**:
-  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite `eventId`, `reservationRef`, `roomId`, `checkInDate` (sin hora) y `foreignGuestCount` (número de extranjeros; los datos individuales viajan por su propia cola).
-  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite `eventId`, `reservationRef`, `roomId`, `checkOutDate` (sin hora) y `foreignGuestCount`.
-  - `m2.huespedes.extranjeros.queue`: Para reporte SIRE. Un mensaje independiente por cada huésped extranjero con `messageId`, `sequenceNumber`, `reservationRef`, `roomId` y los 10 campos migratorios: `firstName`, `lastName`, `documentType`, `documentNumber`, `birthDate`, `nationality`, `movementType` (`ENTRY` en Check-In / `DEPARTURE` en Check-Out), `movementDate` (`checkInDate` / `checkOutDate`), `originPlace` y `destinationPlace` (texto libre `"Ciudad, País"`).
+  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = ENTRY`, `movementDate = checkInDate`, y el array `guests[]` con todos los ocupantes (nacionales y extranjeros; campos migratorios `birthDate`, `originPlace`, `destinationPlace` incluidos únicamente si la nacionalidad es distinta de Colombia). Sin cola separada de extranjeros.
+  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate`, y el array `guests[]` con todos los ocupantes (reutilizando los datos migratorios capturados en Check-In [NEEDS_CONFIRMATION_MODULO_2]).
 - **Cola recibida por Módulo 1 desde Módulo 2**:
-  - `m1.reservas.diarias.queue` (routing key `reserva.lista-del-dia`): Lista diaria de reservas `ACTIVE` ingestada a las 00:00 para alimentar la copia local. Routing key `reserva.lista-del-dia.actualizacion`: actualizaciones continuas del día (`ADDED`, `UPDATED`, `REMOVED`).
-- **Estructura estándar del mensaje (`EventEnvelope<T>`)**:
+  - `m1.reservas.diarias.queue`: Ingesta asíncrona para alimentar y actualizar la copia local de reservas del día:
+    - Routing key `reserva.lista-del-dia`: Lista diaria de reservas `ACTIVE` con `startDate = hoy` recibida a las 00:00 (purga del día anterior, `sequenceNumber = 1`, transiciones automáticas `Available → Reserved`).
+    - Routing key `reserva.lista-del-dia.actualizacion`: Actualizaciones continuas durante el día con acciones `ADDED`, `UPDATED` (evalúa `updatedAt`) o `REMOVED` (libera `Reserved → Available`).
+- **Control de Idempotencia y Secuencia**:
+  - Todo mensaje incluye `messageId` único para descarte de duplicados contra `daily_reservation_message_log`.
+  - Orden estricto garantizado por `sequenceNumber` incremental.
+- **Estructura estándar de los mensajes salientes (formato plano unificado)**:
 
   ```json
   {
-    "eventId": "UUIDv4",
-    "eventType": "CHECK_IN | CHECK_OUT | FOREIGN_GUESTS_DATA",
-    "occurredAt": "2026-10-06T10:30:00Z",
-    "sourceModule": "MODULE_1",
-    "payload": { ... }
+    "messageId": "UUIDv4",
+    "sequenceNumber": 1,
+    "reservationRef": "RES-000123",
+    "roomId": "room-uuid",
+    "movementType": "ENTRY | DEPARTURE",
+    "movementDate": "YYYY-MM-DD",
+    "guests": [
+      {
+        "firstName": "string",
+        "lastName": "string",
+        "documentType": "string",
+        "documentNumber": "string",
+        "nationality": "string",
+        "birthDate": "YYYY-MM-DD",
+        "originPlace": "Ciudad, País",
+        "destinationPlace": "Ciudad, País"
+      }
+    ]
   }
   ```
 
@@ -143,8 +159,8 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 
 | Servicio Externo | Método y Ruta | Propósito |
 | --- | --- | --- |
-| **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
-| **Módulo 3 (Liquidación)** | `GET /api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}` | Consulta reactiva síncrona de la liquidación final y desglose financiero en el paso 2 de Check-Out |
+| **Módulo 2 (Reservas)** | `GET /api/reservations?roomId={id}&startDate={d1}&endDate={d2}` [NEEDS_CONFIRMATION_MODULO_2] | Verificación de conflicto de reservas para el Personal de mantenimiento/Administrador antes de bloquear o dar de baja una habitación |
+| **Módulo 3 (Liquidación)** | `GET /api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}&categoryRoom={cat}` | Consulta reactiva síncrona de la liquidación (informativa o final) y desglose financiero en el paso 2 de Check-Out |
 
 ### Formato Estándar de Error (`ApiError`)
 
@@ -234,10 +250,9 @@ backend/
     │   │   │       │   ├── ConsultReceptionPanelUseCase.java
     │   │   │       │   ├── ConsultReservationsUseCase.java
     │   │   │       │   ├── RegisterCheckInUseCase.java
-    │   │   │       │   ├── ProcessGuestsUseCase.java
-    │   │   │       │   ├── SendForeignGuestsUseCase.java
     │   │   │       │   ├── RegisterCheckOutUseCase.java
     │   │   │       │   ├── ConsultSettlementUseCase.java
+    │   │   │       │   ├── GetRoomBaseRateUseCase.java
     │   │   │       │   ├── TransitionRoomStateUseCase.java
     │   │   │       │   ├── MarkRoomAvailableUseCase.java     # Transiciones hacia Available (Marcar habitación como disponible)
     │   │   │       │   └── MarkRoomReservedUseCase.java      # Available → Reserved (Marcar habitación como reservada)
@@ -245,18 +260,19 @@ backend/
     │   │   │           ├── RoomRepositoryPort.java
     │   │   │           ├── StayRepositoryPort.java
     │   │   │           ├── RoomGuestRepositoryPort.java
+    │   │   │           ├── DailyReservationPersistencePort.java
     │   │   │           ├── RoomStateHistoryPort.java
     │   │   │           ├── OutboxEventPublisherPort.java
     │   │   │           ├── Module2ReservationClientPort.java
     │   │   │           └── Module3SettlementClientPort.java
     │   │   ├── application/                          # CAPA DE APLICACIÓN (Orquestación de Casos de Uso)
     │   │   │   ├── service/                          # Implementaciones de Puertos de Entrada
-    │   │   │   │   ├── ReceptionPanelService.java    # Orquesta KPIs y consultas para la vista de inicio
-    │   │   │   │   ├── ReservationQueryService.java  # Consulta reactiva REST GET a Módulo 2
-    │   │   │   │   ├── CheckInService.java           # Orquesta los 4 pasos de admisión y emisión a cola
-    │   │   │   │   ├── GuestProcessingService.java   # Valida aforo y estructura datos migratorios SIRE
+    │   │   │   │   ├── ReceptionPanelService.java    # Orquesta KPIs y consultas locales para la vista de inicio
+    │   │   │   │   ├── DailyReservationIngestionService.java # Ingesta asíncrona de lista diaria y actualizaciones
+    │   │   │   │   ├── CheckInService.java           # Orquesta admisión completa (titular, huéspedes y notificación plana)
     │   │   │   │   ├── CheckOutService.java          # Orquesta los 5 pasos de salida y pase a limpieza
-    │   │   │   │   ├── SettlementQueryService.java   # Consulta informativa síncrona REST GET a Módulo 3
+    │   │   │   │   ├── SettlementQueryService.java   # Consulta reactiva síncrona REST GET a Módulo 3
+    │   │   │   │   ├── RoomBaseRateQueryService.java # Consulta reactiva de tarifa base
     │   │   │   │   └── RoomStateTransitionService.java  # Evalúa máquina de estados interna de 8 estados
     │   │   │   └── dto/                              # DTOs de comando y consulta de la capa de aplicación
     │   │   └── infrastructure/                       # CAPA DE INFRAESTRUCTURA (Adaptadores y Configuración)
@@ -335,8 +351,11 @@ frontend/
 | `reparation_task` | `ReparationTaskJpaEntity` | Tarea de reparación. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `start_date_time`, `end_date_time` (nullable), `outcome` (`Completed`, `Released`; nullable), `version`. Índices únicos parciales como en `cleaning_task`. |
 | `damage_report` | `DamageReportJpaEntity` | Reporte de daño inmutable. `id` (UUID PK), `room_id` (FK a `room`), `user_id`, `damage_description` (VARCHAR 500), `report_date_time`. Índice por `(room_id, report_date_time DESC)`. |
 | `technical_block_report` | `TechnicalBlockReportJpaEntity` | Bloqueo técnico programado. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `technical_block_reason` (VARCHAR 500), `technical_block_start_date` (DATE), `estimated_technical_block_end_date` (DATE), `report_date_time`, `status` (`Scheduled`, `Applied`, `Completed`, `Expired`), `version`. Índice por `(room_id, status)`. |
-| `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` (VARCHAR: `DIRECTA` o nombre de la OTA, ej. `BOOKING`, almacenado tal como llega de Módulo 2), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_time` (DATE), `expected_checkout_time` (DATE), `receptionist_id_check_in`, `receptionist_id_check_out`, `version`. |
-| `room_guest` | `RoomGuestJpaEntity` | Ocupante físico inmutable. `id` (UUID PK), `stay_id` (FK a `stay`), `full_name`, `document_type`, `document_number`, `nationality`, `birth_date` (DATE nullable), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable), `is_reservation_guest` (BOOLEAN). |
+| `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` (VARCHAR: `DIRECTA` o nombre de la OTA, ej. `BOOKING`), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_time` (DATE), `expected_checkout_time` (DATE), `titular_first_name` (VARCHAR), `titular_last_name` (VARCHAR), `titular_document_number` (VARCHAR), `receptionist_id_check_in`, `receptionist_id_check_out`, `version`. |
+| `room_guest` | `RoomGuestJpaEntity` | Ocupante físico inmutable. `id` (UUID PK), `stay_id` (FK a `stay`), `first_name` (VARCHAR), `last_name` (VARCHAR), `document_type`, `document_number`, `nationality`, `birth_date` (DATE nullable), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable), `is_reservation_guest` (BOOLEAN). |
+| `daily_reservation` | `DailyReservationJpaEntity` | Copia local de llegadas del día recibida por `m1.reservas.diarias.queue`. `reservation_ref` (VARCHAR PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date` (DATE), `end_date` (DATE), `guest_count` (INT), `updated_at` (TIMESTAMP). |
+| `daily_reservation_room` | `DailyReservationRoomJpaEntity` | Habitaciones asociadas a cada reserva diaria (1 a 10). `reservation_ref` (FK), `room_id` (UUID FK a `room`), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`). |
+| `daily_reservation_message_log` | `DailyReservationMessageLogJpaEntity` | Bitácora de idempotencia para la cola de reservas diarias. `message_id` (VARCHAR PK), `sequence_number` (BIGINT), `message_type` (VARCHAR), `received_at` (TIMESTAMP). |
 | `outbox_notification` | `OutboxNotificationJpaEntity` | Mensajes asíncronos pendientes de envío hacia RabbitMQ. `id` (UUID), `event_type`, `routing_key`, `payload` (JSONB), `status` (`PENDING`, `PUBLISHED`, `FAILED`), `retry_count`, `created_at`, `published_at`. |
 | `user_account` | `UserAccountJpaEntity` | Usuarios del sistema (`username`, `password_hash`, `full_name`, `role`). |
 
@@ -350,7 +369,9 @@ erDiagram
   ROOM ||--o{ REPARATION_TASK : repara
   ROOM ||--o{ DAMAGE_REPORT : reporta
   ROOM ||--o{ TECHNICAL_BLOCK_REPORT : programa
+  ROOM ||--o{ DAILY_RESERVATION_ROOM : asigna
   STAY ||--o{ ROOM_GUEST : tiene
+  DAILY_RESERVATION ||--o{ DAILY_RESERVATION_ROOM : incluye
   USER_ACCOUNT ||..o{ STAY : atiende
   USER_ACCOUNT ||..o{ ROOM_STATE_HISTORY : cambia
 
@@ -385,6 +406,9 @@ erDiagram
     date check_out_date
     date expected_checkin_time
     date expected_checkout_time
+    string titular_first_name
+    string titular_last_name
+    string titular_document_number
     string receptionist_id_check_in
     string receptionist_id_check_out
     int version
@@ -392,7 +416,8 @@ erDiagram
   ROOM_GUEST {
     uuid id PK
     uuid stay_id FK
-    string full_name
+    string first_name
+    string last_name
     string document_type
     string document_number
     string nationality
@@ -400,6 +425,32 @@ erDiagram
     string origin_place
     string destination_place
     boolean is_reservation_guest
+  }
+  DAILY_RESERVATION {
+    string reservation_ref PK
+    string guest_first_name
+    string guest_last_name
+    string guest_document_type
+    string guest_document_number
+    string guest_nationality
+    string source
+    date start_date
+    date end_date
+    int guest_count
+    timestamp updated_at
+  }
+  DAILY_RESERVATION_ROOM {
+    string reservation_ref PK_FK
+    uuid room_id PK_FK
+    string room_number
+    string category_room
+    int guest_count
+  }
+  DAILY_RESERVATION_MESSAGE_LOG {
+    string message_id PK
+    bigint sequence_number
+    string message_type
+    timestamp received_at
   }
   CLEANING_TASK {
     uuid id PK
@@ -518,11 +569,11 @@ erDiagram
 
 **CRÍTICO**: Ningún plan de feature puede comenzar su implementación hasta completar satisfactoriamente esta fase base.
 
-- [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `stay`, `room_guest`, `outbox_notification`, `user_account`)
-- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/`
+- [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`)
+- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`, `DailyReservationPersistencePort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/`
 - [ ] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`
 - [ ] T010 Implementar el servicio de validación de máquina de estados habitacional (`RoomStateTransitionService` implementando `TransitionRoomStateUseCase`) garantizando el cumplimiento estricto de los 8 estados canónicos
-- [ ] T011 Configurar RabbitMQ: Exchange `hospitua.events`, colas de eventos (`m2.habitacion.checkin.queue`, `m2.habitacion.checkout.queue`, `m2.huespedes.extranjeros.queue`), Dead-Letter Exchange (DLX) y serializador JSON en `config/RabbitConfig`
+- [ ] T011 Configurar RabbitMQ: Exchange `hospitua.events`, colas de salida planas (`m2.habitacion.checkin.queue`, `m2.habitacion.checkout.queue` con `guests[]`), cola de entrada `m1.reservas.diarias.queue` con bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`, sin colas separadas de extranjeros, Dead-Letter Exchange (DLX) y serializador JSON en `config/RabbitConfig`
 - [ ] T012 Implementar el mecanismo transaccional Outbox: puerto `OutboxEventPublisherPort`, adaptador `JpaOutboxAdapter` y `OutboxScheduledWorker` para despacho garantizado
 - [ ] T013 [P] Configurar `RestClientConfig` con timeouts e implementar los adaptadores de salida `Module2RestClientAdapter` y `Module3RestClientAdapter` implementando sus respectivos puertos
 - [ ] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
