@@ -112,12 +112,12 @@ Content-Type: application/json
 
 | Status Code | errorCode | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "La justificación técnica es obligatoria (máximo 500 caracteres) y las fechas deben tener el formato DD-MM-YYYY." |
+| 400 | `VALIDATION_ERROR` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
 | 400 | `INVALID_DATE_RANGE` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
 | 404 | `ROOM_NOT_FOUND` | El `roomId` no existe | "No se encontró la habitación." |
-| 409 | `ROOM_INVALID_STATE` | La habitación está `Inactive`, o el bloqueo inicia hoy y la habitación no está en `Available` (FR-001, FR-007, esc. 10) | "La habitación está en estado {estado}; no es posible programar un mantenimiento con esas fechas." |
-| 409 | `RESERVATION_CONFLICT` | *Consultar reservas* devuelve al menos una reserva en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista referencia y fechas | "La habitación tiene reservas en ese rango. Coordina su reasignación con Reservas o elige otras fechas." |
-| 409 | `MAINTENANCE_CONFLICT` | *Consultar Información de Mantenimientos* responde `available = false`, incluida una programación simultánea (FR-005, esc. 3, caso límite 2); `details.conflicts` lista el inicio y el fin estimado de cada mantenimiento que se cruza | "Ya hay un mantenimiento programado en ese rango (del {inicio} al {fin}). Elige otras fechas." |
+| 409 | `ROOM_INVALID_STATE` | La habitación está `Inactive`, o el bloqueo inicia hoy y la habitación no está en `Available` (FR-001, FR-007, esc. 10) | "Hoy la habitación está {estado}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior." |
+| 409 | `RESERVATION_CONFLICT` | *Consultar reservas* devuelve al menos una reserva en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista referencia y fechas | "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas." |
+| 409 | `MAINTENANCE_CONFLICT` | *Consultar Información de Mantenimientos* responde `available = false`, incluida una programación simultánea (FR-005, esc. 3, caso límite 2); `details.conflicts` lista el inicio y el fin estimado de cada mantenimiento que se cruza | "Ya hay un mantenimiento programado del {inicio} al {fin}. Elige otras fechas." |
 
 ```json
 {
@@ -317,7 +317,7 @@ frontend/src/
 - [ ] T020 [US1] Implementar `ApplyScheduledTechnicalBlocksService` (`@Transactional` por informe): recorrer los informes `Scheduled`; aplicar los que contienen hoy si la habitación está `Available` (con `TransitionRoomStateUseCase`, `sourceFlow = TECHNICAL_BLOCK` y actor nulo); marcar `Expired` los vencidos y los de habitaciones `Inactive`; dejar el resto para el día siguiente (FR-002, FR-018, FR-020).
 - [ ] T021 [US1] Implementar `TechnicalBlockScheduler`: escuchar `DailyReservationListIngestedEvent` y ejecutar `ApplyScheduledTechnicalBlocksUseCase` (FR-002, FR-018; regla 10 del plan base).
 - [ ] T022 [US1] Implementar `TechnicalBlockQueryService` y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (`MAINTENANCE_STAFF`) (FR-003, FR-011).
-- [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.jsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.jsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-confirmar-reparacion-finalizada.md`, T014) (FR-006, FR-011.1, FR-016).
+- [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.jsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.jsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-006, FR-011.1, FR-016).
 
 **Checkpoint**: Los mantenimientos preventivos se programan, se aplican en su fecha y caducan si no pueden aplicarse; el panel de mantenimiento muestra su rango y su informe.
 
