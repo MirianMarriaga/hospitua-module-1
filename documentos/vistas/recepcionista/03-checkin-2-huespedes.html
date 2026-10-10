@@ -238,9 +238,11 @@ select.tbl-input{padding:6px 6px;height:34px}
 <div class="guest-card"><div class="guest-head"><span class="g-main">Huésped Titular</span><span class="badge badge-blue">Titular de la reserva</span></div><div class="fgrid">
 <div><label>Nombres</label><input class="tbl-input" value="María" readonly></div>
 <div><label>Apellidos</label><input class="tbl-input" value="González" readonly></div>
-<div><label>Tipo de documento</label><input class="tbl-input" value="Cédula de ciudadanía" readonly></div>
+<div><label>Tipo de documento</label><input class="tbl-input" value="CC — Cédula de ciudadanía" readonly></div>
 <div><label>Número de documento</label><input class="tbl-input" value="1.032.456.789" readonly></div>
-<div><label>Nacionalidad</label><select class="tbl-input" disabled><option>Colombia</option></select></div></div></div>
+<div><label>Nacionalidad</label><select class="tbl-input" disabled><option>Colombia</option></select></div>
+<div><label>Fecha de nacimiento *</label><input type="date" class="tbl-input" id="titularBirth" value=""></div></div>
+<p class="page-sub" style="margin:8px 0 0">La fecha de nacimiento no llega con la reserva: captúrala si el titular se aloja.</p></div>
 <div id="g2"></div>
 <div id="addRow"></div>
 <div id="validationError" class="alert alert-red" style="display:none;margin-top:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div id="validationMsg"></div></div>
@@ -250,12 +252,14 @@ const PAISES=['Colombia','Estados Unidos','Venezuela','México','Argentina','Bra
 const TRASH='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 const PLUS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 const todayStr = new Date().toISOString().split('T')[0];
+const DOCS=[['CC','Cédula de ciudadanía'],['CE','Cédula de extranjería'],['TI','Tarjeta de identidad'],['RC','Registro civil'],['PAS','Pasaporte'],['NIT','NIT']];
+document.getElementById('titularBirth').max = todayStr;
 
 // Huésped 2 (editable). Inicialmente extranjero para ilustrar el panel migratorio
 let g2={
   nombres:'John',
   apellidos:'Doe',
-  tipo:'Pasaporte',
+  tipo:'PAS',
   num:'P12345678',
   nac:'Estados Unidos',
   birthDate:'1990-05-14',
@@ -277,13 +281,18 @@ function render(){
       <div class="fgrid">
         <div><label>Nombres *</label><input class="tbl-input" data-k="nombres" value="${esc(g2.nombres)}"></div>
         <div><label>Apellidos *</label><input class="tbl-input" data-k="apellidos" value="${esc(g2.apellidos)}"></div>
-        <div><label>Tipo de documento *</label><input class="tbl-input" data-k="tipo" value="${esc(g2.tipo)}"></div>
+        <div><label>Tipo de documento *</label>
+          <select class="tbl-input" id="tipo">
+            ${DOCS.map(([c,n])=>`<option value="${c}"${c===g2.tipo?' selected':''}>${c} — ${n}</option>`).join('')}
+          </select>
+        </div>
         <div><label>Número de documento *</label><input class="tbl-input" data-k="num" value="${esc(g2.num)}"></div>
         <div><label>Nacionalidad *</label>
           <select class="tbl-input" id="nac">
             ${PAISES.map(p=>`<option${p===g2.nac?' selected':''}>${p}</option>`).join('')}
           </select>
         </div>
+        <div><label>Fecha de nacimiento *</label><input type="date" class="tbl-input" data-k="birthDate" value="${esc(g2.birthDate)}" max="${todayStr}"></div>
       </div>
 
       ${isForeign ? `
@@ -293,7 +302,6 @@ function render(){
             Datos de control migratorio
           </div>
           <div class="fgrid">
-            <div><label>Fecha de nacimiento *</label><input type="date" class="tbl-input" data-k="birthDate" value="${esc(g2.birthDate)}" max="${todayStr}"></div>
             <div><label>Procedencia (Ciudad, País) *</label><input class="tbl-input" data-k="originPlace" placeholder="Ej. Miami, EE. UU." value="${esc(g2.originPlace)}"></div>
             <div><label>Destino (Ciudad, País) *</label><input class="tbl-input" data-k="destinationPlace" placeholder="Ej. Cartagena, Colombia" value="${esc(g2.destinationPlace)}"></div>
             <div><label>Movimiento</label><input class="tbl-input" value="Entrada" readonly></div>
@@ -319,19 +327,19 @@ function render(){
       const prevNac = g2.nac;
       g2.nac = e.target.value;
       if(g2.nac === 'Colombia'){
-        // Vaciar y cerrar datos migratorios
-        g2.birthDate = '';
+        // Vaciar y cerrar datos migratorios (la fecha de nacimiento se conserva: es de todos los huéspedes)
         g2.originPlace = '';
         g2.destinationPlace = '';
       }
       render();
     };
+    $('tipo').onchange = e => { g2.tipo = e.target.value; };
     $('del').onclick = () => { g2 = null; render(); };
   }
 
   $('add').onclick = () => {
     if(!g2){
-      g2 = { nombres:'', apellidos:'', tipo:'Cédula de extranjería', num:'', nac:'Colombia', birthDate:'', originPlace:'', destinationPlace:'' };
+      g2 = { nombres:'', apellidos:'', tipo:'CC', num:'', nac:'Colombia', birthDate:'', originPlace:'', destinationPlace:'' };
       render();
     }
   };
@@ -339,22 +347,23 @@ function render(){
 
 $('btnContinuar').onclick = () => {
   $('validationError').style.display = 'none';
+  const fail = m => { $('validationMsg').textContent = m; $('validationError').style.display = 'flex'; };
+  const titularBirth = $('titularBirth').value;
+  if(!titularBirth || titularBirth >= todayStr){
+    return fail('Ingresa la fecha de nacimiento del titular; debe ser anterior al día de hoy.');
+  }
   if(g2){
+    if(!g2.birthDate || g2.birthDate >= todayStr){
+      return fail('La fecha de nacimiento es obligatoria para todos los huéspedes y debe ser anterior al día de hoy.');
+    }
     if(!g2.nombres || !g2.apellidos || !g2.tipo || !g2.num){
       $('validationMsg').textContent = 'Por favor completa todos los campos de identificación del acompañante.';
       $('validationError').style.display = 'flex';
       return;
     }
     if(g2.nac !== 'Colombia'){
-      if(!g2.birthDate || !g2.originPlace || !g2.destinationPlace){
-        $('validationMsg').textContent = 'Los datos migratorios (nacimiento, procedencia y destino) son obligatorios para huéspedes extranjeros.';
-        $('validationError').style.display = 'flex';
-        return;
-      }
-      if(g2.birthDate >= todayStr){
-        $('validationMsg').textContent = 'La fecha de nacimiento debe ser anterior al día de hoy.';
-        $('validationError').style.display = 'flex';
-        return;
+      if(!g2.originPlace || !g2.destinationPlace){
+        return fail('La procedencia y el destino son obligatorios para huéspedes extranjeros.');
       }
     }
   }
