@@ -123,7 +123,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 - **Reserva multi-habitación (1 a 10 habitaciones)**: La copia local modela y almacena cada habitación de la reserva en `daily_reservation_room`, permitiendo su gestión individual por habitación en llegadas.
 - **Campo `source`**: El valor de `source` se persiste y muestra exactamente como se recibe (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
 - **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día y `updatedAt`.
-- **Ruta y contrato REST de Módulo 2**: *Pendiente Módulo 2*: la ruta exacta y la estructura del payload de respuesta de la consulta REST de mantenimiento y baja están pendientes de confirmación por Módulo 2. El Módulo 1 define un puerto desacoplado enviando únicamente `roomId`, `startDate` y `endDate`.
+- **Ruta y contrato REST de Módulo 2**: Ruta confirmada por Módulo 2: `GET /api/reservations?roomId={roomId}&startDate={startDate}&endDate={endDate}`. Módulo 1 mantiene el puerto desacoplado enviando únicamente `roomId`, `startDate` y `endDate`, y su adaptador REST traduce la respuesta al resultado de solapamiento sin acoplar el caso de uso al formato del payload.
 
 ---
 
@@ -141,8 +141,8 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - Un mensaje `UPDATED` solo DEBE aplicarse si su `updatedAt` es más reciente que el almacenado localmente.
   - Al recibir la lista de las 00:00, el sistema DEBE reiniciar el contador de `sequenceNumber` y purgar la copia local del día anterior.
 - **FR-004**: Estructura de la copia local:
-  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type` [NEEDS_CONFIRMATION_MODULO_2], `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
-  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` [NEEDS_CONFIRMATION_MODULO_2] (cantidad de personas por habitación; respaldo: `maxCapacity` de `Room` si Módulo 2 no envía este campo por habitación).
+  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
+  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity` de `Room`).
   - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
   - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
 - **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
@@ -153,7 +153,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - Solo DEBE consultarse una habitación por petición (no por categoría ni lista de habitaciones).
   - Para programar bloqueo técnico: `startDate` corresponde al inicio del mantenimiento y `endDate` a la fecha estimada de finalización.
   - Para dar de baja una habitación: `startDate` corresponde a la fecha actual y `endDate` corresponde a `hoy + 30 días`.
-  - [NEEDS_CONFIRMATION_MODULO_2]: La ruta exacta del endpoint y la forma de la respuesta están pendientes de confirmación por Módulo 2. Módulo 1 define únicamente el puerto desacoplado con los tres parámetros, sin asumir ruta ni formato de respuesta.
+  - Ruta confirmada con Módulo 2: `GET /api/reservations?roomId={roomId}&startDate={startDate}&endDate={endDate}`, invocada con los tres parámetros `roomId`, `startDate` y `endDate`. Módulo 1 mantiene el puerto desacoplado y delega en el adaptador REST la traducción de la respuesta al resultado de solapamiento (existe o no cruce con reservas).
 - **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad o timeout de Módulo 2 en la consulta de mantenimiento o baja, el sistema DEBE capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
 
 ---
