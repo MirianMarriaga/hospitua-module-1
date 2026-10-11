@@ -22,7 +22,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 1. **Escenario**: Flujo completo de Check-Out en fecha pactada (Happy Path)
    - **Dado** una habitación en `Occupied` con `Stay` activo, `source` en `Stay`, titular identificado en `Stay.titularFirstName`/`Stay.titularLastName`
    - **Cuando** el Recepcionista recorre los 5 pasos, confirma en el paso 4 la casilla obligatoria
-   - **Entonces** el sistema transiciona la habitación a `PendingCleaning` de forma síncrona, cierra la `Estancia` registrando `checkOutDate` y `receptionistIdCheckOut`, y emite la notificación asíncrona hacia Módulo 2 con el movimiento de salida, fecha de egreso y la nómina de todos los huéspedes. En el paso 2 se muestra el `settlementType` ("Liquidación informativa" o "Liquidación final") y el `invoiceNumber` (entero consecutivo o no mostrado si informativa). En el paso 3 el `totalAmount` viene de M3; en liquidación informativa se muestra solo hospedaje, comisión e ingreso neto, sin IVA, sin total y sin factura.
+   - **Entonces** el sistema transiciona la habitación a `PendingCleaning` de forma síncrona, cierra la `Estancia` registrando `checkOutDate`, y emite la notificación asíncrona hacia Módulo 2 con el movimiento de salida, fecha de egreso y la nómina de todos los huéspedes. En el paso 2 se muestra el `settlementType` ("Liquidación informativa" o "Liquidación final") y el `invoiceNumber` (entero consecutivo o no mostrado si informativa). En el paso 3 el `totalAmount` viene de M3; en liquidación informativa se muestra solo hospedaje, comisión e ingreso neto, sin IVA, sin total y sin factura.
 
 2. **Escenario**: Check-Out con salida anticipada (Early Check-Out)
    - **Dado** una estancia cuya `expectedCheckoutTime` es posterior a hoy
@@ -78,14 +78,14 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor autenticado "Recepcionista" registrar el Check-Out.
+- **FR-001**: El sistema DEBE permitir al actor "Recepcionista" registrar el Check-Out.
 - **FR-002**: El sistema DEBE estructurar el proceso en 5 etapas:
   1. *Consultar reserva*
   2. *Liquidación*
   3. *Pago*
   4. *Confirmación*
   5. *Liberar habitación*
-- **FR-003**: La estancia se selecciona previamente en el **Panel de Recepción**, que entrega la referencia de la reserva y la habitación; con ambas se identifica la estancia, porque una reserva puede tener varias habitaciones. El paso 1 DEBE obtener y mostrar la información desde `Stay` + `Room` + `RoomGuest` sin peticiones externas a Módulo 2. Muestra: código de reserva, titular (`Stay.titularFirstName`, `Stay.titularLastName`), rango de fechas, fuente (`Stay.source`: `DIRECTA` o nombre de la OTA), habitación en `Occupied`. El paso 1 NO dispone de barra de búsqueda propia y NO muestra "Estado de la reserva en Módulo 2".
+- **FR-003**: La estancia se selecciona previamente en el **Panel de Recepción**, que entrega la referencia de la reserva y la habitación; con ambas se identifica la estancia, porque una reserva puede tener varias habitaciones. El paso 1 DEBE obtener y mostrar la información desde `Stay` + `Room` + `RoomGuest` sin peticiones externas a Módulo 2. Muestra: código de reserva, titular (`Stay.titularFirstName`, `Stay.titularLastName`), rango de fechas, fuente (`Stay.source`: "Directo" u "OTA"), habitación en `Occupied`. El paso 1 NO dispone de barra de búsqueda propia y NO muestra "Estado de la reserva en Módulo 2".
 - **FR-004**: El sistema DEBE validar que la habitación esté en `Occupied`. Cualquier otro estado produce rechazo con mensaje de error controlado.
 - **FR-005**: En el paso 2, el sistema DEBE consultar mediante `<<includes>>` a "Consultar liquidación" (`spec-consultar-liquidacion.md`) enviando: `reservationRef`, `checkInDate`, `checkOutDate`, `source` (de `Stay.source`), `roomId`, `categoryRoom`. Los parámetros `eventType`, `startDate` y `endDate` **no se envían**.
 - **FR-006**: El sistema DEBE presentar la información de liquidación distribuida en dos etapas:
@@ -99,10 +99,10 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
      - En liquidación INFORMATIVA: Muestra exclusivamente el desglose informativo con `accommodationTotalAmount`, comisión OTA e `netIncomeAmount`. No incluye IVA, total a pagar ni número de factura.
 - **FR-007**: El sistema NO DEBE solicitar ni registrar consumos locales ni procesar pagos. El paso 3 ("Pago") es exclusivamente de visualización.
 - **FR-008**: En el paso 4, el sistema DEBE exigir la casilla obligatoria de confirmación antes de habilitar el botón de Check-Out.
-- **FR-009**: El texto informativo del paso 4 DEBE indicar que si falla la actualización, la notificación queda en cola para reintento. No se deben mencionar módulos, colas ni sistemas externos en la interfaz. El estado de la reserva es gestionado por el sistema de reservas y pasa a "Completada" cuando todas las habitaciones de la reserva hayan registrado salida.
+- **FR-009**: El texto informativo del paso 4 DEBE indicar que si falla la actualización, la notificación a Módulo 2 queda pendiente de reintento. No se deben mencionar módulos, colas ni sistemas externos en la interfaz. El estado de la reserva es gestionado por el sistema de reservas y pasa a "Completada" cuando todas las habitaciones de la reserva hayan registrado salida.
 - **FR-010**: Al confirmar en el paso 4, el sistema DEBE ejecutar de forma síncrona y atómica:
   1. Transición `Occupied → PendingCleaning` (vía `<<includes>>` a "Marcar pendiente a limpieza").
-  2. Cierre de `Stay` registrando `checkOutDate` (solo fecha, UTC-5) y `receptionistIdCheckOut`.
+  2. Cierre de `Stay` registrando `checkOutDate` (solo fecha, UTC-5).
 - **FR-011**: La habitación en `PendingCleaning` DEBE aparecer de inmediato en la bandeja del Personal de limpieza.
 - **FR-012**: Al confirmar la salida, el sistema DEBE generar una notificación asíncrona de movimiento de salida dirigida a Módulo 2 que consolide a la totalidad de los huéspedes alojados (nacionales y extranjeros) en un único aviso, sin canales separados para extranjeros. La notificación DEBE incluir:
   - Identificador único para control de duplicados e idempotencia.
@@ -114,15 +114,15 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 
 - **FR-013**: En el paso 5, el sistema DEBE mostrar: "Habitación: Pendiente de limpieza", etiqueta de notificación enviada (sin mencionar módulos), sin horas, botón único "Volver al inicio". Las etiquetas de estado se muestran en español.
 - **FR-014**: Si Módulo 2 o Módulo 3 experimentan fallas, el sistema NO DEBE bloquear la liberación física a `PendingCleaning`. Las notificaciones se programan para reintento en segundo plano.
-- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría (evento `CHECK_OUT`, dentro de la misma transacción) el ID de la habitación, la referencia de la reserva, el ID de la Estancia, el recepcionista responsable, `checkOutDate` y la referencia de liquidación.
+- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría (evento `CHECK_OUT`, dentro de la misma transacción) el ID de la habitación, la referencia de la reserva, el ID de la Estancia, `checkOutDate` y la referencia de liquidación.
 
 ---
 
-### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+## Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: 8 estados canónicos. Transiciona de `Occupied` a `PendingCleaning` en este flujo.
-- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source`, `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `receptionistIdCheckIn`, `receptionistIdCheckOut`.
-- **RoomGuest**: Ocupante inmutable. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace`, `destinationPlace`, `isReservationGuest`.
+- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` ("Directo" u "OTA"), `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
+- **RoomGuest**: Ocupante inmutable. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace`, `destinationPlace`.
 - **SettlementSummary**: Estructura devuelta por Módulo 3. Contiene: `invoiceNumber` (entero o null), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType`. No incluye `source`.
 - **CleaningStaff**: Recibe la habitación en `PendingCleaning` en su bandeja de trabajo.
 

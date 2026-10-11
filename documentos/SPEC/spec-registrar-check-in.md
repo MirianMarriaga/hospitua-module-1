@@ -22,7 +22,7 @@ Como Recepcionista, quiero registrar el Check-In presencial guiado por el flujo 
 1. **Escenario**: Flujo completo de Check-In exitoso para huéspedes nacionales
    - **Dado** una reserva en la copia local con `startDate = hoy`, habitación en estado `Reserved` apartada para esa reserva, sin `Stay` previo para el par (`reservationRef`, `roomId`), `guestCount = 2` para la habitación
    - **Cuando** el Recepcionista valida la reserva en el paso 1 (local), registra 2 ocupantes colombianos en el paso 2 y confirma en el paso 3
-   - **Entonces** el sistema crea la `Estancia` (Stay) con `source`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`; registra los `RoomGuest` con `firstName`, `lastName`, `isReservationGuest`; transiciona la habitación a `Occupied`; emite la notificación asíncrona hacia Módulo 2 con la reserva, habitación, movimiento de entrada, fecha de ingreso y la lista de todos los huéspedes (sin datos migratorios para nacionales); y muestra la pantalla de éxito
+   - **Entonces** el sistema crea la `Estancia` (Stay) con `source`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`; registra los `RoomGuest` con `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`; transiciona la habitación a `Occupied`; emite la notificación asíncrona hacia Módulo 2 con la reserva, habitación, movimiento de entrada, fecha de ingreso y la lista de todos los huéspedes (sin datos migratorios para nacionales); y muestra la pantalla de éxito
 
 2. **Escenario**: Check-In con huésped extranjero y panel migratorio
    - **Dado** una reserva activa en la copia local con habitación en estado `Reserved` apartada para esa reserva
@@ -34,10 +34,10 @@ Como Recepcionista, quiero registrar el Check-In presencial guiado por el flujo 
    - **Cuando** el Recepcionista avanza al paso 3
    - **Entonces** el sistema muestra: cantidad de huéspedes de la habitación, habitación asignada (número y tipo), estadía (noches calculadas y rango de fechas), y cuadro informativo indicando que al confirmar la habitación pasará a "Occupied" y la reserva pasará a "En curso" cuando todas sus habitaciones completen Check-In. No se muestran indicadores técnicos de colas ni módulos al Recepcionista
 
-4. **Escenario**: Titular de la reserva y regla de conteo de ocupantes en el paso 2
+4. **Escenario**: Titular de la reserva para confirmación de identidad en el paso 2
    - **Dado** una reserva obtenida en el paso 1 desde la copia local
    - **Cuando** el Recepcionista accede al paso 2
-   - **Entonces** el sistema presenta los datos del titular (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`) en solo lectura para verificación. El titular de la reserva NO cuenta como ocupante predeterminado; solo se cuenta y se incluye si también se aloja físicamente en la habitación (marcado con `isReservationGuest = true`). El conteo de `guests[]` parte desde cero y se incrementa por cada huésped que realmente ingresa, incluyendo al titular si se aloja. Los datos del titular precargados (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`) se presentan en solo lectura
+   - **Entonces** el sistema presenta los datos del titular de la reserva (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`) en solo lectura únicamente para confirmación de identidad. El titular no es un ocupante y no se persiste como `RoomGuest`. El registro de ocupantes (`guests[]`) captura a las personas que se alojan físicamente en la habitación.
 
 ---
 
@@ -79,8 +79,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 - **Falla de comunicación al notificar a Módulo 2**: El Check-In físico se consolida localmente (estancia creada, habitación en `Occupied`). La notificación permanece registrada para reintento en segundo plano, evitando retener al huésped en recepción.
 - **Idempotencia en notificaciones**: Toda notificación saliente cuenta con un identificador único que permite al sistema receptor reconocer reintentos y descartar duplicados.
 - **Día operativo fijo**: El Check-In solo puede realizarse cuando `fechaActual == startDate` (hora Colombia, UTC-5, 00:00–23:59).
-- **Stay previo para la misma habitación**: Si ya existe un `Stay` para el par (`reservationRef`, `roomId`), el sistema rechaza el Check-In como operación ya realizada.
-- **Regla de conteo de huéspedes y alojamiento del titular**: El titular de la reserva NO cuenta como ocupante predeterminado. Solo se cuenta si también se aloja físicamente en la habitación. El conteo de huéspedes parte desde cero y se incrementa por cada huésped que realmente ingresa, incluyendo al titular si se aloja.
+- **Stay previo para la misma habitación**:- **Regla de conteo de huéspedes e identidad del titular**: Los datos del titular son de solo lectura exclusivamente para confirmación de identidad. El titular no es un ocupante, no cuenta contra `maxCapacity` y no se persiste como `RoomGuest`. El conteo de huéspedes corresponde a las personas que se alojan físicamente en la habitación.
 - **Estado de la habitación para Check-In**: El Check-In solo se formaliza si la habitación está en `Reserved` y apartada para esa reserva (`reservedByReservationRef`). Módulo 1 la aparta antes de la llegada: con la lista de las 00:00, con un `ADDED` del día o al terminar su limpieza (máquina de estados de la habitación). Una habitación en `Available` con llegada hoy no admite Check-In; el panel de recepción muestra su estado.
 - **`updatedAt` ausente en mensajes de Módulo 2**: Si falta, ordenar por `sequenceNumber`.
 
@@ -90,7 +89,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor autenticado "Recepcionista" iniciar y formalizar el registro de Check-In en Módulo 1.
+- **FR-001**: El sistema DEBE permitir al actor "Recepcionista" iniciar y formalizar el registro de Check-In en Módulo 1.
 - **FR-002**: El sistema DEBE estructurar el flujo de Check-In a través de 4 etapas visuales y operativas:
   1. *Validar reserva*
   2. *Datos de huéspedes*
@@ -98,17 +97,16 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
   4. *Check-In*
 - **FR-003**: La búsqueda y selección de la reserva y habitación se realizan **previamente** en el **Panel de Recepción** (`spec-consultar-panel-recepcion.md`). Al pulsar el botón "Check-in" en el panel, el flujo llega al paso 1 con la referencia de reserva y habitación ya cargadas. El paso 1 DEBE validar **localmente** contra la copia local (`daily_reservation`, `daily_reservation_room`): reserva existente, habitación en `Reserved` apartada para esa reserva (FR-004), ausencia de `Stay` previo para el par (`reservationRef`, `roomId`). El paso 1 NO realiza consultas REST a Módulo 2.
 - **FR-004**: El sistema DEBE validar que la habitación asignada esté en estado `Reserved` y apartada para esa reserva (`reservedByReservationRef` igual a la `reservationRef`). En cualquier otro estado (`Available`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive`), o si está apartada para otra reserva, DEBE rechazar la admisión con un mensaje de error controlado que indique el estado actual.
-- **FR-005**: El sistema DEBE validar que la reserva figure en la copia local del día (`startDate = fechaActual`). Si no figura, DEBE rechazar el Check-In.
+- **FR-005**: El sistema DEBE validar que la reserva figure en la copia local del día. Si no figura, DEBE rechazar el Check-In.
 - **FR-006**: En el paso 2, el sistema DEBE capturar en formulario los campos con nombres y apellidos separados para cada huésped: `firstName`, `lastName`, `documentType` (uno de `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`, los tipos que acepta Módulo 2), `documentNumber`, `nationality` y `birthDate` (obligatoria para todos los huéspedes, fecha pasada, `AAAA-MM-DD`; Módulo 2 la exige en la notificación). Para ocupantes con `nationality ≠ Colombia`, DEBE abrir el panel de datos migratorios capturando `originPlace` y `destinationPlace` (texto libre, asistencia de catálogo, formato "Ciudad, País"). El sistema asigna automáticamente `movementType = ENTRY` y `movementDate = checkInDate` sin pedirlos al Recepcionista.
-- **FR-007:** El sistema DEBE precargar los datos del titular desde la copia local (daily_reservation), presentándolos en solo lectura (firstName, lastName, documentType, documentNumber, nationality) para identificación de la reserva. El titular NO cuenta como ocupante predeterminado; solo se cuenta y se incluye en guests[] si también se aloja físicamente en la habitación, momento en el que se agrega como cualquier otro huésped con todos sus campos obligatorios (marcado con isReservationGuest = true). El conteo de guests[] parte desde cero y se incrementa por cada huésped que realmente ingresa, incluyendo al titular si se aloja.
+- **FR-007**: El sistema DEBE presentar los datos del titular de la reserva obtenidos de la copia local (`daily_reservation`) en modo solo lectura (`firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`) exclusivamente para confirmación de identidad en mostrador. El titular no es un ocupante, no se precarga en la lista de huéspedes, no cuenta contra `maxCapacity` y no se persiste como `RoomGuest`. El formulario de captura registra exclusivamente a los ocupantes que se alojan físicamente en la habitación.
 - **FR-008**: El sistema DEBE validar que la cantidad total de personas coincida exactamente con `guestCount` de la habitación (confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity`) y no supere `maxCapacity`. Si difiere, DEBE bloquear el avance al paso 3.
 - **FR-009**: Panel de datos migratorios para extranjeros: Cuando `nationality ≠ Colombia`, el sistema DEBE abrir el panel solicitando exclusivamente `originPlace` y `destinationPlace`. Si la nacionalidad se corrige a Colombia, el panel se cierra y se vacía. Los dos campos son obligatorios para avanzar al paso 3. La `birthDate` no pertenece al panel: se captura para todos los huéspedes (FR-006) y debe ser una fecha pasada (no hoy ni futura).
 - **FR-010**: En el paso 3, el sistema DEBE presentar el resumen con cantidad de huéspedes, habitación (número y tipo), estadía (noches y fechas) y cuadro informativo indicando que la habitación pasará a "Occupied" y la reserva pasará a "En curso". No se muestran indicadores técnicos de colas, módulos ni conteos de extranjeros al Recepcionista.
 - **FR-011**: Al confirmar en el paso 3, el sistema DEBE ejecutar de forma síncrona y atómica:
   1. Creación de `Stay` con `source`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
-  2. Creación de los registros `RoomGuest` inmutables con `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`; para extranjeros: también `originPlace`, `destinationPlace`; y `isReservationGuest`.
+  2. Creación de los registros `RoomGuest` inmutables con `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`; para extranjeros: también `originPlace`, `destinationPlace`.
   3. Transición a `Occupied` en el inventario (`Reserved → Occupied`).
-  4. Registro del recepcionista responsable (`receptionistIdCheckIn`).
 - **FR-012**: Al confirmar el Check-In, el sistema DEBE generar una notificación asíncrona de movimiento de entrada dirigida a Módulo 2 que consolide a la totalidad de los huéspedes admitidos (nacionales y extranjeros) en un único aviso, sin canales separados para extranjeros. La notificación DEBE incluir:
   - Identificador único para control de duplicados e idempotencia.
   - Referencia de reserva e identificador de habitación.
@@ -119,17 +117,16 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 
 - **FR-013**: En el paso 4, el sistema DEBE mostrar la pantalla de confirmación exitosa con las etiquetas "Habitación: Ocupada" y "Estado de la reserva: En curso" (sin mencionar módulos ni sistemas externos), sin mostrar horas y con el botón único "Volver al inicio".
 - **FR-014**: El Check-In NO DEBE bloquearse ante lentitud o fallas de comunicación con Módulo 2. La Estancia se consolida localmente y la notificación queda registrada para entrega garantizada mediante reintentos en segundo plano.
-- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría (evento `CHECK_IN`, dentro de la misma transacción) el ID de la habitación, la referencia de la reserva, el ID de la Estancia creada, el recepcionista responsable y la marca de tiempo de confirmación.
+- **FR-015**: El sistema DEBE registrar en la bitácora de auditoría (evento `CHECK_IN`, dentro de la misma transacción) el ID de la habitación, la referencia de la reserva, el ID de la Estancia creada y la marca de tiempo de confirmación.
 
 ---
 
-### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+## Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional. Atributos clave: `roomId` (UUID), número, piso, tipo, `maxCapacity`, tarifa base, `status` (8 estados), `reservedByReservationRef` (solo en `Reserved`).
-- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` (`DIRECTA` o nombre de la OTA), `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `receptionistIdCheckIn`, `receptionistIdCheckOut`.
-- **RoomGuest**: Ocupante inmutable vinculado a la Estancia. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace` (solo extranjeros), `destinationPlace` (solo extranjeros), `isReservationGuest`.
+- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` ("Directo" u "OTA"), `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
+- **RoomGuest**: Ocupante inmutable vinculado a la Estancia. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace` (solo extranjeros), `destinationPlace` (solo extranjeros).
 - **DailyReservation / DailyReservationRoom**: Copia local de la reserva. Fuente de verdad en el paso 1 y para el precargado del titular. De 1 a 10 habitaciones por reserva. No persiste `status`, `guestRef`, `externalConfirmationCode`.
-- **Receptionist**: Actor que ejecuta el flujo de admisión.
 
 ---
 

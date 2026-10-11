@@ -68,7 +68,7 @@ Como **Recepcionista**, quiero consultar el listado de llegadas del día y busca
 1. **Escenario**: Listado completo de llegadas del día desde la copia local
    - **Dado** que la copia local contiene reservas para el día de hoy
    - **Cuando** la Recepcionista consulta las llegadas en el Panel de Recepción
-   - **Entonces** el sistema retorna las reservas agrupadas, presentando cada habitación asignada (1 a 10 habitaciones por reserva), titular, fechas de estadía, noches calculadas, cantidad de huéspedes y la fuente (`source`: `DIRECTA` o nombre de la OTA).
+   - **Entonces** el sistema retorna las reservas agrupadas, presentando cada habitación asignada (1 a 10 habitaciones por reserva), titular, fechas de estadía, noches calculadas, cantidad de huéspedes (`guestCount`) y el canal de origen ("Directo" u "OTA").
 
 2. **Escenario**: Búsqueda por código de reserva, documento o nombre del titular
    - **Dado** una reserva almacenada en la copia local
@@ -93,7 +93,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 **Por qué esta prioridad**: Previene que se inhabiliten o den de baja habitaciones que ya tienen compromisos comerciales futuros en el Módulo 2.
 
-**Prueba Independiente**: Enviar la consulta REST a Módulo 2 con la credencial de servicio de Módulo 1 y los parámetros `dateFrom`, `dateTo` y `roomId`. Validar que se consulta una única habitación por petición y que se detecta si existe o no algún cruce con reservas.
+**Prueba Independiente**: Enviar la consulta REST a Módulo 2 con los parámetros `dateFrom`, `dateTo` y `roomId`. Validar que se consulta una única habitación por petición y que se detecta si existe o no algún cruce con reservas.
 
 **Escenarios de Aceptación**:
 
@@ -123,9 +123,9 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 - **Mensaje con estampa desactualizada (`updatedAt`)**: Si llega un mensaje `UPDATED` cuyo `updatedAt` no es más reciente que el registrado en la copia local, se descarta para evitar sobrescrituras.
 - **Reserva multi-habitación (1 a 10 habitaciones)**: La copia local modela y almacena cada habitación de la reserva en `daily_reservation_room`, permitiendo su gestión individual por habitación en llegadas.
-- **Campo `source`**: El valor de `source` se persiste y muestra exactamente como se recibe (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
+- **Canal de origen (`source`)**: El canal de origen se presenta y gestiona exclusivamente como "Directo" u "OTA" (sin nombres de OTAs específicas ni el código DIRECTA).
 - **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día y `updatedAt`.
-- **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`, autenticado con la credencial de servicio de Módulo 1. Sin coincidencias responde una lista vacía (no hay 404).
+- **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`. Sin coincidencias responde una lista vacía (no hay 404).
 
 ---
 
@@ -149,10 +149,10 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity` de `Room`).
   - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
   - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
-- **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
+- **FR-005**: El valor del canal de origen (`source`) DEBE mostrarse y registrarse exclusivamente como "Directo" u "OTA".
 - **FR-006**: Consultas para Recepción: Las consultas y búsquedas de llegadas en mostrador y Panel de Recepción DEBEN ejecutarse exclusivamente contra la copia local, sin realizar peticiones HTTP/REST hacia el Módulo 2.
 - **FR-007**: Consulta REST de Mantenimiento y Baja:
-  - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), autenticado con la credencial de servicio de Módulo 1, únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
+  - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2) únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
   - La petición DEBE enviar `dateFrom` y `dateTo` (obligatorios, formato `AAAA-MM-DD`, ambos inclusivos) y siempre el `roomId` de la habitación; solo se consulta una habitación por petición.
   - Para programar bloqueo técnico: `dateFrom` es el inicio del mantenimiento y `dateTo` su fecha estimada de finalización.
   - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es `9999-12-31`, que representa "sin límite superior": cualquier reserva vigente desde hoy cuenta.

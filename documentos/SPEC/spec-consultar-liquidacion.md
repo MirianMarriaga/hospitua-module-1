@@ -15,21 +15,21 @@ Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma
 
 **Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia en información financiera oficial. Módulo 1 actúa como consumidor estricto: no calcula tarifas, no deduce comisiones, no recauda pagos. El `totalAmount` proviene exclusivamente de M3 (nunca se suma localmente en M1).
 
-**Prueba Independiente**: Invocar con datos válidos de estancia (`reservationRef`, `checkInDate`, `checkOutDate`, `source` de `Stay`, `roomId`) y verificar que el sistema retorna la estructura de M3 desagregada para los pasos de Liquidación y Pago, sin parámetros `eventType`, `startDate` ni `endDate`, autenticado con la credencial de servicio de Módulo 1 en el header `Authorization`, y sobre la URL `GET /api/settlements` (sin `/v1/`).
+**Prueba Independiente**: Invocar con datos válidos de estancia (`reservationRef`, `checkInDate`, `checkOutDate`, `source` de `Stay`, `roomId`) y verificar que el sistema retorna la estructura de M3 desagregada para los pasos de Liquidación y Pago, sin parámetros `eventType`, `startDate` ni `endDate`, sin header `Authorization`, y sobre la URL `GET /api/settlements` (sin `/v1/`).
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Consulta de liquidación para reserva DIRECTA (sin comisión OTA)
-   - **Dado** una estancia con `source = DIRECTA` en `Stay.source`
+1. **Escenario**: Consulta de liquidación para reserva Directa (sin comisión OTA)
+   - **Dado** una estancia con `source = Directo` en `Stay.source`
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `GET /api/settlements` con `reservationRef`, `checkInDate`, `checkOutDate`, `source = DIRECTA`, `roomId`, `categoryRoom` y recibe de M3:
+   - **Entonces** el sistema envía `GET /api/settlements` con `reservationRef`, `checkInDate`, `checkOutDate`, `source = Directo`, `roomId`, `categoryRoom` y recibe de M3:
      - Para el paso Liquidación: `settlementType` ("Liquidación informativa" o "Liquidación final"), `invoiceNumber` (entero consecutivo o no mostrado si informativa), fuente desplegada desde `Stay.source` local, comisión 0%, ingreso neto = hospedaje
      - Para el paso Pago: `accommodationTotalAmount`, `taxAmount`, `totalAmount` de M3 (no mostrados si informativa), noches, `checkInDate`, `checkOutDate`
 
 2. **Escenario**: Consulta de liquidación para reserva OTA (con comisión)
-   - **Dado** una estancia con `source = BOOKING` o `EXPEDIA` en `Stay.source`
+   - **Dado** una estancia con `source = OTA` en `Stay.source`
    - **Cuando** "Registrar Check-Out" invoca "Consultar liquidación"
-   - **Entonces** el sistema envía `source` y `categoryRoom` al endpoint de M3 y recibe la liquidación (sin `source` en la respuesta). Muestra en el paso Liquidación: fuente desde `Stay.source`, `otaCommissionPercentage`, `otaCommissionAmount`, `netIncomeAmount`
+   - **Entonces** el sistema envía `source` y `categoryRoom` al endpoint de M3 y recibe la liquidación (sin `source` en la respuesta). Muestra en el paso Liquidación: fuente desde `Stay.source` ("OTA"), `otaCommissionPercentage`, `otaCommissionAmount`, `netIncomeAmount`
 
 3. **Escenario**: Valor de hospedaje consolidado (sin desglose por noche)
    - **Dado** una estancia de múltiples noches o con salida anticipada
@@ -69,7 +69,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
 
 ### Casos Borde
 
-- **`source` DIRECTA**: Comisión 0%, valor $0, ingreso neto = hospedaje.
+- **`source` Directo**: Comisión 0%, valor $0, ingreso neto = hospedaje.
 - **`source` OTA**: Se muestra desde `Stay.source` (M3 no lo devuelve en la respuesta).
 - **`invoiceNumber` como entero**: Número consecutivo entero (sin prefijos como "F-2026-" ni "FAC-").
 - **`totalAmount` de M3**: Módulo 1 **nunca** suma `accommodationTotalAmount + taxAmount` localmente; usa el `totalAmount` de M3 tal cual.
@@ -83,11 +83,11 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE operar como caso de uso interno incluido (`<<includes>>`) por "Registrar Check-Out" durante la fase de liquidación.
-- **FR-002**: El sistema DEBE consultar mediante REST GET la URL `GET /api/settlements` (sin prefijo `/v1/`, autenticada con la credencial de servicio de Módulo 1 en el header `Authorization`, igual que la consulta de reservas a Módulo 2) con los siguientes query params:
+- **FR-002**: El sistema DEBE consultar mediante REST GET la URL `GET /api/settlements` (sin prefijo `/v1/`, sin header `Authorization` entre módulos) con los siguientes query params:
   - `reservationRef` (string, formato `RES-000123`)
   - `checkInDate` (YYYY-MM-DD)
   - `checkOutDate` (YYYY-MM-DD)
-  - `source` (`DIRECTA` o nombre de la OTA, obtenido de `Stay.source`)
+  - `source` ("Directo" u "OTA", obtenido de `Stay.source`)
   - `roomId` (UUID)
   - `categoryRoom` (string, nombre confirmado y aceptado por M3)
   
