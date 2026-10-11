@@ -15,7 +15,7 @@ Como Recepcionista, quiero que durante el Check-Out el sistema consulte de forma
 
 **Por qué esta prioridad**: Es la consulta obligatoria de "Registrar Check-Out" que traduce la estancia en información financiera oficial. Módulo 1 actúa como consumidor estricto: no calcula tarifas, no deduce comisiones, no recauda pagos. El `totalAmount` proviene exclusivamente de M3 (nunca se suma localmente en M1).
 
-**Prueba Independiente**: Invocar con datos válidos de estancia (`reservationRef`, `checkInDate`, `checkOutDate`, `source` de `Stay`, `roomId`) y verificar que el sistema retorna la estructura de M3 desagregada para los pasos de Liquidación y Pago, sin parámetros `eventType`, `startDate` ni `endDate`, sin header `Authorization`, y sobre la URL `GET /api/settlements` (sin `/v1/`).
+**Prueba Independiente**: Invocar con datos válidos de estancia (`reservationRef`, `checkInDate`, `checkOutDate`, `source` de `Stay`, `roomId`) y verificar que el sistema retorna la estructura de M3 desagregada para los pasos de Liquidación y Pago, sin parámetros `eventType`, `startDate` ni `endDate`, autenticado con la credencial de servicio de Módulo 1 en el header `Authorization`, y sobre la URL `GET /api/settlements` (sin `/v1/`).
 
 **Escenarios de Aceptación**:
 
@@ -83,7 +83,7 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE operar como caso de uso interno incluido (`<<includes>>`) por "Registrar Check-Out" durante la fase de liquidación.
-- **FR-002**: El sistema DEBE consultar mediante REST GET la URL `GET /api/settlements` (sin prefijo `/v1/`, sin header `Authorization`) con los siguientes query params:
+- **FR-002**: El sistema DEBE consultar mediante REST GET la URL `GET /api/settlements` (sin prefijo `/v1/`, autenticada con la credencial de servicio de Módulo 1 en el header `Authorization`, igual que la consulta de reservas a Módulo 2) con los siguientes query params:
   - `reservationRef` (string, formato `RES-000123`)
   - `checkInDate` (YYYY-MM-DD)
   - `checkOutDate` (YYYY-MM-DD)

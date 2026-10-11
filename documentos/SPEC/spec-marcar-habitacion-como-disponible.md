@@ -43,16 +43,26 @@ Como Personal de limpieza (`CleaningStaff`), quiero que al confirmar la finaliza
 **Escenarios de Aceptación**:
 
 4. **Escenario**: Reintegración exitosa a disponible invocada desde fin de limpieza
-   - **Dado** una habitación que se encuentra en estado operativo `InCleaning`
+   - **Dado** una habitación que se encuentra en estado operativo `InCleaning` y que no tiene asignada una reserva con `startDate` = hoy
    - **Cuando** el Personal de limpieza confirma la culminación del aseo a través de la inclusión del caso de uso (`<<includes>>`)
    - **Entonces** el sistema transiciona el estado de la habitación de `InCleaning` a `Available` y la hace elegible de inmediato para nuevas estancias o reservas.
 
-5. **Escenario**: Habitación reintegrada aparece en disponibilidad para reservas
+5. **Escenario**: Fin de limpieza con llegada pendiente hoy (transición encadenada)
+   - **Dado** una habitación en estado `InCleaning` cuya reserva del día (`startDate` = hoy) sigue pendiente en la copia local de reservas
+   - **Cuando** el Personal de limpieza confirma la culminación del aseo sin reportar daño
+   - **Entonces** el sistema transiciona la habitación de `InCleaning` a `Available` y, en la misma transacción, el caso de uso "Marcar habitación como reservada" la transiciona de `Available` a `Reserved` (transición encadenada), según documentos/SPEC/referencias/maquina-estados-habitacion.md.
+
+6. **Escenario**: Fin de limpieza con daño reportado
+   - **Dado** una habitación en estado `InCleaning`
+   - **Cuando** el Personal de limpieza confirma la culminación del aseo reportando un daño encontrado
+   - **Entonces** el sistema transiciona la habitación de `InCleaning` a `Available` y, en la misma transacción, el flujo de *Confirmar fin de limpieza* la transiciona de `Available` a `DisabledForRepairs` (caso de uso "Marcar habitación inhabilitada por reparaciones"). Aunque la habitación tenga una reserva con `startDate` = hoy, no se transiciona a `Reserved`, según documentos/SPEC/referencias/maquina-estados-habitacion.md.
+
+7. **Escenario**: Habitación reintegrada aparece en disponibilidad para reservas
    - **Dado** la limpieza de una habitación ha sido confirmada como finalizada
    - **Cuando** se consulta el inventario de habitaciones disponibles
    - **Entonces** la habitación aparece con estado `Available` y es elegible para nuevas reservas o asignaciones.
 
-6. **Escenario**: Rechazo de invocación desde limpieza en estado no válido
+8. **Escenario**: Rechazo de invocación desde limpieza en estado no válido
    - **Dado** una habitación en cualquier estado distinto a `InCleaning` (ej. `Occupied` o `DisabledForRepairs`)
    - **Cuando** se intenta invocar el servicio de marcar como disponible por la vía de limpieza
    - **Entonces** el sistema rechaza la ejecución e informa que la unidad no se encuentra en proceso de aseo activo.
@@ -75,13 +85,14 @@ Como Personal de limpieza (`CleaningStaff`), quiero que al confirmar la finaliza
 - **FR-001**: El sistema DEBE estructurar "Marcar habitación como disponible" como un servicio transaccional centralizado y reutilizable en el Módulo 1.
 - **FR-002**: El sistema DEBE permitir la invocación directa de este caso de uso exclusivamente al actor "Administrador" (`Administrator`) para reactivar unidades desde el estado `Inactive`.
 - **FR-003**: El sistema DEBE permitir la invocación de este caso de uso mediante inclusión (`<<includes>>`) desde el caso de uso "Confirmar fin de limpieza de habitación", ejecutado por el actor "Personal de limpieza" (`CleaningStaff`).
-- **FR-004**: Precondición: la entidad `Room` DEBE encontrarse en estado `Inactive` (para reactivación directa administrativa), en estado `InCleaning` (para el flujo proveniente de fin de limpieza) o en estado `Reserved` (para liberar una habitación cuya reserva fue cancelada o liberada en Módulo 2), según documentos/SPEC/referencias/maquina-estados-habitacion.md.
+- **FR-004**: Precondición: la entidad `Room` DEBE encontrarse en estado `Inactive` (para reactivación directa administrativa), en estado `InCleaning` (para el flujo proveniente de fin de limpieza; tras la transición a `Available`, en la misma transacción, la habitación continúa a `DisabledForRepairs` si se reportó un daño, o a `Reserved` mediante "Marcar habitación como reservada" si no se reportó daño y tiene una reserva con `startDate` = hoy pendiente) o en estado `Reserved` (para liberar una habitación cuya reserva fue cancelada o liberada en Módulo 2, invocado por *Consultar reservas*, FR-009), según documentos/SPEC/referencias/maquina-estados-habitacion.md.
 - **FR-005**: Transición de estado: El sistema DEBE actualizar de forma atómica el estado de la entidad `Room` a `Available` tras completarse la validación del flujo correspondiente.
 - **FR-006**: El sistema DEBE rechazar la operación si la habitación se encuentra en cualquiera de los otros estados operativos (`Available`, `Occupied`, `PendingCleaning`, `DisabledForRepairs`, `TechnicalBlock`).
 - **FR-007**: La habitación en estado `Available` DEBE reflejarse de forma inmediata en las consultas de inventario y quedar habilitada para asignaciones comerciales del Módulo 2.
-- **FR-008**: El sistema DEBE registrar en la bitácora de auditoría el ID de la habitación, el identificador del usuario responsable (`Administrator` o `CleaningStaff`), el flujo de invocación utilizado y la marca de tiempo (timestamp) de la transición.
+- **FR-008**: El sistema DEBE dejar trazabilidad de cada transición (habitación, usuario responsable —`Administrator`, `CleaningStaff` o nulo si es autónoma—, flujo de invocación y marca de tiempo) mediante el registro en `RoomStateHistory` de FR-011; no se lleva una bitácora aparte para las transiciones.
 - **FR-009**: En la confirmación de la reactivación directa, el sistema DEBE mostrar al Administrador los datos de la habitación (número, piso, tipo y estado) junto con la fecha y el motivo (y el detalle, si existe) con que fue dada de baja.
 - **FR-010**: Tras una reactivación directa, el sistema DEBE mostrar un resultado con los datos de la habitación (número, piso, tipo y estado) e indicar que ya puede recibir reservas y estancias. Si la habitación ya había sido reactivada (caso de idempotencia), DEBE indicar que no fue necesario hacer cambios.
+- **FR-011**: En la reactivación directa (`Inactive`) y en la liberación de una habitación `Reserved`, el sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción del cambio de estado: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `Available`, `PreviousStatus` = estado de origen, `StartDateTime` = fecha y hora del servidor, `ActorId` = usuario responsable (nulo cuando la liberación es autónoma) y `SourceFlow` = *Marcar habitación como disponible*. Cuando se invoca desde *Confirmar fin de limpieza de habitación*, el registro lo realiza ese caso de uso (su FR-013) y este caso de uso NO DEBE duplicarlo.
 
 ---
 
