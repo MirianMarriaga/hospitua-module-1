@@ -213,7 +213,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar la tabla `room_decommission` en la migración inicial (plan base, T007).
-- [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T026), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva. La ruta y el formato de la respuesta de Módulo 2 siguen pendientes de confirmación (`[NEEDS_CONFIRMATION_MODULO_2]` en *Consultar reservas*, FR-007); este plan solo depende del puerto.
+- [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T026), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
 - [ ] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `JpaRoomDecommissionAdapter` sobre la tabla `room_decommission` del plan base.
 - [ ] T004 [P] Registrar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations`, reutilizando la excepción de `plan-programar-bloqueo-tecnico-para-habitacion.md` si ya existe.
 
