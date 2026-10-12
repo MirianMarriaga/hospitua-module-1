@@ -52,6 +52,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | Migraciones de Base de Datos | Flyway | Versionamiento determinista del esquema SQL en `src/main/resources/db/migration/` |
 | Resiliencia y Timeouts REST | `RestClient` con timeouts + Resilience4j | Evitar bloqueos ante lentitud o caída de Módulo 2 o Módulo 3 |
 | Patrón Outbox Transaccional | Tabla `outbox_notification` + `@Scheduled` worker | Garantiza entrega eventual y consistencia atómica entre la base de datos y RabbitMQ |
+| Cifrado de contraseñas | `spring-security-crypto` (`BCryptPasswordEncoder`), solo la librería de cifrado | Guardar las contraseñas de `user_account` cifradas para el inicio de sesión; no se usa la capa de seguridad (regla 14) |
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
 
 ---
@@ -132,6 +133,7 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 
 | Método y Ruta | Consumidor | Propósito |
 | --- | --- | --- |
+| `POST /api/auth/login` | Todos los usuarios de Módulo 1 (Frontend M1) | Inicio de sesión: valida usuario y contraseña contra `user_account` y devuelve quién es (`username`, `fullName`, `area`). Identifica al usuario; no da permisos (regla 14) |
 | `GET /api/reception/arrivals?query={q}` | Recepcionista (Frontend M1) | Pestaña Llegadas del Panel de Recepción: habitaciones de las reservas del día desde la copia local, con búsqueda por código, documento o nombre (`plan-consultar-panel-recepcion.md`) |
 | `GET /api/reception/departures?query={q}` | Recepcionista (Frontend M1) | Pestaña Salidas del Panel de Recepción: estancias activas locales (`plan-consultar-panel-recepcion.md`) |
 | `GET /api/reception/panel/kpis` | Recepcionista (Frontend M1) | Indicadores del Panel de Recepción (`plan-consultar-panel-recepcion.md`) |
@@ -203,6 +205,8 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | errorCode | HTTP | Excepción | Dónde se define |
 | --- | --- | --- | --- |
 | `VALIDATION_ERROR` | 400 | `MethodArgumentNotValidException` (cuerpo con `@Valid`, incluidas las restricciones de clase del comando) o `ConstraintViolationException` (parámetros con `@Validated`); un parámetro con tipo inválido (`MethodArgumentTypeMismatchException`) también responde `VALIDATION_ERROR`. `details.field` indica el campo | Spring (Bean Validation) |
+| `INVALID_CREDENTIALS` | 401 | `InvalidCredentialsException` | Solo en `POST /api/auth/login`: usuario inexistente o contraseña incorrecta ("Usuario o contraseña incorrectos.") |
+| `CURRENT_USER_REQUIRED` | 400 | `CurrentUserRequiredException` | Una petición del frontend que registra un responsable llega sin el encabezado `X-User` o con un usuario que no existe (regla 14) |
 | `ROOM_NOT_FOUND` | 404 | `RoomNotFoundException` | Plan base (`domain/exception/`) |
 | `ROOM_INVALID_STATE` | 409 | `InvalidRoomTransitionException`, con `details.currentStatus` | Plan base (`domain/exception/`) |
 | `CONCURRENT_UPDATE` | 409 | `ObjectOptimisticLockingFailureException` (control optimista de `version`); un plan puede mapear también la violación de un índice único (`DataIntegrityViolationException`) | Spring Data JPA |
@@ -319,6 +323,7 @@ backend/
     │   │   │   │   └── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
     │   │   │   └── ports/                                    # CONTRATOS / INTERFACES DE PUERTOS
     │   │   │       ├── in/                                   # Puertos de Entrada (Casos de Uso primarios)
+    │   │   │       │   ├── LoginUseCase.java                 # Inicio de sesión: identifica al usuario (regla 14)
     │   │   │       │   ├── GetReceptionPanelUseCase.java     # KPIs del panel de recepción (plan-consultar-panel-recepcion.md)
     │   │   │       │   ├── SearchDeparturesUseCase.java      # Pestaña Salidas (plan-consultar-panel-recepcion.md)
     │   │   │       │   ├── IngestDailyReservationsUseCase.java # Ingesta de la cola diaria (plan-consultar-reservas.md)
@@ -374,6 +379,7 @@ backend/
     │   │   │           └── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
     │   │   ├── application/                                  # CAPA DE APLICACIÓN (Orquestación de Casos de Uso)
     │   │   │   ├── service/                                  # Implementaciones de Puertos de Entrada
+    │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña cifrada contra user_account
     │   │   │   │   ├── ReceptionPanelQueryService.java       # KPIs del panel de recepción
     │   │   │   │   ├── DepartureSearchService.java           # Búsqueda local de salidas
     │   │   │   │   ├── DailyReservationIngestionService.java # Ingesta asíncrona de lista diaria y actualizaciones
@@ -477,6 +483,8 @@ backend/
     │   │       ├── adapters/
     │   │       │   ├── in/                                   # Adaptadores Primarios / Driving (Entrada)
     │   │       │   │   ├── web/                              # Controladores REST
+    │   │       │   │   │   ├── AuthController.java           # POST /api/auth/login
+    │   │       │   │   │   ├── CurrentUserResolver.java      # Lee el encabezado X-User y lo entrega como usuario actual (regla 14)
     │   │       │   │   │   ├── ReceptionPanelController.java # /api/reception/...
     │   │       │   │   │   ├── CheckInController.java        # /api/check-in/...
     │   │       │   │   │   ├── CheckOutController.java       # /api/check-out/...
@@ -564,6 +572,7 @@ frontend/
 ├── index.html
 └── src/
     ├── api/                                                  # Clientes HTTP (Axios) y tipos TypeScript de los DTOs
+    │   ├── authService.ts                                    # Inicio de sesión; el interceptor agrega X-User a cada petición
     │   ├── receptionPanelService.ts
     │   ├── departureService.ts
     │   ├── checkOutService.ts
@@ -589,6 +598,8 @@ frontend/
     │       ├── SettlementCard.tsx                            # Paso 2 del check-out: liquidación
     │       └── PaymentReviewCard.tsx                         # Paso 3 del check-out: pago (solo revisión)
     ├── pages/
+    │   ├── login/                                            # Inicio de sesión de todos los usuarios
+    │   │   └── LoginPage.tsx
     │   ├── panel/                                            # Vista 01: Inicio / Panel Recepcionista (Llegadas / Salidas)
     │   │   ├── ReceptionPanel.tsx
     │   │   ├── KpiCards.tsx
@@ -657,7 +668,7 @@ frontend/
 | `daily_reservation_room` | `DailyReservationRoomJpaEntity` | Habitaciones asociadas a cada reserva diaria (1 a 10). `reservation_ref` (FK), `room_id` (UUID FK a `room`), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`). |
 | `daily_reservation_message_log` | `DailyReservationMessageLogJpaEntity` | Bitácora de idempotencia para la cola de reservas diarias. `message_id` (VARCHAR PK), `sequence_number` (BIGINT), `message_type` (VARCHAR), `received_at` (TIMESTAMP). |
 | `outbox_notification` | `OutboxNotificationJpaEntity` | Mensajes asíncronos pendientes de envío hacia RabbitMQ. `id` (UUID), `event_type`, `routing_key`, `payload` (JSONB), `message_id` (UUID único; se genera una vez y se repite en los reintentos), `sequence_number` (BIGINT; creciente por cola y nunca reiniciado, tomado de una secuencia de PostgreSQL por routing key), `status` (`PENDING`, `PUBLISHED`, `FAILED`), `retry_count`, `next_attempt_at`, `last_error` (nullable), `created_at`, `published_at`. Índice por `(status, next_attempt_at)`. |
-| `user_account` | `UserAccountJpaEntity` | Usuarios del sistema (`username`, `full_name`); el historial muestra su nombre como responsable. |
+| `user_account` | `UserAccountJpaEntity` | Cuentas de los usuarios de Módulo 1. `username` (PK), `password_hash` (contraseña cifrada con BCrypt; nunca en texto plano), `full_name`, `area` (`RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA`, `MANTENIMIENTO`: solo decide la pantalla de inicio, no restringe endpoints). El historial muestra `full_name` como responsable. |
 
 ### Diagrama Entidad-Relación (PostgreSQL)
 
@@ -824,7 +835,9 @@ erDiagram
   }
   USER_ACCOUNT {
     string username PK
+    string password_hash
     string full_name
+    string area
   }
 ```
 
@@ -854,6 +867,7 @@ erDiagram
 11. **Alerta operativa a Recepción**: no es un mensaje, una notificación ni un registro. Es la indicación "No disponible: [Estado]" que el panel de recepción muestra en la fila de una llegada del día cuya habitación asignada está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive`, calculada a partir del estado de la habitación al consultar el panel (*Consultar panel de recepción* escenario 6 y FR-005). Los casos de uso que "emiten" o "aplican" esta alerta (*Marcar habitación como reservada* FR-012, *Confirmar fin de limpieza* FR-019) la cumplen dejando la habitación en ese estado, sin apartarla a `Reserved`.
 12. **Nombres de estado en la interfaz**: la interfaz muestra cada estado con su nombre en español de `maquina-estados-habitacion.md` (Disponible, Reservada, Ocupada, Pendiente de limpieza, En limpieza, Inhabilitada por reparaciones, Bloqueo técnico, Inactiva). El nombre en inglés solo se usa en la API, el código y los datos; los textos de interfaz con `{estado}` o `[Estado]` usan el nombre en español. Las categorías de habitación siguen la misma regla: la API, el código y los datos usan los códigos `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE` (los que usa Módulo 2 en `categoryRoom`), y la interfaz muestra Sencilla, Doble, Suite y Boutique.
 13. **Bloqueo de la habitación en decisiones concurrentes**: toda operación que lee el estado de una habitación para decidir qué hacer con ella (apartarla, liberarla o registrar un conflicto en la ingesta de reservas, confirmar el fin de limpieza o programar un bloqueo técnico) bloquea la fila de `room` con `SELECT … FOR UPDATE` al inicio de su transacción, antes de leer el estado y los datos relacionados (copia local de reservas, informes de bloqueo técnico). Una operación concurrente sobre la misma habitación espera y ve el resultado de la primera. El control optimista (`version`) se mantiene para el resto de las transiciones.
+14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que registra un responsable llega sin `X-User` o con un usuario inexistente, responde `400 CURRENT_USER_REQUIRED`.
 
 ---
 
@@ -903,11 +917,13 @@ erDiagram
   - Agotados los reintentos (`hospitua.outbox.max-retries`, por defecto 10), el mensaje pasa a `FAILED` con `last_error` y se registra una alerta `OUTBOX_PUBLISH_FAILED` en el log de errores para revisión humana.
 - [ ] T013 [P] Configurar `RestClientConfig` con timeouts e implementar los adaptadores de salida `Module2ReservationConflictRestAdapter` (implementa `Module2ReservationConflictClientPort`, configurado con `Module2Properties`) y `SettlementRestAdapter` (implementa `SettlementRestQueryPort`, configurado con `Module3Properties`). Las URL y los timeouts se configuran en `application.yml`
 - [ ] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
-- [ ] T015 [eliminada: la seguridad no es responsabilidad de esta etapa]
+- [ ] T015 [eliminada: la seguridad no es responsabilidad de esta etapa; la identificación del usuario la cubren T021 y T022]
 - [ ] T016 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [ ] T018 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9). Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
 - [ ] T019 Implementar los puertos transversales `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`) y `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`), según sus specs, sobre `TransitionRoomStateUseCase`. Los usan la ingesta de reservas y *Confirmar fin de limpieza*
 - [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365)
+- [ ] T021 Implementar el inicio de sesión (regla 14): `password_hash` y `area` en `user_account` (migración `V1__init_schema.sql`) y usuarios de prueba en la semilla, `LoginUseCase` y `LoginService` (BCrypt), `POST /api/auth/login` en `AuthController`, `CurrentUserResolver` para el encabezado `X-User`, y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`
+- [ ] T022 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición con el interceptor de Axios (T016), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
