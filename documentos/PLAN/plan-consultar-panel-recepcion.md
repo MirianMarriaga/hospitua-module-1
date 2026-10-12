@@ -13,8 +13,8 @@ Componentes y lógica operativa:
 
 1. **Indicadores Operativos (4 KPIs locales, FR-002)**:
    - *Llegadas de hoy*: Conteo de habitaciones pendientes de Check-In de la **copia local** (`daily_reservation_room` sin `Stay` asociado), ingestadas a las 00:00 y actualizadas en tiempo real por la cola `m1.reservas.diarias.queue`.
-   - *Salidas de hoy*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutTime` igual a hoy.
-   - *Salidas vencidas*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutTime` anterior a hoy (destacado visualmente con color de alerta).
+   - *Salidas de hoy*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutDate` igual a hoy.
+   - *Salidas vencidas*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutDate` anterior a hoy (destacado visualmente con color de alerta).
    - *Habitaciones ocupadas*: Total de habitaciones con `Room.status = Occupied` en el inventario local de Módulo 1.
 2. **Pestaña Llegadas (FR-003, FR-005, FR-005a, FR-007, FR-010)**: Listado obtenido **100% de la copia local** (`daily_reservation` y `daily_reservation_room`), organizado a razón de **una fila por cada habitación**, con el estado físico de la habitación:
    - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]".
@@ -189,7 +189,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `stays` | array | Estancias activas con `expectedCheckoutTime` igual o anterior a hoy, primero las vencidas | |
+| `stays` | array | Estancias activas con `expectedCheckoutDate` igual o anterior a hoy, primero las vencidas | |
 | `stays[].stayId` | UUID | Estancia | `"c1d2…"` |
 | `stays[].reservationRef` | string | Referencia de la reserva | `"RES-10411"` |
 | `stays[].roomId` | UUID | Habitación | `"9b8a…"` |
@@ -199,8 +199,8 @@ Accept: application/json
 | `stays[].titularLastName` | string | Apellidos del titular | `"Pérez"` |
 | `stays[].titularDocumentNumber` | string | Documento del titular | `"79123456"` |
 | `stays[].checkInDate` | string | Entrada real | `"2026-10-07"` |
-| `stays[].expectedCheckoutTime` | string | Salida esperada (fecha) | `"2026-10-09"` |
-| `stays[].overdue` | boolean | `expectedCheckoutTime` anterior a hoy (etiqueta "Vencida", FR-006) | `true` |
+| `stays[].expectedCheckoutDate` | string | Salida esperada (fecha) | `"2026-10-09"` |
+| `stays[].overdue` | boolean | `expectedCheckoutDate` anterior a hoy (etiqueta "Vencida", FR-006) | `true` |
 | `stays[].guestCount` | entero | Registros `RoomGuest` de la estancia | `2` |
 | `stays[].source` | string | `source` de `Stay` | `"DIRECTA"` |
 
@@ -219,7 +219,7 @@ Accept: application/json
       "titularLastName": "Pérez",
       "titularDocumentNumber": "79123456",
       "checkInDate": "2026-10-07",
-      "expectedCheckoutTime": "2026-10-09",
+      "expectedCheckoutDate": "2026-10-09",
       "overdue": true,
       "guestCount": 2,
       "source": "DIRECTA"
@@ -261,8 +261,8 @@ Accept: application/json
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
 | `arrivalsToday` | entero \| null | Habitaciones de la copia local sin `Stay`; nulo si la lista de las 00:00 no ha llegado (el frontend muestra "—", FR-010) | `12` |
-| `departuresToday` | entero | Estancias activas con `expectedCheckoutTime` = hoy | `8` |
-| `overdueDepartures` | entero | Estancias activas con `expectedCheckoutTime` anterior a hoy (tarjeta de alerta) | `1` |
+| `departuresToday` | entero | Estancias activas con `expectedCheckoutDate` = hoy | `8` |
+| `overdueDepartures` | entero | Estancias activas con `expectedCheckoutDate` anterior a hoy (tarjeta de alerta) | `1` |
 | `occupiedRooms` | entero | Habitaciones en `Occupied` | `34` |
 
 **Body (JSON):**

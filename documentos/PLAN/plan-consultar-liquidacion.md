@@ -119,7 +119,7 @@ frontend/src/
 - Estructura base del módulo `habitaciones` y del frontend.
 - Dependencias de Spring Web, Resilience4j, Lombok, WireMock, Vitest y React Testing Library.
 - Formato unificado de errores y convención de logging.
-- Entidades `Stay` y `Room` con `source`, `reservationRef`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime` y `category`.
+- Entidades `Stay` y `Room` con `source`, `reservationRef`, `checkInDate`, `expectedCheckinDate`, `expectedCheckoutDate` y `category`.
 
 ---
 

@@ -17,7 +17,7 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
    - Para huéspedes extranjeros (`nationality ≠ Colombia`), despliegue obligatorio del panel de control migratorio con: `originPlace` y `destinationPlace`. `movementType` ("ENTRY") y `movementDate` (fecha de hoy) son asignados automáticamente por el sistema.
 3. **Confirmación**: Resumen visual de la habitación asignada, titular, ocupantes, estadía (noches calculadas y fechas) y texto informativo de que la habitación pasará a `Occupied` y la reserva a **En curso** (sin menciones técnicas a módulos externos).
 4. **Check-In**: Ejecución atómica y transaccional local (`@Transactional`):
-   - Creación de la entidad `Stay` por habitación con: `source` (`DIRECTA` o nombre de la OTA), `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime`.
+   - Creación de la entidad `Stay` por habitación con: `source` (`DIRECTA` o nombre de la OTA), `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `checkInDate`, `expectedCheckinDate`, `expectedCheckoutDate`.
    - Persistencia inmutable de los ocupantes en `RoomGuest` (con campos migratorios para extranjeros).
    - Transición física de `Room.status` de `Reserved` a `Occupied` mediante `TransitionRoomStateUseCase`, que registra el periodo en `room_state_history` (`SourceFlow` = `CHECK_IN`).
    - Inserción en `outbox_notification` del mensaje plano hacia `m2.habitacion.checkin.queue` con el arreglo unificado `guests[]` (nacionales y extranjeros).
@@ -339,7 +339,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - `source` (String: `DIRECTA` o nombre OTA)
   - `titularFirstName`, `titularLastName`, `titularDocumentNumber`
   - `checkInDate` (LocalDate), `checkOutDate` (LocalDate nullable)
-  - `expectedCheckinTime` (LocalDate), `expectedCheckoutTime` (LocalDate)
+  - `expectedCheckinDate` (LocalDate), `expectedCheckoutDate` (LocalDate)
   - `receptionistIdCheckIn` (String), `receptionistIdCheckOut` (String nullable)
 - [ ] T005 Actualizar entidad inmutable `RoomGuest`:
   - `id` (UUID), `stayId` (UUID)

@@ -221,7 +221,7 @@ Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Respuest
   "titularFirstName": "Ana",
   "titularLastName": "Pérez",
   "checkInDate": "2026-10-09",
-  "expectedCheckoutTime": "2026-10-11",
+  "expectedCheckoutDate": "2026-10-11",
   "source": "BOOKING",
   "guests": [
     { "firstName": "Ana", "lastName": "Pérez", "documentType": "CC", "documentNumber": "123", "nationality": "Colombia" },

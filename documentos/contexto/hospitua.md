@@ -20,7 +20,7 @@ Cada unidad habitacional debe estar indexada con los siguientes metadatos:
 El sistema gestiona la transición de estados para garantizar la integridad operativa. El
 nombre canónico de cada estado (usado en SPECs y código) va en inglés; el nombre en
 español entre paréntesis es de referencia para los diagramas del equipo:
-1.  **Available** (Disponible): Lista para check-in o para pasar a mantenimiento.
+1.  **Available** (Disponible): Puede pasar a `Reserved` (por ingesta de reservas), `InCleaning` (aseo preventivo), `DisabledForRepairs` (daño reportado), `TechnicalBlock` (bloqueo programado) o `Inactive` (baja de inventario).
 2.  **Reserved** (Reservada): Existe una reserva asociada en Módulo 2, aún no ocupada físicamente. La marca Módulo 2 mediante evento (no polling); el Check-In solo puede realizarse desde `Reserved`.
 3.  **Occupied** (Ocupada): Huésped en sitio (Check-in realizado).
 4.  **PendingCleaning** (Pendiente de limpieza): Liberada tras el Check-out o tras una intervención de mantenimiento finalizada, en espera de ser tomada por el Personal de limpieza.
