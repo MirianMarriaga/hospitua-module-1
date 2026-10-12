@@ -3,6 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Módulo 3 — Facturación (sistema externo)
 **Creado**: 2026-09-07
+**Actualizado**: 2026-10-09
 
 ---
 
@@ -65,9 +66,9 @@ Como sistema del Módulo 3 (Facturación), quiero recibir una respuesta clara y 
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir la consulta de tarifa base exclusivamente al actor "Módulo 3" (Facturación) como operación de solo lectura.
-- **FR-002**: El sistema DEBE permitir la consulta de la tarifa base por identificador único de habitación (`roomId`) o número de habitación (`numberRoom`), y NO por tipo o categoría de habitación.
-- **FR-003**: El sistema DEBE retornar el valor numérico de la tarifa base almacenada para la habitación física consultada, incluyendo decimales si aplica.
+- **FR-001**: El sistema DEBE permitir la consulta de tarifa base al actor "Módulo 3" (Facturación) como operación de solo lectura.
+- **FR-002**: El sistema DEBE permitir la consulta de la tarifa base por identificador único de habitación (`roomId`), y NO por tipo o categoría de habitación.
+- **FR-003**: El sistema DEBE retornar únicamente el valor numérico decimal de la tarifa base almacenada para la habitación consultada, con hasta dos decimales. No se retorna un objeto completo de Room; solo baseRate.
 - **FR-004**: El sistema DEBE retornar un error controlado cuando la habitación consultada no exista en el inventario de Módulo 1.
 - **FR-005**: El sistema DEBE retornar la tarifa base vigente de la habitación física consultada independientemente de su estado operativo actual.
 - **FR-006**: El sistema NO DEBE modificar ningún dato de la habitación ni ejecutar transiciones de estado al atender esta consulta.
@@ -76,7 +77,7 @@ Como sistema del Módulo 3 (Facturación), quiero recibir una respuesta clara y 
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
+- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
 - **Module3 (Facturación)**: Sistema externo que consume la tarifa base por habitación para calcular cargos de estancia y facturación.
 
 ---

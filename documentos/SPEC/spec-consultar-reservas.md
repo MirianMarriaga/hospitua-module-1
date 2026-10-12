@@ -1,77 +1,131 @@
 # Especificación de Funcionalidad: Consultar Reservas
 
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
-**Actor principal**: Recepcionista
+**Actor principal**: Sistema Módulo 1 (Autónomo) / Recepcionista / Personal de mantenimiento / Administrador
 **Creado**: 2026-09-25
+**Actualizado**: 2026-10-09
+
+---
+
+## Use Case (Caso de Uso)
+
+### Descripción del problema
+
+El Módulo 1 requiere consultar reservas para dos propósitos operativos claramente diferenciados:
+
+1. **Recepción (Check-In y Panel de Llegadas)**: Conocer las reservas del día actual. Para garantizar alta disponibilidad e independencia operativa en mostrador, el Módulo 1 **no realiza consultas REST para llegadas ni para Check-In**. En su lugar, recibe las reservas del día de forma asíncrona mediante mensajería y las mantiene en una **copia local**.
+2. **Mantenimiento y Administración (Bloqueo técnico y Baja de habitación)**: Consultar al Módulo 2 si un rango de fechas se cruza con alguna reserva futura asignada a una habitación específica antes de intervenirla físicamente. Para esto se realiza una **consulta REST directa al Módulo 2**, siendo esta la única consulta REST a reservas del sistema.
+
+Existen por lo tanto dos modos de consulta:
+
+- **Modo Local**: La Recepcionista consulta y busca en la copia local que llega cada día por cola.
+- **Modo REST**: El Personal de mantenimiento y el Administrador consultan directamente al Módulo 2 por habitación y rango de fechas.
 
 ---
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-### Historia de Usuario 1 - Búsqueda de reservas y consulta de datos de estadía (Prioridad: P1)
+### Historia de Usuario 1 - Recepción automática de la lista diaria y actualizaciones asíncronas (Prioridad: P1)
 
-Como Recepcionista, quiero buscar y consultar reservas en Módulo 2 mediante el código de reserva (o alternativamente por documento o nombre del titular), para obtener y consultar oportunamente los datos contractuales y el estado de la unidad en los flujos de Check-In y Check-Out.
+Como **Sistema autónomo de Módulo 1**, quiero recibir la lista diaria de reservas a las 00:00 y sus actualizaciones continuas de forma asíncrona para mantener sincronizada la copia local de llegadas del día sin intervención humana.
 
-**Por qué esta prioridad**: Es el punto de partida indispensable tanto en la validación inicial de Check-In como en la consulta inicial de Check-Out. Permite localizar la estadía en Módulo 2, verificar el estado del contrato (`ACTIVE` para admisión o `IN_PROGRESS` para salida) y contrastarlo con el estado físico de la habitación asignada en Módulo 1.
+**Por qué esta prioridad**: Alimenta la copia local que sustenta la operación de recepción y Check-In, eliminando llamadas síncronas por red durante la atención al huésped.
 
-**Prueba Independiente**: Se prueba invocando la búsqueda con un código de reserva válido y comprobando que el sistema consulta a Módulo 2 y suministra: código de reserva, fechas de estadía, estado de reserva, huésped principal, canal de origen, y habitación asignada con su estado físico actual.
+**Prueba Independiente**: Procesar la recepción de la lista diaria a las 00:00, verificar la purga de registros del día anterior, la persistencia en `daily_reservation` y `daily_reservation_room`, el descarte de duplicados por identificador de mensaje y la aplicación ordenada por número de secuencia de las actualizaciones posteriores.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Búsqueda exitosa de reserva para Check-In por código exacto (Happy Path Check-In)
-   - **Dado** una reserva activa en Módulo 2 en estado "ACTIVE", cuya habitación asignada está en estado "Reserved" en Módulo 1
-   - **Cuando** el Recepcionista consulta por el código de reserva al iniciar el Check-In
-   - **Entonces** el sistema consulta síncronamente a Módulo 2 y presenta la información de la estadía detallando: código de reserva, fechas de estadía (rango de fechas y noches), estado ("ACTIVE"), huésped principal, canal de origen y la habitación asignada indicando su estado actual ("Reserved"), habilitando continuar con el Check-In.
+1. **Escenario**: Ingesta de lista diaria de las 00:00 y purga de la copia anterior
+   - **Dado** que son las 00:00 (hora de Colombia, UTC-5)
+   - **Cuando** arriba la notificación de lista diaria inicial (con `sequenceNumber = 1`) conteniendo únicamente reservas en estado `ACTIVE` con `startDate = hoy`
+   - **Entonces** el sistema purga completamente los datos de la copia local del día anterior (`daily_reservation` y `daily_reservation_room`), reinicia el contador de `sequenceNumber`, persiste las nuevas reservas y registra el `messageId` en `daily_reservation_message_log`.
 
-2. **Escenario**: Búsqueda exitosa de reserva para Check-Out por código exacto (Happy Path Check-Out)
-   - **Dado** una reserva en curso en Módulo 2 en estado "CHECKED_IN" (estado "IN_PROGRESS" en Módulo 2), cuya habitación figura en estado "Occupied" en Módulo 1
-   - **Cuando** el Recepcionista consulta por el código de reserva al iniciar el Check-Out
-   - **Entonces** el sistema consulta a Módulo 2 y presenta la información de la reserva confirmando el estado "CHECKED_IN", el titular, el canal y que la habitación actual se encuentra en estado "Occupied", habilitando continuar hacia la liquidación de la estadía.
+2. **Escenario**: Procesamiento ordenado de actualizaciones del día
+   - **Dado** que la copia local del día ya fue inicializada
+   - **Cuando** se recibe una actualización del día con `sequenceNumber` creciente:
+     - Si es `ADDED`: agrega la reserva y sus habitaciones a la copia local.
+     - Si es `UPDATED`: actualiza los datos de la reserva y habitaciones solo si el `updatedAt` del mensaje es estrictamente más reciente que el registrado localmente.
+     - Si es `REMOVED` (por motivo `CANCELLED`, `DATE_CHANGED` o `NO_SHOW`): elimina la reserva y sus habitaciones de la copia local.
+   - **Entonces** el sistema aplica los cambios en la copia local y persiste el `messageId` en el log de mensajes.
 
-3. **Escenario**: Búsqueda alternativa por número de identificación del titular
-   - **Dado** una reserva asociada a un titular cuyo documento es "10203040"
-   - **Cuando** el Recepcionista realiza la búsqueda ingresando el número de documento
-   - **Entonces** el sistema retorna la reserva correspondiente de Módulo 2 y presenta la información detallada para continuar el flujo.
-
-4. **Escenario**: Búsqueda alternativa por nombre completo del titular
-   - **Dado** una reserva a nombre de "Carlos Gómez" en Módulo 2
-   - **Cuando** el Recepcionista busca por el texto "Carlos Gómez"
-   - **Entonces** el sistema localiza la reserva en Módulo 2 y presenta los datos contractuales obtenidos.
+3. **Escenario**: Descarte estricto de mensajes duplicados por `messageId`
+   - **Dado** un mensaje de lista o actualización cuyo `messageId` ya fue registrado en `daily_reservation_message_log`
+   - **Cuando** el sistema recibe nuevamente dicho mensaje
+   - **Entonces** descarta el mensaje inmediatamente sin alterar la copia local ni generar inconsistencias.
 
 ---
 
-### Historia de Usuario 2 - Manejo de múltiples coincidencias y tolerancia a fallos externos (Prioridad: P2)
+### Historia de Usuario 2 - Consulta y búsqueda en copia local por la Recepcionista (Prioridad: P1)
 
-Como Recepcionista, quiero que el sistema me obligue a seleccionar la reserva adecuada cuando un criterio devuelva más de un resultado y maneje con alertas claras las caídas de conexión con Módulo 2, para prevenir asignaciones equivocadas y mantener la estabilidad de la aplicación.
+Como **Recepcionista**, quiero consultar el listado de llegadas del día y buscar reservas por código, número de documento o nombre del titular directamente sobre la copia local, para verificar la información de la reserva y sus habitaciones de manera instantánea y autónoma.
 
-**Por qué esta prioridad**: En el mostrador un cliente puede tener múltiples reservas pasadas o futuras bajo el mismo documento; el sistema nunca debe asumir una reserva por defecto. Asimismo, ante lentitud o caída de Módulo 2, el sistema debe informar la situación de forma controlada sin generar caídas o fallos técnicos no controlados.
+**Por qué esta prioridad**: Permite agilidad total en recepción sin depender del estado de la red ni de la disponibilidad del Módulo 2.
 
-**Prueba Independiente**: Se prueba buscando un documento que posea dos o más registros en Módulo 2, verificando que se requiera seleccionar obligatoriamente entre las coincidencias listadas con referencia, fechas y estados; y desconectando el servicio de Módulo 2 para comprobar la emisión de un mensaje controlado.
+**Prueba Independiente**: Consultar el panel de llegadas y realizar búsquedas por código de reserva, documento o nombre del titular en la base de datos local, comprobando que se retornan los datos y las habitaciones asociadas (de 1 a 10) sin invocar servicios REST externos.
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Selección obligatoria ante múltiples resultados por documento o nombre
-   - **Dado** que un huésped con documento "10203040" cuenta con 2 o más reservas en Módulo 2
-   - **Cuando** el Recepcionista realiza la búsqueda por dicho documento
-   - **Entonces** el sistema presenta un listado con todas las coincidencias mostrando código (`reservationRef`), rango de fechas de estadía y estado (`status`), bloqueando el avance hasta que el Recepcionista seleccione explícitamente una de ellas.
+1. **Escenario**: Listado completo de llegadas del día desde la copia local
+   - **Dado** que la copia local contiene reservas para el día de hoy
+   - **Cuando** la Recepcionista consulta las llegadas en el Panel de Recepción
+   - **Entonces** el sistema retorna las reservas agrupadas, presentando cada habitación asignada (1 a 10 habitaciones por reserva), titular, fechas de estadía, noches calculadas, cantidad de huéspedes y la fuente (`source`: `DIRECTA` o nombre de la OTA).
 
-2. **Escenario**: Búsqueda sin coincidencias en Módulo 2
-   - **Dado** un código o documento inexistente en la base de datos de Módulo 2
-   - **Cuando** el Recepcionista ejecuta la búsqueda
-   - **Entonces** el sistema informa mediante un mensaje controlado que no se encontraron reservas con ese criterio, permitiendo ingresar un nuevo criterio de búsqueda.
+2. **Escenario**: Búsqueda por código de reserva, documento o nombre del titular
+   - **Dado** una reserva almacenada en la copia local
+   - **Cuando** la Recepcionista busca por `reservationRef`, número de documento o nombre del titular
+   - **Entonces** el sistema localiza y muestra los datos de la reserva y sus habitaciones de forma inmediata sin peticiones de red externas.
 
-3. **Escenario**: Manejo controlado ante demoras o indisponibilidad de Módulo 2
-   - **Dado** una interrupción de red o caída temporal del servicio de Módulo 2
-   - **Cuando** el Recepcionista realiza una búsqueda de reserva
-   - **Entonces** el sistema intercepta la condición e informa de manera controlada la indisponibilidad temporal del servicio externo de reservas, impidiendo fallos técnicos o caídas de la aplicación.
+3. **Escenario**: Búsqueda con múltiples coincidencias
+   - **Dado** un criterio de búsqueda que coincide con dos o más reservas en la copia local
+   - **Cuando** la Recepcionista ejecuta la búsqueda
+   - **Entonces** el sistema presenta el listado de reservas coincidentes con su titular, habitaciones y fechas, requiriendo la selección puntual de una reserva para avanzar.
+
+4. **Escenario**: Búsqueda sin coincidencias
+   - **Dado** un término de búsqueda inexistente en la copia local del día
+   - **Cuando** la Recepcionista realiza la consulta
+   - **Entonces** el sistema informa que no se encontraron llegadas para el criterio ingresado.
+
+---
+
+### Historia de Usuario 3 - Consulta REST a Módulo 2 para bloqueo técnico y baja de habitación (Prioridad: P2)
+
+Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 2 mediante REST si un rango de fechas se cruza con alguna reserva de una habitación específica, para saber si es seguro programar un bloqueo técnico o dar de baja la unidad.
+
+**Por qué esta prioridad**: Previene que se inhabiliten o den de baja habitaciones que ya tienen compromisos comerciales futuros en el Módulo 2.
+
+**Prueba Independiente**: Enviar la consulta REST a Módulo 2 con los parámetros `dateFrom`, `dateTo` y `roomId`. Validar que se consulta una única habitación por petición y que se detecta si existe o no algún cruce con reservas.
+
+**Escenarios de Aceptación**:
+
+1. **Escenario**: Consulta para programar bloqueo técnico sin cruce de reservas
+   - **Dado** una habitación para la que se proyecta mantenimiento desde una fecha de inicio hasta una fecha estimada de finalización
+   - **Cuando** el Personal de mantenimiento consulta al Módulo 2 enviando `roomId`, `dateFrom` (inicio) y `dateTo` (fin)
+   - **Entonces** Módulo 2 responde indicando que no existen reservas que se crucen en ese rango, permitiendo proceder con la programación del bloqueo.
+
+2. **Escenario**: Consulta para dar de baja habitación (366 días)
+   - **Dado** una habitación que el Administrador requiere dar de baja
+   - **Cuando** se ejecuta la consulta al Módulo 2 enviando `roomId`, `dateFrom = hoy` y `dateTo = hoy + 365 días`
+   - **Entonces** el sistema obtiene las reservas vigentes de la habitación en esos 366 días para que *Dar de baja habitación* rechace la operación si existe al menos una.
+
+3. **Escenario**: Detección de cruce con reservas futuras
+    - **Dado** que la habitación posee al menos una reserva que se solapa con el rango (`startDate` a `endDate`) consultado
+    - **Cuando** se ejecuta la consulta REST
+    - **Entonces** el sistema recibe la indicación de cruce para que el flujo consumidor aplique la regla correspondiente (impedir la baja o advertir al usuario).
+
+4. **Escenario**: Indisponibilidad o falla controlada de Módulo 2
+    - **Dado** una falla de conexión o tiempo de espera agotado al consultar a Módulo 2
+    - **Cuando** se intenta verificar la existencia de reservas para la habitación
+    - **Entonces** el sistema maneja la contingencia de forma controlada sin fallos no capturados, informando al usuario la imposibilidad de verificar reservas en ese momento.
 
 ---
 
 ### Casos Borde
 
-- **Espacios en blanco y formato en la consulta**: El sistema elimina automáticamente espacios accidentales iniciales y finales (trim) y tolera prefijos en mayúsculas/minúsculas (ej. "res-12345" es interpretado como "RES-12345").
-- **Coincidencias con homónimos en búsqueda por nombre**: Si existen dos titulares distintos con el mismo nombre y apellido, el sistema lista ambas reservas detallando el número de documento y fechas para permitir una selección inequívoca.
-- **Tiempos de respuesta lentos en Módulo 2**: El sistema implementa un tiempo límite de espera controlado, informando al usuario en caso de demora excesiva para permitir el reintento de la consulta.
+- **Mensaje con estampa desactualizada (`updatedAt`)**: Si llega un mensaje `UPDATED` cuyo `updatedAt` no es más reciente que el registrado en la copia local, se descarta para evitar sobrescrituras.
+- **Reserva multi-habitación (1 a 10 habitaciones)**: La copia local modela y almacena cada habitación de la reserva en `daily_reservation_room`, permitiendo su gestión individual por habitación en llegadas.
+- **Campo `source`**: El valor de `source` se persiste y muestra exactamente como se recibe (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
+- **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día y `updatedAt`.
+- **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`. Sin coincidencias responde una lista vacía (no hay 404).
 
 ---
 
@@ -79,34 +133,41 @@ Como Recepcionista, quiero que el sistema me obligue a seleccionar la reserva ad
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE operar como un caso de uso interno incluido obligatoriamente (`<<includes>>`) tanto por "Registrar Check-In" como por "Registrar Check-Out", encapsulando la integración de consulta con Módulo 2.
-- **FR-002**: El sistema DEBE permitir localizar la reserva teniendo como criterio principal el código de reserva (`reservationRef`), y admitiendo como criterios alternativos el número de documento del huésped (`documentNumber`) o el nombre completo del titular (`fullName`).
-- **FR-003**: El sistema DEBE recibir desde Módulo 2 la siguiente estructura contractual:
-  - Código de reserva (`reservationRef`)
-  - Datos del huésped titular (`guestRef`, `documentNumber`, `fullName`, `nationality`, `documentType`)
-  - Habitación asignada (`roomId` / número de habitación)
-  - Fechas de estadía (`startDate`, `endDate`) y cantidad de noches
-  - Canal de origen (`source`, ej. "Canal Directo" u "OTA")
-  - Estado de la reserva (`status`)
-- **FR-004**: Al localizar una reserva, el sistema DEBE proveer y presentar los siguientes datos de la estancia:
-  - Código de reserva
-  - Fechas de estadía (fechas de inicio y fin, número de noches)
-  - Estado de la reserva
-  - Huésped principal
-  - Canal de origen
-  - Detalles de la habitación asignada y su estado físico actual en Módulo 1 (Available, Reserved, Occupied, etc.)
-- **FR-005**: Si la búsqueda por documento o nombre retorna más de una reserva, el sistema DEBE listar todas las coincidencias exhibiendo su código, fechas y estado, exigiendo la selección explícita del Recepcionista antes de presentar el detalle y continuar el flujo.
-- **FR-006**: El sistema DEBE capturar cualquier falla de red, lentitud o caída de Módulo 2, traduciéndola en una respuesta controlada de indisponibilidad temporal para el Recepcionista, impidiendo la generación de fallos técnicos no controlados.
-- **FR-007**: Este caso de uso NO DEBE validar por sí mismo si el estado de la reserva es apto para admisión o salida, ni si las fechas coinciden con la llegada real, ni transicionar habitaciones; dichas validaciones de negocio son responsabilidad exclusiva del caso de uso consumidor ("Registrar Check-In" o "Registrar Check-Out").
+- **FR-001**: El sistema DEBE mantener una copia local de las reservas del día (`daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`) alimentada a través de mensajería asíncrona proveniente de Módulo 2.
+- **FR-002**: El sistema DEBE procesar dos modalidades de notificación asíncrona de reservas:
+  - Notificación de lista del día: recibida a las 00:00 (hora Colombia), con secuencia inicial (`sequenceNumber = 1`) y conteniendo únicamente reservas en estado `ACTIVE` con `startDate = hoy`.
+  - Notificación de actualización del día: recibida en tiempo real durante el día con acciones `ADDED`, `UPDATED` o `REMOVED` y `sequenceNumber` estrictamente incremental.
+- **FR-003**: Control de idempotencia y secuencia:
+  - Todo mensaje DEBE incluir un `messageId` único. Si el `messageId` ya existe en `daily_reservation_message_log`, el mensaje DEBE ser descartado.
+  - Los mensajes DEBEN aplicarse en estricto orden de `sequenceNumber` dentro del mismo `operationalDate` (día operativo que Módulo 2 indica en cada mensaje). Un mensaje cuyo `operationalDate` sea anterior al día de la copia local (por ejemplo, un `REMOVED` por no-show del día anterior que llega atrasado después de la lista de las 00:00) DEBE descartarse sin aplicarse, registrando su `messageId`; las habitaciones de esas reservas ya se liberan a las 00:00 al no figurar en la nueva lista (FR-009).
+  - Si llega un `sequenceNumber` mayor que el siguiente esperado (falta un mensaje intermedio), el sistema DEBE aplicarlo igual y registrar el hueco en el log (`SEQUENCE_GAP`, con el número esperado y el recibido), sin detener la ingesta. Es el mismo criterio de Módulo 2, que publica en orden y solo deja un hueco si agotó sus reintentos (y entonces genera una alerta de su lado).
+  - Un mensaje ilegible o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` (en las actualizaciones) DEBE enviarse a la cola de mensajes fallidos sin aplicarse. Un fallo temporal al procesar (por ejemplo, base de datos caída) DEBE reintentarse con espera creciente y, agotados los reintentos, enviarse también a la cola de mensajes fallidos.
+  - Un mensaje `UPDATED` solo DEBE aplicarse si su `updatedAt` es más reciente que el almacenado localmente.
+  - Al recibir la lista de las 00:00, el sistema DEBE reiniciar el contador de `sequenceNumber` y purgar la copia local del día anterior.
+- **FR-004**: Estructura de la copia local:
+  - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
+  - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity` de `Room`).
+  - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
+  - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
+- **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
+- **FR-006**: Consultas para Recepción: Las consultas y búsquedas de llegadas en mostrador y Panel de Recepción DEBEN ejecutarse exclusivamente contra la copia local, sin realizar peticiones HTTP/REST hacia el Módulo 2.
+- **FR-007**: Consulta REST de Mantenimiento y Baja:
+  - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
+  - La petición DEBE enviar `dateFrom` y `dateTo` (obligatorios, formato `AAAA-MM-DD`, ambos inclusivos) y siempre el `roomId` de la habitación; solo se consulta una habitación por petición.
+  - Para programar bloqueo técnico: `dateFrom` es el inicio del mantenimiento y `dateTo` su fecha estimada de finalización.
+  - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es la fecha actual + 365 días: 366 días contando hoy, el rango máximo que acepta Módulo 2 (`DATE_RANGE_TOO_LARGE` si se supera). Las reservas que empiezan después no se consultan.
+  - Módulo 2 devuelve en `items` solo las reservas vigentes (`PENDING`, `ACTIVE` o `IN_PROGRESS`) cuya estadía se cruza con el rango (`startDate` ≤ `dateTo` y `endDate` > `dateFrom`: el día de salida no se considera ocupado), con `reservationRef`, `status`, `startDate`, `endDate` y sus habitaciones. El sistema DEBE tratar cada reserva devuelta como un conflicto, sin volver a evaluar estados ni fechas; una lista vacía significa que no hay conflictos.
+- **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad, timeout o una respuesta de error de Módulo 2 (por ejemplo, 400 con `INVALID_DATE`, `INCOMPLETE_DATE_RANGE` o `INVALID_ROOM_ID`) en la consulta de mantenimiento o baja, el sistema DEBE cancelar la operación sin cambiar la habitación, capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
+- **FR-009**: Efecto de la ingesta sobre el estado de las habitaciones: al persistir en la copia local la lista diaria de las 00:00 o una actualización `ADDED` con `startDate` = hoy, el sistema DEBE invocar el caso de uso *Marcar habitación como reservada* por cada habitación de la reserva. Al procesar un `REMOVED`, o al no figurar en la nueva lista de las 00:00 una reserva que mantenía una habitación en `Reserved`, el sistema DEBE liberar esa habitación a `Available` mediante el caso de uso *Marcar habitación como disponible*. En la ingesta de las 00:00 las liberaciones DEBEN ejecutarse antes de apartar las habitaciones de la nueva lista. Un `UPDATED` que cambia la habitación asignada DEBE tratarse como la liberación de la habitación anterior y el apartado de la nueva.
 
 ---
 
-### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+## Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **ReservationQuery**: Objeto conceptual de búsqueda que encapsula los criterios de consulta (`reservationRef`, `documentNumber`, `fullName`).
-- **ReservationSummary**: Estructura conceptual consumida desde Módulo 2 con los atributos contractuales esenciales: `reservationRef`, `guestRef`, `fullName`, `documentNumber`, `documentType`, `nationality`, `roomId`, `startDate`, `endDate`, `source` y `status`.
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
-- **Module2 (Operación de Reservas)**: Sistema externo responsable del ciclo de vida contractual de las reservas y fuente de verdad de sus datos.
+- **`DailyReservation`**: Cabecera de la reserva en la copia local. Atributos: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
+- **`DailyReservationRoom`**: Detalle de habitaciones asociadas a la reserva (de 1 a 10 por reserva). Atributos: `reservation_ref`, `room_id`, `room_number`, `category_room`, `guest_count`.
+- **`DailyReservationMessageLog`**: Bitácora de control de mensajería asíncrona. Atributos: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
+- **`Room`**: Entidad física en Módulo 1. En consultas de recepción se presenta su estado operativo actual (`Reserved`). En consultas REST de mantenimiento se envía su `id` (`roomId`).
 
 ---
 
@@ -114,7 +175,7 @@ Como Recepcionista, quiero que el sistema me obligue a seleccionar la reserva ad
 
 ### Resultados Medibles
 
-- **SC-001**: Las consultas de reservas por código retornan y presentan los resultados en menos de 1.5 segundos en condiciones normales de red.
-- **SC-002**: El 100% de las búsquedas con resultados múltiples presentan el listado de selección obligatoria sin asumir selecciones por defecto.
-- **SC-003**: En el 100% de los casos de Check-In y Check-Out, la consulta refleja de forma fidedigna tanto el estado contractual de Módulo 2 como el estado físico real de la habitación en Módulo 1.
-- **SC-004**: Cero caídas o fallos técnicos no controlados propagados al Recepcionista ante indisponibilidad o respuestas anómalas de Módulo 2.
+- **SC-001**: El 100% de las consultas y búsquedas de llegadas para Check-In se resuelven en la copia local en menos de 100 ms, sin invocar peticiones HTTP síncronas a sistemas externos.
+- **SC-002**: El 100% de los mensajes duplicados recibidos por la cola son descartados mediante la verificación de `messageId`.
+- **SC-003**: A las 00:00 se purga el 100% de los registros del día previo y se reinicia la secuencia de mensajes.
+- **SC-004**: La consulta REST hacia Módulo 2 envía con exactitud los parámetros requeridos (`roomId`, `dateFrom`, `dateTo`) y gestiona de forma controlada el 100% de las posibles demoras o caídas de red.

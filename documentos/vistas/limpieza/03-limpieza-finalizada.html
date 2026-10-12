@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Limpieza finalizada — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --primary-dark:#1D4ED8; --primary-bg:#EAF1FF;
+    --due:#D14343; --red-bg:#FEE2E2; --green:#16A34A; --green-bg:#E7F7EE;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .content{max-width:640px; margin:0 auto; padding:40px 26px;}
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:32px 26px; text-align:center;}
+  .ok-icon{width:64px; height:64px; border-radius:50%; background:var(--green-bg); color:var(--green); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;}
+  .ok-icon.danger{background:var(--red-bg); color:var(--due);}
+  h1{font-size:21px; margin:0 0 8px;}
+  .sub{color:var(--text-lo); font-size:14px; line-height:1.5; margin:0 0 20px;}
+  .badges{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:22px;}
+  .badge{display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:999px; font-size:12.5px; font-weight:700;}
+  .badge-green{background:var(--green-bg); color:var(--green);}
+  .badge-blue{background:var(--primary-bg); color:var(--primary-dark);}
+  .badge-red{background:var(--red-bg); color:var(--due);}
+  a.btn{display:inline-block; text-decoration:none; border-radius:8px; padding:11px 22px; font-weight:600; font-size:14px; background:var(--primary); color:#fff;}
+  a.btn:hover{background:var(--primary-dark);}
+  @media (max-width:640px){ .topbar{padding:0 16px;} .content{padding:24px 16px;} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Limpieza</div></div></div>
+  <div class="user-chip"><div class="user-avatar">LT</div><div><div class="user-name">Luis Torres</div><div class="user-role">Personal de limpieza</div></div></div>
+</header>
+<div class="content">
+  <div class="card">
+    <div class="ok-icon" id="icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h1 id="title"></h1>
+    <p class="sub" id="text"></p>
+    <div class="badges" id="badges"></div>
+    <a class="btn" href="01-panel.html">Volver al panel</a>
+  </div>
+</div>
+<script>
+// Resultado de POST /api/cleaning/tasks/{taskId}/complete (plan-confirmar-fin-de-limpieza.md)
+const p = new URLSearchParams(location.search);
+const room = p.get('room') || '101';
+const result = p.get('result') || 'Available';
+const $ = id => document.getElementById(id);
+const VIEW = {
+  Available:         { title:`Limpieza de la habitación ${room} finalizada`, text:'La habitación quedó lista para recibir huéspedes.', badge:'<span class="badge badge-green">Habitación: Disponible</span>' },
+  Reserved:          { title:`Limpieza de la habitación ${room} finalizada`, text:'La habitación quedó reservada para el huésped que llega hoy.', badge:'<span class="badge badge-blue">Habitación: Reservada</span>' },
+  DisabledForRepairs:{ title:`Limpieza de la habitación ${room} finalizada con daño reportado`, text:'La habitación quedó fuera de servicio hasta que mantenimiento la repare.', badge:'<span class="badge badge-red">Habitación: Inhabilitada por reparaciones</span>' }
+};
+const v = VIEW[result] || VIEW.Available;
+$('title').textContent = v.title;
+$('text').textContent = v.text;
+$('badges').innerHTML = v.badge;
+if(result === 'DisabledForRepairs') $('icon').classList.add('danger');
+</script>
+</body>
+</html>

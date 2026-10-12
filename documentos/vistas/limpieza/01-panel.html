@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel de limpieza — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152A4E; --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --primary-dark:#1D4ED8; --primary-bg:#EAF1FF;
+    --due:#D14343; --red-bg:#FEE2E2; --amber:#B45309; --amber-bg:#FFF7E6;
+    --green:#16A34A; --green-bg:#E7F7EE; --gray:#6B7280; --gray-bg:#F1F5F9;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  h1{font-family:'Inter',sans-serif; margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+  .app{display:flex; min-height:100vh;}
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .pagehead h1{font-size:21px; font-weight:700;}
+  .sub{color:var(--text-lo); font-size:14px; margin-top:3px;}
+  .content{max-width:1180px; margin:0 auto; padding:24px 26px;}
+  .hero{background:repeating-linear-gradient(135deg,#DCE2EB 0 14px,#D3DAE5 14px 28px); border-bottom:1px solid var(--line);}
+  .hero-inner{max-width:1180px; margin:0 auto; padding:30px 26px; min-height:130px; display:flex; justify-content:space-between; align-items:center; gap:16px;}
+  .ph-label{font-size:13px; color:var(--text-lo); border:1px dashed #9AA8BC; border-radius:6px; padding:6px 10px; background:rgba(255,255,255,.6); white-space:nowrap;}
+  .kpis{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px;}
+  .kpi-ic{width:44px; height:44px; flex:0 0 44px; border-radius:50%; background:var(--primary-bg); color:var(--primary); display:flex; align-items:center; justify-content:center;}
+  .kpi.warn .kpi-ic{background:var(--amber-bg); color:var(--amber);}
+  .kpi .num{font-size:26px; line-height:1;}
+  .kpi .lbl{color:var(--text-lo); font-size:13px; margin-top:5px;}
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .panel-title{font-size:17px; font-weight:600;}
+  .refresh{font-size:12.5px; color:var(--text-lo);}
+  .toolbar{display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .search{flex:1; border:1px solid var(--line); border-radius:6px; padding:9px 12px; font:inherit; background:var(--paper-dim); color:var(--text-hi);}
+  .search:focus{outline:none; border-color:var(--primary);}
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:left; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-lo); font-weight:600; padding:10px 16px; border-bottom:1px solid var(--line);}
+  td{padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFAF7;}
+  .room-num{font-size:20px; font-weight:600;}
+  .meta{color:var(--text-lo); font-size:13px; margin-top:1px;}
+  .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;}
+  .badge-amber{background:var(--amber-bg); color:var(--amber);}
+  .badge-green{background:var(--green-bg); color:var(--green);}
+  .actions{display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;}
+  .btn{border:none; border-radius:6px; padding:8px 14px; font:inherit; font-size:14px; font-weight:600; white-space:nowrap;}
+  .btn-primary{background:var(--primary); color:#fff;} .btn-primary:hover{background:var(--primary-dark);}
+  .btn-primary:disabled{background:#a9c1f2; cursor:not-allowed;}
+  .btn-outline{background:#fff; border:1px solid var(--line); color:var(--text-hi);} .btn-outline:hover{background:var(--gray-bg);}
+  .btn-danger-outline{background:#fff; border:1px solid #F3C4C4; color:var(--due);} .btn-danger-outline:hover{background:var(--red-bg);}
+  .empty{padding:36px 16px; text-align:center; color:var(--text-lo);}
+  .toast{display:none; margin-bottom:16px; padding:12px 15px; border-radius:10px; font-size:14px; background:var(--green-bg); color:#166534;}
+  .toast.error{background:var(--red-bg); color:#9B1C1C;}
+  /* Diálogos */
+  .overlay{display:none; position:fixed; inset:0; background:rgba(15,27,51,.45); align-items:center; justify-content:center; padding:16px; z-index:10;}
+  .overlay.open{display:flex;}
+  .dialog{background:#fff; border-radius:12px; width:100%; max-width:480px; padding:22px; box-shadow:0 20px 50px rgba(15,27,51,.25);}
+  .dialog h2{font-size:17px; margin:0 0 8px;}
+  .dialog p{margin:0 0 14px; color:var(--text-lo); font-size:14px; line-height:1.5;}
+  .dialog label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
+  .dialog textarea{width:100%; min-height:110px; border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; font-size:14px; resize:vertical;}
+  .dialog textarea:focus{outline:2px solid var(--primary); border-color:var(--primary);}
+  .counter{font-size:12px; color:var(--text-lo); text-align:right; margin-top:4px;}
+  .counter.over{color:var(--due); font-weight:600;}
+  .field-error{font-size:12.5px; color:var(--due); margin-top:6px; display:none;}
+  .dialog-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  @media (max-width:900px){
+    .topbar{padding:0 16px;} .content{padding:20px 16px;} .hero-inner{padding:22px 16px;}
+    table,thead,tbody,tr,td,th{display:block;} thead{display:none;}
+    tbody tr{padding:12px 16px; border-bottom:1px solid var(--line);}
+    td{border:none; padding:3px 0;}
+    .actions{justify-content:flex-start; margin-top:8px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Limpieza</div></div></div>
+      <div class="user-chip"><div class="user-avatar">LT</div><div><div class="user-name">Luis Torres</div><div class="user-role">Personal de limpieza</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </header>
+    <section class="hero"><div class="hero-inner">
+      <div class="pagehead"><h1>Bienvenido, Luis Torres</h1><div class="sub">Habitaciones por limpiar y disponibles</div></div>
+      <div class="ph-label">Imagen del hotel</div>
+    </div></section>
+    <div class="content">
+      <div class="toast" id="toast"></div>
+      <div class="kpis">
+        <div class="kpi warn"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="num" id="kPend">0</div><div class="lbl">Pendientes de limpieza</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><div class="num" id="kAvail">0</div><div class="lbl">Disponibles</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Habitaciones</div><div class="refresh">La lista se actualiza sola cada minuto</div></div>
+        <div class="toolbar">
+          <input class="search" id="search" inputmode="numeric" placeholder="Buscar habitación por número…">
+        </div>
+        <table><thead><tr><th>Hab.</th><th>Tipo</th><th>Estado</th><th>Última limpieza</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Diálogo: iniciar limpieza -->
+<div class="overlay" id="dlgStart"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgStartTitle">
+  <h2 id="dlgStartTitle">Iniciar limpieza</h2>
+  <p id="dlgStartText"></p>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnStart">Iniciar limpieza</button></div>
+</div></div>
+
+<!-- Diálogo: reportar daño -->
+<div class="overlay" id="dlgDamage"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgDamageTitle">
+  <h2 id="dlgDamageTitle">Reportar daño</h2>
+  <p id="dlgDamageText"></p>
+  <label for="damageText">Descripción del daño *</label>
+  <textarea id="damageText" maxlength="600" placeholder="Describe el daño encontrado."></textarea>
+  <div class="counter" id="damageCounter">0 / 500</div>
+  <div class="field-error" id="damageError">La descripción del daño es obligatoria (máximo 500 caracteres).</div>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnDamage" disabled>Reportar daño</button></div>
+</div></div>
+
+<script>
+// Datos de ejemplo: respuesta de GET /api/cleaning/panel (plan-consultar-panel-limpieza.md)
+const TIPOS = { SENCILLA:'Sencilla', DOBLE:'Doble', SUITE:'Suite', BOUTIQUE:'Boutique' };
+const ESTADOS = { PendingCleaning:'Pendiente de limpieza', Available:'Disponible' };
+let rooms = [
+  { roomNumber:'204', categoryRoom:'BOUTIQUE', status:'Available',       lastCleaning:'2026-10-09T15:10' },
+  { roomNumber:'101', categoryRoom:'DOBLE',    status:'PendingCleaning', lastCleaning:'2026-10-07T16:40' },
+  { roomNumber:'102', categoryRoom:'SENCILLA', status:'Available',       lastCleaning:null },
+  { roomNumber:'318', categoryRoom:'SENCILLA', status:'PendingCleaning', lastCleaning:'2026-10-08T11:05' },
+  { roomNumber:'227', categoryRoom:'DOBLE',    status:'Available',       lastCleaning:'2026-10-10T09:20' },
+  { roomNumber:'411', categoryRoom:'SUITE',    status:'PendingCleaning', lastCleaning:'2026-10-06T14:30' }
+];
+
+const $ = id => document.getElementById(id);
+const fmtDateTime = s => { if(!s) return 'Sin registro'; const [d,t] = s.split('T'); const [y,m,dd] = d.split('-'); return `${dd}-${m}-${y} ${t}`; };
+let current = null;
+
+// Orden: primero Pendiente de limpieza y luego Disponible, cada grupo por número (FR-006)
+function sorted(list){
+  const rank = s => s === 'PendingCleaning' ? 0 : 1;
+  return [...list].sort((a,b) => rank(a.status) - rank(b.status) || a.roomNumber.localeCompare(b.roomNumber, 'es', {numeric:true}));
+}
+
+function render(){
+  $('kPend').textContent = rooms.filter(r => r.status === 'PendingCleaning').length;
+  $('kAvail').textContent = rooms.filter(r => r.status === 'Available').length;
+  const q = $('search').value.trim();
+  const list = sorted(rooms).filter(r => !q || r.roomNumber === q);
+  const tb = $('tbody');
+  if(!rooms.length){ tb.innerHTML = '<tr><td colspan="5"><div class="empty">No hay habitaciones pendientes de limpieza ni disponibles</div></td></tr>'; return; }
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="5"><div class="empty">No se encontró la habitación ${q.replace(/</g,'&lt;')}</div></td></tr>`; return; }
+  tb.innerHTML = list.map(r => {
+    const badge = r.status === 'PendingCleaning'
+      ? '<span class="badge badge-amber">Pendiente de limpieza</span>'
+      : '<span class="badge badge-green">Disponible</span>';
+    const actions = r.status === 'PendingCleaning'
+      ? `<button class="btn btn-primary" data-start="${r.roomNumber}">Iniciar limpieza</button>`
+      : `<button class="btn btn-danger-outline" data-damage="${r.roomNumber}">Reportar daño</button><button class="btn btn-primary" data-start="${r.roomNumber}">Iniciar limpieza</button>`;
+    return `<tr>
+      <td><div class="room-num">${r.roomNumber}</div></td>
+      <td>${TIPOS[r.categoryRoom]}</td>
+      <td>${badge}</td>
+      <td>${r.lastCleaning ? fmtDateTime(r.lastCleaning) : '<span class="meta">Sin registro</span>'}</td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openDlg(id){ $(id).classList.add('open'); }
+function closeAll(){ document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeAll(); });
+
+function toast(msg, error){ const t = $('toast'); t.textContent = msg; t.className = 'toast' + (error ? ' error' : ''); t.style.display = 'block'; }
+
+$('tbody').onclick = e => {
+  const s = e.target.closest('[data-start]'), d = e.target.closest('[data-damage]');
+  if(s){ current = s.dataset.start; $('dlgStartText').textContent = `La habitación ${current} quedará a tu cargo hasta que termines la limpieza o la dejes para otro compañero.`; openDlg('dlgStart'); }
+  if(d){ current = d.dataset.damage; $('dlgDamageText').textContent = `La habitación ${current} quedará fuera de servicio hasta que mantenimiento la repare.`; $('damageText').value = ''; updateCounter(); openDlg('dlgDamage'); }
+};
+
+// Iniciar limpieza → vista de tarea activa (plan-marcar-habitacion-en-limpieza.md)
+$('btnStart').onclick = () => { window.location.href = `02-tarea-activa.html?room=${encodeURIComponent(current)}`; };
+
+function updateCounter(){
+  const n = $('damageText').value.trim().length;
+  $('damageCounter').textContent = `${n} / 500`;
+  $('damageCounter').classList.toggle('over', n > 500);
+  $('btnDamage').disabled = n === 0 || n > 500;
+  $('damageError').style.display = n > 500 ? 'block' : 'none';
+}
+$('damageText').oninput = updateCounter;
+$('btnDamage').onclick = () => {
+  rooms = rooms.filter(r => r.roomNumber !== current);
+  closeAll(); render();
+  toast(`Daño reportado. La habitación ${current} quedó fuera de servicio para que mantenimiento la repare.`);
+};
+
+$('search').oninput = render;
+
+// Mensajes al volver de otra vista
+const msg = new URLSearchParams(location.search).get('msg');
+const room = new URLSearchParams(location.search).get('room');
+if(msg === 'liberada') toast(`Dejaste la habitación ${room} para otro compañero. Vuelve a aparecer como pendiente de limpieza.`);
+if(msg === 'rechazo') toast(`Otro compañero ya está limpiando la habitación ${room}. La lista se actualizó.`, true);
+
+// Actualización automática cada 60 s (FR-009)
+setInterval(render, 60000);
+
+render();
+</script>
+</body>
+</html>

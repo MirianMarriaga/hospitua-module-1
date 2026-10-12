@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tarea activa — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152A4E; --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --primary-dark:#1D4ED8; --primary-bg:#EAF1FF;
+    --due:#D14343; --red-bg:#FEE2E2; --amber:#B45309; --amber-bg:#FFF7E6;
+    --green:#16A34A; --green-bg:#E7F7EE; --gray:#6B7280; --gray-bg:#F1F5F9;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  h1{margin:0; font-size:21px; font-weight:700;}
+  button{font-family:inherit; cursor:pointer;}
+  .app{display:flex; min-height:100vh;}
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .content{max-width:880px; margin:0 auto; padding:28px 26px;}
+  .sub{color:var(--text-lo); font-size:14px; margin:4px 0 22px;}
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:22px;}
+  .card-title{font-size:14.5px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+  .room-row{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .room-icon{width:56px; height:56px; border-radius:12px; background:var(--primary-bg); color:var(--primary); display:flex; align-items:center; justify-content:center; flex:0 0 56px;}
+  .room-num{font-size:30px; font-weight:700; line-height:1;}
+  .meta{color:var(--text-lo); font-size:13px; margin-top:4px;}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:20px; padding-top:18px; border-top:1px solid var(--line);}
+  .info-label{font-size:12px; color:var(--text-lo); margin-bottom:4px;}
+  .info-value{font-weight:600;}
+  .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;}
+  .badge-blue{background:var(--primary-bg); color:var(--primary-dark);}
+  .alert{display:flex; gap:10px; padding:13px 15px; border-radius:10px; font-size:13.5px; line-height:1.5; margin-top:18px; background:var(--primary-bg); color:#1D4ED8;}
+  .alert-amber{background:var(--amber-bg); color:#92400E;}
+  .alert svg{flex:0 0 18px; margin-top:1px;}
+  .actions-row{display:flex; justify-content:flex-end; gap:10px; margin-top:22px; flex-wrap:wrap;}
+  .btn{border:none; border-radius:8px; padding:11px 20px; font:inherit; font-size:14px; font-weight:600; white-space:nowrap;}
+  .btn-primary{background:var(--primary); color:#fff;} .btn-primary:hover{background:var(--primary-dark);}
+  .btn-primary:disabled{background:#a9c1f2; cursor:not-allowed;}
+  .btn-outline{background:#fff; border:1px solid var(--line); color:var(--text-hi);} .btn-outline:hover{background:var(--gray-bg);}
+  .overlay{display:none; position:fixed; inset:0; background:rgba(15,27,51,.45); align-items:center; justify-content:center; padding:16px; z-index:10;}
+  .overlay.open{display:flex;}
+  .dialog{background:#fff; border-radius:12px; width:100%; max-width:500px; padding:22px; box-shadow:0 20px 50px rgba(15,27,51,.25);}
+  .dialog h2{font-size:17px; margin:0 0 8px;}
+  .dialog p{margin:0 0 14px; color:var(--text-lo); font-size:14px; line-height:1.5;}
+  .dialog label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
+  .dialog textarea{width:100%; min-height:100px; border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; font-size:14px; resize:vertical;}
+  .dialog textarea:focus{outline:2px solid var(--primary); border-color:var(--primary);}
+  .counter{font-size:12px; color:var(--text-lo); text-align:right; margin-top:4px;}
+  .counter.over{color:var(--due); font-weight:600;}
+  .warn{display:none; margin-top:12px; padding:10px 12px; border-radius:8px; background:var(--amber-bg); color:#92400E; font-size:13px;}
+  .dialog-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  @media (max-width:760px){
+    .topbar{padding:0 16px;} .content{padding:20px 16px;}
+    .grid{grid-template-columns:1fr;}
+    .actions-row .btn{flex:1;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Limpieza</div></div></div>
+      <div class="user-chip"><div class="user-avatar">LT</div><div><div class="user-name">Luis Torres</div><div class="user-role">Personal de limpieza</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </header>
+    <div class="content">
+      <h1>Tarea activa</h1>
+      <p class="sub">Estás limpiando esta habitación. Cuando termines, confírmalo; si no puedes terminar, déjala para otro compañero.</p>
+      <div class="card">
+        <div class="card-title">Habitación en limpieza</div>
+        <div class="room-row">
+          <div class="room-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v9"/><path d="M2 13h20"/><path d="M22 9v9"/><path d="M4 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"/><path d="M12 13V9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg></div>
+          <div><div class="room-num" id="roomNum">101</div><div class="meta" id="roomType">Doble</div></div>
+          <span class="badge badge-blue" style="margin-left:auto">En limpieza</span>
+        </div>
+        <div class="grid">
+          <div><div class="info-label">Empezaste</div><div class="info-value" id="startAt"></div></div>
+          <div><div class="info-label">Tiempo transcurrido</div><div class="info-value" id="elapsed">0 min</div></div>
+          <div><div class="info-label">A cargo de</div><div class="info-value">Luis Torres</div></div>
+        </div>
+        <div class="alert"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><div>Si encuentras algo dañado, descríbelo al terminar: la habitación quedará fuera de servicio hasta que mantenimiento la repare.</div></div>
+        <div class="actions-row">
+          <button class="btn btn-outline" id="openRelease">Liberar tarea</button>
+          <button class="btn btn-primary" id="openFinish">Confirmar fin</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Diálogo: confirmar fin (spec-confirmar-fin-de-limpieza.md FR-018) -->
+<div class="overlay" id="dlgFinish"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgFinishTitle">
+  <h2 id="dlgFinishTitle"></h2>
+  <p>La habitación quedará lista para recibir huéspedes.</p>
+  <label for="damageText">Describir daño encontrado (opcional)</label>
+  <textarea id="damageText" maxlength="600" placeholder="Déjalo vacío si no encontraste daños."></textarea>
+  <div class="counter" id="damageCounter">0 / 500</div>
+  <div class="warn" id="damageWarn">Como describiste un daño, la habitación quedará <b>fuera de servicio</b> hasta que mantenimiento la repare.</div>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnFinish">Confirmar fin</button></div>
+</div></div>
+
+<!-- Diálogo: liberar tarea (FR-014) -->
+<div class="overlay" id="dlgRelease"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgReleaseTitle">
+  <h2 id="dlgReleaseTitle"></h2>
+  <p>La habitación volverá a la lista como pendiente de limpieza y otro compañero podrá limpiarla.</p>
+  <div class="dialog-actions"><button class="btn btn-outline" data-close>Cancelar</button><button class="btn btn-primary" id="btnRelease">Liberar tarea</button></div>
+</div></div>
+
+<script>
+// Datos de ejemplo: respuesta de GET /api/cleaning/tasks/active (plan-confirmar-fin-de-limpieza.md)
+const TIPOS = { '101':'Doble', '102':'Sencilla', '204':'Boutique', '227':'Doble', '318':'Sencilla', '411':'Suite' };
+const ARRIVALS_TODAY = ['101']; // habitaciones con llegada pendiente hoy (se apartan al terminar)
+const room = new URLSearchParams(location.search).get('room') || '101';
+const start = new Date(Date.now() - 18 * 60000);
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const fmt = d => `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+$('roomNum').textContent = room;
+$('roomType').textContent = TIPOS[room] || 'Doble';
+$('startAt').textContent = fmt(start);
+$('dlgFinishTitle').textContent = `¿Está seguro que desea finalizar la limpieza de la habitación ${room}?`;
+$('dlgReleaseTitle').textContent = `¿Está seguro que desea liberar la limpieza de la habitación ${room}?`;
+setInterval(() => { $('elapsed').textContent = `${Math.round((Date.now() - start) / 60000)} min`; }, 1000);
+
+function openDlg(id){ $(id).classList.add('open'); }
+function closeAll(){ document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeAll(); });
+
+$('openFinish').onclick = () => { $('damageText').value = ''; updateDamage(); openDlg('dlgFinish'); };
+$('openRelease').onclick = () => openDlg('dlgRelease');
+
+function updateDamage(){
+  const n = $('damageText').value.trim().length;
+  $('damageCounter').textContent = `${n} / 500`;
+  $('damageCounter').classList.toggle('over', n > 500);
+  $('damageWarn').style.display = n > 0 ? 'block' : 'none';
+  $('btnFinish').disabled = n > 500;
+}
+$('damageText').oninput = updateDamage;
+
+$('btnFinish').onclick = () => {
+  const damage = $('damageText').value.trim().length > 0;
+  const result = damage ? 'DisabledForRepairs' : (ARRIVALS_TODAY.includes(room) ? 'Reserved' : 'Available');
+  window.location.href = `03-limpieza-finalizada.html?room=${encodeURIComponent(room)}&result=${result}`;
+};
+$('btnRelease').onclick = () => { window.location.href = `01-panel.html?msg=liberada&room=${encodeURIComponent(room)}`; };
+</script>
+</body>
+</html>

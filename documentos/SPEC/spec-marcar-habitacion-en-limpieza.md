@@ -1,89 +1,97 @@
-# Especificación de Funcionalidad: Marcar Habitación en Limpieza
-
-**Creado**: 2026-09-04
-
-## Escenarios de Usuario y Pruebas *(obligatorio)*
-
-
-### Historia de Usuario 1 - Marcar una habitación como en proceso de limpieza (Prioridad: P1)
-
-Como Personal de limpieza, quiero marcar una habitación como "En Limpieza" para indicar que se está realizando la limpieza, de modo que la habitación no pueda ser asignada a otro huésped ni aparezca como disponible mientras dure el proceso.
-
-**Por qué esta prioridad**: Evita que recepción asigne o muestre como disponible una habitación que aún no ha sido limpiada, correspondiendo al mecanismo central que protege la calidad operativa del hotel.
-
-**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Personal de limpieza, seleccionando una habitación en estado "PendingCleaning" y marcándola como "En Limpieza", verificando luego que la habitación quede excluida de los resultados de disponibilidad para nuevas reservas.
-
-**Escenarios de Aceptación**:
-
-1. **Escenario**: Marcado manual exitoso de una habitación recién desocupada
-   - **Dado** una habitación se encuentra en estado "PendingCleaning" tras la salida de un huésped
-   - **Cuando** el Personal de limpieza la marca como "InCleaning"
-   - **Entonces** el sistema cambia el estado de la habitación a "InCleaning" y la excluye de los resultados de disponibilidad, verificando previamente como precondición directa que esté en "PendingCleaning" según documentos/SPEC/referencias/maquina-estados-habitacion.md
-
-2. **Escenario**: Intento de marcar una habitación que ya está en limpieza
-   - **Dado** una habitación ya se encuentra en estado "InCleaning"
-   - **Cuando** el Personal de limpieza intenta marcarla nuevamente como "InCleaning"
-   - **Entonces** el sistema detecta que ya se encuentra en ese estado y no aplica una nueva transición, informando al Personal de limpieza
+# Especificación del Caso de Uso: Marcar Habitación en Limpieza
 
 ---
 
-### Historia de Usuario 2 - Marcar habitación disponible como en limpieza (Prioridad: P2)
+## Escenarios de Usuario y Pruebas *(obligatorio)*
 
-Como Personal de limpieza, quiero poder marcar una habitación que está en estado "Available" directamente a "InCleaning" para iniciar la limpieza cuando sea necesario sin pasar por "PendingCleaning".
+### Historia de Usuario 1 - Marcar habitación en limpieza (Prioridad: P1)
 
-**Prueba Independiente**: Iniciar sesión como Personal de limpieza, seleccionar una habitación en estado "Available" y marcarla como "InCleaning", verificando que el estado cambie y que la habitación quede excluida de la disponibilidad.
+Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una habitación, independiente de la razón por la que requiera limpieza, es importante que pueda formalizar mi participación en las labores designadas a mi área y notificar esta acción al sistema de forma oportuna para evitar posibles inconsistencias en otras operaciones del hotel.
 
-**Escenarios de Aceptación**:
-1. **Escenario**: Transición válida de Available a InCleaning
-   - **Dado** una habitación está en estado "Available"
-   - **Cuando** el Personal de limpieza la marca como "InCleaning"
-   - **Entonces** el sistema cambia el estado a "InCleaning" y la excluye de los resultados de disponibilidad.
-2. **Escenario**: Intento de marcar como InCleaning desde un estado no permitido
-   - **Dado** una habitación está en estado "Occupied"
-   - **Cuando** el Personal de limpieza intenta marcarla como "InCleaning"
-   - **Entonces** el sistema rechaza la transición y muestra un mensaje de error.
+**Por qué esta prioridad**: Es la acción principal del personal de limpieza. Sin ella, las habitaciones no avanzan en su ciclo de vida y quedan estancadas, reduciendo la capacidad operativa del hotel y empeorando la experiencia del usuario.
 
-Como Personal de limpieza, quiero que al marcar una habitación como "InCleaning" se registre automáticamente el identificador del equipo de limpieza y la hora exacta, para permitir auditorías posteriores.
+**Prueba independiente**: Puede ser probada indicando que se va a iniciar la limpieza en una habitación en estado `PendingCleaning` o `Available`, verificando que el sistema la marca como `InCleaning`, asigna la labor al miembro que indicó el inicio de labores de limpieza, registra la fecha y hora de inicio y la excluye del panel general de limpieza, haciéndola visible única y exclusivamente para el miembro del personal de limpieza vinculado a la labor.
 
-**Prueba Independiente**: Iniciar sesión como Personal de limpieza, marcar una habitación en estado "PendingCleaning" y verificar que en el log del sistema se almacenen los datos de auditoría correspondientes.
+**Escenarios de aceptación**:
 
-**Escenarios de Aceptación**:
-1. **Escenario**: Registro exitoso de auditoría al marcar habitación
-   - **Dado** una habitación está en estado "PendingCleaning"
-   - **Cuando** el Personal de limpieza la marca como "InCleaning"
-   - **Entonces** el sistema registra el usuario, equipo y timestamp en el historial de auditoría.
-2. **Escenario**: Falta de datos de auditoría cuando la transición falla
-   - **Dado** una falla de red durante la marcación
-   - **Cuando** la transición no se completa
-   - **Entonces** no se genera ningún registro de auditoría.
+1. **Escenario**: Inicio de limpieza post-check-out
+   - **Dado que** Existe una habitación "101" que acaba de ser liberada y se encuentra en estado `PendingCleaning`
+   - **Cuando** El miembro del personal de limpieza indica que va a iniciar labores de limpieza en la habitación
+   - **Entonces** El sistema registra que la habitación está en proceso de limpieza, transiciona su estado a `InCleaning`, vincula el miembro del personal de limpieza a la labor y registra el timestamp al recibir la confirmación
 
-### Casos Borde
+2. **Escenario**: Limpieza preventiva
+   - **Dado que** Existe una habitación "101" en estado `Available` que lleva tiempo sin ser asignada o usada
+   - **Cuando** El miembro del personal de limpieza indica que va a iniciar labores en la habitación
+   - **Entonces** El sistema realiza la misma transición a `InCleaning`, vinculación y registro de timestamp descritos en el escenario anterior, sin exigir que la habitación provenga de un check-out
 
-- Habitación en estado diferente a PendingCleaning (ej. DisabledForRepairs o TechnicalBlock): el sistema rechaza la transición, validando que debe estar estrictamente en estado PendingCleaning (FR-005).
-- Habitación con reserva confirmada para el mismo día: la transición procede normalmente, ya que la reserva es un dato independiente y no impide la limpieza de la habitación.
-- Intentos simultáneos de marcar la misma habitación: el primer intento cambia el estado a InCleaning, y el segundo es rechazado porque la habitación ya se encuentra en ese estado (FR-003).
-- Fallo de red al marcar la habitación: la transacción se cancela y la habitación permanece en estado PendingCleaning.
+3. **Escenario**: Habitación en estados distintos a `PendingCleaning` o `Available`
+   - **Dado que** Existe una habitación "101" que se encuentra en un estado distinto a los mencionados
+   - **Cuando** El miembro del personal de limpieza intenta indicar que va a iniciar labores de limpieza en la habitación
+   - **Entonces** El sistema rechaza la operación y muestra un error con el estado actual de la habitación indicando que es una operación no válida
+
+4. **Escenario**: Miembro con una tarea activa
+   - **Dado que** El miembro del personal de limpieza tiene una `CleaningTask` activa sobre la habitación "101"
+   - **Cuando** Intenta iniciar labores de limpieza en la habitación "105"
+   - **Entonces** El sistema rechaza la operación indicando que ya tiene una tarea activa, no modifica el estado de la habitación "105" y lo redirige a la vista de tarea activa
+
+---
+
+### Casos Límite
+
+1. **¿Qué ocurre si dos miembros del personal intentan limpiar la misma habitación?**
+   El sistema debe asignar la habitación al primero que la marque. El segundo recibe un error indicando el estado actual de la habitación `InCleaning`.
+
+2. **¿Qué ocurre si la habitación fue liberada hace mucho tiempo y nadie la ha limpiado?**
+   El sistema debe permitir la limpieza sin ninguna restricción de tiempo. La verificación de tiempos no es responsabilidad de este caso de uso.
+
+3. **¿Qué ocurre si el reloj del dispositivo del cliente está desajustado o se intenta enviar una fecha propia?**
+   El sistema ignora cualquier fecha enviada por el cliente y utiliza exclusivamente el timestamp del servidor, evitando registros con fechas sin sentido.
+
+4. **¿Qué ocurre si el miembro del personal de limpieza no puede terminar una tarea activa?**
+   El miembro vinculado puede liberarla desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*): la habitación vuelve a `PendingCleaning` y cualquier miembro puede retomarla desde el panel. Si el miembro abandona la tarea sin liberarla, la habitación permanece en `InCleaning`; ese caso queda fuera del alcance del módulo.
+
+---
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir al actor "Personal de limpieza" marcar manualmente una habitación como "InCleaning".
-- **FR-002**: El sistema DEBE excluir las habitaciones en estado "InCleaning" de los resultados de disponibilidad utilizados para nuevas reservas o asignaciones.
-- **FR-003**: El sistema DEBE impedir marcar como "InCleaning" una habitación que ya se encuentra en ese mismo estado.
-- **FR-004**: El sistema DEBE validar como precondición directa que la habitación se encuentre en estado "PendingCleaning" **o** "Available" según documentos/SPEC/referencias/maquina-estados-habitacion.md antes de aplicar la transición al estado "InCleaning".
-- **FR-005**: El sistema DEBE permitir la transición a "InCleaning" únicamente desde los estados "PendingCleaning" **o** "Available", rechazando la transición si la habitación se encuentra en cualquier otro estado.
-- **FR-006**: El sistema DEBE registrar el usuario responsable (Personal de limpieza) y la fecha/hora en que se marcó la habitación como "InCleaning".
-- **FR-007**: El sistema DEBE registrar la transición a "InCleaning" como una acción manual para efectos de trazabilidad.
+- **FR-001**: El sistema DEBE permitir al personal de limpieza marcar el inicio de labores de limpieza en una habitación y recibir retroalimentación visual de la acción que está realizando.
+- **FR-002**: El sistema DEBE aceptar la marcación únicamente desde habitaciones que se encuentren en los estados `PendingCleaning` o `Available`
+- **FR-003**: El sistema DEBE cambiar el estado de la habitación a `InCleaning` al procesar la marcación.
+- **FR-004**: El sistema DEBE registrar los datos del personal que solicita la tarea junto con la fecha y hora de inicio de labores de limpieza (timestamp).
+- **FR-005**: El sistema DEBE rechazar la marcación si la habitación se encuentra en cualquier estado distinto de `PendingCleaning` o `Available`, informando el estado actual.
+- **FR-006**: El sistema DEBE evitar que dos usuarios marquen el inicio de labores en la misma habitación de forma simultánea con éxito.
+- **FR-007**: El sistema DEBE ejecutar este caso de uso desde la acción **Iniciar limpieza** del panel de limpieza, que define el caso de uso *Consultar Panel de Limpieza* (listado, formato, orden y acciones por estado).
+- **FR-008**: La búsqueda de habitaciones por número la define *Consultar Panel de Limpieza* (FR-007); este caso de uso no la reimplementa.
+- **FR-009**: Al iniciar la limpieza con éxito, el sistema DEBE redirigir al miembro a la vista exclusiva de tarea activa, cuyo comportamiento y cinta de opciones (`IC`: Confirmar fin, Liberar tarea) se definen en el caso de uso *Confirmar Fin de Limpieza de Habitación*. La redirección de un miembro que ya tiene una tarea activa al ingresar al panel la define *Consultar Panel de Limpieza* (FR-001).
+- **FR-010**: El sistema DEBE generar el timestamp de inicio de labores (`StartDateTime`) exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
+- **FR-011**: El sistema DEBE asignar `StartDateTime` en el mismo momento en que se procesa la transición a `InCleaning`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
+- **FR-012**: La última limpieza que muestra el panel la calcula *Consultar Panel de Limpieza* (FR-004) a partir de las `CleaningTask` que crea este caso de uso y cierra *Confirmar Fin de Limpieza de Habitación*.
+- **FR-013**: El sistema DEBE rechazar la marcación si el miembro del personal de limpieza que realiza la acción ya tiene una `CleaningTask` sin `EndDateTime`, aunque la solicitud no provenga del panel de limpieza, informando que ya tiene una tarea activa.
+- **FR-014**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `InCleaning`, `PreviousStatus` = `PendingCleaning` o `Available`, `StartDateTime` = `StartDateTime` de la tarea, `ActorId` = miembro del personal de limpieza y `SourceFlow` = *Marcar Habitación en Limpieza*.
+- **FR-015**: El sistema DEBE permitir liberar una `CleaningTask` activa únicamente a su miembro vinculado, desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*); el sistema NO DEBE permitir transferir la tarea a un miembro específico ni liberar tareas de otros miembros.
+- **FR-016**: El sistema DEBE ejecutar la marcación (transición, `CleaningTask` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.
+- **FR-017**: Si el inicio de la limpieza se rechaza (FR-005, FR-006 o FR-013), el sistema DEBE informar el motivo y devolver al miembro al panel de limpieza recargado (*Consultar Panel de Limpieza*, FR-009).
 
-### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+### Entidades Clave
 
-- **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas, tarifa base y estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive).
-- **CleaningStaff**: Actor responsable de ejecutar y confirmar la limpieza de las habitaciones, incluyendo el marcado manual de inicio de limpieza.
+- **Room**: Entidad que representa una habitación del hotel. En este caso de uso transita de `PendingCleaning` o `Available` a `InCleaning`.
+- **CleaningTask**: Entidad que representa la asignación temporal de las labores de limpieza en una habitación a un miembro del personal de limpieza, esta almacena:
+   - **RoomId**: Identificador de la habitación
+   - **CleaningStaffMemberId**: Identificador del miembro del personal de limpieza
+   - **StartDateTime**: TimeStamp de inicio de labores de limpieza - Formato DD-MM-YYYY HH:MM
+   - **EndDateTime**: TimeStamp de finalización de labores de limpieza - Formato DD-MM-YYYY HH:MM
+   - **Outcome**: Resultado de la tarea, asignado al cerrarla - `Completed` (limpieza confirmada), `DamageReported` (limpieza confirmada con reporte de daño) o `Released` (tarea liberada sin terminar); nulo mientras la tarea está activa
+- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se abre el periodo `InCleaning`.
+
+---
 
 ## Criterios de Éxito *(obligatorio)*
 
 ### Resultados Medibles
 
-- **SC-001**: El 100% de las habitaciones marcadas como "InCleaning" quedan excluidas de los resultados de disponibilidad de forma inmediata.
-- **SC-002**: El Personal de limpieza puede marcar manualmente una habitación como "InCleaning" en menos de 30 segundos.
+- **SC-001**: El Personal de limpieza puede marcar una habitación en limpieza en menos de 15 segundos.
+- **SC-002**: El 100% de las marcaciones registran correctamente el personal vinculado a la tarea junto con la fecha y hora de inicio de labores de limpieza.
+- **SC-003**: El cambio de estado se refleja en el inventario en menos de 2 segundos.
+- **SC-004**: El 100% de las marcaciones quedan registradas en `RoomStateHistory` con el mismo timestamp de servidor que `StartDateTime`, y ningún miembro tiene más de una `CleaningTask` activa.

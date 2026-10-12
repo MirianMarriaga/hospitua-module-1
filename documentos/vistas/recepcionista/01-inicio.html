@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estancias — Hotel Hospitua</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152A4E; --paper:#FFFFFF; --paper-dim:#F1F4F9;
+    --primary:#2F6FED; --due:#D14343;
+    --line:#E3E8F0; --text-lo:#6B7A90; --text-hi:#0F1B33;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper-dim); color:var(--text-hi); font-family:'Inter',sans-serif; font-size:15px;}
+  h1{font-family:'Inter',sans-serif; margin:0;}
+  .app{display:flex; min-height:100vh;}
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; padding:0 30px; height:64px; background:#152B4D; color:#fff;}
+  .tb-brand{display:flex; align-items:center; gap:12px;}
+  .tb-logo{width:36px; height:36px; flex:0 0 36px; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center;}
+  .tb-name{font-weight:700; font-size:16px; line-height:1.2;}
+  .tb-sub{font-size:12px; color:#9db2d8;}
+  .user-chip{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:36px; height:36px; border-radius:50%; background:#33507f; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;}
+  .user-name{font-size:13.5px; font-weight:600; line-height:1.1;}
+  .user-role{font-size:12px; color:#9db2d8;}
+  .tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); padding:0 12px;}
+  .tab{background:none; border:none; font:inherit; font-size:17px; font-weight:600; color:var(--text-lo); padding:14px 24px; cursor:pointer; border-bottom:3px solid transparent; border-radius:8px 8px 0 0;}
+  .tab:hover{background:var(--paper-dim);}
+  .tab.active{color:var(--primary); background:#EAF1FF; border-bottom-color:var(--primary);}
+  .pagehead{margin:0;} .pagehead h1{font-size:21px; font-weight:700;}
+  .sub{color:var(--text-lo); font-size:14px; margin-top:3px;}
+  .content{max-width:1180px; margin:0 auto; padding:24px 26px;}
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px;}
+  .kpi-ic{width:44px; height:44px; flex:0 0 44px; border-radius:50%; background:#EAF1FF; color:var(--primary); display:flex; align-items:center; justify-content:center;}
+  .kpi .num{font-family:'Inter',sans-serif; font-size:26px; line-height:1;}
+  .kpi .lbl{color:var(--text-lo); font-size:13px; margin-top:5px;}
+  .kpi.due .num{color:var(--due);}
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .toolbar{display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .search,.filter{border:1px solid var(--line); border-radius:6px; padding:9px 12px; font:inherit; background:var(--paper-dim); color:var(--text-hi);}
+  .search{flex:1;} .search:focus{outline:none; border-color:var(--primary);}
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:left; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-lo); font-weight:600; padding:10px 16px; border-bottom:1px solid var(--line);}
+  td{padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFAF7;}
+  .room-num{font-family:'Inter',sans-serif; font-size:20px; font-weight:600;}
+  .name{font-weight:600;} .meta{color:var(--text-lo); font-size:13px; margin-top:1px;}
+  .late{color:var(--due); font-weight:600;} .late-sub{color:var(--due); font-size:13px; margin-top:1px;}
+  a.btn{text-decoration:none; display:inline-block;}
+  .btn{border:none; border-radius:6px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; white-space:nowrap;}
+  .btn.in{background:var(--primary); color:#fff;} .btn.out{background:var(--ink); color:#fff;}
+  .empty{padding:36px 16px; text-align:center; color:var(--text-lo);}
+
+  .hero{background:repeating-linear-gradient(135deg,#DCE2EB 0 14px,#D3DAE5 14px 28px); border-bottom:1px solid var(--line);}
+  .hero-inner{max-width:1180px; margin:0 auto; padding:30px 26px; min-height:130px; display:flex; justify-content:space-between; align-items:center; gap:16px;}
+  .ph-label{font-size:13px; color:var(--text-lo); border:1px dashed #9AA8BC; border-radius:6px; padding:6px 10px; background:rgba(255,255,255,.6); white-space:nowrap;}
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    table,thead,tbody,tr,td,th{display:block;} thead{display:none;}
+    tbody tr{padding:12px 16px; border-bottom:1px solid var(--line);}
+    td{border:none; padding:3px 0;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="main">
+    <header class="topbar">
+      <div class="tb-brand"><div class="tb-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#152B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div><div class="tb-name">Hotel Hospitua</div><div class="tb-sub">Recepción</div></div></div>
+      <div class="user-chip"><div class="user-avatar">AR</div><div><div class="user-name">Ana Ramírez</div><div class="user-role">Recepcionista</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </header>
+    <section class="hero"><div class="hero-inner">
+      <div class="pagehead"><h1>Bienvenida, Ana Ramírez</h1><div class="sub">Estancias · llegadas y salidas del día</div></div>
+      <div class="ph-label">Imagen del hotel</div>
+    </div></section>
+    <div class="content">
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="num" id="kArr">0</div><div class="lbl">Llegadas de hoy</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div><div class="num" id="kDep">0</div><div class="lbl">Salidas de hoy</div></div></div>
+        <div class="kpi due"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="num" id="kDue">0</div><div class="lbl">Salidas vencidas</div></div></div>
+        <div class="kpi"><div class="kpi-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v9"/><path d="M2 13h20"/><path d="M22 9v9"/><path d="M4 13V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"/><path d="M12 13V9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg></div><div><div class="num" id="kOcc">0</div><div class="lbl">Habitaciones ocupadas</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="in">Llegadas</button>
+          <button class="tab" data-tab="out">Salidas</button>
+        </div>
+        <div class="toolbar">
+          <input class="search" id="search" placeholder="Buscar por huésped, documento o referencia de reserva…">
+        </div>
+        <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const today = new Date(); today.setHours(0,0,0,0);
+const day = n => { const d = new Date(today); d.setDate(d.getDate()+n); return d; };
+const fmt = d => d.toLocaleDateString('es-CO',{day:'numeric',month:'short'});
+const off = (y,m,d) => Math.round((new Date(y,m,d)-today)/86400000);
+const nights = (a,b) => Math.round((b-a)/86400000);
+
+// Reservas de ejemplo con soporte para múltiples habitaciones por reserva
+// Llegadas (copia local de reservas de hoy) y Salidas (estancias activas en el hotel)
+const arrivalReservations = [
+  {
+    ref: 'RES-12345',
+    titular: 'María González',
+    doc: 'CC 1032456789',
+    src: 'DIRECTA',
+    s: 0, e: 3,
+    rooms: [
+      { room: '304', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null },
+      { room: '305', tipo: 'Doble', guests: 2, status: 'Available', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2041',
+    titular: 'Marta Londoño',
+    doc: 'CC 43208115',
+    src: 'BOOKING',
+    s: 0, e: 3,
+    rooms: [
+      { room: '204', tipo: 'Boutique', guests: 1, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2042',
+    titular: 'Camilo Arango',
+    doc: 'CC 1017223908',
+    src: 'EXPEDIA',
+    s: 0, e: 3,
+    rooms: [
+      { room: '205', tipo: 'Boutique', guests: 2, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-5002',
+    titular: 'Carlos Méndez',
+    doc: 'CC 79541230',
+    src: 'BOOKING',
+    s: 0, e: 2,
+    rooms: [
+      { room: '108', tipo: 'Sencilla', guests: 1, status: 'TechnicalBlock', alert: null },
+      { room: '109', tipo: 'Sencilla', guests: 1, status: 'Reserved', alert: null }
+    ]
+  },
+  {
+    ref: 'RES-2044',
+    titular: 'Andrea Vélez',
+    doc: 'CE 1140552',
+    src: 'DIRECTA',
+    s: 0, e: 2,
+    rooms: [
+      { room: '227', tipo: 'Doble', guests: 2, status: 'Reserved', alert: null }
+    ]
+  }
+];
+
+const departuresData = [
+  { ref:'RES-1990', name:'Carlos Peña', doc:'CC 80114552', room:'102', tipo:'Doble', guests:2, src:'DIRECTA', s:-4, e:0, status:'in_progress' },
+  { ref:'RES-40001', name:'Miguel Ángel Ríos', doc:'CC 79845132', room:'411', tipo:'Suite', guests:3, src:'EXPEDIA', s:off(2026,8,21), e:off(2026,8,26), status:'in_progress' },
+  { ref:'RES-1981', name:'Marco Ferretti', doc:'PA AR3391027', room:'309', tipo:'Suite', guests:1, src:'DIRECTA', s:-6, e:0, status:'in_progress' },
+  { ref:'RES-2010', name:'Diego Salazar', doc:'CC 10556221', room:'140', tipo:'Boutique', guests:2, src:'BOOKING', s:-1, e:0, status:'in_progress' },
+  { ref:'RES-1975', name:'Paola Duarte', doc:'CC 63220478', room:'318', tipo:'Sencilla', guests:1, src:'DIRECTA', s:-5, e:-2, status:'in_progress' },
+  { ref:'RES-2005', name:'Sergio Ortiz', doc:'CC 98331070', room:'112', tipo:'Doble', guests:2, src:'EXPEDIA', s:-1, e:2, status:'in_progress' }
+];
+
+let tab = 'in';
+const $ = id => document.getElementById(id);
+
+// En llegadas: aplanar las habitaciones de las reservas con su contexto
+function getArrivalRows(){
+  const list = [];
+  arrivalReservations.forEach(r => {
+    const total = r.rooms.length;
+    // Habitaciones pendientes: aquellas en estado Reserved o Available (sin estancia previa)
+    const pendingCount = r.rooms.filter(rm => rm.status === 'Reserved' || rm.status === 'Available').length;
+    r.rooms.forEach((rm, idx) => {
+      list.push({
+        ref: r.ref,
+        resLabel: r.ref,
+        titular: r.titular,
+        doc: r.doc,
+        src: r.src,
+        nightsCount: nights(day(r.s), day(r.e)),
+        room: rm.room,
+        tipo: rm.tipo,
+        guests: rm.guests,
+        status: rm.status,
+        alert: rm.alert,
+        canCheckIn: true,
+        isFirstInGroup: idx === 0,
+        groupSize: total
+      });
+    });
+  });
+  return list;
+}
+
+function render(){
+  const q = $('search').value.trim().toLowerCase();
+  const tb = $('tbody'); tb.innerHTML = '';
+
+  if(tab === 'in'){
+    $('thead').innerHTML = '<tr><th>Reserva / Grupo</th><th>Hab.</th><th>Huésped titular</th><th>Estadía</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
+    let rows = getArrivalRows().filter(r =>
+      !q || r.titular.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q) || r.room.toLowerCase().includes(q)
+    );
+
+    if(!rows.length){
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay reservas de llegada que mostrar.</div></td></tr>`;
+      return;
+    }
+
+    let lastRef = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      // Alerta de habitación no apartada
+      const alertHtml = r.alert
+        ? `<div style="margin-top:4px;padding:3px 8px;border-radius:4px;background:#FEF2F2;color:#991B1B;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+             ${r.alert}
+           </div>`
+        : '';
+
+      const groupTag = `<span style="font-size:12px;font-weight:700;color:var(--primary);background:#EAF1FF;padding:2px 8px;border-radius:6px;display:inline-block">${r.resLabel}</span>`;
+
+      tr.innerHTML = `
+        <td>${groupTag}</td>
+        <td>
+          <div class="room-num">${r.room}</div>
+          ${alertHtml}
+        </td>
+        <td><div class="name">${r.titular}</div><div class="meta">${r.doc}</div></td>
+        <td>${r.nightsCount} noche${r.nightsCount > 1 ? 's' : ''}</td>
+        <td>${r.guests}</td>
+        <td>${r.tipo}</td>
+        <td><span style="font-weight:600">${r.src}</span></td>
+        <td>
+          <a class="btn in" href="02-checkin-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-in</a>
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+  } else {
+    $('thead').innerHTML = '<tr><th>Hab.</th><th>Huésped titular</th><th>Fecha entrada</th><th>Fecha salida</th><th>Personas</th><th>Tipo habitación</th><th>Fuente</th><th></th></tr>';
+    let rows = departuresData.filter(r =>
+      !q || r.name.toLowerCase().includes(q) || r.doc.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q) || r.room.toLowerCase().includes(q)
+    );
+
+    if(!rows.length){
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty">No hay salidas que mostrar.</div></td></tr>`;
+      return;
+    }
+
+    rows.forEach(r => {
+      const late = r.e < 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div class="room-num">${r.room}</div></td>
+        <td><div class="name">${r.name}</div><div class="meta">${r.doc}</div></td>
+        <td>${fmt(day(r.s))}</td>
+        <td><div class="${late ? 'late' : ''}">${fmt(day(r.e))}</div>${late ? `<div class="late-sub">Vencida</div>` : ''}</td>
+        <td>${r.guests}</td>
+        <td>${r.tipo}</td>
+        <td><span style="font-weight:600">${r.src}</span></td>
+        <td><a class="btn out" href="06-checkout-1-reserva.html?ref=${encodeURIComponent(r.ref)}&room=${encodeURIComponent(r.room)}">Check-out</a></td>`;
+      tb.appendChild(tr);
+    });
+  }
+}
+
+function renderAll(){
+  // KPI "Llegadas de hoy" cuenta habitaciones pendientes en el día
+  const allArrivalRooms = getArrivalRows();
+  const pendingArrivals = allArrivalRooms.filter(r => r.canCheckIn).length;
+  const dep = departuresData;
+
+  $('kArr').textContent = pendingArrivals;
+  $('kDep').textContent = dep.filter(r => r.e === 0).length;
+  $('kDue').textContent = dep.filter(r => r.e < 0).length;
+  $('kOcc').textContent = dep.length;
+  render();
+}
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active'); tab = t.dataset.tab; $('search').value = ''; render();
+});
+$('search').oninput = render;
+renderAll();
+</script>
+</body>
+</html>

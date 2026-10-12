@@ -1,0 +1,405 @@
+# Implementation Plan: Registrar Check-Out
+
+**Date**: 2026-10-09  
+**Spec**: [spec-registrar-check-out.md](../SPEC/spec-registrar-check-out.md) y arquitectura base en [PLAN/base/plan.md](base/plan.md)
+
+---
+
+## Summary
+
+Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepcionista en Módulo 1, mediante un flujo guiado de 5 pasos en la interfaz de usuario:
+
+1. **Consultar reserva**: Búsqueda 100% local sobre el repositorio de Módulo 1 (`Stay` + `Room` + `RoomGuest`), identificando al huésped titular (`Stay.titularFirstName`, `Stay.titularLastName`) y el canal de origen (`Stay.source`). Valida obligatoriamente que la habitación se encuentre en estado `Occupied`, sin invocar a Módulo 2 ni desplegar estados externos.
+2. **Liquidación**: El frontend la obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2), que es quien consulta a Módulo 3; el backend de este plan no llama a Módulo 3. Se despliega el tipo de liquidación (`settlementType`: "Liquidación informativa" o "Liquidación final"), el número de factura oficial (`invoiceNumber`, entero consecutivo o "Pendiente de facturación" si null), la fuente local (`Stay.source`), comisión OTA e ingreso neto (`netIncomeAmount`).
+3. **Pago**: Visualización del resumen financiero para revisión con el huésped. En liquidación final: número de factura, hospedaje (`accommodationTotalAmount`), IVA (`taxAmount`) y total a pagar (`totalAmount` devuelto directamente por Módulo 3, sin recálculo local en Módulo 1), junto con noches y fechas reales (`checkInDate` y `checkOutDate` sin horas). En liquidación informativa: muestra exclusivamente hospedaje, comisión e ingreso neto; sin IVA, sin total y sin factura. Cero transacciones monetarias o cobros de consumos locales en Módulo 1.
+4. **Confirmación**: Exigencia obligatoria de marcar la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta") para habilitar el botón de salida. Presenta la nota informativa única de contingencia ante fallas de sincronización (sin jerga técnica ni mención de colas o módulos).
+5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` registrados en `RoomGuest` durante el Check-In). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
+
+---
+
+## Technical Context
+
+- **Language/Version**: Java 21 (LTS)
+- **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
+- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_history`)
+- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
+- **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
+- **Performance Goals**:
+  - Transición atómica de `Room.status` a `PendingCleaning` y cierre de `Stay`: < 50 ms.
+  - Tiempo total de operación en mostrador: < 1 min desde la recepción de la liquidación de Módulo 3.
+  - Consulta reactiva REST GET a Módulo 3: timeout de 3s con degradación airosa.
+- **Constraints**:
+  - No exponer horas en los campos de fecha en pantalla ni en contratos de negocio (`LocalDate` / YYYY-MM-DD).
+  - Cero transacciones monetarias, pasarelas de pago o cobros de consumos de minibar/restaurante en Módulo 1 (responsabilidad exclusiva de Módulo 3).
+  - Bloqueo estricto del botón de confirmación en el Paso 4 si la casilla obligatoria no está marcada.
+  - Disponibilidad inmediata de la habitación liberada en la bandeja del Personal de limpieza.
+  - Mensaje unificado plano hacia `m2.habitacion.checkout.queue` con todos los ocupantes en `guests[]`; sin colas separadas de extranjeros.
+
+---
+
+## Project Structure
+
+### Documentation
+
+```text
+documentos/
+├── SPEC/
+│   ├── spec-registrar-check-out.md
+│   ├── spec-consultar-liquidacion.md
+│   ├── spec-marcar-pendiente-a-limpieza.md
+│   └── spec-consultar-panel-recepcion.md
+└── PLAN/
+    ├── base/
+    │   └── plan.md
+    ├── plan-registrar-check-out.md
+    ├── plan-consultar-liquidacion.md
+    └── plan-consultar-panel-recepcion.md
+```
+
+### Source Code
+
+```text
+backend/src/
+├── main/java/com/hospitua/habitaciones/
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── Room.java
+│   │   │   ├── RoomStatus.java
+│   │   │   ├── Stay.java
+│   │   │   ├── RoomGuest.java
+│   │   │   └── CheckOutDetails.java
+│   │   ├── exception/
+│   │   │   ├── ActiveStayNotFoundException.java
+│   │   │   └── MandatoryConfirmationMissingException.java
+│   │   └── ports/
+│   │       ├── in/
+│   │       │   ├── RegisterCheckOutUseCase.java
+│   │       │   └── GetActiveStayUseCase.java
+│   │       └── out/
+│   │           ├── RoomPersistencePort.java
+│   │           ├── StayPersistencePort.java
+│   │           ├── RoomGuestPersistencePort.java
+│   │           └── OutboxEventPublisherPort.java
+│   ├── application/
+│   │   ├── service/
+│   │   │   ├── CheckOutExecutionService.java
+│   │   │   ├── CheckOutValidationService.java
+│   │   │   └── ActiveStayQueryService.java
+│   │   └── dto/
+│   │       ├── ActiveStayResponseDto.java
+│   │       ├── RegisterCheckOutCommand.java
+│   │       ├── CheckOutResultDto.java
+│   │       └── OutboxCheckOutEventDto.java
+│   └── infrastructure/
+│       ├── adapters/
+│       │   ├── in/
+│       │   │   └── web/
+│       │   │       └── CheckOutController.java
+│       │   └── out/
+│       │       ├── persistence/
+│       │       │   └── adapter/
+│       │       │       ├── RoomRepositoryAdapter.java
+│       │       │       ├── StayRepositoryAdapter.java
+│       │       │       ├── RoomGuestRepositoryAdapter.java
+│       │       │       └── OutboxNotificationRepositoryAdapter.java
+│       │       └── messaging/
+│       │           └── RabbitMqOutboxPublisherAdapter.java
+frontend/src/
+├── pages/checkout/
+│   ├── CheckOutWizard.tsx
+│   ├── Step1ActiveStay.tsx
+│   ├── Step2SettlementSummary.tsx
+│   ├── Step3PaymentReview.tsx
+│   ├── Step4Confirmation.tsx
+│   └── Step5SuccessCleaning.tsx
+└── api/
+    ├── checkOutService.ts
+    └── settlementService.ts
+```
+
+**Structure Decision**: El servicio `CheckOutExecutionService` maneja de forma local y autónoma la transición de estado y el cierre de la estancia física, sin llamar a Módulo 3: el frontend obtiene la liquidación con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`) y envía `invoiceNumber` en `POST /api/check-out`. Emite el evento de cierre a RabbitMQ desacoplado por el Outbox Pattern con la estructura plana acordada.
+
+---
+
+## Contratos de integración
+
+### Contrato 1 — Notificación de Check-Out (Módulo 1 → Módulo 2)
+
+**Cola y routing key:**
+
+```text
+Cola: m2.habitacion.checkout.queue
+Routing key: habitacion.checkout
+```
+
+**Campos del mensaje:**
+
+| Nombre | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `messageId` | UUID | Sí | Identificador único del mensaje; se conserva idéntico en reintentos para la idempotencia del receptor |
+| `sequenceNumber` | entero | Sí | Número de secuencia creciente por cola |
+| `reservationRef` | string | Sí | Referencia de la reserva (ej. `RSV-8D02E5A4`) |
+| `roomId` | UUID | Sí | Identificador de la habitación |
+| `movementType` | string | Sí | Tipo de movimiento; para el Check-Out es siempre `DEPARTURE` |
+| `movementDate` | fecha (YYYY-MM-DD) | Sí | Fecha de salida; igual a `checkOutDate` |
+| `guests[]` | array | Sí | Totalidad de los huéspedes que ocuparon la habitación (nacionales y extranjeros) |
+
+**Campos de cada elemento de `guests[]`:** misma estructura que la notificación de Check-In; `originPlace` y `destinationPlace` se reutilizan de los valores registrados en `RoomGuest` durante el Check-In.
+
+| Nombre | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `firstName` | string | Sí | Nombres del huésped |
+| `lastName` | string | Sí | Apellidos del huésped |
+| `documentType` | string | Sí | Tipo de documento: `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT` |
+| `documentNumber` | string | Sí | Número de documento de identidad |
+| `birthDate` | fecha (YYYY-MM-DD) | Sí | Fecha de nacimiento |
+| `nationality` | string | Sí | Nacionalidad del huésped |
+| `originPlace` | string | Solo si `nationality ≠ Colombia` | Lugar de procedencia reutilizado del Check-In, formato "Ciudad, País" |
+| `destinationPlace` | string | Solo si `nationality ≠ Colombia` | Lugar de destino reutilizado del Check-In, formato "Ciudad, País" |
+
+**Ejemplo de mensaje (misma estructura que Check-In, con `DEPARTURE`):**
+
+```json
+{
+  "messageId": "UUIDv4",
+  "sequenceNumber": 1,
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "uuid",
+  "movementType": "DEPARTURE",
+  "movementDate": "2026-10-13",
+  "guests": [
+    {
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "documentType": "CC",
+      "documentNumber": "123",
+      "birthDate": "1995-03-20",
+      "nationality": "Colombia"
+    },
+    {
+      "firstName": "John",
+      "lastName": "Smith",
+      "documentType": "PAS",
+      "documentNumber": "X99",
+      "birthDate": "1990-05-12",
+      "nationality": "Estados Unidos",
+      "originPlace": "Miami, Estados Unidos",
+      "destinationPlace": "Cartagena, Colombia"
+    }
+  ]
+}
+```
+
+---
+
+## Endpoints REST internos (Frontend → Módulo 1)
+
+Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual, que se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa el Endpoint 2. Los errores usan `ApiError` del plan base. La liquidación de los pasos 2 y 3 se obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2).
+
+### Endpoint 1 — Estancia activa de la habitación (Paso 1)
+
+```http
+GET /api/check-out/active-stay?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+```
+
+| Parámetro | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `reservationRef` | string | Sí | Referencia que entrega el botón "Check-out" del panel de recepción (FR-003) |
+| `roomId` | UUID | Sí | Habitación seleccionada; con la referencia identifica la estancia, porque una reserva puede tener varias habitaciones |
+
+Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`ActiveStayResponseDto`):
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "reservationRef": "RSV-8D02E5A4",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "categoryRoom": "DOBLE",
+  "roomStatus": "Occupied",
+  "titularFirstName": "Ana",
+  "titularLastName": "Pérez",
+  "checkInDate": "2026-10-09",
+  "expectedCheckoutDate": "2026-10-11",
+  "source": "BOOKING",
+  "guests": [
+    { "firstName": "Ana", "lastName": "Pérez", "documentType": "CC", "documentNumber": "123", "nationality": "Colombia" },
+    { "firstName": "John", "lastName": "Smith", "documentType": "PAS", "documentNumber": "X99", "nationality": "Estados Unidos" }
+  ]
+}
+```
+
+### Endpoint 2 — Registrar el Check-Out (confirmación del Paso 4)
+
+```http
+POST /api/check-out
+X-User: aruiz
+Content-Type: application/json
+```
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "confirmed": true,
+  "invoiceNumber": 40001
+}
+```
+
+| Campo | Tipo | Obligatorio | Descripción |
+| --- | --- | --- | --- |
+| `stayId` | UUID | Sí | Estancia del Paso 1 |
+| `confirmed` | boolean | Sí | Casilla obligatoria del Paso 4; debe ser `true` (FR-008) |
+| `invoiceNumber` | entero | No | Factura recibida en el Paso 2; `null` si la liquidación es informativa o no estuvo disponible. Es la referencia de liquidación del evento `CHECK_OUT` (FR-015) |
+
+Los huéspedes de la notificación no se envían: se reutilizan de `RoomGuest` (Contrato 1). Respuesta `200 OK` (`CheckOutResultDto`):
+
+```json
+{
+  "stayId": "7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "roomNumber": "204",
+  "roomStatus": "PendingCleaning",
+  "checkOutDate": "2026-10-11"
+}
+```
+
+La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en el outbox (FR-014).
+
+### Errores de los dos endpoints
+
+| Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
+| --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base); la interfaz muestra "Tu sesión terminó. Inicia sesión de nuevo." | 2 |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, o tiene formato inválido | 1 y 2 |
+| 400 | `CONFIRMATION_REQUIRED` | `MandatoryConfirmationMissingException` | `confirmed` no es `true` (FR-008) | 2 |
+| 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` | No hay una estancia activa para ese par o ese `stayId` | 1 y 2 |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Occupied`; `details.currentStatus` lleva el estado actual (FR-004) | 1 y 2 |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (regla 13 del plan base); se puede reintentar | 2 |
+
+```json
+{
+  "errorCode": "ACTIVE_STAY_NOT_FOUND",
+  "message": "No hay una estancia activa de la reserva RSV-8D02E5A4 en la habitación 204.",
+  "timestamp": "2026-10-11T11:20:40-05:00",
+  "path": "/api/check-out/active-stay",
+  "details": { "reservationRef": "RSV-8D02E5A4", "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d" }
+}
+```
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+- [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
+- [ ] T002 [eliminada: el cliente REST hacia Módulo 3 y su timeout los implementa plan-consultar-liquidacion.md (T005)]
+- [ ] T003 Configurar la cola `m2.habitacion.checkout.queue` y binding topic con routing key `habitacion.checkout` en RabbitMQ.
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+- [ ] T004 [eliminada: `SettlementSummary` lo implementa plan-consultar-liquidacion.md (T004)]
+- [ ] T005 [eliminada: `SettlementRestQueryPort` y `SettlementRestAdapter` los implementa plan-consultar-liquidacion.md (T007)]
+- [ ] T006 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
+
+---
+
+## Phase 3: User Story 1 - Formalización de Check-Out y liberación de habitación (Priority: P1)
+
+**Goal**: Permitir al Recepcionista completar los 5 pasos de Check-Out a partir de los datos locales de la estancia, consultar la liquidación a Módulo 3, confirmar la salida con la casilla obligatoria, transicionar la habitación a `PendingCleaning` y emitir la notificación plana a Módulo 2 con todos los huéspedes.
+
+**Independent Test**: Iniciar con una habitación en estado `Occupied` y estancia activa, recuperar la liquidación simulada de Módulo 3, marcar la casilla en el paso 4, confirmar y verificar que la habitación pasa a `PendingCleaning`, la estancia registra `checkOutDate` de hoy, se inserta el mensaje en `outbox_notification` para RabbitMQ (`m2.habitacion.checkout.queue`) conteniendo `movementType = DEPARTURE`, `movementDate = checkOutDate` y el array `guests[]` completo, y se despliega la pantalla de éxito con badges y botón "Volver al inicio".
+
+### Tests for User Story 1
+
+- [ ] T007 [P] [US1] Unit test para `ActiveStayQueryService` verificando recuperación 100% local desde `Stay`, `Room` y `RoomGuest` sin llamadas externas a Módulo 2.
+- [ ] T008 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
+- [ ] T009 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `OutboxCheckOutEventDto`.
+- [ ] T010 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
+- [ ] T011 [P] [US1] Unit test verificando que la habitación liberada queda visible de inmediato en las consultas de inventario para el Personal de limpieza en estado `PendingCleaning`.
+
+### Implementation for User Story 1
+
+- [ ] T012 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por el par `reservationRef` y `roomId` (una reserva puede tener varias habitaciones, cada una con su `Stay`), obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
+- [ ] T013 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
+  - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
+  - Verificar que la habitación esté en estado `Occupied`.
+  - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
+  - Actualizar `Stay` asignando `checkOutDate = LocalDate.now()`.
+  - Construir el payload plano para outbox:
+
+    ```json
+    {
+      "messageId": "UUIDv4",
+      "sequenceNumber": 1,
+      "reservationRef": "RES-000123",
+      "roomId": "room-uuid",
+      "movementType": "DEPARTURE",
+      "movementDate": "YYYY-MM-DD",
+      "guests": [
+        {
+          "firstName": "string",
+          "lastName": "string",
+          "documentType": "string",
+          "documentNumber": "string",
+          "nationality": "string",
+          "birthDate": "YYYY-MM-DD",
+          "originPlace": "Ciudad, País",
+          "destinationPlace": "Ciudad, País"
+        }
+      ]
+    }
+    ```
+
+    `birthDate` se incluye para todos los huéspedes; `originPlace` y `destinationPlace` únicamente si `nationality != "Colombia"`. Todos se reutilizan de los registros de Check-In (`RoomGuest`).
+  - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación, mediante `RoomAuditLogPort` (FR-015).
+  - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkout", "CHECK_OUT", payload)` dentro de la misma transacción; `messageId` y `sequenceNumber` los asigna el outbox (plan base, T012).
+- [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
+  - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
+  - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
+- [ ] T015 [US1] Construir los componentes frontend en React:
+  - `Step1ActiveStay.tsx`: Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
+  - `Step2SettlementSummary.tsx`: Muestra `settlementType`, `invoiceNumber` (entero o "Pendiente de facturación"), canal local `Stay.source`, comisión OTA e ingreso neto.
+  - `Step3PaymentReview.tsx`: En liquidación final: `invoiceNumber`, hospedaje, IVA, `totalAmount` de M3 (sin recálculo local), noches y fechas. En liquidación informativa: solo hospedaje, comisión e ingreso neto; sin IVA, total ni factura.
+  - `Step4Confirmation.tsx`: Checkbox obligatorio de confirmación y nota informativa de contingencia sin jerga técnica.
+  - `Step5SuccessCleaning.tsx`: Badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
+
+---
+
+## Phase 4: User Story 2 - Bloqueo de salidas inconsistentes y resiliencia de integración (Priority: P2)
+
+**Goal**: Garantizar que el sistema rechace salidas sobre habitaciones no ocupadas o sin estancia activa, y provea contingencia operativa ante indisponibilidad de Módulo 3.
+
+**Independent Test**: Intentar iniciar Check-Out en una habitación en estado `Available` o `InCleaning`, simulando rechazo con error 400/409; simular timeout o caída de Módulo 3 y verificar que el sistema permita la liberación física excepcional informando el estado pendiente de regularización financiera.
+
+### Tests for User Story 2
+
+- [ ] T016 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomTransitionException`.
+- [ ] T017 [P] [US2] Unit test: Rechazar Check-Out si no existe estancia activa vinculada arrojando `ActiveStayNotFoundException`.
+- [ ] T018 [P] [US2] Unit test: Rechazar Check-Out si `isConfirmed == false` arrojando `MandatoryConfirmationMissingException`.
+- [ ] T019 [P] [US2] Integration test: con la liquidación en `UNAVAILABLE` (`plan-consultar-liquidacion.md`), `POST /api/check-out` con `invoiceNumber` nulo registra la salida y libera la habitación a `PendingCleaning`.
+
+### Implementation for User Story 2
+
+- [ ] T020 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
+- [ ] T021 [eliminada: la traducción de fallas de Módulo 3 a `UNAVAILABLE` la implementa plan-consultar-liquidacion.md (T021 y T023)]
+- [ ] T022 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
+
+---
+
+## Phase 5: Polish & Cross-Cutting Concerns
+
+- [ ] T023 Verificar que en las pantallas y respuestas no se expongan horas en ningún campo de fecha (`checkInDate`, `checkOutDate`).
+- [ ] T024 Verificar que ante reenvíos de notificación de Check-Out por la cola RabbitMQ, se mantenga el mismo `messageId` para garantizar procesamiento idempotente en Módulo 2.
+- [ ] T025 Pruebas E2E de concurrencia: dos recepcionistas intentando el Check-Out sobre la misma habitación simultáneamente (la segunda debe fallar con colisión controlada).
+
+---
+
+## Dependencies & Execution Order
+
+- **Foundational**: Requiere `Room`, `Stay`, `RoomGuest` y el esquema Outbox de [PLAN/base/plan.md](base/plan.md).
+- **Sub-planes Requeridos**:
+  - `plan-consultar-panel-recepcion.md`: Suministra la estancia seleccionada desde el buscador de Salidas.
+  - `plan-consultar-liquidacion.md`: Provee el contrato y servicio reactivo hacia Módulo 3 (`GET /api/settlements`).
+- **Flujo de Ejecución**: Paso 1 (Consultar reserva local) → Paso 2 (Liquidación M3) → Paso 3 (Pago informativo) → Paso 4 (Confirmación con checkbox) → Paso 5 (Liberar habitación a `PendingCleaning`).
