@@ -25,7 +25,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
    - **Entonces** el sistema transiciona la habitación a `PendingCleaning` de forma síncrona, cierra la `Estancia` registrando `checkOutDate`, y emite la notificación asíncrona hacia Módulo 2 con el movimiento de salida, fecha de egreso y la nómina de todos los huéspedes. En el paso 2 se muestra el `settlementType` ("Liquidación informativa" o "Liquidación final") y el `invoiceNumber` (entero consecutivo o no mostrado si informativa). En el paso 3 el `totalAmount` viene de M3; en liquidación informativa se muestra solo hospedaje, comisión e ingreso neto, sin IVA, sin total y sin factura.
 
 2. **Escenario**: Check-Out con salida anticipada (Early Check-Out)
-   - **Dado** una estancia cuya `expectedCheckoutTime` es posterior a hoy
+   - **Dado** una estancia cuya `expectedCheckoutDate` es posterior a hoy
    - **Cuando** el Recepcionista inicia el Check-Out
    - **Entonces** Módulo 3 entrega el valor consolidado de hospedaje (penalizaciones resueltas internamente por M3). El flujo continúa normalmente
 
@@ -121,7 +121,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 ## Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: 8 estados canónicos. Transiciona de `Occupied` a `PendingCleaning` en este flujo.
-- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` ("Directo" u "OTA"), `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
+- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` ("Directo" u "OTA"), `checkInDate`, `checkOutDate`, `expectedCheckinDate`, `expectedCheckoutDate`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
 - **RoomGuest**: Ocupante inmutable. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace`, `destinationPlace`.
 - **SettlementSummary**: Estructura devuelta por Módulo 3. Contiene: `invoiceNumber` (entero o null), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType`. No incluye `source`.
 - **CleaningStaff**: Recibe la habitación en `PendingCleaning` en su bandeja de trabajo.
