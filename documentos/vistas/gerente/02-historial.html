@@ -379,8 +379,9 @@ function guardarDatos() {
 function recargarDatos() { memoria = null; return cargarDatos(); }
 
 function restablecerDatos() {
-  try { localStorage.removeItem(CLAVE_DATOS); sessionStorage.clear(); } catch (e) {}
+  try { localStorage.removeItem(CLAVE_DATOS); localStorage.removeItem("hospitua-m1-personal-v1"); sessionStorage.clear(); } catch (e) {}
   memoria = null;
+  if (typeof memoriaPersonal !== "undefined") memoriaPersonal = null;
 }
 
 function habitaciones() { return cargarDatos().habitaciones; }
@@ -437,13 +438,14 @@ function consultarReservasDeHabitacion(numero) {
 // La apariencia viene de la hoja de estilos del grupo.
 
 const USUARIOS = {
-  admin:   { nombre: "Laura Méndez", rol: "Administrador", inicial: "LM" },
+  admin:   { nombre: "Laura Méndez", rol: "Administrador", inicial: "LM", usuario: "lmendez" },
   gerente: { nombre: "Andrés Rojas", rol: "Gerente",       inicial: "AR" }
 };
 
 const MENUS = {
   admin: [
-    { href: "../administrador/01-inventario.html", texto: "Inventario", clave: "panel" }
+    { href: "../administrador/01-inventario.html", texto: "Inventario", clave: "panel" },
+    { href: "../administrador/12-personal.html", texto: "Personal", clave: "personal" }
   ],
   gerente: [
     { href: "01-inventario.html", texto: "Inventario", clave: "panel" },
