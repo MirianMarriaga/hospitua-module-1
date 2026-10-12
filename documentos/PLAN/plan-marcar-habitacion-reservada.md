@@ -194,7 +194,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Verificar con el dueño de `plan-consultar-reservas.md` (T012) que `DailyReservationIngestionService` invoque este puerto en lugar de transicionar las habitaciones directamente (hoy T012 describe "transiciones automáticas" sin mencionar el puerto, aunque *Consultar reservas* FR-009 exige invocar este caso de uso), y que:
+- [ ] T015 [US2] Integration test con Testcontainers: `DailyReservationIngestionService` (`plan-consultar-reservas.md`, T012) aparta las habitaciones solo a través de este puerto (*Consultar reservas* FR-009), y:
   - invoque el puerto con `DAILY_LIST` y `ADDED_UPDATE` solo para reservas con `startDate` = hoy;
   - en la lista de las 00:00 ejecute primero las liberaciones (`MarkRoomAvailableUseCase`) y después los apartados;
   - trate un `UPDATED` que cambia la habitación como liberación de la anterior y apartado de la nueva;

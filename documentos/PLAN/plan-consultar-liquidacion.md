@@ -362,7 +362,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 3: Polish de esta feature
 
 - [ ] T026 [P] Prueba de rendimiento: p95 < 800 ms normal y respuesta controlada < 3 s ante falla (SC-002, SC-003)
-- [ ] T027 [P] Tests de componentes React en `frontend/tests/settlement/` (estados `AVAILABLE` y `UNAVAILABLE`)
+- [ ] T027 [P] Tests de componentes React en `frontend/src/test/settlement/` (estados `AVAILABLE` y `UNAVAILABLE`)
 - [ ] T028 Agregar referencia cruzada en `spec-registrar-check-out.md` y `plan-registrar-check-out.md`
 
 ---

@@ -191,7 +191,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Agregar a `TransitionRoomStateUseCase` (plan base, regla 8) la operación `registerInitialStatus(roomId, actorId, sourceFlow)`, que abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor. Coordinar con el dueño del plan base: la regla 8 cubre transiciones y una habitación nueva no tiene estado previo.
+- [ ] T001 Implementar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` definida en la regla 8 del plan base (T010 y T017): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
 - [ ] T002 [P] Implementar `RoomCategory` y registrar en `GlobalExceptionHandler` `RoomNumberAlreadyExistsException` (`409 ROOM_NUMBER_ALREADY_EXISTS`), mapeando también la violación del índice único de `room.room_number`.
 
 ---
@@ -240,5 +240,5 @@ No aplica: usa la infraestructura del plan base.
 - **Foundational**: Requiere del plan base la tabla `room` con su índice único de `room_number` (T007), `TransitionRoomStateUseCase` con el registro en el historial (regla 8, T010 y T017), `SourceFlow` con `REGISTER_ROOM` (T020) y `ClockConfig`.
 - **Planes que dependen de este**:
   - `plan-consultar-inventario-habitaciones.md`: botón "Registrar habitación" y listado al que se vuelve.
-- **Nota**: las habitaciones que cargue la semilla `V2__seed_rooms.sql` del plan base también necesitan su periodo inicial en `room_state_history` para que *Consultar historial de estados* las muestre.
+- **Nota**: las habitaciones que carga la semilla `V2__seed_rooms.sql` ya tienen su periodo inicial en `room_state_history` (plan base, T007), así que *Consultar historial de estados* también las muestra.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. Este es el primer plan de gestión de habitaciones.

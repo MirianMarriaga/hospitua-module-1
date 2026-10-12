@@ -10,7 +10,7 @@
 Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepcionista en Módulo 1, mediante un flujo guiado de 5 pasos en la interfaz de usuario:
 
 1. **Consultar reserva**: Búsqueda 100% local sobre el repositorio de Módulo 1 (`Stay` + `Room` + `RoomGuest`), identificando al huésped titular (`Stay.titularFirstName`, `Stay.titularLastName`) y el canal de origen (`Stay.source`). Valida obligatoriamente que la habitación se encuentre en estado `Occupied`, sin invocar a Módulo 2 ni desplegar estados externos.
-2. **Liquidación**: Invocación reactiva mediante REST GET a Módulo 3 (`plan-consultar-liquidacion.md`), desplegando el tipo de liquidación (`settlementType`: "Liquidación informativa" o "Liquidación final"), el número de factura oficial (`invoiceNumber`, entero consecutivo o "Pendiente de facturación" si null), la fuente local (`Stay.source`), comisión OTA e ingreso neto (`netIncomeAmount`).
+2. **Liquidación**: El frontend la obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2), que es quien consulta a Módulo 3; el backend de este plan no llama a Módulo 3. Se despliega el tipo de liquidación (`settlementType`: "Liquidación informativa" o "Liquidación final"), el número de factura oficial (`invoiceNumber`, entero consecutivo o "Pendiente de facturación" si null), la fuente local (`Stay.source`), comisión OTA e ingreso neto (`netIncomeAmount`).
 3. **Pago**: Visualización del resumen financiero para revisión con el huésped. En liquidación final: número de factura, hospedaje (`accommodationTotalAmount`), IVA (`taxAmount`) y total a pagar (`totalAmount` devuelto directamente por Módulo 3, sin recálculo local en Módulo 1), junto con noches y fechas reales (`checkInDate` y `checkOutDate` sin horas). En liquidación informativa: muestra exclusivamente hospedaje, comisión e ingreso neto; sin IVA, sin total y sin factura. Cero transacciones monetarias o cobros de consumos locales en Módulo 1.
 4. **Confirmación**: Exigencia obligatoria de marcar la casilla de confirmación ("Confirmo la salida del huésped y la información mostrada es correcta") para habilitar el botón de salida. Presenta la nota informativa única de contingencia ante fallas de sincronización (sin jerga técnica ni mención de colas o módulos).
 5. **Liberar habitación**: Transición atómica y síncrona (`@Transactional`) de `Room.status` de `Occupied` a `PendingCleaning` (pasando de inmediato a la bandeja de trabajo del Personal de limpieza), cierre de la entidad `Stay` con `checkOutDate` y `receptionistIdCheckOut`, registro del evento en `outbox_notification`, y emisión asíncrona a RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con mensaje plano unificado conteniendo todos los huéspedes en `guests[]` (reutilizando `originPlace`/`destinationPlace` registrados en `RoomGuest` durante el Check-In). Despliegue de pantalla de éxito con badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
@@ -68,11 +68,9 @@ backend/src/
 │   │   │   ├── RoomStatus.java
 │   │   │   ├── Stay.java
 │   │   │   ├── RoomGuest.java
-│   │   │   ├── SettlementSummary.java
 │   │   │   └── CheckOutDetails.java
 │   │   ├── exception/
 │   │   │   ├── ActiveStayNotFoundException.java
-│   │   │   ├── SettlementUnavailableException.java
 │   │   │   └── MandatoryConfirmationMissingException.java
 │   │   └── ports/
 │   │       ├── in/
@@ -82,7 +80,6 @@ backend/src/
 │   │           ├── RoomPersistencePort.java
 │   │           ├── StayPersistencePort.java
 │   │           ├── RoomGuestPersistencePort.java
-│   │           ├── SettlementRestQueryPort.java
 │   │           └── OutboxEventPublisherPort.java
 │   ├── application/
 │   │   ├── service/
@@ -106,8 +103,6 @@ backend/src/
 │       │       │       ├── StayRepositoryAdapter.java
 │       │       │       ├── RoomGuestRepositoryAdapter.java
 │       │       │       └── OutboxNotificationRepositoryAdapter.java
-│       │       ├── rest/
-│       │       │   └── SettlementRestAdapter.java
 │       │       └── messaging/
 │       │           └── RabbitMqOutboxPublisherAdapter.java
 frontend/src/
@@ -123,7 +118,7 @@ frontend/src/
     └── settlementService.ts
 ```
 
-**Structure Decision**: El servicio `CheckOutExecutionService` maneja de forma local y autónoma la transición de estado y el cierre de la estancia física, consumiendo la liquidación mediante `SettlementRestQueryPort` y emitiendo el evento de cierre a RabbitMQ desacoplado por el Outbox Pattern con la estructura plana acordada.
+**Structure Decision**: El servicio `CheckOutExecutionService` maneja de forma local y autónoma la transición de estado y el cierre de la estancia física, sin llamar a Módulo 3: el frontend obtiene la liquidación con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`) y envía `invoiceNumber` en `POST /api/check-out`. Emite el evento de cierre a RabbitMQ desacoplado por el Outbox Pattern con la estructura plana acordada.
 
 ---
 
@@ -297,16 +292,16 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Configurar el bean `SettlementRestClient` con timeout síncrono de 3000 ms hacia Módulo 3 (`GET /api/settlements`).
+- [ ] T002 [eliminada: el cliente REST hacia Módulo 3 y su timeout los implementa plan-consultar-liquidacion.md (T005)]
 - [ ] T003 Configurar la cola `m2.habitacion.checkout.queue` y binding topic con routing key `habitacion.checkout` en RabbitMQ.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Implementar el modelo de dominio `SettlementSummary` con campos: `settlementType`, `invoiceNumber` (Integer, nullable), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (BigDecimal, nullable), `netIncomeAmount`, `totalAmount` (BigDecimal, nullable).
-- [ ] T005 Implementar el puerto de salida `SettlementRestQueryPort` y su adaptador REST `SettlementRestAdapter` llamando a `GET /api/settlements` con query params (`reservationRef`, `checkInDate`, `checkOutDate`, `source`, `roomId`, `categoryRoom`).
-- [ ] T006 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`, `SettlementUnavailableException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
+- [ ] T004 [eliminada: `SettlementSummary` lo implementa plan-consultar-liquidacion.md (T004)]
+- [ ] T005 [eliminada: `SettlementRestQueryPort` y `SettlementRestAdapter` los implementa plan-consultar-liquidacion.md (T007)]
+- [ ] T006 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
 
 ---
 
@@ -383,12 +378,12 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 - [ ] T016 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomTransitionException`.
 - [ ] T017 [P] [US2] Unit test: Rechazar Check-Out si no existe estancia activa vinculada arrojando `ActiveStayNotFoundException`.
 - [ ] T018 [P] [US2] Unit test: Rechazar Check-Out si `isConfirmed == false` arrojando `MandatoryConfirmationMissingException`.
-- [ ] T019 [P] [US2] Integration test: Manejo de fallback cuando Módulo 3 no responde (timeout 3000 ms), permitiendo liberar a `PendingCleaning`.
+- [ ] T019 [P] [US2] Integration test: con la liquidación en `UNAVAILABLE` (`plan-consultar-liquidacion.md`), `POST /api/check-out` con `invoiceNumber` nulo registra la salida y libera la habitación a `PendingCleaning`.
 
 ### Implementation for User Story 2
 
 - [ ] T020 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
-- [ ] T021 [US2] Implementar en `SettlementRestAdapter` la captura de excepciones REST (`ResourceAccessException`, `HttpServerErrorException`) mapeándolas a contingencia controlada con flag `settlementPending = true`.
+- [ ] T021 [eliminada: la traducción de fallas de Módulo 3 a `UNAVAILABLE` la implementa plan-consultar-liquidacion.md (T021 y T023)]
 - [ ] T022 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 
 ---

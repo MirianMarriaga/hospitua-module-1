@@ -12,7 +12,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 1. **Modo Local (Recepción, Panel de Llegadas y Check-In)**:
    - **Ingesta Asíncrona por Cola**: Consumir de la cola `m1.reservas.diarias.queue` la lista diaria de llegadas a las 00:00 (routing key `reserva.lista-del-dia`, `sequenceNumber = 1`) y las actualizaciones continuas durante el día (routing key `reserva.lista-del-dia.actualizacion`, acciones `ADDED`, `UPDATED`, `REMOVED`).
    - **Almacenamiento Local**: Mantener la copia local en las tablas `daily_reservation`, `daily_reservation_room` y `daily_reservation_message_log` con control estricto de idempotencia por `messageId` y orden por `sequenceNumber` y `updatedAt`.
-   - **Efecto en Inventario Físico (Transiciones Automáticas)**: Al persistir la lista diaria o una acción `ADDED`, el sistema transiciona automáticamente cada habitación a `Reserved` asignando `Room.reserved_by_reservation_ref`. Al recibir `REMOVED` o quitar una habitación en `UPDATED`, transiciona de `Reserved` a `Available`. A las 00:00, las liberaciones (incluidas las de reservas que ya no figuran en la nueva lista) se ejecutan antes de apartar las nuevas habitaciones. No hay corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
+   - **Efecto en Inventario Físico (FR-009)**: La ingesta no transiciona las habitaciones por su cuenta. Al persistir la lista diaria o una acción `ADDED` con `startDate` = hoy, aparta cada habitación con `MarkRoomReservedUseCase` (`ReservationTrigger` `DAILY_LIST` o `ADDED_UPDATE`, `plan-marcar-habitacion-reservada.md`), que asigna `Room.reserved_by_reservation_ref` y registra los conflictos. Al recibir `REMOVED` o quitar una habitación en `UPDATED`, la libera con `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`). A las 00:00, las liberaciones (incluidas las de reservas que ya no figuran en la nueva lista) se ejecutan antes de apartar las nuevas habitaciones. No hay corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
    - **Búsqueda 100% Autónoma y Local**: La Recepcionista consulta el listado de llegadas y busca por código (`reservationRef`), número de documento o nombre del titular directamente sobre la copia local (invocado por `plan-consultar-panel-recepcion.md` y por el Paso 1 de `plan-registrar-check-in.md`), sin realizar ninguna petición HTTP/REST a Módulo 2.
    - **Sin campo `nights`**: Se elimina `nights` de todos los modelos y DTOs de persistencia/mensajería; el cálculo de noches se realiza dinámicamente en tiempo de ejecución (`endDate - startDate`).
 
@@ -310,24 +310,25 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ## Phase 3: User Story 1 - Ingesta asíncrona de lista diaria y actualizaciones por cola (Priority: P1)
 
-**Goal**: Mantener la copia local de llegadas del día sincronizada a través de `m1.reservas.diarias.queue` a las 00:00 y con actualizaciones continuas, ejecutando transiciones atómicas automáticas en el inventario de habitaciones.
+**Goal**: Mantener la copia local de llegadas del día sincronizada a través de `m1.reservas.diarias.queue` a las 00:00 y con actualizaciones continuas, apartando y liberando las habitaciones con los puertos `MarkRoomReservedUseCase` y `MarkRoomAvailableUseCase` en la misma transacción.
 
-**Independent Test**: Publicar un mensaje `DailyReservationList` simulado a las 00:00 por `m1.reservas.diarias.queue` (`reserva.lista-del-dia`), verificar la purga de registros anteriores, persistencia en `daily_reservation` y `daily_reservation_room`, descarte de duplicados por `messageId`, transiciones automáticas `Available → Reserved` (con `reserved_by_reservation_ref`) y liberaciones a `Available` en `REMOVED`.
+**Independent Test**: Publicar un mensaje `DailyReservationList` simulado a las 00:00 por `m1.reservas.diarias.queue` (`reserva.lista-del-dia`), verificar la purga de registros anteriores, persistencia en `daily_reservation` y `daily_reservation_room`, descarte de duplicados por `messageId`, apartados `Available → Reserved` por `MarkRoomReservedUseCase` (con `reserved_by_reservation_ref`) y liberaciones a `Available` por `MarkRoomAvailableUseCase` en `REMOVED`.
 
 ### Tests for User Story 1
 
 - [ ] T009 [P] [US1] Unit test en `DailyReservationIngestionServiceTest`:
   - Descarte inmediato si `messageId` ya existe en `daily_reservation_message_log`.
-  - Purgar copia local al recibir lista de las 00:00 (`sequenceNumber = 1`). Liberar habitaciones huérfanas antes de apartar las nuevas.
-  - Transición automática a `Reserved` para habitaciones incluidas en la lista o en `ADDED`.
-  - Procesamiento de actualización `UPDATED`: aplica cambios solo si `message.updatedAt > local.updatedAt`; descarta en caso contrario. Si cambia la habitación asignada, libera la anterior y aparta la nueva.
-  - Procesamiento de actualización `REMOVED`: elimina la reserva y habitaciones de la copia local, y transiciona cada habitación de `Reserved` a `Available`.
+  - Purgar copia local al recibir lista de las 00:00 (`sequenceNumber = 1`). Liberar habitaciones huérfanas con `MarkRoomAvailableUseCase` antes de apartar las nuevas.
+  - Invocación de `MarkRoomReservedUseCase` (`DAILY_LIST` o `ADDED_UPDATE`) por cada habitación de la lista o de un `ADDED` con `startDate` = hoy; ante `CONFLICT` o `ROOM_NOT_FOUND` continúa con la siguiente.
+  - Procesamiento de actualización `UPDATED`: aplica cambios solo si `message.updatedAt > local.updatedAt`; descarta en caso contrario. Si cambia la habitación asignada, libera la anterior con `MarkRoomAvailableUseCase` y aparta la nueva con `MarkRoomReservedUseCase`.
+  - Procesamiento de actualización `REMOVED`: elimina la reserva y habitaciones de la copia local, y libera cada habitación con `MarkRoomAvailableUseCase`.
+  - La ingesta no invoca `TransitionRoomStateUseCase` directamente.
 - [ ] T010 [P] [US1] Integration test con Testcontainers RabbitMQ + PostgreSQL: Ingesta de lista diaria y mensaje duplicado, verificando idempotencia, transiciones en `Room` y logs.
 
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar `DailyReservationPersistenceAdapter` para operaciones CRUD y purga atómica de la copia local.
-- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación, control de `sequenceNumber` y transiciones automáticas de habitaciones (`Available ↔ Reserved`), ejecutando primero las liberaciones a las 00:00. Por cada habitación, bloquea su fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de apartarla, liberarla o registrar el conflicto. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` (regla 10 del plan base).
+- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación y control de `sequenceNumber`. Aparta las habitaciones con `MarkRoomReservedUseCase` y las libera con `MarkRoomAvailableUseCase` (puertos de T019 del plan base), ejecutando primero las liberaciones a las 00:00; no transiciona las habitaciones por su cuenta (FR-009). Por cada habitación, bloquea su fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de invocar el puerto; el conflicto lo registra *Marcar habitación como reservada*. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` (regla 10 del plan base).
 - [ ] T013 [P] [US1] Implementar en la ingesta de las 00:00 la liberación a `Available` (mediante `MarkRoomAvailableUseCase`) de cada habitación en `Reserved` cuya reserva no figura en la nueva lista, con la salvaguarda de `reservedByReservationRef`. No se implementa un corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
 - [ ] T014 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`. Los mensajes ilegibles o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` van, sin aplicarse, a la cola de mensajes fallidos `m1.reservas.diarias.dlq` (Dead-Letter Exchange del plan base, T011). Un fallo temporal se reintenta con espera creciente (3 intentos) y luego va a la misma cola (FR-003).
 
@@ -465,6 +466,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 ## Dependencies & Execution Order
 
 - **Foundational**: Requiere `Room` y `RoomPersistencePort` de [PLAN/base/plan.md](base/plan.md), más la creación de las tablas de `daily_reservation`.
+- **Puertos de transición**: la ingesta usa `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`) y `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`), ambos de T019 del plan base; esos planes se implementan antes que la Phase 3 de este.
 - **Consumidores**:
   - `plan-consultar-panel-recepcion.md`: Invoca la búsqueda local de llegadas (`SearchDailyReservationsUseCase`).
   - `plan-registrar-check-in.md`: Invoca la validación local de reserva en el Paso 1.

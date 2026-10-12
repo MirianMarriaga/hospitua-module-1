@@ -116,6 +116,15 @@ backend/src/
 │       │       │       └── OutboxNotificationRepositoryAdapter.java
 │       │       └── messaging/
 │       │           └── RabbitMqOutboxPublisherAdapter.java
+frontend/src/
+├── pages/checkin/
+│   ├── CheckInWizard.tsx
+│   ├── Step1ReservationSummary.tsx
+│   ├── Step2GuestCapture.tsx                      # Incluye el panel migratorio de extranjeros
+│   ├── Step3Confirmation.tsx
+│   └── Step4Success.tsx
+└── api/
+    └── checkInService.ts
 ```
 
 ---
@@ -315,8 +324,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 1: Setup & Database Migrations
 
-- [ ] T001 Migración Flyway: Actualizar tabla `stay` agregando columnas `titular_first_name`, `titular_last_name`, `titular_document_number` y asegurando que `source` almacene `DIRECTA` o el nombre de la OTA.
-- [ ] T002 Migración Flyway: Actualizar tabla `room_guest` reemplazando `full_name` por `first_name` y `last_name`, y agregando columnas `birth_date` (DATE NOT NULL), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable).
+- [ ] T001 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `stay` tenga `titular_first_name`, `titular_last_name`, `titular_document_number` y `source` (`DIRECTA` o el nombre de la OTA). Este plan no tiene migración propia.
+- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `room_guest` tenga `first_name` y `last_name` (sin `full_name`), `birth_date` (DATE NOT NULL), `origin_place` y `destination_place` (VARCHAR nullable).
 - [ ] T003 Configurar exchange y cola RabbitMQ `m2.habitacion.checkin.queue` (enrutamiento para check-in con mensaje plano).
 
 ---
@@ -383,11 +392,12 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 - [ ] T017 [US1] Implementar controlador REST `CheckInController`:
   - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1; Endpoint 1).
   - `POST /api/check-in` (confirmación del Paso 3; Endpoint 2).
-- [ ] T018 [US1] Adaptar componentes de UI en frontend:
-  - Formulario con nombres y apellidos separados.
-  - Panel migratorio condicional visible exclusivamente para extranjeros con validación de fecha de nacimiento en el pasado.
-  - Despliegue de la habitación específica (número de habitación, categoría y aforo).
-  - Pantalla de éxito con badges `Habitación: Ocupada` y `Reserva: En curso`.
+- [ ] T018 [US1] Construir el flujo de 4 pasos en `pages/checkin/` y `checkInService.ts` (Endpoints 1 y 2) (FR-002):
+  - `CheckInWizard.tsx`: lleva el paso actual y los datos entre pasos; se abre con `reservationRef` y `roomId` desde el botón "Check-in" del panel de recepción.
+  - `Step1ReservationSummary.tsx`: reserva, titular y habitación específica (número, categoría y aforo) (vista `vistas/recepcionista/02-checkin-1-reserva.html`).
+  - `Step2GuestCapture.tsx`: titular en solo lectura, acompañantes con nombres y apellidos separados y panel migratorio visible solo para extranjeros, con fecha de nacimiento en el pasado (vista `vistas/recepcionista/03-checkin-2-huespedes.html`; FR-006, FR-007, FR-009).
+  - `Step3Confirmation.tsx`: resumen de huéspedes, habitación y estadía, sin indicadores técnicos (vista `vistas/recepcionista/04-checkin-3-confirmacion.html`; FR-010).
+  - `Step4Success.tsx`: badges `Habitación: Ocupada` y `Reserva: En curso` y el botón "Volver al inicio" (vista `vistas/recepcionista/05-checkin-4-exito.html`; FR-013).
 
 ---
 
