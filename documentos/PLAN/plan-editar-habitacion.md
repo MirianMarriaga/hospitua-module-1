@@ -23,7 +23,7 @@ Editar no cambia el estado de la habitación, así que no escribe en `room_state
 - **Storage**: PostgreSQL 16+. Usa `room` y `room_audit_log` del plan base (T007; su puerto en T017); no crea tablas. La edición no es una transición de estado, así que se registra en `room_audit_log` como `ROOM_EDITED`, uno de los eventos que admite esa tabla.
 - **Performance Goals**: editar una habitación en menos de 2 minutos de interacción (SC-001); los cambios se ven en el inventario al confirmar (SC-004).
 - **Constraints**:
-  - Solo el rol `ADMINISTRATOR` edita habitaciones.
+  - Lo usa el Administrador.
   - El UUID no es editable (FR-001).
   - La validación del estado y de los datos ocurre antes de persistir; un rechazo no modifica nada (SC-002, SC-003).
   - Ediciones simultáneas: la petición envía la `version` leída; si otra edición la cambió, se rechaza con `409` (caso borde "Ediciones simultáneas").
@@ -35,31 +35,22 @@ Editar no cambia el estado de la habitación, así que no escribe en `room_state
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `ADMINISTRATOR`. El Administrador se toma del token.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` | "No tienes permiso para realizar esta acción." |
-
-El formulario se carga con `GET /api/rooms/{roomId}` (`plan-consultar-inventario-habitaciones.md`), que devuelve los datos actuales y la `version`.
+El formulario se carga con `GET /api/rooms/inventory/{roomId}` (`plan-consultar-inventario-habitaciones.md`), que devuelve los datos actuales y la `version`.
 
 ---
 
 ## PATCH /api/rooms/{roomId}
 
 **Descripción:** Edita los atributos de una habitación `Available` y devuelve los cambios aplicados (FR-001 a FR-010).
-**Rol autorizado:** `ADMINISTRATOR`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -95,7 +86,7 @@ Content-Type: application/json
 | `changes[].field` | string | `roomNumber`, `floor`, `categoryRoom`, `maxCapacity` o `baseRate` | `"baseRate"` |
 | `changes[].previousValue` | string \| number | Valor anterior | `180000` |
 | `changes[].newValue` | string \| number | Valor nuevo | `195000` |
-| `room` | object | Datos actualizados de la habitación (mismos campos de `GET /api/rooms/{roomId}`) | |
+| `room` | object | Datos actualizados de la habitación (mismos campos de `GET /api/rooms/inventory/{roomId}`) | |
 
 **Body (JSON):**
 
@@ -182,13 +173,13 @@ backend/src/main/java/com/hospitua/habitaciones/
     └── RoomController.java                        # Se agrega PATCH /api/rooms/{roomId}
 frontend/src/
 ├── pages/administracion/
-│   ├── EditRoomPage.jsx                           # Formulario precargado
-│   └── EditRoomConfirmation.jsx                   # Confirmación "Antes / Ahora" con los datos actualizados
+│   ├── EditRoomPage.tsx                           # Formulario precargado
+│   └── EditRoomConfirmation.tsx                   # Confirmación "Antes / Ahora" con los datos actualizados
 └── api/
-    └── roomService.js                             # Se agrega editRoom()
+    └── roomService.ts                             # Se agrega editRoom()
 ```
 
-**Structure Decision**: Las reglas de los atributos (piso, tipo, capacidad y tarifa) se validan en el modelo de dominio `Room`, de modo que *Registrar* y *Editar* comparten la misma validación (FR-005). `Room.applyChanges(...)` devuelve la lista de `RoomAttributeChange` y no toca `status`. `EditRoomCommand` contiene `roomId`, `version`, los atributos y `administratorId` (del token).
+**Structure Decision**: Las reglas de los atributos (piso, tipo, capacidad y tarifa) se validan en el modelo de dominio `Room`, de modo que *Registrar* y *Editar* comparten la misma validación (FR-005). `Room.applyChanges(...)` devuelve la lista de `RoomAttributeChange` y no toca `status`. `EditRoomCommand` contiene `roomId`, `version`, los atributos y `administratorId` (usuario actual).
 
 ---
 
@@ -230,7 +221,7 @@ No aplica: usa la infraestructura del plan base.
   - Validar la unicidad del número nuevo en todo el inventario, sin contar la propia habitación.
   - Persistir y registrar `ROOM_EDITED` en `room_audit_log` con los cambios en `details`, el Administrador como `actor_id` y la hora de `Clock` como `event_date_time`.
 - [ ] T011 [US1] Agregar a `RoomController` el endpoint `PATCH /api/rooms/{roomId}`.
-- [ ] T012 [US1] Construir en el frontend `EditRoomPage.jsx` (formulario precargado con `GET /api/rooms/{roomId}`) y `EditRoomConfirmation.jsx` ("Antes / Ahora" y datos actualizados) (FR-001, FR-007).
+- [ ] T012 [US1] Construir en el frontend `EditRoomPage.tsx` (formulario precargado con `GET /api/rooms/inventory/{roomId}`) y `EditRoomConfirmation.tsx` ("Antes / Ahora" y datos actualizados) (FR-001, FR-007).
 
 **Checkpoint**: El Administrador puede editar habitaciones disponibles con trazabilidad.
 
@@ -277,15 +268,15 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T020 Integration test: tras una edición exitosa, `GET /api/rooms` refleja los valores nuevos de inmediato (SC-004).
+- [ ] T020 Integration test: tras una edición exitosa, `GET /api/rooms/inventory?roomNumber=…` refleja los valores nuevos de inmediato (SC-004).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `room` con `version` (T007), el rol `ADMINISTRATOR` (T015) y `ClockConfig`.
+- **Foundational**: Requiere del plan base la tabla `room` con `version` (T007) y `ClockConfig`.
 - **Planes de los que depende**:
   - Plan base: `room_audit_log` (T007) y `RoomAuditLogPort` (T017).
   - `plan-registrar-habitacion.md`: `RoomCategory` y `RoomNumberAlreadyExistsException`.
-  - `plan-consultar-inventario-habitaciones.md`: acción "Editar" y `GET /api/rooms/{roomId}` para cargar el formulario.
+  - `plan-consultar-inventario-habitaciones.md`: acción "Editar" y `GET /api/rooms/inventory/{roomId}` para cargar el formulario.
 - **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6.

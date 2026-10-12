@@ -78,7 +78,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor autenticado "Recepcionista" registrar el Check-Out.
+- **FR-001**: El sistema DEBE permitir al Recepcionista registrar el Check-Out.
 - **FR-002**: El sistema DEBE estructurar el proceso en 5 etapas:
   1. *Consultar reserva*
   2. *Liquidación*

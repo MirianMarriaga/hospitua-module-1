@@ -7,9 +7,10 @@
 
 ## Summary
 
-Implementar el caso de uso técnico de consulta **Consultar Tarifa Base**, expuesto como endpoint REST de solo lectura por Módulo 1 para consumo de Módulo 3 (Facturación) y otros servicios autorizados.
+Implementar el caso de uso técnico de consulta **Consultar Tarifa Base**, expuesto como endpoint REST de solo lectura por Módulo 1 para consumo de Módulo 3 (Facturación).
 
 Responsabilidades:
+
 1. **Endpoint REST de solo lectura**: Exponer `GET /api/rooms/{roomId}/base-rate` permitiendo la consulta por el identificador único de habitación (`roomId`) o número de habitación.
 2. **Payload de respuesta**: Retornar únicamente los datos necesarios para la tarifación:
     - `roomId` (UUID)
@@ -29,17 +30,16 @@ Responsabilidades:
 - **Target Platform**: Servidor Linux/Windows
 - **Project Type**: Web Application REST API endpoint
 - **Performance Goals**:
-    - Tiempo de respuesta < 200 ms p95.
-    - Cero locks de base de datos (`readOnly = true`).
+  - Tiempo de respuesta < 200 ms p95.
+  - Cero locks de base de datos (`readOnly = true`).
 - **Constraints**:
-    - Consulta estricta de solo lectura: sin modificación de atributos ni de estados en `Room`.
-    - Tarifa base con hasta dos decimales (`BigDecimal`).
+  - Consulta estricta de solo lectura: sin modificación de atributos ni de estados en `Room`.
+  - Tarifa base con hasta dos decimales (`BigDecimal`).
 
 ---
 
 ## Convenciones del endpoint
 
-- **Autenticación**: igual que Módulo 2. Módulo 3 usa un usuario de servicio de `user_account` con rol `MODULE_3`, obtiene su JWT con el mismo inicio de sesión y lo envía en `Authorization: Bearer <JWT>` (FR-001; plan base, T015).
 - **Formatos**: sin marcas de tiempo; la respuesta expone la tarifa base como decimal de solo lectura.
 - **Errores**: esquema `ApiError` del plan base, con `errorCode`.
 
@@ -48,7 +48,6 @@ Responsabilidades:
 ## Integración M3 → M1: GET /api/rooms/{roomId}/base-rate
 
 **Descripción:** Consulta de solo lectura del número y la tarifa base de una habitación (FR-001 a FR-006).
-**Rol autorizado:** `MODULE_3` (Módulo 3 — Facturación).
 
 ### Petición (Request)
 
@@ -57,7 +56,6 @@ Responsabilidades:
 | Header | Valor | Obligatorio | Descripción |
 | --- | --- | --- | --- |
 | `Accept` | `application/json` | Sí | Formato de respuesta esperado |
-| `Authorization` | `Bearer <JWT>` | Sí | JWT del usuario de servicio con rol `MODULE_3` (FR-001) |
 
 **Parámetros (path):**
 
@@ -156,7 +154,8 @@ backend/src/
 │       │   │       └── RoomBaseRateController.java
 │       │   └── out/
 │       │       └── persistence/
-│       │           └── RoomRepositoryAdapter.java
+│       │           └── adapter/
+│       │               └── RoomRepositoryAdapter.java
 ```
 
 ---

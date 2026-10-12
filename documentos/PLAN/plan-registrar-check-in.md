@@ -30,7 +30,6 @@ Implementar el caso de uso central **Registrar Check-In** para el actor Recepcio
 - **Language/Version**: Java 21 (LTS)
 - **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
 - **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `outbox_notification`, `room_state_history`)
-- **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `outbox_notification`, `room_state_history`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ)
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador
 - **Performance Goals**:
@@ -89,7 +88,7 @@ backend/src/
 │   │           ├── RoomPersistencePort.java
 │   │           ├── StayPersistencePort.java
 │   │           ├── RoomGuestPersistencePort.java
-│   │           ├── DailyReservationQueryPort.java
+│   │           ├── DailyReservationPersistencePort.java   # Definido en plan-consultar-reservas.md; aquí solo se lee
 │   │           └── OutboxEventPublisherPort.java
 │   ├── application/
 │   │   ├── service/
@@ -100,6 +99,7 @@ backend/src/
 │   │       ├── RegisterCheckInCommand.java
 │   │       ├── GuestInputDto.java
 │   │       ├── CheckInMessagePayload.java
+│   │       ├── GuestMessageDto.java
 │   │       └── CheckInResultDto.java
 │   └── infrastructure/
 │       ├── adapters/
@@ -108,11 +108,12 @@ backend/src/
 │       │   │       └── CheckInController.java
 │       │   └── out/
 │       │       ├── persistence/
-│       │       │   ├── RoomRepositoryAdapter.java
-│       │       │   ├── StayRepositoryAdapter.java
-│       │       │   ├── RoomGuestRepositoryAdapter.java
-│       │       │   ├── DailyReservationAdapter.java
-│       │       │   └── OutboxNotificationRepositoryAdapter.java
+│       │       │   └── adapter/
+│       │       │       ├── RoomRepositoryAdapter.java
+│       │       │       ├── StayRepositoryAdapter.java
+│       │       │       ├── RoomGuestRepositoryAdapter.java
+│       │       │       ├── DailyReservationPersistenceAdapter.java # Definido en plan-consultar-reservas.md
+│       │       │       └── OutboxNotificationRepositoryAdapter.java
 │       │       └── messaging/
 │       │           └── RabbitMqOutboxPublisherAdapter.java
 ```
@@ -192,13 +193,12 @@ Routing key: habitacion.checkin
 
 ## Endpoints REST internos (Frontend → Módulo 1)
 
-Ambos exigen `Authorization: Bearer <JWT>` con rol Recepcionista (FR-001); el recepcionista responsable se toma del token. Los errores usan `ApiError` del plan base; los `401` y `403` son los generales.
+Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual. Los errores usan `ApiError` del plan base.
 
 ### Endpoint 1 — Validar la reserva y la habitación (Paso 1)
 
 ```http
 GET /api/check-in/validate?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
-Authorization: Bearer <JWT>
 ```
 
 | Parámetro | Tipo | Obligatorio | Descripción |
@@ -206,7 +206,7 @@ Authorization: Bearer <JWT>
 | `reservationRef` | string | Sí | Referencia que entrega el botón "Check-in" del panel de recepción (FR-003) |
 | `roomId` | UUID | Sí | Habitación seleccionada en el panel |
 
-Valida solo contra la copia local (`DailyReservationQueryPort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
+Valida solo contra la copia local (`DailyReservationPersistencePort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
 
 ```json
 {
@@ -236,7 +236,6 @@ Valida solo contra la copia local (`DailyReservationQueryPort`) y el inventario,
 
 ```http
 POST /api/check-in
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -354,7 +353,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationQueryPort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
+- [ ] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationPersistencePort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
 - [ ] T009 [P] [US1] Unit test: Verificar que el titular queda precargado con `isReservationGuest = true`, selector de país bloqueado y campos de solo lectura.
 - [ ] T010 [P] [US1] Unit test: Validar rechazo si cualquier huésped no incluye `birthDate` o si es igual o posterior a hoy, si un extranjero no incluye `originPlace` o `destinationPlace`, o si `documentType` no es uno de los códigos admitidos.
 - [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
@@ -365,7 +364,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 ### Implementation for User Story 1
 
 - [ ] T015 [P] [US1] Implementar en `CheckInValidationService`:
-  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationQueryPort`: puerto de solo lectura que implementa el mismo adaptador de la copia local de `plan-consultar-reservas.md`, sin un segundo origen de datos.
+  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationPersistencePort`, el puerto de la copia local de `plan-consultar-reservas.md` (implementado por `DailyReservationPersistenceAdapter`), usado aquí solo para lectura y sin un segundo origen de datos.
   - Validación de existencia y no duplicidad de `Stay` previo para ese `(reservationRef, roomId)`.
   - Validación de habitación física en estado `Reserved` con `reservedByReservationRef == reservationRef`.
 - [ ] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
@@ -411,7 +410,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T026 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria ni credenciales.
+- [ ] T026 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
 - [ ] T027 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
 - [ ] T028 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
 - [ ] T029 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.

@@ -33,30 +33,21 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MAINTENANCE_STAFF`. El responsable se toma del token.
 - **Fechas**: las fechas del mantenimiento son de calendario en la API (`YYYY-MM-DD`); la interfaz las pide y muestra como DD-MM-YYYY (FR-012). `reportDateTime` es ISO 8601 con zona de Colombia.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` (FR-003) | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## POST /api/rooms/{roomId}/technical-blocks
 
 **Descripción:** Programa un bloqueo técnico sobre una habitación que no está `Inactive` (si inicia hoy, debe estar `Available` y el bloqueo se aplica de inmediato) (FR-001 a FR-007, FR-009, FR-012 a FR-017, FR-020).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -150,14 +141,12 @@ Si Módulo 2 no responde, se usa el manejo de `ExternalModule2UnavailableExcepti
 ## GET /api/rooms/{roomId}/technical-blocks/current
 
 **Descripción:** Acción "Ver informe": devuelve el informe `Applied` de la habitación o, si no tiene, su informe `Scheduled` de fecha de inicio más temprana (FR-011, FR-011.1).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -282,13 +271,13 @@ backend/src/
     └── (sin migración propia: `technical_block_report` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
 ├── components/
-│   ├── ScheduleTechnicalBlockDialog.jsx           # Lo abre "Programar mantenimiento" del panel de mantenimiento
-│   └── TechnicalBlockViewDialog.jsx               # Lo abre "Ver informe" (TB, o cualquier habitación con programación salvo DFR, que muestra su reporte de daño)
+│   ├── ScheduleTechnicalBlockDialog.tsx           # Lo abre "Programar mantenimiento" del panel de mantenimiento
+│   └── TechnicalBlockViewDialog.tsx               # Lo abre "Ver informe" (TB, o cualquier habitación con programación salvo DFR, que muestra su reporte de daño)
 └── api/
-    └── technicalBlockService.js
+    └── technicalBlockService.ts
 ```
 
-**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T025) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos en modo `SCHEDULING` (rechaza inicios anteriores a hoy y aplica los límites de 90 y 365 días, que la consulta para Módulo 2 no aplica). El puerto se llama con días inclusivos: el inicio y el fin estimado del mantenimiento (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base). `ScheduleTechnicalBlockCommand` contiene `roomId`, `memberId` (del token), `reason`, `startDate` y `estimatedEndDate`.
+**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T025) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos en modo `SCHEDULING` (rechaza inicios anteriores a hoy y aplica los límites de 90 y 365 días, que la consulta para Módulo 2 no aplica). El puerto se llama con días inclusivos: el inicio y el fin estimado del mantenimiento (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base). `ScheduleTechnicalBlockCommand` contiene `roomId`, `memberId` (usuario actual), `reason`, `startDate` y `estimatedEndDate`.
 
 ---
 
@@ -336,12 +325,12 @@ frontend/src/
   - Bloquear la fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de validar el estado y de consultar, para que dos programaciones simultáneas no registren rangos cruzados (caso límite 2).
   - Validar que la habitación exista, que no esté `Inactive` y, si `startDate` es hoy, que esté `Available` (después de las validaciones de fechas, porque la regla depende de `startDate`; FR-007).
   - Consultar reservas con `checkMaintenanceConflict` (rechazar si devuelve alguna reserva) y mantenimientos con `ConsultMaintenanceAvailabilityUseCase` (rechazar si `available = false`, pasando sus `conflicts` al error).
-  - Crear el informe en `Scheduled` con `reportDateTime` de `Clock` y el miembro del token.
+  - Crear el informe en `Scheduled` con `reportDateTime` de `Clock` y el miembro que lo programa (usuario actual).
   - Si `startDate` es hoy: `TransitionRoomStateUseCase.transition(roomId, TechnicalBlock, miembro, TECHNICAL_BLOCK, null)` (registra el periodo) e informe `Applied`.
 - [ ] T020 [US1] Implementar `ApplyScheduledTechnicalBlocksService` (`@Transactional` por informe): recorrer los informes `Scheduled`; aplicar los que contienen hoy si la habitación está `Available` (con `TransitionRoomStateUseCase`, `sourceFlow = TECHNICAL_BLOCK` y actor nulo); marcar `Expired` los vencidos y los de habitaciones `Inactive`; dejar el resto para el día siguiente (FR-002, FR-018, FR-020).
 - [ ] T021 [US1] Implementar `TechnicalBlockScheduler`: escuchar `DailyReservationListIngestedEvent` y ejecutar `ApplyScheduledTechnicalBlocksUseCase` (FR-002, FR-018; regla 10 del plan base).
-- [ ] T022 [US1] Implementar `TechnicalBlockQueryService` y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (`MAINTENANCE_STAFF`) (FR-003, FR-011).
-- [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.jsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.jsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-006, FR-011.1, FR-016).
+- [ ] T022 [US1] Implementar `TechnicalBlockQueryService` y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (FR-003, FR-011).
+- [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-006, FR-011.1, FR-016).
 
 **Checkpoint**: Los mantenimientos preventivos se programan, se aplican en su fecha y caducan si no pueden aplicarse; el panel de mantenimiento muestra su rango y su informe.
 
@@ -356,7 +345,7 @@ frontend/src/
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `technical_block_report` (T018), `SourceFlow` y `MaintenanceProperties` (T020), el evento de la regla 10, la carpeta `scheduling/`, `ClockConfig` y el rol `MAINTENANCE_STAFF`.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `technical_block_report` (T018), `SourceFlow` y `MaintenanceProperties` (T020), el evento de la regla 10, la carpeta `scheduling/` y `ClockConfig`.
 - **Planes de los que depende**:
   - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase` (T025) y `ExternalModule2UnavailableException`.
   - `plan-consultar-informacion-mantenimientos.md`: `ConsultMaintenanceAvailabilityUseCase` y el validador de rangos. Debe implementarse antes de la Phase 3 de este plan.

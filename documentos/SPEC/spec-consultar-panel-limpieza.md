@@ -10,12 +10,12 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 
 **Por qué esta prioridad**: Es el punto de entrada de todo el trabajo de limpieza. Desde el panel se inician las limpiezas (*Marcar Habitación en Limpieza*) y se reportan daños en habitaciones disponibles (*Marcar Habitación Inhabilitada por Reparaciones*). Sin él, el personal no sabe qué habitaciones quedaron pendientes después de un check-out, una reparación o una tarea liberada.
 
-**Prueba independiente**: Puede ser probada autenticándose como un miembro del personal de limpieza sin tarea activa, verificando que el panel lista únicamente las habitaciones en `PendingCleaning` y `Available` (primero las pendientes), con número, tipo, estado, última limpieza y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
+**Prueba independiente**: Puede ser probada como un miembro del personal de limpieza sin tarea activa, verificando que el panel lista únicamente las habitaciones en `PendingCleaning` y `Available` (primero las pendientes), con número, tipo, estado, última limpieza y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
 
 **Escenarios de aceptación**:
 
 1. **Escenario**: Panel con habitaciones pendientes y disponibles
-   - **Dado que** El miembro del personal de limpieza está autenticado, no tiene una tarea activa y existen las habitaciones "101" en `PendingCleaning`, "102" en `Available` y "103" en `InCleaning`
+   - **Dado que** El miembro del personal de limpieza no tiene una tarea activa y existen las habitaciones "101" en `PendingCleaning`, "102" en `Available` y "103" en `InCleaning`
    - **Cuando** El miembro ingresa al panel de limpieza
    - **Entonces** El sistema lista la habitación "101" (primero, por estar pendiente) y la "102" con su número, tipo, estado en español, última limpieza y acciones, y no lista la habitación "103"
 
@@ -56,10 +56,7 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 1. **¿Cómo se entera el personal de habitaciones que quedan pendientes mientras tiene el panel abierto?**
    El panel se actualiza automáticamente cada 60 segundos y cada vez que el miembro vuelve a él después de una acción (FR-009). No se usan notificaciones en tiempo real.
 
-2. **¿Qué ocurre si el miembro no está autenticado o no tiene el rol de limpieza?**
-   El sistema rechaza el acceso y solicita autenticación, o informa que no tiene permiso.
-
-3. **¿Qué ocurre con las habitaciones en otros estados?**
+2. **¿Qué ocurre con las habitaciones en otros estados?**
    No se listan. Las habitaciones en `InCleaning` las ve solo el miembro dueño de la tarea, desde su vista de tarea activa; las demás no requieren acciones del personal de limpieza.
 
 ---
@@ -68,7 +65,7 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir el acceso al panel de limpieza únicamente a miembros del personal de limpieza autenticados (rol `CLEANING_STAFF`). Si el miembro tiene una `CleaningTask` sin `EndDateTime`, el sistema DEBE redirigirlo a la vista de tarea activa (*Confirmar Fin de Limpieza de Habitación*, FR-007) en lugar de mostrar el panel.
+- **FR-001**: El sistema DEBE ofrecer el panel de limpieza a los miembros del personal de limpieza. Si el miembro tiene una `CleaningTask` sin `EndDateTime`, el sistema DEBE redirigirlo a la vista de tarea activa (*Confirmar Fin de Limpieza de Habitación*, FR-007) en lugar de mostrar el panel.
 - **FR-002**: El sistema DEBE listar únicamente las habitaciones en estado `PendingCleaning` o `Available`.
 - **FR-003**: Cada habitación listada DEBE mostrar: número de habitación, tipo (Sencilla, Doble, Suite o Boutique), estado con su nombre en español (Pendiente de limpieza o Disponible), última limpieza (formato DD-MM-YYYY HH:MM, o "Sin registro") y las acciones de su estado (FR-005).
 - **FR-004**: La última limpieza DEBE ser el `EndDateTime` de la `CleaningTask` cerrada más reciente de la habitación con `Outcome` `Completed` o `DamageReported`; las tareas con `Outcome` `Released` no cuentan. Si no existe, el sistema DEBE mostrar "Sin registro".

@@ -33,30 +33,21 @@ Usa la tabla `reparation_task` del plan base (T018).
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MAINTENANCE_STAFF`. El miembro se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia; las fechas de mantenimiento programado son de calendario (`YYYY-MM-DD`) y la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## POST /api/maintenance/tasks
 
 **Descripción:** Acción "Iniciar reparaciones": crea la `ReparationTask` del miembro sobre una habitación `DisabledForRepairs` o `TechnicalBlock`, sin cambiar su estado (FR-011, FR-012).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -119,14 +110,12 @@ Content-Type: application/json
 ## GET /api/maintenance/tasks/active
 
 **Descripción:** Devuelve la tarea de reparación activa del miembro para la vista de tarea activa (FR-001, FR-001.1).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -182,14 +171,12 @@ Accept: application/json
 ## POST /api/maintenance/tasks/{taskId}/complete
 
 **Descripción:** Confirma el fin de las reparaciones: cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* y, si estaba en `TechnicalBlock`, marca su informe como `Completed` (FR-002 a FR-010, FR-014, FR-016, FR-018, FR-019).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 ```
 
 **Parámetros:**
@@ -252,14 +239,12 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 ## POST /api/maintenance/tasks/{taskId}/release
 
 **Descripción:** Acción "Liberar tarea": cierra la tarea con `outcome = Released` sin cambiar la habitación ni su informe, para que otro miembro la retome (FR-015, FR-017, FR-019).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 ```
 
 **Parámetros:**
@@ -354,6 +339,7 @@ backend/src/
 │   ├── application/
 │   │   ├── service/
 │   │   │   ├── StartRepairService.java
+│   │   │   ├── ActiveRepairTaskQueryService.java
 │   │   │   ├── CompleteRepairService.java
 │   │   │   └── ReleaseRepairTaskService.java
 │   │   └── dto/
@@ -370,11 +356,11 @@ backend/src/
     └── (sin migración propia: `reparation_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
 ├── pages/mantenimiento/
-│   ├── ActiveRepairTaskPage.jsx
-│   ├── ConfirmRepairEndDialog.jsx
-│   └── ReleaseRepairTaskDialog.jsx
+│   ├── ActiveRepairTaskPage.tsx
+│   ├── ConfirmRepairEndDialog.tsx
+│   └── ReleaseRepairTaskDialog.tsx
 └── api/
-    └── maintenanceService.js
+    └── maintenanceService.ts
 ```
 
 **Structure Decision**: `MaintenanceController` agrupa `/api/maintenance/...`; `plan-consultar-panel-mantenimiento.md` le agrega el endpoint del panel y construye el panel con sus diálogos. Las excepciones de tareas (`TaskNotOwnedException`, `TaskNotFoundException`, `TaskAlreadyClosedException`, `NoActiveTaskException`) son las del plan base (T020).
@@ -383,7 +369,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (rol `MAINTENANCE_STAFF`, layout de mantenimiento de T016).
+No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016).
 
 ---
 
@@ -415,7 +401,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 ### Implementation for User Story 2
 
 - [ ] T010 [US2] Implementar `StartRepairService` (`@Transactional`): validar estado y tareas abiertas, tomar la hora con `Clock` y crear la `ReparationTask` (FR-011, FR-012).
-- [ ] T011 [US2] Implementar en `MaintenanceController` `POST /api/maintenance/tasks` con `@PreAuthorize("hasRole('MAINTENANCE_STAFF')")`, y mostrar en el panel la retroalimentación de "Iniciar reparaciones" (FR-011, FR-013, FR-020). `plan-consultar-panel-mantenimiento.md` agrega `GET /api/maintenance/panel` al mismo controlador.
+- [ ] T011 [US2] Implementar en `MaintenanceController` `POST /api/maintenance/tasks`, tomando como miembro al usuario actual, y mostrar en el panel la retroalimentación de "Iniciar reparaciones" (FR-011, FR-013, FR-020). `plan-consultar-panel-mantenimiento.md` agrega `GET /api/maintenance/panel` al mismo controlador.
 
 **Checkpoint**: Desde el panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`) se pueden tomar habitaciones para reparar.
 
@@ -447,8 +433,8 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
   - Si la habitación está en `TechnicalBlock`, marcar su informe `Applied` como `Completed`.
   - Invocar `MarkPendingCleaningUseCase` con `sourceFlow = CONFIRM_REPAIR_END` y el miembro como actor (registra el historial).
 - [ ] T022 [US1] Implementar `ReleaseRepairTaskService` (`@Transactional`): validar la tarea y su titular y cerrarla con `outcome = Released` (FR-015, FR-017).
-- [ ] T023 [US1] Agregar a `MaintenanceController` `GET /api/maintenance/tasks/active`, `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release` (FR-001).
-- [ ] T024 [US1] Construir `ActiveRepairTaskPage.jsx` (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.jsx` y `ReleaseRepairTaskDialog.jsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-002, FR-006, FR-007, FR-017).
+- [ ] T023 [US1] Implementar `ActiveRepairTaskQueryService` (`GetActiveRepairTaskUseCase`, `@Transactional(readOnly = true)`) y agregar a `MaintenanceController` `GET /api/maintenance/tasks/active`, `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release` (FR-001).
+- [ ] T024 [US1] Construir `ActiveRepairTaskPage.tsx` (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-002, FR-006, FR-007, FR-017).
 
 **Checkpoint**: El ciclo de mantenimiento queda completo: tomar la habitación, confirmar o liberar.
 
@@ -463,7 +449,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020), el rol `MAINTENANCE_STAFF` y el layout de mantenimiento (T016).
+- **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020) y el layout de mantenimiento (T016).
 - **Planes de los que depende**:
   - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones.
   - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase`.

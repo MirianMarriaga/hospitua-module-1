@@ -3,6 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Gerente
 **Creado**: 2026-09-07
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### Historia de Usuario 1 - Consultar el historial de estados de una habitación (Prioridad: P1)
@@ -11,7 +12,7 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
 
 **Por qué esta prioridad**: Conocer el historial de estados permite detectar cuellos de botella, períodos de inactividad o problemas recurrentes en limpieza y mantenimiento. La consulta es de solo lectura y no afecta la operación del sistema.
 
-**Prueba Independiente**: Iniciar sesión como Gerente, seleccionar la habitación 203 y verificar que se muestra en pantalla la secuencia de estados con sus rangos temporales.
+**Prueba Independiente**: Como Gerente, seleccionar la habitación 203 y verificar que se muestra en pantalla la secuencia de estados con sus rangos temporales.
 
 **Escenarios de Aceptación**:
 

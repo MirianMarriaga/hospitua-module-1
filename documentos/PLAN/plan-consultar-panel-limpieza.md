@@ -31,30 +31,21 @@ Las acciones no se implementan aquí: **Iniciar limpieza** usa `POST /api/cleani
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `CLEANING_STAFF`. El miembro se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia; la interfaz las muestra como DD-MM-YYYY HH:MM.
 - **Errores**: esquema `ApiError` del plan base.
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
-- **Errores comunes**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." (caso límite 2) |
 
 ---
 
 ## GET /api/cleaning/panel
 
-**Descripción:** Devuelve el panel de limpieza del miembro autenticado: las habitaciones en `PendingCleaning` y `Available` con su última limpieza y el conteo por estado, o la tarea activa del miembro para redirigirlo a su vista (FR-001 a FR-011).
-**Rol autorizado:** `CLEANING_STAFF`
+**Descripción:** Devuelve el panel de limpieza del miembro que lo consulta: las habitaciones en `PendingCleaning` y `Available` con su última limpieza y el conteo por estado, o la tarea activa del miembro para redirigirlo a su vista (FR-001 a FR-011).
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -117,21 +108,7 @@ Una búsqueda sin coincidencias o un panel sin habitaciones responde `200` con `
 
 ### Respuestas de error
 
-Solo los errores comunes de la sección "Convenciones de los endpoints":
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." (caso límite 2) |
-
-```json
-{
-  "errorCode": "FORBIDDEN",
-  "message": "No tienes permiso para realizar esta acción.",
-  "timestamp": "2026-10-08T10:00:00-05:00",
-  "path": "/api/cleaning/panel"
-}
-```
+No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -167,12 +144,12 @@ backend/src/
         └── CleaningController.java                # Definido en plan-marcar-habitacion-en-limpieza.md; aquí se agrega GET /api/cleaning/panel
 frontend/src/
 ├── pages/limpieza/
-│   ├── CleaningPanelPage.jsx
-│   ├── CleaningSummary.jsx
-│   ├── CleaningRoomTable.jsx
-│   └── RoomNumberSearch.jsx
+│   ├── CleaningPanelPage.tsx
+│   ├── CleaningSummary.tsx
+│   ├── CleaningRoomTable.tsx
+│   └── RoomNumberSearch.tsx
 └── api/
-    └── cleaningService.js                         # Compartido con los planes de limpieza
+    └── cleaningService.ts                         # Compartido con los planes de limpieza
 ```
 
 **Structure Decision**: El panel solo lee. Reutiliza `CleaningTaskRepositoryPort` (consultas "tarea abierta por miembro" y "última tarea cerrada con `outcome` `Completed` o `DamageReported` por habitación", `plan-marcar-habitacion-en-limpieza.md` T002) y la consulta de habitaciones por estado del plan base. Los botones de acción delegan en los diálogos y endpoints de sus propios planes.
@@ -181,7 +158,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de limpieza de T016, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `ClockConfig`).
 
 ---
 
@@ -204,15 +181,15 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 - [ ] T004 [P] [US1] Unit test: `lastCleaningDateTime` toma la última tarea `Completed` o `DamageReported`, ignora las `Released` y es nulo sin registro (HU-1 esc. 3; FR-004).
 - [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTaskId` y `rooms` vacío (HU-1 esc. 6; FR-001; SC-003).
 - [ ] T006 [P] [US1] Unit test: búsqueda por número exacto y búsqueda sin coincidencias (HU-1 esc. 4 y 5; FR-007).
-- [ ] T007 [US1] Integration test: un usuario sin token recibe `401` y uno sin rol `CLEANING_STAFF` recibe `403`; la consulta no modifica `room` ni `cleaning_task` (FR-001, FR-011; caso límite 2).
+- [ ] T007 [US1] Integration test: la consulta no modifica `room` ni `cleaning_task` (FR-011).
 - [ ] T008 [P] [US1] Component test en `CleaningPanelPage`: botones por estado, "Sin registro", conteo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTaskId` y nueva consulta cada 60 segundos y al volver de una acción (HU-1 esc. 2, 5 y 7; FR-003, FR-005, FR-008, FR-009).
 
 ### Implementation for User Story 1
 
 - [ ] T009 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa, filtro de estados, orden, búsqueda exacta, conteo y última limpieza (FR-001 a FR-007, FR-010, FR-011).
-- [ ] T010 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel` con `@PreAuthorize("hasRole('CLEANING_STAFF')")`, tomando el miembro del token (FR-001).
-- [ ] T011 [US1] Construir `CleaningPanelPage.jsx`, `CleaningSummary.jsx`, `CleaningRoomTable.jsx` y `RoomNumberSearch.jsx` según `vistas/limpieza/01-panel.html`: conteo, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
-- [ ] T012 [US1] Conectar las acciones y la actualización: "Iniciar limpieza" llama a `POST /api/cleaning/tasks` y redirige a la vista de tarea activa (`plan-marcar-habitacion-en-limpieza.md`); "Reportar daño" abre `DamageReportDialog.jsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`); el panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
+- [ ] T010 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
+- [ ] T011 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
+- [ ] T012 [US1] Conectar las acciones y la actualización: "Iniciar limpieza" llama a `POST /api/cleaning/tasks` y redirige a la vista de tarea activa (`plan-marcar-habitacion-en-limpieza.md`); "Reportar daño" abre `DamageReportDialog.tsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`); el panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
 
 **Checkpoint**: El Personal de limpieza ve su panel, busca habitaciones y entra a sus acciones; el panel se mantiene actualizado sin recargar la página.
 
@@ -227,7 +204,7 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base el rol `CLEANING_STAFF` (T015), el layout de limpieza (T016), la tabla `cleaning_task` (T018) y la regla 12.
+- **Foundational**: Requiere del plan base el layout de limpieza (T016), la tabla `cleaning_task` (T018) y la regla 12.
 - **Planes relacionados**:
   - `plan-marcar-habitacion-en-limpieza.md`: `CleaningController`, `CleaningTaskRepositoryPort` y la acción "Iniciar limpieza".
   - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: el diálogo "Reportar daño".

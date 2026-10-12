@@ -35,30 +35,21 @@ Las acciones no se implementan aquí:
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MAINTENANCE_STAFF`. El miembro se toma del token.
 - **Fechas**: las fechas de mantenimiento son de calendario (`YYYY-MM-DD`) y la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base.
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
-- **Errores comunes**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## GET /api/maintenance/panel
 
-**Descripción:** Devuelve el panel de mantenimiento del miembro autenticado con sus conteos, o su tarea activa para redirigirlo (FR-001 a FR-011).
-**Rol autorizado:** `MAINTENANCE_STAFF`
+**Descripción:** Devuelve el panel de mantenimiento del miembro que lo consulta con sus conteos, o su tarea activa para redirigirlo (FR-001 a FR-011).
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -133,21 +124,7 @@ Una búsqueda sin coincidencias (incluida una habitación `Inactive`) o un panel
 
 ### Respuestas de error
 
-Solo los errores comunes de la sección "Convenciones de los endpoints":
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MAINTENANCE_STAFF` | "No tienes permiso para realizar esta acción." |
-
-```json
-{
-  "errorCode": "FORBIDDEN",
-  "message": "No tienes permiso para realizar esta acción.",
-  "timestamp": "2026-10-08T10:00:00-05:00",
-  "path": "/api/maintenance/panel"
-}
-```
+No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -183,11 +160,11 @@ backend/src/
         └── MaintenanceController.java             # Definido en plan-confirmar-reparacion-finalizada.md; aquí se agrega GET /api/maintenance/panel
 frontend/src/
 ├── pages/mantenimiento/
-│   ├── MaintenancePanelPage.jsx
-│   ├── MaintenanceSummary.jsx
-│   └── MaintenanceRoomTable.jsx
+│   ├── MaintenancePanelPage.tsx
+│   ├── MaintenanceSummary.tsx
+│   └── MaintenanceRoomTable.tsx
 └── api/
-    └── maintenanceService.js                      # Compartido con los planes de mantenimiento
+    └── maintenanceService.ts                      # Compartido con los planes de mantenimiento
 ```
 
 **Structure Decision**: El panel solo lee. Reutiliza `ReparationTaskRepositoryPort` (`plan-confirmar-reparacion-finalizada.md`, T002), `TechnicalBlockReportRepositoryPort` e `isOverdue(today)` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003). Los botones de acción abren los diálogos y llaman a los endpoints de sus propios planes.
@@ -196,7 +173,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (rol `MAINTENANCE_STAFF`, layout de mantenimiento de T016, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016, `ClockConfig`).
 
 ---
 
@@ -218,18 +195,18 @@ No aplica: usa la infraestructura del plan base (rol `MAINTENANCE_STAFF`, layout
 - [ ] T003 [P] [US1] Unit test en `MaintenancePanelQueryServiceTest`: excluye `Inactive`; ordena `DisabledForRepairs` y `TechnicalBlock` primero (vencidos antes) y luego el resto por número; `summary` cuenta sin aplicar la búsqueda (HU-1 esc. 1 y 4; FR-002, FR-006, FR-009).
 - [ ] T004 [P] [US1] Unit test con `Clock` fijo: `overdue` según `isOverdue(today)`; `scheduledMaintenance` toma el `Scheduled` de inicio más temprano e ignora los `Expired`; `hasOpenTask` con una tarea abierta de otro miembro (HU-1 esc. 3, 4 y 5; FR-003, FR-004, FR-005).
 - [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTaskId` y `rooms` vacío; búsqueda exacta, sin coincidencias y de una habitación `Inactive` (HU-1 esc. 6 y 7; FR-001, FR-007).
-- [ ] T006 [US1] Integration test: un usuario sin token recibe `401` y uno sin rol `MAINTENANCE_STAFF` recibe `403`; la consulta no modifica `room`, `reparation_task` ni `technical_block_report` (FR-001, FR-011).
+- [ ] T006 [US1] Integration test: la consulta no modifica `room`, `reparation_task` ni `technical_block_report` (FR-011).
 - [ ] T007 [P] [US1] Component test en `MaintenancePanelPage`: conteos; botones por estado (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Ver informe e Iniciar reparaciones solo si `hasOpenTask` es `false`; demás estados: Ver informe si hay programación); etiquetas "En reparación" y "Bloqueo técnico (vencido)"; "Sin programar"; mensajes de FR-008; redirección con `activeTaskId`; nueva consulta cada 60 segundos y al volver de una acción (HU-1 esc. 2 a 5; FR-003 a FR-005, FR-008, FR-010).
 
 ### Implementation for User Story 1
 
 - [ ] T008 [US1] Implementar `MaintenancePanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa, todas las habitaciones salvo `Inactive`, orden, búsqueda exacta, conteos, `overdue`, `hasOpenTask` y el `Scheduled` de inicio más temprano (FR-001 a FR-007, FR-009, FR-011).
-- [ ] T009 [US1] Agregar a `MaintenanceController` el endpoint `GET /api/maintenance/panel` con `@PreAuthorize("hasRole('MAINTENANCE_STAFF')")` (FR-001).
-- [ ] T010 [US1] Construir `MaintenancePanelPage.jsx`, `MaintenanceSummary.jsx` y `MaintenanceRoomTable.jsx` según `vistas/mantenimiento/01-panel.html`: conteos, columnas número, tipo, estado (nombre en español o "Bloqueo técnico (vencido)"), mantenimiento programado (DD-MM-YYYY a DD-MM-YYYY o "Sin programar"), etiqueta "En reparación" y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003 a FR-005, FR-007 a FR-009).
+- [ ] T009 [US1] Agregar a `MaintenanceController` el endpoint `GET /api/maintenance/panel`, tomando como miembro al usuario actual (FR-001).
+- [ ] T010 [US1] Construir `MaintenancePanelPage.tsx`, `MaintenanceSummary.tsx` y `MaintenanceRoomTable.tsx` según `vistas/mantenimiento/01-panel.html`: conteos, columnas número, tipo, estado (nombre en español o "Bloqueo técnico (vencido)"), mantenimiento programado (DD-MM-YYYY a DD-MM-YYYY o "Sin programar"), etiqueta "En reparación" y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003 a FR-005, FR-007 a FR-009).
 - [ ] T011 [US1] Conectar las acciones y la actualización (FR-005, FR-010):
   - "Iniciar reparaciones" llama a `POST /api/maintenance/tasks` y redirige a la vista de tarea activa (`plan-confirmar-reparacion-finalizada.md`).
-  - "Programar mantenimiento" y "Ver informe" del bloqueo (`TB`, o cualquier habitación con programación salvo `DFR`) abren `ScheduleTechnicalBlockDialog.jsx` y `TechnicalBlockViewDialog.jsx` (`plan-programar-bloqueo-tecnico-para-habitacion.md`).
-  - "Reportar daño" y "Ver informe" de `DFR` abren `DamageReportDialog.jsx` y `DamageReportViewDialog.jsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`).
+  - "Programar mantenimiento" y "Ver informe" del bloqueo (`TB`, o cualquier habitación con programación salvo `DFR`) abren `ScheduleTechnicalBlockDialog.tsx` y `TechnicalBlockViewDialog.tsx` (`plan-programar-bloqueo-tecnico-para-habitacion.md`).
+  - "Reportar daño" y "Ver informe" de `DFR` abren `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado o por tarea abierta.
 
 **Checkpoint**: El Personal de mantenimiento ve su panel, prioriza las habitaciones que requieren intervención y entra a sus acciones; el panel se mantiene actualizado sin recargar la página.
@@ -245,7 +222,7 @@ No aplica: usa la infraestructura del plan base (rol `MAINTENANCE_STAFF`, layout
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base el rol `MAINTENANCE_STAFF` (T015), el layout de mantenimiento (T016), las tablas `reparation_task` y `technical_block_report` (T018) y la regla 12.
+- **Foundational**: Requiere del plan base el layout de mantenimiento (T016), las tablas `reparation_task` y `technical_block_report` (T018) y la regla 12.
 - **Planes relacionados**:
   - `plan-confirmar-reparacion-finalizada.md`: `MaintenanceController`, `ReparationTaskRepositoryPort`, la acción "Iniciar reparaciones" y la vista de tarea activa a la que se redirige.
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: `isOverdue(today)` y los diálogos de programar y ver bloqueo.

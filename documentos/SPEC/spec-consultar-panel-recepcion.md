@@ -22,7 +22,7 @@ Como Recepcionista, quiero ver al iniciar mi jornada el listado de llegadas del 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Carga del panel con llegadas del día (Happy Path)
-   - **Dado** que el Recepcionista inicia sesión en el sistema y se cuenta con la copia local de la lista del día recibida a las 00:00
+   - **Dado** que el Recepcionista abre el sistema y se cuenta con la copia local de la lista del día recibida a las 00:00
    - **Cuando** accede al panel de inicio
    - **Entonces** el sistema muestra el saludo personalizado ("Bienvenida, [nombre del Recepcionista]", con subtítulo "Estancias · llegadas y salidas del día"), los 4 KPIs calculados localmente, la pestaña Llegadas activa por defecto y la tabla con las llegadas pendientes organizadas a razón de **una fila por habitación** a partir de `daily_reservation_room` y `daily_reservation`, en columnas: Hab. · Huésped (`firstName` y `lastName`, con documento debajo) · Estadía (noches calculadas) · Personas (`guestCount` de la habitación) · Tipo habitación · Fuente (`DIRECTA` o nombre de la OTA) · botón de acción "Check-in". La fila se considera pendiente de llegada mientras no exista una estancia (`Stay`) registrada para esa combinación de `reservationRef` y `roomId`.
 
@@ -121,7 +121,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE mostrar al Recepcionista autenticado la pantalla de inicio de jornada compuesta por: encabezado corporativo con nombre del sistema ("Hotel Hospitua · Recepción") y chip de sesión del usuario en turno (nombre y rol), saludo personalizado con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", espacio institucional para imagen del hotel, cuatro tarjetas de indicadores operativos (KPIs), y un panel de trabajo con pestañas de Llegadas y Salidas.
+- **FR-001**: El sistema DEBE mostrar al Recepcionista la pantalla de inicio de jornada compuesta por: encabezado corporativo con nombre del sistema ("Hotel Hospitua · Recepción") y el nombre del usuario en turno, saludo personalizado con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", espacio institucional para imagen del hotel, cuatro tarjetas de indicadores operativos (KPIs), y un panel de trabajo con pestañas de Llegadas y Salidas.
 
 - **FR-002**: El sistema DEBE calcular y mostrar los siguientes cuatro indicadores operativos locales al cargar la pantalla:
   1. **Llegadas de hoy**: total de reservas del día en la copia local pendientes de Check-In (calculado localmente a partir de `daily_reservation` y sus habitaciones sin `Stay`).

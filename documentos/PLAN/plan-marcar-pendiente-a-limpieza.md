@@ -138,7 +138,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T014 Integration test: una habitación que pasa a `PendingCleaning` deja de aparecer en `GET /api/rooms?status=Available` y aparece en `GET /api/rooms?status=PendingCleaning` (FR-003, SC-004).
+- [ ] T014 Integration test: una habitación que pasa a `PendingCleaning` deja de aparecer en `GET /api/rooms/inventory?status=Available` y aparece en `GET /api/rooms/inventory?status=PendingCleaning` (FR-003, SC-004).
 - [ ] T015 Medir en la prueba de integración T010 que la transición con su registro en el historial tome menos de 300 ms (SC-002).
 
 ---

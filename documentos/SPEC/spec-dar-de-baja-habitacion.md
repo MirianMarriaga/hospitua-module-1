@@ -12,7 +12,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 
 **Por qué esta prioridad**: Es una operación esencial del ciclo de vida de la habitación dentro del Módulo 1 (Gestión de Habitaciones e Inventario). Sin ella, habitaciones que ya no deben operar seguirían apareciendo como disponibles, afectando la integridad del inventario. Corresponde directamente al caso de uso "Dar de baja habitación" del diagrama oficial.
 
-**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador, seleccionando una habitación sin actividad pendiente ni huéspedes actuales, confirmando la baja, y verificando que se invoque el caso de uso incluido "Consultar reservas" y que la habitación deje de aparecer en los resultados de disponibilidad.
+**Prueba Independiente**: Puede probarse de forma independiente como Administrador, seleccionando una habitación sin actividad pendiente ni huéspedes actuales, confirmando la baja, y verificando que se invoque el caso de uso incluido "Consultar reservas" y que la habitación deje de aparecer en los resultados de disponibilidad.
 
 **Escenarios de Aceptación**:
 

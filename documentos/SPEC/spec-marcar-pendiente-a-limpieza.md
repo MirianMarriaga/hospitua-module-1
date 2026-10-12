@@ -30,7 +30,7 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
    - **Entonces** El sistema interrumpe la operación de forma controlada, no modifica el estado y devuelve al flujo invocador un error con el estado actual de la habitación; el flujo invocador es el responsable de mostrarlo al usuario
 
 4. **Escenario**: Transición `InCleaning` a `PendingCleaning` por liberación de una tarea de limpieza
-   - **Dado que** Existe una habitación "101" en estado `InCleaning` cuya tarea de limpieza pertenece al miembro autenticado
+   - **Dado que** Existe una habitación "101" en estado `InCleaning` cuya tarea de limpieza pertenece al miembro que realiza la acción
    - **Cuando** El miembro libera la tarea desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*)
    - **Entonces** El sistema cambia el estado de la habitación de `InCleaning` a `PendingCleaning` dentro de la misma transacción de la liberación, de modo que cualquier miembro del personal de limpieza pueda retomarla desde el panel
 

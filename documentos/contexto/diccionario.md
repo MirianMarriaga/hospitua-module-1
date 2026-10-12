@@ -11,7 +11,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **Personal de mantenimiento**: Actor de Módulo 1 que, desde el panel de mantenimiento, reporta daños (inhabilitando habitaciones por reparaciones), programa bloqueos técnicos preventivos e inicia reparaciones; desde la vista de tarea activa confirma cuando la intervención finaliza o libera la tarea para que otro miembro la retome.
 * **Gerente**: Actor de Módulo 1 con acceso de solo lectura a reportes de estado y al inventario completo de habitaciones.
 * **Recepcionista**: Usuario interno encargado de la operación en el front-desk del hotel. Es actor de **Módulo 1** para admitir huéspedes (Check-In) y formalizar salidas (Check-Out), y actor de **Módulo 2** para gestionar reservas directas y procesar cancelaciones.
-* **Migración**: Ente externo gubernamental (Migración Colombia). En el sistema, actúa como actor que ingresa de forma autenticada a una ventana de autogestión o portal exclusivo para filtrar por fechas y descargar de manera directa el archivo estructurado .TXT (SIRE) generado por el Módulo 2. El hotel no realiza envíos automáticos; la descarga asíncrona la realiza este actor.
+* **Migración**: Ente externo gubernamental (Migración Colombia). En el sistema, actúa como actor que ingresa a una ventana de autogestión o portal exclusivo para filtrar por fechas y descargar de manera directa el archivo estructurado .TXT (SIRE) generado por el Módulo 2. El hotel no realiza envíos automáticos; la descarga asíncrona la realiza este actor.
 * **Módulo 1 (Gestión de Habitaciones e Inventario de Aforo, Check-In y Check-Out)**: Digitaliza la infraestructura física del hotel, controla la disponibilidad en tiempo real, y gestiona directamente la admisión y salida física de los huéspedes.
 * **Módulo 2 (Operación de Reservas y Cumplimiento Legal)**: Gestiona el ciclo de vida de la reserva, el origen de la reserva y el cumplimiento migratorio (SIRE). Es la fuente de los datos de reserva que consumen Módulo 1 y Módulo 3, y recibe de Módulo 1 las notificaciones de Check-In/Check-Out para actualizar el estado de sus reservas.
 * **OTA (Booking, Airbnb, Expedia)**: Intermediario externo que origina reservas con comisión pactada. Aparece como dato del canal de la reserva en casi todos los casos de uso de Módulo 3, y como actor que consulta directamente en "Consultar liquidación".
@@ -101,7 +101,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 
 ### Gestión y consulta
 
-* **Consulta de liquidación**: Solicitud de un actor autorizado para obtener el desglose y estado de la liquidación de una estancia, sin recalcularla.
+* **Consulta de liquidación**: Solicitud de un actor para obtener el desglose y estado de la liquidación de una estancia, sin recalcularla.
 * **Resultado de consulta**: Desglose de hospedaje, comisión OTA, IVA e ingreso neto, junto con el estado (`Preliminary`, `Final` o `Cancelled`) y la factura asociada, devuelto por una consulta de liquidación.
 * **Ámbito de acceso por actor**: Regla de visibilidad que limita a cada actor externo a ver únicamente las liquidaciones que le corresponden.
 * **Criterio de búsqueda / Resultado de búsqueda**: Filtros (estancia, cliente, canal, rango de fechas, estado) y resultados que el Administrador usa para localizar facturas ya emitidas, sin crear ni modificar nada.

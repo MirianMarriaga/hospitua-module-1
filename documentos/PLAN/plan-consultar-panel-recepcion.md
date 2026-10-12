@@ -10,6 +10,7 @@
 Implementar la pantalla central de inicio de turno **Panel de Recepción** para el actor Recepcionista en Módulo 1 (FR-001 a FR-010). Esta vista provee la visión global operativa del día y actúa como despachador directo hacia los flujos transaccionales de Check-In (`plan-registrar-check-in.md`) y Check-Out (`plan-registrar-check-out.md`), operando con **100% de autonomía local sin llamadas REST a Módulo 2**.
 
 Componentes y lógica operativa:
+
 1. **Indicadores Operativos (4 KPIs locales, FR-002)**:
    - *Llegadas de hoy*: Conteo de habitaciones pendientes de Check-In de la **copia local** (`daily_reservation_room` sin `Stay` asociado), ingestadas a las 00:00 y actualizadas en tiempo real por la cola `m1.reservas.diarias.queue`.
    - *Salidas de hoy*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutTime` igual a hoy.
@@ -22,7 +23,7 @@ Componentes y lógica operativa:
    - Botón individual "Check-in" que transfiere `reservationRef` y `roomId` directamente al Paso 1 del flujo de admisión.
 3. **Pestaña Salidas (FR-004, FR-006, FR-008)**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida" destacada). Incluye buscador local (nombre, documento, código o número de habitación) y botón "Check-out" que transfiere la estancia directamente al Paso 1 del flujo de salida.
 4. **Resiliencia Total (FR-010)**: Cero llamadas REST a Módulo 2. Si la lista de las 00:00 no ha llegado, Llegadas muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." mientras Salidas y los KPIs de estancias siguen operando.
-5. **Pantalla de inicio de jornada (FR-001)**: encabezado "Hotel Hospitua · Recepción" con el chip de sesión, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, las cuatro tarjetas y las pestañas.
+5. **Pantalla de inicio de jornada (FR-001)**: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, las cuatro tarjetas y las pestañas.
 6. **Actualización (FR-005a)**: las llegadas y los KPIs se vuelven a consultar cada 60 segundos y al volver de un Check-In o Check-Out.
 
 ---
@@ -33,7 +34,7 @@ Componentes y lógica operativa:
 - **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Lombok
 - **Storage**: PostgreSQL 16+ (Lectura optimizada sobre `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers
-- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / JSX)
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Carga inicial del panel < 500 ms (KPIs y listados servidos desde almacenamiento local), dentro del máximo de 2 segundos de SC-001.
@@ -48,31 +49,22 @@ Componentes y lógica operativa:
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `RECEPTIONIST`.
 - **Fechas**: de calendario (`YYYY-MM-DD`), sin horas; la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base.
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
 - **Actualización (FR-005a)**: el frontend vuelve a consultar `arrivals` y `panel/kpis` cada 60 segundos y al volver de un Check-In o Check-Out. El backend ya refleja los `ADDED`, `UPDATED` y `REMOVED` porque el consumidor de la cola actualiza la copia local (`plan-consultar-reservas.md`); no hay notificaciones en tiempo real.
-- **Errores comunes**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## GET /api/reception/arrivals
 
 **Descripción:** Pestaña Llegadas: habitaciones de las reservas del día pendientes de Check-In, desde la copia local, agrupadas por reserva, con el estado físico de cada habitación (FR-003, FR-005, FR-005a, FR-007, FR-009, FR-010).
-**Rol autorizado:** `RECEPTIONIST`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -165,35 +157,19 @@ Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` 
 
 ### Respuestas de error
 
-Solo los errores comunes de la sección "Convenciones de los endpoints":
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
-
-```json
-{
-  "errorCode": "FORBIDDEN",
-  "message": "No tienes permiso para realizar esta acción.",
-  "timestamp": "2026-10-08T10:00:00-05:00",
-  "path": "/api/reception/arrivals"
-}
-```
+No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
 ## GET /api/reception/departures
 
 **Descripción:** Pestaña Salidas: estancias activas locales con salida hoy o vencida (FR-004, FR-006, FR-008, FR-009).
-**Rol autorizado:** `RECEPTIONIST`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -256,35 +232,19 @@ Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "N
 
 ### Respuestas de error
 
-Solo los errores comunes de la sección "Convenciones de los endpoints":
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
-
-```json
-{
-  "errorCode": "FORBIDDEN",
-  "message": "No tienes permiso para realizar esta acción.",
-  "timestamp": "2026-10-08T10:00:00-05:00",
-  "path": "/api/reception/departures"
-}
-```
+No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
 ## GET /api/reception/panel/kpis
 
 **Descripción:** Los cuatro indicadores del turno, calculados con datos locales (FR-002, FR-010).
-**Rol autorizado:** `RECEPTIONIST`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -318,21 +278,7 @@ Accept: application/json
 
 ### Respuestas de error
 
-Solo los errores comunes de la sección "Convenciones de los endpoints":
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `RECEPTIONIST` | "No tienes permiso para realizar esta acción." |
-
-```json
-{
-  "errorCode": "FORBIDDEN",
-  "message": "No tienes permiso para realizar esta acción.",
-  "timestamp": "2026-10-08T10:00:00-05:00",
-  "path": "/api/reception/panel/kpis"
-}
-```
+No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -369,7 +315,7 @@ backend/src/
 │   │   └── ports/
 │   │       ├── in/
 │   │       │   ├── GetReceptionPanelUseCase.java
-│   │       │   ├── SearchArrivalsUseCase.java
+│   │       │   ├── SearchDailyReservationsUseCase.java   # Definido en plan-consultar-reservas.md; pestaña Llegadas
 │   │       │   └── SearchDeparturesUseCase.java
 │   │       └── out/
 │   │           ├── RoomPersistencePort.java
@@ -377,7 +323,8 @@ backend/src/
 │   │           └── DailyReservationPersistencePort.java # Lectura 100% copia local
 │   ├── application/
 │   │   ├── service/
-│   │   │   ├── ReceptionPanelQueryService.java       # Consolida 4 KPIs y llegadas (1 fila por habitación)
+│   │   │   ├── ReceptionPanelQueryService.java       # Consolida los 4 KPIs
+│   │   │   ├── DailyReservationSearchService.java    # Definido en plan-consultar-reservas.md; llegadas (1 fila por habitación)
 │   │   │   └── DepartureSearchService.java           # Búsqueda local de salidas
 │   │   └── dto/
 │   │       ├── ReceptionDashboardKpisDto.java
@@ -390,19 +337,20 @@ backend/src/
 │       │   │       └── ReceptionPanelController.java
 │       │   └── out/
 │       │       └── persistence/
-│       │           ├── RoomRepositoryAdapter.java
-│       │           ├── StayRepositoryAdapter.java
-│       │           └── DailyReservationPersistenceAdapter.java
+│       │           └── adapter/
+│       │               ├── RoomRepositoryAdapter.java
+│       │               ├── StayRepositoryAdapter.java
+│       │               └── DailyReservationPersistenceAdapter.java
 frontend/src/
-├── components/panel/
-│   ├── ReceptionPanel.jsx
-│   ├── KpiCards.jsx
-│   ├── ArrivalsTab.jsx
-│   ├── DeparturesTab.jsx
-│   └── ReceptionSearchBar.jsx
-└── services/
-    ├── receptionPanelService.js
-    └── departureService.js
+├── pages/panel/
+│   ├── ReceptionPanel.tsx
+│   ├── KpiCards.tsx
+│   ├── ArrivalsTab.tsx
+│   ├── DeparturesTab.tsx
+│   └── ReceptionSearchBar.tsx
+└── api/
+    ├── receptionPanelService.ts
+    └── departureService.ts
 ```
 
 ---
@@ -410,7 +358,7 @@ frontend/src/
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar la configuración base de repositorios en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar que las tablas `daily_reservation` y `daily_reservation_room` estén disponibles (generadas por `plan-consultar-reservas.md`).
+- [ ] T002 Verificar que las tablas `daily_reservation` y `daily_reservation_room` estén disponibles (creadas por `V1__init_schema.sql` del plan base y alimentadas por `plan-consultar-reservas.md`).
 - [ ] T003 Configurar el mapeo de excepciones en `GlobalExceptionHandler`.
 
 ---
@@ -438,15 +386,15 @@ frontend/src/
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test para `ReceptionPanelQueryService` verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
+- [ ] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
 - [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005).
-- [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.jsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-007; SC-004).
+- [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-007; SC-004).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implementar en `ReceptionPanelQueryService` el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
-- [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java` con `@PreAuthorize("hasRole('RECEPTIONIST')")` (FR-003, FR-010).
-- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.jsx` y `ReceptionSearchBar.jsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-007).
+- [ ] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T018 y T019) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
+- [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-010).
+- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-007).
 
 ---
 
@@ -460,13 +408,13 @@ frontend/src/
 
 - [ ] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
 - [ ] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-006).
-- [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.jsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-006, FR-008; SC-005).
+- [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-006, FR-008; SC-005).
 
 ### Implementation for User Story 2
 
 - [ ] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
 - [ ] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
-- [ ] T019 [US2] Construir el componente frontend `DeparturesTab.jsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-006, FR-008).
+- [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-006, FR-008).
 
 ---
 
@@ -479,13 +427,13 @@ frontend/src/
 ### Tests for User Story 3
 
 - [ ] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-010).
-- [ ] T021 [P] [US3] Component test frontend para `KpiCards.jsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-010).
+- [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-010).
 
 ### Implementation for User Story 3
 
 - [ ] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
 - [ ] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
-- [ ] T024 [US3] Construir el componente `KpiCards.jsx` en frontend con las 4 tarjetas de resumen (FR-002).
+- [ ] T024 [US3] Construir el componente `KpiCards.tsx` en frontend con las 4 tarjetas de resumen (FR-002).
 
 ---
 
@@ -495,14 +443,14 @@ frontend/src/
 - [ ] T026 Garantizar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración desacopladas de red, midiendo que el panel completo carga en menos de 2 segundos y cada búsqueda responde en menos de 0,5 segundos (SC-001 a SC-003).
 - [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
 - [ ] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-010; SC-006).
-- [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.jsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-005a).
-- [ ] T030 Construir `ReceptionPanel.jsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con chip de sesión (nombre y rol), saludo con el nombre del Recepcionista tomado del token, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.jsx` y las pestañas Llegadas y Salidas (FR-001).
+- [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-005a).
+- [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere `Room`, `Stay` y `RoomGuest` de [PLAN/base/plan.md](base/plan.md) y el rol `RECEPTIONIST` (T015).
+- **Foundational**: Requiere `Room`, `Stay` y `RoomGuest` de [PLAN/base/plan.md](base/plan.md).
 - **Sub-planes Integrados**:
   - `plan-consultar-reservas.md`: Suministra la copia local `daily_reservation` y `daily_reservation_room`.
   - `plan-registrar-check-in.md`: Destino de navegación al pulsar "Check-in".

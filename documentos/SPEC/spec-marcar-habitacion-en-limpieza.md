@@ -15,22 +15,22 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 **Escenarios de aceptación**:
 
 1. **Escenario**: Inicio de limpieza post-check-out
-   - **Dado que** El miembro del personal de limpieza está autenticado y existe una habitación "101" que acaba de ser liberada y se encuentra en estado `PendingCleaning`
+   - **Dado que** Existe una habitación "101" que acaba de ser liberada y se encuentra en estado `PendingCleaning`
    - **Cuando** El miembro del personal de limpieza indica que va a iniciar labores de limpieza en la habitación
    - **Entonces** El sistema registra que la habitación está en proceso de limpieza, transiciona su estado a `InCleaning`, vincula el miembro del personal de limpieza a la labor y registra el timestamp al recibir la confirmación
 
 2. **Escenario**: Limpieza preventiva
-   - **Dado que** El miembro del personal de limpieza está autenticado y existe una habitación "101" en estado `Available` que lleva tiempo sin ser asignada o usada
+   - **Dado que** Existe una habitación "101" en estado `Available` que lleva tiempo sin ser asignada o usada
    - **Cuando** El miembro del personal de limpieza indica que va a iniciar labores en la habitación
    - **Entonces** El sistema realiza la misma transición a `InCleaning`, vinculación y registro de timestamp descritos en el escenario anterior, sin exigir que la habitación provenga de un check-out
 
 3. **Escenario**: Habitación en estados distintos a `PendingCleaning` o `Available`
-   - **Dado que** El miembro del personal de limpieza está autenticado y existe una habitación "101" que se encuentra en un estado distinto a los mencionados
+   - **Dado que** Existe una habitación "101" que se encuentra en un estado distinto a los mencionados
    - **Cuando** El miembro del personal de limpieza intenta indicar que va a iniciar labores de limpieza en la habitación
    - **Entonces** El sistema rechaza la operación y muestra un error con el estado actual de la habitación indicando que es una operación no válida
 
 4. **Escenario**: Miembro con una tarea activa
-   - **Dado que** El miembro del personal de limpieza está autenticado y tiene una `CleaningTask` activa sobre la habitación "101"
+   - **Dado que** El miembro del personal de limpieza tiene una `CleaningTask` activa sobre la habitación "101"
    - **Cuando** Intenta iniciar labores de limpieza en la habitación "105"
    - **Entonces** El sistema rechaza la operación indicando que ya tiene una tarea activa, no modifica el estado de la habitación "105" y lo redirige a la vista de tarea activa
 
@@ -41,16 +41,13 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 1. **¿Qué ocurre si dos miembros del personal intentan limpiar la misma habitación?**
    El sistema debe asignar la habitación al primero que la marque. El segundo recibe un error indicando el estado actual de la habitación `InCleaning`.
 
-2. **¿Qué ocurre si se marca una habitación en limpieza y el personal no se autentica?**
-   El sistema debe rechazar la operación y solicitar autenticación previo al inicio de labores de limpieza por parte de un miembro de su personal.
-
-3. **¿Qué ocurre si la habitación fue liberada hace mucho tiempo y nadie la ha limpiado?**
+2. **¿Qué ocurre si la habitación fue liberada hace mucho tiempo y nadie la ha limpiado?**
    El sistema debe permitir la limpieza sin ninguna restricción de tiempo. La verificación de tiempos no es responsabilidad de este caso de uso.
 
-4. **¿Qué ocurre si el reloj del dispositivo del cliente está desajustado o se intenta enviar una fecha propia?**
+3. **¿Qué ocurre si el reloj del dispositivo del cliente está desajustado o se intenta enviar una fecha propia?**
    El sistema ignora cualquier fecha enviada por el cliente y utiliza exclusivamente el timestamp del servidor, evitando registros con fechas sin sentido.
 
-5. **¿Qué ocurre si el miembro del personal de limpieza no puede terminar una tarea activa?**
+4. **¿Qué ocurre si el miembro del personal de limpieza no puede terminar una tarea activa?**
    El miembro vinculado puede liberarla desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*): la habitación vuelve a `PendingCleaning` y cualquier miembro puede retomarla desde el panel. Si el miembro abandona la tarea sin liberarla, la habitación permanece en `InCleaning`; ese caso queda fuera del alcance del módulo.
 
 ---
@@ -59,7 +56,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir al personal de limpieza autenticado marcar el inicio de labores de limpieza en una habitación y recibir retroalimentación visual de la acción que está realizando.
+- **FR-001**: El sistema DEBE permitir al personal de limpieza marcar el inicio de labores de limpieza en una habitación y recibir retroalimentación visual de la acción que está realizando.
 - **FR-002**: El sistema DEBE aceptar la marcación únicamente desde habitaciones que se encuentren en los estados `PendingCleaning` o `Available`
 - **FR-003**: El sistema DEBE cambiar el estado de la habitación a `InCleaning` al procesar la marcación.
 - **FR-004**: El sistema DEBE registrar los datos del personal que solicita la tarea junto con la fecha y hora de inicio de labores de limpieza (timestamp).
@@ -71,7 +68,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 - **FR-010**: El sistema DEBE generar el timestamp de inicio de labores (`StartDateTime`) exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
 - **FR-011**: El sistema DEBE asignar `StartDateTime` en el mismo momento en que se procesa la transición a `InCleaning`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
 - **FR-012**: La última limpieza que muestra el panel la calcula *Consultar Panel de Limpieza* (FR-004) a partir de las `CleaningTask` que crea este caso de uso y cierra *Confirmar Fin de Limpieza de Habitación*.
-- **FR-013**: El sistema DEBE rechazar la marcación si el miembro del personal de limpieza autenticado ya tiene una `CleaningTask` sin `EndDateTime`, aunque la solicitud no provenga del panel de limpieza, informando que ya tiene una tarea activa.
+- **FR-013**: El sistema DEBE rechazar la marcación si el miembro del personal de limpieza que realiza la acción ya tiene una `CleaningTask` sin `EndDateTime`, aunque la solicitud no provenga del panel de limpieza, informando que ya tiene una tarea activa.
 - **FR-014**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `InCleaning`, `PreviousStatus` = `PendingCleaning` o `Available`, `StartDateTime` = `StartDateTime` de la tarea, `ActorId` = miembro del personal de limpieza y `SourceFlow` = *Marcar Habitación en Limpieza*.
 - **FR-015**: El sistema DEBE permitir liberar una `CleaningTask` activa únicamente a su miembro vinculado, desde la vista de tarea activa (caso de uso *Confirmar Fin de Limpieza de Habitación*); el sistema NO DEBE permitir transferir la tarea a un miembro específico ni liberar tareas de otros miembros.
 - **FR-016**: El sistema DEBE ejecutar la marcación (transición, `CleaningTask` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.

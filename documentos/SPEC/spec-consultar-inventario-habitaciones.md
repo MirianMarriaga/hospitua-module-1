@@ -3,6 +3,7 @@
 **Módulo**: Módulo 1 — Gestión de Habitaciones e Inventario
 **Actor principal**: Gerente / Administrador / Módulo 2 (sistema externo)
 **Creado**: 2026-09-07
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### Historia de Usuario 1 - Consulta del inventario general (Prioridad: P1)
@@ -11,7 +12,7 @@ Como Gerente o Administrador, quiero consultar las habitaciones del hotel con su
 
 **Por qué esta prioridad**: Permite a la gerencia auditar el inventario completo y es el punto de consulta del listado general de habitaciones del módulo, fundamental para que otros procesos (como los del Módulo 2) validen información sin modificar datos.
 
-**Prueba Independiente**: Puede probarse iniciando sesión como Gerente o Administrador, accediendo al listado general de habitaciones, comprobando que se incluyan todos los atributos clave y validando el correcto funcionamiento de los filtros y el ordenamiento; y consultando como Módulo 2 por categoría y por ID, comprobando que solo se reciben `id`, `roomNumber`, `categoryRoom` y `maxCapacity` y que nunca aparecen habitaciones "Inactive".
+**Prueba Independiente**: Puede probarse como Gerente o Administrador, accediendo al listado general de habitaciones, comprobando que se incluyan todos los atributos clave y validando el correcto funcionamiento de los filtros y el ordenamiento; y consultando como Módulo 2 por categoría y por ID, comprobando que solo se reciben `id`, `roomNumber`, `categoryRoom` y `maxCapacity` y que nunca aparecen habitaciones "Inactive".
 
 **Escenarios de Aceptación**:
 

@@ -33,30 +33,21 @@ Usa la tabla `damage_report` del plan base (T018).
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; los roles se indican por endpoint. El autor se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia; la interfaz las muestra como DD-MM-YYYY HH:MM.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene un rol autorizado para el endpoint | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## POST /api/rooms/{roomId}/damage-reports
 
 **Descripción:** Reporta un daño en una habitación `Available` y la inhabilita por reparaciones (FR-001 a FR-006, FR-008 a FR-012).
-**Rol autorizado:** `CLEANING_STAFF`, `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -126,14 +117,12 @@ Si falla la persistencia o la conexión, la transacción se revierte, la habitac
 ## GET /api/rooms/{roomId}/damage-reports/latest
 
 **Descripción:** Acción "Ver informe": devuelve el reporte de daño que originó el estado `DisabledForRepairs` actual; solo responde mientras la habitación está en ese estado (FR-007, FR-007.1).
-**Rol autorizado:** `MAINTENANCE_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -244,13 +233,13 @@ backend/src/
     └── (sin migración propia: `damage_report` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
 ├── components/
-│   ├── DamageReportDialog.jsx                     # Reportar daño; lo usan los paneles de limpieza y mantenimiento
-│   └── DamageReportViewDialog.jsx                 # Ver informe; lo usa el panel de mantenimiento
+│   ├── DamageReportDialog.tsx                     # Reportar daño; lo usan los paneles de limpieza y mantenimiento
+│   └── DamageReportViewDialog.tsx                 # Ver informe; lo usa el panel de mantenimiento
 └── api/
-    └── damageReportService.js
+    └── damageReportService.ts
 ```
 
-**Structure Decision**: Los diálogos van en `components/` porque los usan dos paneles. `ReportDamageService` se ejecuta con `@Transactional` de propagación `REQUIRED`: abre su transacción cuando se llama desde el endpoint y se une a la de *Confirmar Fin de Limpieza de Habitación* cuando se invoca desde ese flujo. `ReportDamageCommand` contiene `roomId`, `damageDescription`, `authorId` (del token o del flujo invocador) y `sourceFlow` (`REPORT_DAMAGE` desde el endpoint, `CONFIRM_CLEANING_END` desde *Confirmar Fin de Limpieza de Habitación*).
+**Structure Decision**: Los diálogos van en `components/` porque los usan dos paneles. `ReportDamageService` se ejecuta con `@Transactional` de propagación `REQUIRED`: abre su transacción cuando se llama desde el endpoint y se une a la de *Confirmar Fin de Limpieza de Habitación* cuando se invoca desde ese flujo. `ReportDamageCommand` contiene `roomId`, `damageDescription`, `authorId` (usuario actual o el del flujo invocador) y `sourceFlow` (`REPORT_DAMAGE` desde el endpoint, `CONFIRM_CLEANING_END` desde *Confirmar Fin de Limpieza de Habitación*).
 
 ---
 
@@ -272,18 +261,18 @@ No aplica: usa la infraestructura del plan base.
 
 **Goal**: Que el Personal de limpieza o de mantenimiento reporte un daño sobre una habitación disponible, dejándola inhabilitada con su reporte, y que el Personal de mantenimiento pueda consultar ese reporte.
 
-**Independent Test**: Reportar un daño con descripción válida sobre una habitación `Available` (con un usuario de cada rol) y verificar `DisabledForRepairs`, el `DamageReport` y el periodo en el historial; intentar sin descripción y sobre una habitación `Occupied`, y verificar los rechazos; consultar "Ver informe" con un usuario de mantenimiento.
+**Independent Test**: Reportar un daño con descripción válida sobre una habitación `Available` (desde el panel de limpieza y desde el de mantenimiento) y verificar `DisabledForRepairs`, el `DamageReport` y el periodo en el historial; intentar sin descripción y sobre una habitación `Occupied`, y verificar los rechazos; consultar "Ver informe" con un usuario de mantenimiento.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `ReportDamageServiceTest`: reporte válido transiciona a `DisabledForRepairs`, crea el reporte con autor del token y fecha del servidor (HU-1 esc. 1; FR-004, FR-005, FR-008).
+- [ ] T004 [P] [US1] Unit test en `ReportDamageServiceTest`: reporte válido transiciona a `DisabledForRepairs`, crea el reporte con el usuario actual como autor y fecha del servidor (HU-1 esc. 1; FR-004, FR-005, FR-008).
 - [ ] T005 [P] [US1] Unit test: descripción nula, vacía, solo espacios o de más de 500 caracteres se rechaza sin cambios (HU-1 esc. 2; FR-003; caso límite 2).
 - [ ] T006 [P] [US1] Unit test: rechazo desde cualquier estado distinto de `Available`, con el estado actual (HU-1 esc. 3; FR-002).
 - [ ] T007 [P] [US1] Unit test con `Clock` fijo: `reportDateTime` coincide con el inicio del periodo en `room_state_history` y se ignora cualquier fecha del cliente (FR-008, FR-009, FR-011; caso límite 4; SC-004).
 - [ ] T008 [US1] Integration test con Testcontainers: dos reportes simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `409` con el estado actual (FR-006; caso límite 1).
 - [ ] T009 [US1] Integration test: un fallo forzado al guardar el reporte revierte la transición; invocado desde una transacción externa, el rollback abarca también la de ese flujo (FR-012; SC-002).
 - [ ] T010 [P] [US1] Unit test en `DamageReportQueryServiceTest`: "Ver informe" devuelve el reporte más reciente con descripción, autor y fecha (FR-007, FR-007.1; responde `DAMAGE_REPORT_NOT_FOUND` si la habitación no está en `DisabledForRepairs`).
-- [ ] T011 [US1] Integration test: `POST` funciona con `CLEANING_STAFF` y `MAINTENANCE_STAFF`; `GET .../latest` responde `403` a `CLEANING_STAFF` (FR-001, FR-007.2).
+- [ ] T011 [US1] Integration test: `POST` funciona desde los paneles de limpieza y de mantenimiento, y "Ver informe" (`GET .../latest`) se ofrece solo en el panel de mantenimiento (FR-001, FR-007.2).
 - [ ] T012 [P] [US1] Component test en `DamageReportDialog`: la descripción es obligatoria, contador de 500 caracteres, botón de confirmar deshabilitado si no es válida y conservación del texto ante un error (FR-001, FR-003, FR-012).
 
 ### Implementation for User Story 1
@@ -291,9 +280,9 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T013 [US1] Implementar `ReportDamageService` (`@Transactional`, propagación `REQUIRED`) (FR-002 a FR-006, FR-008, FR-009, FR-011, FR-012):
   - Validar la descripción y que la habitación exista y esté en `Available`.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, DisabledForRepairs, autor, sourceFlow, null)` con `sourceFlow = REPORT_DAMAGE`, o `CONFIRM_CLEANING_END` cuando el comando viene de ese flujo; crear el `DamageReport` usando como `reportDateTime` la marca de tiempo del periodo que devuelve la transición (FR-008, FR-009, FR-011).
-- [ ] T014 [US1] Implementar `DamageReportQueryService` y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (`CLEANING_STAFF`, `MAINTENANCE_STAFF`) y `GET /api/rooms/{roomId}/damage-reports/latest` (`MAINTENANCE_STAFF`) (FR-001, FR-007).
-- [ ] T015 [US1] Construir `DamageReportDialog.jsx` (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.jsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007.1).
-- [ ] T016 [US1] Conectar el botón "Reportar daño" del panel de limpieza (`plan-consultar-panel-limpieza.md`, T012) con `DamageReportDialog.jsx` y refrescar el panel al terminar, para que la habitación desaparezca de él.
+- [ ] T014 [US1] Implementar `DamageReportQueryService` y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (paneles de limpieza y mantenimiento) y `GET /api/rooms/{roomId}/damage-reports/latest` (panel de mantenimiento) (FR-001, FR-007).
+- [ ] T015 [US1] Construir `DamageReportDialog.tsx` (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.tsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007.1).
+- [ ] T016 [US1] Conectar el botón "Reportar daño" del panel de limpieza (`plan-consultar-panel-limpieza.md`, T012) con `DamageReportDialog.tsx` y refrescar el panel al terminar, para que la habitación desaparezca de él.
 
 **Checkpoint**: El reporte de daño funciona desde el panel de limpieza y queda disponible para el panel de mantenimiento y para *Confirmar Fin de Limpieza de Habitación*.
 
@@ -307,9 +296,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `damage_report` (T018), `SourceFlow` (T020), los roles `CLEANING_STAFF` y `MAINTENANCE_STAFF` y `ClockConfig`.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `damage_report` (T018), `SourceFlow` (T020) y `ClockConfig`.
 - **Planes relacionados**:
   - `plan-marcar-habitacion-en-limpieza.md`: panel de limpieza con el botón "Reportar daño".
   - `plan-confirmar-fin-de-limpieza.md`: invoca `ReportDamageUseCase` en el fin de limpieza con daño.
-  - `plan-confirmar-reparacion-finalizada.md`: panel de mantenimiento, que usa `DamageReportDialog.jsx` y `DamageReportViewDialog.jsx`.
+  - `plan-confirmar-reparacion-finalizada.md`: panel de mantenimiento, que usa `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx`.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. Su Phase 2 debe estar lista antes del camino con daño de `plan-confirmar-fin-de-limpieza.md`.

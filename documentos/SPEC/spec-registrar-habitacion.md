@@ -12,12 +12,12 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 
 **Por qué esta prioridad**: Es la operación fundacional del Módulo 1 (Gestión de Habitaciones e Inventario). Sin la capacidad de crear habitaciones, ningún otro caso de uso del módulo (editar, dar de baja, bloquear, marcar estados, generar reportes) tiene datos sobre los cuales operar. Es la base de datos central del sistema.
 
-**Prueba Independiente**: Puede probarse de forma independiente iniciando sesión como Administrador del sistema, completando el formulario de registro con todos los datos identificación (número, piso), categorización (tipo, capacidad máxima) y tarifa base y verificando que la habitación aparezca en el inventario con estado "Available", con un identificador único (UUID) generado automáticamente por el sistema.
+**Prueba Independiente**: Puede probarse de forma independiente como Administrador del sistema, completando el formulario de registro con todos los datos identificación (número, piso), categorización (tipo, capacidad máxima) y tarifa base y verificando que la habitación aparezca en el inventario con estado "Available", con un identificador único (UUID) generado automáticamente por el sistema.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Registro exitoso con datos completos y válidos
-   - **Dado** el Administrador del sistema ha iniciado sesión y se encuentra en la sección de Inventario de Habitaciones
+   - **Dado** el Administrador del sistema se encuentra en la sección de Inventario de Habitaciones
    - **Cuando** completa el formulario de registro con número de habitación, piso, tipo, capacidad máxima, tarifa base, y confirma la creación
    - **Entonces** el sistema crea la habitación con un ID único (UUID), la asigna al estado "Available", almacena la tarifa base y la muestra en el listado de inventario
 

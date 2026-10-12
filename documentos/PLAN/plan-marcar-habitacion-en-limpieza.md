@@ -25,41 +25,32 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 - **Constraints**:
   - Una sola tarea abierta por miembro y por habitación (FR-006, FR-013; regla 9 del plan base), garantizado con índices únicos parciales además de la validación del servicio.
   - `StartDateTime` lo genera el servidor con `Clock` y coincide con el inicio del periodo en `room_state_history` (FR-010, FR-011, SC-004).
-  - La reasignación o liberación de tareas de otros miembros queda fuera de alcance (FR-015, caso límite 5); la liberación propia se implementa en `plan-confirmar-fin-de-limpieza.md`.
-  - Sin restricción de tiempo desde que la habitación quedó pendiente (caso límite 3).
+  - La reasignación o liberación de tareas de otros miembros queda fuera de alcance (FR-015, caso límite 4); la liberación propia se implementa en `plan-confirmar-fin-de-limpieza.md`.
+  - Sin restricción de tiempo desde que la habitación quedó pendiente (caso límite 2).
 
 ---
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `CLEANING_STAFF`. El miembro se toma del token, nunca del cuerpo de la petición.
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-08T09:15:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con el campo adicional `details` cuando aporta contexto (ej. `currentStatus`).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." (caso límite 2) |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## POST /api/cleaning/tasks
 
-**Descripción:** Inicia la limpieza de una habitación: transiciona `PendingCleaning` o `Available` a `InCleaning`, crea la `CleaningTask` del miembro autenticado y registra el periodo en `room_state_history`, todo en una transacción (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016).
-**Rol autorizado:** `CLEANING_STAFF`
+**Descripción:** Inicia la limpieza de una habitación: transiciona `PendingCleaning` o `Available` a `InCleaning`, crea la `CleaningTask` del miembro que realiza la acción y registra el periodo en `room_state_history`, todo en una transacción (FR-001 a FR-006, FR-010, FR-011, FR-013, FR-014, FR-016).
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
-**Body (JSON):** solo el identificador de la habitación; cualquier fecha enviada por el cliente se ignora (FR-010, caso límite 4).
+**Body (JSON):** solo el identificador de la habitación; cualquier fecha enviada por el cliente se ignora (FR-010, caso límite 3).
 
 ```json
 {
@@ -165,16 +156,16 @@ backend/src/
     └── (sin migración propia: `cleaning_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
 └── api/
-    └── cleaningService.js
+    └── cleaningService.ts
 ```
 
-**Structure Decision**: `CleaningController` agrupa los endpoints `/api/cleaning/...`; `plan-consultar-panel-limpieza.md` le agrega el del panel y `plan-confirmar-fin-de-limpieza.md` los de la tarea activa. El panel y sus componentes de interfaz pertenecen a `plan-consultar-panel-limpieza.md`. `StartCleaningCommand` contiene `roomId` y `memberId` (tomado del token).
+**Structure Decision**: `CleaningController` agrupa los endpoints `/api/cleaning/...`; `plan-consultar-panel-limpieza.md` le agrega el del panel y `plan-confirmar-fin-de-limpieza.md` los de la tarea activa. El panel y sus componentes de interfaz pertenecen a `plan-consultar-panel-limpieza.md`. `StartCleaningCommand` contiene `roomId` y `memberId` (usuario actual).
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de limpieza de T016, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `ClockConfig`).
 
 ---
 
@@ -198,11 +189,11 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 - [ ] T005 [P] [US1] Unit test: inicio desde `Available` sin exigir check-out previo (HU-1 esc. 2).
 - [ ] T006 [P] [US1] Unit test: rechazo desde cualquier otro estado con `ROOM_INVALID_STATE` y el estado actual (HU-1 esc. 3; FR-005).
 - [ ] T007 [P] [US1] Unit test: rechazo con `ACTIVE_TASK_EXISTS` si el miembro ya tiene una tarea abierta (HU-1 esc. 4; FR-013).
-- [ ] T008 [P] [US1] Unit test con `Clock` fijo: `startDateTime` de la tarea y `start_date_time` del periodo en `room_state_history` son iguales y no se toman del cliente (FR-010, FR-011, FR-014; caso límite 4; SC-002).
+- [ ] T008 [P] [US1] Unit test con `Clock` fijo: `startDateTime` de la tarea y `start_date_time` del periodo en `room_state_history` son iguales y no se toman del cliente (FR-010, FR-011, FR-014; caso límite 3; SC-002).
 - [ ] T009 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409` con el estado `InCleaning` (FR-006; caso límite 1).
 - [ ] T010 [US1] Integration test: un fallo forzado al guardar el registro del historial revierte la transición y la tarea (FR-016).
 - [ ] T011 [P] [US1] Component test de la acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el motivo y vuelve al panel recargado (FR-001, FR-009, FR-017).
-- [ ] T012 [US1] Integration test: un usuario sin token recibe `401` y uno sin rol `CLEANING_STAFF` recibe `403` (FR-001; caso límite 2).
+- [ ] T012 [eliminada: la seguridad no es responsabilidad de esta etapa]
 
 ### Implementation for User Story 1
 
@@ -210,7 +201,7 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
   - Rechazar si el miembro tiene una tarea abierta (`ACTIVE_TASK_EXISTS`).
   - Validar que la habitación exista y esté en `PendingCleaning` o `Available` (`ROOM_INVALID_STATE` con `currentStatus`).
   - Tomar la hora con `Clock`; invocar `TransitionRoomStateUseCase.transition(roomId, InCleaning, miembro, START_CLEANING, null)`, que registra el periodo en `room_state_history` (FR-014), y crear la `CleaningTask` con la marca de tiempo del periodo que devuelve la transición (FR-010, FR-011).
-- [ ] T014 [US1] Implementar `CleaningController` con el endpoint `POST /api/cleaning/tasks` y `@PreAuthorize("hasRole('CLEANING_STAFF')")`, tomando el miembro del token. `plan-consultar-panel-limpieza.md` le agrega `GET /api/cleaning/panel`.
+- [ ] T014 [US1] Implementar `CleaningController` con el endpoint `POST /api/cleaning/tasks`, tomando como miembro al usuario actual. `plan-consultar-panel-limpieza.md` le agrega `GET /api/cleaning/panel`.
 - [ ] T015 [US1] Mostrar la retroalimentación de "Iniciar limpieza" en el panel: éxito con redirección a la vista de tarea activa y errores con el texto de la tabla de errores (y, ante fallos de red, la sugerencia de reintentar), volviendo al panel recargado (FR-001, FR-009, FR-016, FR-017).
 
 **Checkpoint**: El Personal de limpieza puede iniciar limpiezas desde el panel (`plan-consultar-panel-limpieza.md`); la vista de tarea activa a la que se redirige se completa con `plan-confirmar-fin-de-limpieza.md`.
@@ -219,13 +210,13 @@ No aplica: usa la infraestructura del plan base (rol `CLEANING_STAFF`, layout de
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T016 Integration test: tras iniciar la limpieza, `GET /api/rooms?status=InCleaning` incluye la habitación en menos de 2 segundos (SC-003).
+- [ ] T016 Integration test: tras iniciar la limpieza, `GET /api/rooms/inventory?status=InCleaning` incluye la habitación en menos de 2 segundos (SC-003).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `cleaning_task` (T018), `SourceFlow` y `ActiveTaskExistsException` (T020), el rol `CLEANING_STAFF` (T015) y el layout de limpieza (T016).
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `cleaning_task` (T018), `SourceFlow` y `ActiveTaskExistsException` (T020) y el layout de limpieza (T016).
 - **Planes relacionados**:
   - `plan-consultar-panel-limpieza.md`: implementa el panel desde el que se inicia la limpieza.
   - `plan-confirmar-fin-de-limpieza.md`: implementa la vista de tarea activa a la que redirige este plan, y el cierre y la liberación de la `CleaningTask`.

@@ -15,12 +15,12 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
 **Escenarios de aceptación**:
 
 1. **Escenario**: Consulta exitosa al programar un mantenimiento
-   - **Dado que** El miembro del personal de mantenimiento está autenticado y desea programar un mantenimiento para la habitación "101" entre el rango temporal comprendido desde "22-10-2026" hasta "26-10-2026"
+   - **Dado que** El miembro del personal de mantenimiento desea programar un mantenimiento para la habitación "101" entre el rango temporal comprendido desde "22-10-2026" hasta "26-10-2026"
    - **Cuando** *Programar Bloqueo Técnico para Habitación* consulta los mantenimientos de la habitación "101" en el rango definido
    - **Entonces** El sistema retorna que la habitación está disponible, sin cruces, por lo que se puede registrar el mantenimiento
 
 2. **Escenario**: Consulta exitosa por parte del módulo de reservas
-   - **Dado que** El sistema del módulo de reservas está autorizado y desea vincular la habitación "101" a una reserva con llegada el "22-10-2026" y salida el "26-10-2026"
+   - **Dado que** El sistema del módulo de reservas desea vincular la habitación "101" a una reserva con llegada el "22-10-2026" y salida el "26-10-2026"
    - **Cuando** El sistema consulta los mantenimientos de la habitación "101" para esa estadía
    - **Entonces** El sistema retorna que la habitación está disponible, sin cruces, por lo que se puede vincular la habitación a la reserva
 
@@ -30,7 +30,7 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
    - **Entonces** El sistema retorna que la habitación no está disponible e incluye el cruce con su inicio "24-10-2026" y su fin estimado "28-10-2026", sin la justificación del mantenimiento
 
 4. **Escenario**: Consulta con rango temporal sin sentido
-   - **Dado que** Un actor autorizado realiza una consulta para la habitación "101"
+   - **Dado que** Un actor realiza una consulta para la habitación "101"
    - **Cuando** El rango enviado tiene una fecha de fin anterior a la de inicio, una fecha inexistente en el calendario, una fecha nula o termina antes de la fecha actual
    - **Entonces** El sistema rechaza la consulta, no evalúa mantenimientos y retorna un error de validación indicando la regla temporal incumplida
 
@@ -58,31 +58,28 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
 
 ### Casos Límite
 
-1. **¿Qué ocurre si el módulo de reservas no está autorizado?**
-   El sistema debe rechazar la consulta retornando un error de autorización que indique el motivo, sin evaluar mantenimientos.
-
-2. **¿Qué ocurre si la información de mantenimiento cambia entre la consulta y la creación de la reserva?**
+1. **¿Qué ocurre si la información de mantenimiento cambia entre la consulta y la creación de la reserva?**
    La consulta retorna la información vigente al momento de responder. Si en ese intervalo se programa un mantenimiento, *Programar Bloqueo Técnico para Habitación* verifica las reservas del módulo de reservas antes de registrarlo. Que ambos eventos ocurran al mismo tiempo es una limitación aceptada.
 
-3. **¿Qué ocurre si la llegada y la salida son el mismo día?**
+2. **¿Qué ocurre si la llegada y la salida son el mismo día?**
    El rango es válido y se evalúa solo ese día. Un rango con fin anterior al inicio es siempre inválido.
 
-4. **¿Qué ocurre si se consulta un rango que empieza antes de la fecha actual?**
+3. **¿Qué ocurre si se consulta un rango que empieza antes de la fecha actual?**
    Si el rango todavía incluye días a partir de hoy, se evalúa desde la fecha actual (por ejemplo, la extensión de una estadía en curso). Si termina antes de hoy, se rechaza como rango temporal sin sentido.
 
-5. **¿Qué ocurre con los mantenimientos ya finalizados o caducados?**
+4. **¿Qué ocurre con los mantenimientos ya finalizados o caducados?**
    No se consideran: un `TechnicalBlockReport` en estado `Completed` o `Expired` no genera solapamiento, aunque su rango coincida con el consultado.
 
-6. **¿Qué ocurre si la habitación sigue en bloqueo técnico después de la fecha estimada de finalización?**
+5. **¿Qué ocurre si la habitación sigue en bloqueo técnico después de la fecha estimada de finalización?**
    El informe en estado `Applied` deja de bloquear fechas futuras posteriores a su fecha estimada de fin: la reserva tiene prioridad. La habitación sigue en `TechnicalBlock` hasta que se confirme el fin de la reparación, y el panel de mantenimiento la marca como vencida para que se cierre o se programe un nuevo mantenimiento. Mientras siga bloqueada, no se puede asignar para el día actual (escenario 8). Si el día de la llegada la habitación sigue bloqueada, Recepción ve la alerta de su panel (*Consultar panel de recepción*, FR-005).
 
-7. **¿Qué ocurre si se consulta una habitación que no existe?**
+6. **¿Qué ocurre si se consulta una habitación que no existe?**
    El sistema retorna un error de "habitación no encontrada", distinto de la verificación negativa por solapamiento.
 
-8. **¿Qué ocurre con una habitación inhabilitada por un daño (`DisabledForRepairs`)?**
+7. **¿Qué ocurre con una habitación inhabilitada por un daño (`DisabledForRepairs`)?**
    Para fechas futuras no genera cruce, porque un reporte de daño no tiene fecha de fin; solo impide asignarla para el día actual (escenario 8). Si la habitación sigue inhabilitada el día de la llegada, Recepción ve la alerta de su panel (*Consultar panel de recepción*, FR-005).
 
-9. **¿La disponibilidad incluye reservas, ocupación o habitaciones dadas de baja?**
+8. **¿La disponibilidad incluye reservas, ocupación o habitaciones dadas de baja?**
    No. La consulta solo evalúa mantenimientos. Las reservas y la ocupación las verifica el módulo de reservas con sus propios datos, y las habitaciones dadas de baja (`Inactive`) nunca se le ofrecen, porque *Consultar inventario de habitaciones* las excluye de su respuesta (FR-010 de ese caso de uso).
 
 ---
@@ -91,7 +88,7 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE ofrecer la consulta por servicio REST únicamente al sistema del módulo de reservas autorizado. El personal de mantenimiento la usa de forma interna, a través de *Programar Bloqueo Técnico para Habitación*.
+- **FR-001**: El sistema DEBE ofrecer la consulta por servicio REST al sistema del módulo de reservas. El personal de mantenimiento la usa de forma interna, a través de *Programar Bloqueo Técnico para Habitación*.
 - **FR-002**: El sistema DEBE retornar si la habitación está disponible en el rango consultado frente a los mantenimientos y, si no lo está, la fecha de inicio y la fecha estimada de fin de cada mantenimiento que se cruza (FR-010, FR-014). La disponibilidad se refiere solo a mantenimientos; no evalúa reservas, ocupación ni bajas. El sistema NO DEBE incluir en la respuesta la justificación ni otros datos del mantenimiento.
 - **FR-003**: El sistema DEBE recibir como parámetros de la consulta el identificador de una única habitación (`roomId`), la fecha de inicio y la fecha de fin del rango, y evaluarlos contra los campos `TechnicalBlockStartDate` y `EstimatedTechnicalBlockEndDate` de los `TechnicalBlockReport` de esa habitación. Cuando consulta el módulo de reservas, la fecha de inicio es la llegada y la fecha de fin es la salida: se evalúan los días de la llegada al día anterior a la salida, porque el día de salida no se considera ocupado (si la llegada y la salida coinciden, se evalúa ese día). Cuando consulta *Programar Bloqueo Técnico para Habitación*, la fecha de fin es el último día del mantenimiento y sí se evalúa.
 - **FR-004**: El sistema DEBE asegurarse de que cada consulta realizada, independiente del actor que la realice, sea una operación de solo lectura (READ-ONLY).

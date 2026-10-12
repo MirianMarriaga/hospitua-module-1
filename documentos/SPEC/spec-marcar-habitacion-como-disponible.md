@@ -11,7 +11,7 @@ Como Administrador (`Administrator`), quiero marcar una habitación dada de baja
 
 **Por qué esta prioridad**: Sin este mecanismo, una unidad dada de baja (`Inactive`) queda excluida permanentemente del inventario vendible o requeriría un nuevo registro manual, lo que fragmentaría la trazabilidad histórica. Es el mecanismo de reactivación directa del inventario del Módulo 1.
 
-**Prueba Independiente**: Iniciar sesión como Administrador, seleccionar una habitación en estado `Inactive`, confirmar la reactivación y verificar que la habitación transicione a `Available` y reapareciendo en el catálogo de habitaciones disponibles.
+**Prueba Independiente**: Como Administrador, seleccionar una habitación en estado `Inactive`, confirmar la reactivación y verificar que la habitación transicione a `Available` y reapareciendo en el catálogo de habitaciones disponibles.
 
 **Escenarios de Aceptación**:
 
@@ -99,7 +99,7 @@ Como Personal de limpieza (`CleaningStaff`), quiero que al confirmar la finaliza
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **`Room`**: Unidad habitacional física del hotel. Su atributo `status` transiciona hacia `Available` desde `Inactive`, `Reserved` o `InCleaning` (cuatro de los 8 estados canónicos de su ciclo de vida). Atributos involucrados: ID único (UUID), número de habitación, piso, tarifa base y estado operativo.
-- **`Administrator`**: Actor autorizado para ejecutar la reactivación directa de inventario inactivo.
+- **`Administrator`**: Actor que ejecuta la reactivación directa de inventario inactivo.
 - **`CleaningStaff`**: Actor operativo cuya confirmación de aseo dispara la inclusión de este servicio para liberar la habitación.
 
 ---

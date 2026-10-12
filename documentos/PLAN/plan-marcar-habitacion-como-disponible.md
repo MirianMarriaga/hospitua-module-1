@@ -23,7 +23,7 @@ La trazabilidad de los tres flujos es el periodo en `room_state_history` (FR-008
 - **Performance Goals**: toda transición válida a `Available` en menos de 1 segundo (SC-001).
 - **Constraints**:
   - Estado de origen según el flujo (FR-004, FR-006; SC-002): reactivación → `Inactive`; fin de limpieza → `InCleaning`; liberación → `Reserved` vinculada a la misma `reservationRef`. Cualquier otro origen se rechaza sin cambios.
-  - Solo el rol `ADMINISTRATOR` usa los endpoints de reactivación (FR-002). Los otros dos flujos son internos y no tienen endpoint.
+  - Los endpoints de reactivación los usa el Administrador (FR-002). Los otros dos flujos son internos y no tienen endpoint.
   - El puerto se ejecuta dentro de la transacción del invocador; si algo falla, el invocador hace rollback y la habitación queda en su estado de origen (casos borde 3 y 4).
   - Un solo periodo en el historial por transición: cuando invoca *Confirmar fin de limpieza*, el periodo queda con `source_flow = CONFIRM_CLEANING_END` (su FR-013) y este caso de uso no agrega otro (FR-011).
   - Reactivación idempotente: la petición envía el `decommissionId` que se mostró en la confirmación; si esa baja ya fue revertida, responde sin cambios y sin un segundo periodo en el historial (FR-010, caso borde 2).
@@ -56,30 +56,21 @@ Ante un origen no válido lanza `InvalidRoomTransitionException` (plan base) con
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `ADMINISTRATOR`. El Administrador se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-09T16:00:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-002) | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## GET /api/rooms/{roomId}/decommission
 
 **Descripción:** Devuelve los datos de la habitación `Inactive` y de su baja vigente, para la confirmación de la reactivación (FR-009, esc. 2).
-**Rol autorizado:** `ADMINISTRATOR`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -149,14 +140,12 @@ Si `decommissionId` es nulo, la confirmación muestra "Sin registro" en la fecha
 ## POST /api/rooms/{roomId}/reactivation
 
 **Descripción:** Reactiva una habitación `Inactive`: pasa a `Available` y la baja queda revertida (FR-002, FR-005, FR-008, FR-010, FR-011).
-**Rol autorizado:** `ADMINISTRATOR`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -252,7 +241,8 @@ backend/src/main/java/com/hospitua/habitaciones/
 ├── domain/
 │   └── ports/in/
 │       ├── MarkRoomAvailableUseCase.java          # Puerto transversal (plan base, T019)
-│       └── ReactivateRoomUseCase.java
+│       ├── ReactivateRoomUseCase.java
+│       └── GetRoomDecommissionUseCase.java         # Datos de la baja vigente para la confirmación
 ├── application/
 │   ├── service/
 │   │   ├── MarkRoomAvailableService.java
@@ -267,10 +257,10 @@ backend/src/main/java/com/hospitua/habitaciones/
     └── RoomController.java                        # Se agregan GET /api/rooms/{roomId}/decommission y POST /api/rooms/{roomId}/reactivation
 frontend/src/
 ├── pages/administracion/
-│   ├── ReactivateRoomDialog.jsx                   # Confirmación con datos de la habitación y de la baja
-│   └── ReactivationResult.jsx
+│   ├── ReactivateRoomDialog.tsx                   # Confirmación con datos de la habitación y de la baja
+│   └── ReactivationResult.tsx
 └── api/
-    └── roomService.js                             # Se agregan getDecommission() y reactivateRoom()
+    └── roomService.ts                             # Se agregan getDecommission() y reactivateRoom()
 ```
 
 **Structure Decision**: `MarkRoomAvailableService` valida el origen, delega la transición y el periodo del historial en `TransitionRoomStateUseCase` (regla 8 del plan base) sin escribir en `room_audit_log`. En la liberación, además limpia `reserved_by_reservation_ref`. `ReactivateRoomService` agrega lo propio de la reactivación: la idempotencia por `decommissionId` y la marca de reversión en `room_decommission`.
@@ -318,8 +308,8 @@ No aplica: usa la infraestructura del plan base.
   - En la liberación, limpiar `reserved_by_reservation_ref`.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
 - [ ] T011 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
-- [ ] T012 [US1] Implementar `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation`, restringidos a `ADMINISTRATOR` (FR-002, FR-009).
-- [ ] T013 [US1] Construir en el frontend `ReactivateRoomDialog.jsx` y `ReactivationResult.jsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
+- [ ] T012 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
+- [ ] T013 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
 
 **Checkpoint**: El Administrador puede revertir bajas.
 
@@ -354,14 +344,14 @@ La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la deci
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms?status=Available` sin retraso (esc. 7; FR-007; SC-003).
+- [ ] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms/inventory?status=Available` sin retraso (esc. 7; FR-007; SC-003).
 - [ ] T021 Medir en las pruebas de integración que la transición con su periodo y su evento tome menos de 1 segundo (SC-001).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T017), `SourceFlow` (T020), el rol `ADMINISTRATOR` (T015) y `ClockConfig`. Detalla el puerto `MarkRoomAvailableUseCase` de T019.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T017), `SourceFlow` (T020) y `ClockConfig`. Detalla el puerto `MarkRoomAvailableUseCase` de T019.
 - **Planes de los que depende**:
   - `plan-dar-de-baja-habitacion.md`: `RoomDecommissionRepositoryPort` y las bajas que se revierten.
   - `plan-consultar-inventario-habitaciones.md`: acción "Marcar como disponible".

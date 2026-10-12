@@ -10,12 +10,12 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 
 **Por qué esta prioridad**: Es el punto de entrada del trabajo de mantenimiento. Desde el panel se inician las reparaciones (*Confirmar Fin de Reparación de Habitación*), se programan bloqueos técnicos (*Programar Bloqueo Técnico para Habitación*), se reportan daños (*Marcar Habitación Inhabilitada por Reparaciones*) y se consultan los informes. Sin él, una habitación inhabilitada o con un bloqueo vencido puede quedar fuera de servicio indefinidamente.
 
-**Prueba independiente**: Puede ser probada autenticándose como un miembro del personal de mantenimiento sin tarea activa, verificando que el panel lista todas las habitaciones excepto las `Inactive` (primero las que requieren intervención), con número, tipo, estado, mantenimiento programado y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
+**Prueba independiente**: Puede ser probada como un miembro del personal de mantenimiento sin tarea activa, verificando que el panel lista todas las habitaciones excepto las `Inactive` (primero las que requieren intervención), con número, tipo, estado, mantenimiento programado y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
 
 **Escenarios de aceptación**:
 
 1. **Escenario**: Panel con habitaciones que requieren intervención
-   - **Dado que** El miembro del personal de mantenimiento está autenticado, no tiene una tarea activa y existen las habitaciones "201" en `DisabledForRepairs`, "202" en `TechnicalBlock`, "203" en `Occupied` y "204" en `Inactive`
+   - **Dado que** El miembro del personal de mantenimiento no tiene una tarea activa y existen las habitaciones "201" en `DisabledForRepairs`, "202" en `TechnicalBlock`, "203" en `Occupied` y "204" en `Inactive`
    - **Cuando** El miembro ingresa al panel de mantenimiento
    - **Entonces** El sistema lista primero las habitaciones "201" y "202", luego la "203", cada una con su número, tipo, estado en español, mantenimiento programado y acciones, y no lista la habitación "204"
 
@@ -68,7 +68,7 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir el acceso al panel de mantenimiento únicamente a miembros del personal de mantenimiento autenticados (rol `MAINTENANCE_STAFF`). Si el miembro tiene una `ReparationTask` sin `EndDateTime`, el sistema DEBE redirigirlo a la vista de tarea activa (*Confirmar Fin de Reparación de Habitación*, FR-001) en lugar de mostrar el panel.
+- **FR-001**: El sistema DEBE ofrecer el panel de mantenimiento a los miembros del personal de mantenimiento. Si el miembro tiene una `ReparationTask` sin `EndDateTime`, el sistema DEBE redirigirlo a la vista de tarea activa (*Confirmar Fin de Reparación de Habitación*, FR-001) en lugar de mostrar el panel.
 - **FR-002**: El sistema DEBE listar todas las habitaciones excepto las que están en estado `Inactive`.
 - **FR-003**: Cada habitación listada DEBE mostrar: número de habitación, tipo (Sencilla, Doble, Suite o Boutique), estado con su nombre en español, mantenimiento programado y las acciones de su estado (FR-005). Una habitación en `TechnicalBlock` cuyo `TechnicalBlockReport` `Applied` tiene la fecha estimada de fin anterior a la fecha actual DEBE mostrarse como "Bloqueo técnico (vencido)", para indicar que debe confirmarse el fin de la reparación o programarse un nuevo mantenimiento.
 - **FR-004**: El mantenimiento programado DEBE ser el rango del `TechnicalBlockReport` en estado `Scheduled` de fecha de inicio más temprana (formato DD-MM-YYYY a DD-MM-YYYY), o "Sin programar" si no tiene ninguno. Los informes `Expired` no se muestran.

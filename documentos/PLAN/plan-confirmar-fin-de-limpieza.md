@@ -37,30 +37,21 @@ En ambos casos el miembro queda desvinculado y vuelve al panel de limpieza.
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `CLEANING_STAFF`. El miembro se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-08T10:05:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `CLEANING_STAFF` | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## GET /api/cleaning/tasks/active
 
-**Descripción:** Devuelve la tarea de limpieza activa del miembro autenticado, para la vista de tarea activa (FR-007).
-**Rol autorizado:** `CLEANING_STAFF`
+**Descripción:** Devuelve la tarea de limpieza activa del miembro que la consulta, para la vista de tarea activa (FR-007).
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -118,14 +109,12 @@ Accept: application/json
 ## POST /api/cleaning/tasks/{taskId}/complete
 
 **Descripción:** Confirma el fin de la limpieza. Cierra la tarea y pasa la habitación a `Available` y, en la misma transacción, a `Reserved` si tiene llegada pendiente hoy o a `DisabledForRepairs` si se describió un daño (FR-002 a FR-006, FR-008 a FR-013, FR-015 a FR-018).
-**Rol autorizado:** `CLEANING_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -200,14 +189,12 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 ## POST /api/cleaning/tasks/{taskId}/release
 
 **Descripción:** Libera la tarea activa sin terminarla: la cierra con `outcome = Released` y devuelve la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* (FR-014, FR-016, FR-017).
-**Rol autorizado:** `CLEANING_STAFF`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 ```
 
 **Parámetros:**
@@ -309,14 +296,14 @@ backend/src/main/java/com/hospitua/habitaciones/
     └── CleaningController.java                    # Se agregan los 3 endpoints de este plan
 frontend/src/
 ├── pages/limpieza/
-│   ├── ActiveCleaningTaskPage.jsx
-│   ├── ConfirmCleaningEndDialog.jsx               # Confirmación con campo opcional de daño
-│   └── ReleaseCleaningTaskDialog.jsx
+│   ├── ActiveCleaningTaskPage.tsx
+│   ├── ConfirmCleaningEndDialog.tsx               # Confirmación con campo opcional de daño
+│   └── ReleaseCleaningTaskDialog.tsx
 └── api/
-    └── cleaningService.js                         # Se agregan las 3 llamadas de este plan
+    └── cleaningService.ts                         # Se agregan las 3 llamadas de este plan
 ```
 
-**Structure Decision**: Los servicios de este plan no reimplementan transiciones: usan los puertos `MarkRoomAvailableUseCase` (*Marcar Habitación como Disponible*), `MarkRoomReservedUseCase` (*Marcar Habitación como Reservada*), `ReportDamageUseCase` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) y `MarkPendingCleaningUseCase` (`plan-marcar-pendiente-a-limpieza.md`), todos dentro de la misma transacción. `CompleteCleaningCommand` contiene `taskId`, `memberId` (del token) y `damageDescription` (opcional).
+**Structure Decision**: Los servicios de este plan no reimplementan transiciones: usan los puertos `MarkRoomAvailableUseCase` (*Marcar Habitación como Disponible*), `MarkRoomReservedUseCase` (*Marcar Habitación como Reservada*), `ReportDamageUseCase` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) y `MarkPendingCleaningUseCase` (`plan-marcar-pendiente-a-limpieza.md`), todos dentro de la misma transacción. `CompleteCleaningCommand` contiene `taskId`, `memberId` (usuario actual) y `damageDescription` (opcional).
 
 ---
 
@@ -366,7 +353,7 @@ No aplica: usa la infraestructura del plan base.
   - Cada transición registra su periodo a través de `TransitionRoomStateUseCase` (regla 8 del plan base); este servicio no invoca `RoomStateHistoryRecorder`.
 - [ ] T016 [US1] Implementar `ReleaseCleaningTaskService` (`@Transactional`): validar la tarea y su dueño, cerrarla con `outcome = Released` e invocar `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` (FR-014, FR-016, FR-017).
 - [ ] T017 [US1] Implementar `ActiveCleaningTaskQueryService` y agregar a `CleaningController` los endpoints `GET /api/cleaning/tasks/active`, `POST /api/cleaning/tasks/{taskId}/complete` y `POST /api/cleaning/tasks/{taskId}/release` (FR-001, FR-007).
-- [ ] T018 [US1] Construir en el frontend `ActiveCleaningTaskPage.jsx` (habitación con el formato del panel y botones "Confirmar fin" y "Liberar tarea"), `ConfirmCleaningEndDialog.jsx` ("¿Está seguro que desea finalizar la limpieza de la habitación X?", campo "Describir daño encontrado" opcional de máximo 500 caracteres y advertencia de inhabilitación) y `ReleaseCleaningTaskDialog.jsx` ("¿Está seguro que desea liberar la limpieza de la habitación X?"); al terminar, redirigir al panel (FR-001, FR-007, FR-014, FR-018).
+- [ ] T018 [US1] Construir en el frontend `ActiveCleaningTaskPage.tsx` (habitación con el formato del panel y botones "Confirmar fin" y "Liberar tarea"), `ConfirmCleaningEndDialog.tsx` ("¿Está seguro que desea finalizar la limpieza de la habitación X?", campo "Describir daño encontrado" opcional de máximo 500 caracteres y advertencia de inhabilitación) y `ReleaseCleaningTaskDialog.tsx` ("¿Está seguro que desea liberar la limpieza de la habitación X?"); al terminar, redirigir al panel (FR-001, FR-007, FR-014, FR-018).
 - [ ] T019 [US1] Mostrar los errores de los endpoints con el texto de sus tablas y, ante fallos de red, la sugerencia de reintentar (FR-017).
 
 **Checkpoint**: El ciclo de limpieza queda completo: iniciar (plan anterior), confirmar con o sin daño y liberar.
@@ -375,7 +362,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T020 Integration test: tras confirmar el fin, `GET /api/rooms?status=Available` (o `Reserved`) refleja la habitación en menos de 2 segundos (SC-003).
+- [ ] T020 Integration test: tras confirmar el fin, `GET /api/rooms/inventory?status=Available` (o `Reserved`) refleja la habitación en menos de 2 segundos (SC-003).
 - [ ] T021 Integration test: ninguna `CleaningTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-004).
 - [ ] T022 Integration test: con una reserva de hoy asignada a la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref`, y `GET /api/reception/arrivals` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
 

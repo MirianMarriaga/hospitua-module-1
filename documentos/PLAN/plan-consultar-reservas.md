@@ -18,7 +18,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 
 2. **Modo REST (Mantenimiento y Administración - Bloqueo Técnico y Baja de Habitación)**:
    - **Consulta Directa REST a Módulo 2**: El Personal de mantenimiento y el Administrador consultan al Módulo 2 si un rango de fechas se solapa con reservas futuras de una habitación específica antes de intervenirla físicamente o retirarla de inventario.
-   - **Parámetros Requeridos**: La petición envía la credencial de servicio de Módulo 1 y 3 parámetros: `dateFrom`, `dateTo` y `roomId`.
+   - **Parámetros Requeridos**: La petición envía 3 parámetros: `dateFrom`, `dateTo` y `roomId`.
    - **Restricción**: Se consulta exactamente **una sola habitación por petición** (no por categoría ni por listas).
    - **Regla para Bloqueo Técnico**: `startDate` = fecha de inicio del mantenimiento, `endDate` = fecha estimada de finalización.
    - **Regla para Dar de Baja Habitación**: `startDate` = fecha actual (`LocalDate.now()`), `endDate` = `9999-12-31` (constante `NO_UPPER_LIMIT`: sin límite superior), para que cualquier reserva vigente desde hoy impida la baja. No afecta el rendimiento: Módulo 2 filtra por `roomId` (índice `room_id` y restricción anti-solape por habitación), así que el costo depende de las reservas vigentes de esa habitación y no del ancho del rango.
@@ -34,7 +34,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 - **Storage**: PostgreSQL 16+ (tablas `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `room`)
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, cola durable `m1.reservas.diarias.queue`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer / WireMock
-- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / JSX)
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Búsqueda local de llegadas en mostrador < 50 ms p95 (100% sobre base de datos local).
@@ -108,13 +108,19 @@ backend/src/
 │       │   │       └── DailyReservationRabbitListener.java # Listener m1.reservas.diarias.queue
 │       │   └── out/
 │       │       ├── persistence/
-│       │       │   ├── DailyReservationJpaEntity.java
-│       │       │   ├── DailyReservationRoomJpaEntity.java
-│       │       │   ├── DailyReservationMessageLogJpaEntity.java
-│       │       │   └── DailyReservationPersistenceAdapter.java
+│       │       │   ├── entity/
+│       │       │   │   ├── DailyReservationJpaEntity.java
+│       │       │   │   ├── DailyReservationRoomJpaEntity.java
+│       │       │   │   └── DailyReservationMessageLogJpaEntity.java
+│       │       │   ├── repository/
+│       │       │   │   └── DailyReservationRepository.java # Búsquedas por referencia, documento y nombre (T017)
+│       │       │   └── adapter/
+│       │       │       └── DailyReservationPersistenceAdapter.java
 │       │       └── rest/
 │       │           ├── Module2ReservationConflictRestAdapter.java # Cliente REST de GET /api/reservations
 │       │           └── Module2Properties.java
+└── main/resources/db/migration/
+    └── (sin migración propia: las tablas de la copia local se crean en `V1__init_schema.sql` del plan base)
 frontend/src/
 └── (sin componentes propios: la búsqueda de llegadas es del panel de recepción y la verificación de reservas ocurre dentro de la baja y del bloqueo técnico)
 ```
@@ -291,7 +297,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Crear migración Flyway `V2__create_daily_reservation_tables.sql` con las tablas:
+- [ ] T004 Verificar que la migración `V1__init_schema.sql` del plan base (T007) cree las tablas de la copia local con estas columnas (este plan no tiene migración propia):
   - `daily_reservation`: `reservation_ref` (PK VARCHAR(50)), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`. (Sin campo `nights`).
   - `daily_reservation_room`: `reservation_ref` (FK), `room_id` (UUID), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`).
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `message_type` VARCHAR(50), `received_at` TIMESTAMP.
@@ -349,7 +355,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 - [ ] T017 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
 - [ ] T018 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomPersistencePort` (estado `Reserved`).
 - [ ] T019 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `List<ArrivalGroup> searchPendingArrivals(String query)`: cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día. Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
-- [ ] T020 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.jsx` y `ReceptionSearchBar.jsx`, `plan-consultar-panel-recepcion.md` T013).
+- [ ] T020 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
 
 ---
 
@@ -372,13 +378,12 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
    - **Dar de Baja Habitación (Administrador)**:
      - `startDate` = fecha actual (`LocalDate.now()`).
      - `endDate` = `9999-12-31` (`NO_UPPER_LIMIT`): sin límite superior, cualquier reserva vigente desde hoy cuenta.
-4. **Puerto y Adaptador REST** (*Consultar reservas* FR-023 de Módulo 2, con la credencial de servicio de Módulo 1). El puerto `Module2ReservationConflictClientPort` usa `startDate`/`endDate` y el adaptador los envía como `dateFrom`/`dateTo`, ambos inclusivos. Cada reserva devuelta es un conflicto; una lista vacía significa que la operación es segura. El servicio arma `ReservationConflictResult` con `hasConflict = items no vacío` y las reservas recibidas, sin reevaluar estados ni fechas.
+4. **Puerto y Adaptador REST** (*Consultar reservas* FR-023 de Módulo 2). El puerto `Module2ReservationConflictClientPort` usa `startDate`/`endDate` y el adaptador los envía como `dateFrom`/`dateTo`, ambos inclusivos. Cada reserva devuelta es un conflicto; una lista vacía significa que la operación es segura. El servicio arma `ReservationConflictResult` con `hasConflict = items no vacío` y las reservas recibidas, sin reevaluar estados ni fechas.
 
    **Contrato de la llamada (Módulo 1 → Módulo 2)**
 
    ```http
    GET /api/reservations?dateFrom=2026-10-20&dateTo=2026-10-22&roomId=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
-   Authorization: Bearer <JWT de la credencial de servicio de Módulo 1 (rol MODULE1 de Módulo 2)>
    Accept: application/json
    ```
 
@@ -434,7 +439,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - Mapeo de `items` vacío (`hasConflict = false`) y de `items` con reservas (`hasConflict = true`, con cada reserva devuelta).
   - Lanzamiento de `ExternalModule2UnavailableException` ante fallo o timeout del cliente REST.
 - [ ] T022 [P] [US3] Integration test con `MockRestServiceServer` para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout o error.
-- [ ] T023 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: header `Authorization`, parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
+- [ ] T023 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
 
 ### Implementation for User Story 3
 

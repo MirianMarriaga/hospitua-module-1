@@ -35,7 +35,7 @@ Como miembro del personal de mantenimiento quiero poder programar mantenimientos
    - **Entonces** El sistema bloquea el diligenciamiento, no ejecuta la consulta de reservas y exige documentar el motivo técnico preventivo.
 
 5. **Escenario**: Intento de programación con fechas o rango temporal sin sentido
-   - **Dado que** Existe una habitación en estado `Available` y el miembro del personal de mantenimiento está autenticado
+   - **Dado que** Existe una habitación en estado `Available`
    - **Cuando** El miembro del personal de mantenimiento intenta confirmar la programación con una fecha de inicio pasada, una fecha estimada de finalización anterior a la de inicio, una fecha inexistente en el calendario (ej. 31-02-2026) o un rango que excede los límites permitidos
    - **Entonces** El sistema bloquea la confirmación, no ejecuta las consultas de reservas ni mantenimientos, mantiene la habitación en `Available` y muestra un error indicando la regla temporal incumplida.
 
@@ -96,8 +96,8 @@ Como miembro del personal de mantenimiento quiero poder programar mantenimientos
 - **FR-010**: El sistema DEBE permitir la salida del estado `TechnicalBlock` únicamente mediante el caso de uso *Confirmar Fin de Reparación de Habitación*.
 - **FR-011**: El sistema DEBE garantizar la disponibilidad de un recurso de consulta correspondiente al registro del informe de mantenimiento programado (acción **Ver informe**) de manera persistente para toda unidad habitacional con un `TechnicalBlockReport` en estado `Scheduled` o `Applied`. Si la habitación tiene varios, el recurso muestra el `Applied` o, si no hay, el `Scheduled` de fecha de inicio más temprana.
   - **FR-011.1**: El recurso **Ver informe** DEBE mostrar la justificación técnica, el responsable, el rango temporal del mantenimiento y la fecha y hora de la programación.
-  - **FR-011.2**: El sistema DEBE calcular y autorizar las acciones operativas disponibles sobre las habitaciones en bloqueo técnico (`TechnicalBlock`) aplicando las siguientes políticas de control de acceso según la sesión activa:
-    - **Para el rol `Personal de mantenimiento`**: Autorización híbrida (lectura y escritura); el sistema expondrá tanto la acción de consulta (**Ver informe**) como la acción **Iniciar reparaciones** (definida en el caso de uso *Confirmar Fin de Reparación de Habitación*), esta última únicamente cuando la habitación ya se encuentre en `TechnicalBlock`.
+  - **FR-011.2**: El sistema DEBE ofrecer las siguientes acciones operativas sobre las habitaciones en bloqueo técnico (`TechnicalBlock`) según el actor:
+    - **Personal de mantenimiento**: el sistema expondrá tanto la acción de consulta (**Ver informe**) como la acción **Iniciar reparaciones** (definida en el caso de uso *Confirmar Fin de Reparación de Habitación*), esta última únicamente cuando la habitación ya se encuentre en `TechnicalBlock`.
 - **FR-012**: El sistema DEBE validar que `TechnicalBlockStartDate` y `EstimatedTechnicalBlockEndDate` sean obligatorias, no nulas y con formato DD-MM-YYYY, y que correspondan a fechas reales de calendario (ej. rechazar 31-02-2026 o 29-02 en año no bisiesto).
 - **FR-013**: El sistema DEBE rechazar una `TechnicalBlockStartDate` anterior a la fecha actual del servidor.
 - **FR-014**: El sistema DEBE rechazar una `EstimatedTechnicalBlockEndDate` anterior a `TechnicalBlockStartDate`; una fecha de finalización igual a la de inicio es válida (duración mínima de un día).

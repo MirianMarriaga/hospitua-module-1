@@ -21,7 +21,7 @@ Al terminar muestra una confirmación con los datos de la habitación y las opci
 - **Storage**: PostgreSQL 16+. Usa `room` y `room_state_history` del plan base (T007); no crea tablas. No usa la bitácora `room_audit_log` del plan base: esa tabla es para eventos que no son transiciones o que necesitan datos que `room_state_history` no guarda, y el periodo inicial ya guarda todo lo que pide FR-010.
 - **Performance Goals**: registrar una habitación en menos de 5 minutos de interacción (SC-001); la habitación aparece en el inventario sin recargar (SC-002).
 - **Constraints**:
-  - Solo el rol `ADMINISTRATOR` registra habitaciones (FR-001).
+  - Lo usa el Administrador (FR-001).
   - El UUID lo genera el servidor; el cuerpo de la petición no lo acepta (FR-002).
   - El número es único en todo el inventario, sin importar el estado ni el piso (FR-004). Se garantiza con el índice único de `room.room_number` además de la validación del servicio.
   - El estado inicial siempre es `Available`; la petición no permite elegirlo (FR-008; *Marcar habitación como reservada*, FR-009).
@@ -32,31 +32,22 @@ Al terminar muestra una confirmación con los datos de la habitación y las opci
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `ADMINISTRATOR`. El Administrador se toma del token.
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-09T10:05:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: la interfaz muestra los estados con su nombre en español (regla 12 del plan base).
 - **Categorías**: la API usa `categoryRoom` con los valores `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE`, los mismos que usan Módulo 2 y Módulo 3; la interfaz los muestra como "Sencilla", "Doble", "Suite" y "Boutique".
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## POST /api/rooms
 
 **Descripción:** Registra una habitación nueva en estado `Available` y abre su primer periodo en el historial de estados (FR-001 a FR-013).
-**Rol autorizado:** `ADMINISTRATOR`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -95,6 +86,7 @@ Content-Type: application/json
 | `categoryRoom` | string | Categoría (tipo) | `"DOBLE"` |
 | `maxCapacity` | integer | Capacidad máxima | `2` |
 | `baseRate` | number | Tarifa base | `250000` |
+| `version` | integer | Versión para el bloqueo optimista; `RoomDto` la incluye porque también la devuelven el detalle del inventario y *Editar habitación* | `0` |
 
 **Body (JSON):**
 
@@ -106,7 +98,8 @@ Content-Type: application/json
   "floor": 4,
   "categoryRoom": "DOBLE",
   "maxCapacity": 2,
-  "baseRate": 250000
+  "baseRate": 250000,
+  "version": 0
 }
 ```
 
@@ -175,15 +168,15 @@ backend/src/main/
 │           └── RoomController.java                # Se agrega POST /api/rooms
 frontend/src/
 ├── components/
-│   └── roomCategoryLabels.js                  # SENCILLA → "Sencilla", …; lo usan todas las vistas de habitaciones
+│   └── roomCategoryLabels.ts                  # SENCILLA → "Sencilla", …; lo usan todas las vistas de habitaciones
 ├── pages/administracion/
-│   ├── RegisterRoomPage.jsx                       # Formulario de registro
-│   └── RegisterRoomConfirmation.jsx               # Confirmación con "Registrar otra" y "Volver al inventario"
+│   ├── RegisterRoomPage.tsx                       # Formulario de registro
+│   └── RegisterRoomConfirmation.tsx               # Confirmación con "Registrar otra" y "Volver al inventario"
 └── api/
-    └── roomService.js                             # Se agrega registerRoom()
+    └── roomService.ts                             # Se agrega registerRoom()
 ```
 
-**Structure Decision**: El servicio no escribe en `room_state_history` directamente: abre el primer periodo con el componente transversal del historial (regla 8 del plan base), al que este plan agrega la operación de periodo inicial (T001). `RegisterRoomCommand` contiene `roomNumber`, `floor`, `categoryRoom`, `maxCapacity`, `baseRate` y `administratorId` (del token).
+**Structure Decision**: El servicio no escribe en `room_state_history` directamente: abre el primer periodo con el componente transversal del historial (regla 8 del plan base), al que este plan agrega la operación de periodo inicial (T001). `RegisterRoomCommand` contiene `roomNumber`, `floor`, `categoryRoom`, `maxCapacity`, `baseRate` y `administratorId` (usuario actual).
 
 ---
 
@@ -212,7 +205,7 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T004 [P] [US1] Unit test: rechazo con `ROOM_NUMBER_ALREADY_EXISTS` si el número existe en otra habitación, incluida una `Inactive` o de otro piso (esc. 2, caso borde 3; FR-004).
 - [ ] T005 [P] [US1] Unit test: rechazo con `VALIDATION_ERROR` y la lista de campos faltantes (esc. 3; FR-003).
 - [ ] T006 [P] [US1] Unit test: rechazo de piso no entero o menor o igual a 0, capacidad menor o igual a 0, tarifa menor o igual a 0 y tipo fuera del catálogo (esc. 4, casos borde 1, 2 y 4; FR-005 a FR-007, FR-011).
-- [ ] T007 [P] [US1] Unit test con `Clock` fijo: el periodo inicial guarda el Administrador del token como actor y la hora del servidor como inicio (FR-010, FR-013).
+- [ ] T007 [P] [US1] Unit test con `Clock` fijo: el periodo inicial guarda como actor al Administrador que registra y la hora del servidor como inicio (FR-010, FR-013).
 - [ ] T008 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo número; solo uno tiene éxito y el otro recibe `409` (FR-004; SC-003).
 - [ ] T009 [US1] Integration test: un fallo forzado al abrir el periodo inicial revierte la habitación; no queda una habitación sin su periodo (caso borde 5; SC-004).
 - [ ] T010 [P] [US1] Component test en `RegisterRoomPage`: marca los campos pendientes, restringe el tipo a las 4 categorías y, tras el registro, muestra la confirmación con ID, estado, número, piso, tipo, capacidad y tarifa, sin fecha ni usuario, con "Registrar otra" y "Volver al inventario" (esc. 3 y 5; FR-005, FR-012).
@@ -224,8 +217,8 @@ No aplica: usa la infraestructura del plan base.
   - Validar que el número no exista en ninguna habitación.
   - Crear la habitación con UUID generado y estado `Available`.
   - Abrir el primer periodo con `registerInitialStatus(roomId, administratorId, REGISTER_ROOM)`, que guarda el Administrador y la hora de `Clock` (FR-010, FR-013).
-- [ ] T012 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms`, restringido a `ADMINISTRATOR` (FR-001).
-- [ ] T013 [US1] Construir en el frontend `RegisterRoomPage.jsx` (formulario con número, piso, tipo como lista de las 4 categorías con las etiquetas de `roomCategoryLabels.js`, capacidad y tarifa) y `RegisterRoomConfirmation.jsx` ("Registrar otra" limpia el formulario; "Volver al inventario" regresa al listado) (FR-005, FR-012).
+- [ ] T012 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms` (FR-001).
+- [ ] T013 [US1] Construir en el frontend `RegisterRoomPage.tsx` (formulario con número, piso, tipo como lista de las 4 categorías con las etiquetas de `roomCategoryLabels.ts`, capacidad y tarifa) y `RegisterRoomConfirmation.tsx` ("Registrar otra" limpia el formulario; "Volver al inventario" regresa al listado) (FR-005, FR-012).
 - [ ] T014 [US1] Mostrar los errores del endpoint con el texto de su tabla, señalando cada campo pendiente o inválido (esc. 2 a 4).
 
 **Checkpoint**: El Administrador puede registrar habitaciones y verlas en el inventario.
@@ -234,14 +227,14 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T015 Integration test: tras el registro, `GET /api/rooms?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
+- [ ] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
 - [ ] T016 Integration test: ninguna habitación registrada queda sin UUID, sin estado o sin su periodo inicial en `room_state_history` (SC-004).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `room` con su índice único de `room_number` (T007), `TransitionRoomStateUseCase` con el registro en el historial (regla 8, T010 y T017), `SourceFlow` con `REGISTER_ROOM` (T020), el rol `ADMINISTRATOR` (T015) y `ClockConfig`.
+- **Foundational**: Requiere del plan base la tabla `room` con su índice único de `room_number` (T007), `TransitionRoomStateUseCase` con el registro en el historial (regla 8, T010 y T017), `SourceFlow` con `REGISTER_ROOM` (T020) y `ClockConfig`.
 - **Planes que dependen de este**:
   - `plan-consultar-inventario-habitaciones.md`: botón "Registrar habitación" y listado al que se vuelve.
 - **Nota**: las habitaciones que cargue la semilla `V2__seed_rooms.sql` del plan base también necesitan su periodo inicial en `room_state_history` para que *Consultar historial de estados* las muestre.

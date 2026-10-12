@@ -90,7 +90,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor autenticado "Recepcionista" iniciar y formalizar el registro de Check-In en Módulo 1.
+- **FR-001**: El sistema DEBE permitir al Recepcionista iniciar y formalizar el registro de Check-In en Módulo 1.
 - **FR-002**: El sistema DEBE estructurar el flujo de Check-In a través de 4 etapas visuales y operativas:
   1. *Validar reserva*
   2. *Datos de huéspedes*

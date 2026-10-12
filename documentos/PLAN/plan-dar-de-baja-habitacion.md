@@ -23,7 +23,7 @@ Implementar el caso de uso **Dar de Baja Habitación** para el Administrador, de
 - **Storage**: PostgreSQL 16+. Usa `room`, `room_state_history` y `room_decommission` del plan base (T007); no crea tablas. No usa `room_audit_log` (plan base): la transición queda en `room_state_history` y el motivo, el Administrador y la fecha de la baja en `room_decommission` (FR-007, FR-008, FR-011).
 - **Performance Goals**: dar de baja una habitación elegible en menos de 1 minuto de interacción (SC-001). La consulta a Módulo 2 tiene timeout de lectura de 2 segundos (plan base, regla 5).
 - **Constraints**:
-  - Solo el rol `ADMINISTRATOR` da de baja habitaciones (FR-001).
+  - Lo usa el Administrador (FR-001).
   - La consulta de reservas es obligatoria y ocurre dentro del mismo endpoint de la baja, de modo que no se puede omitir (FR-002).
   - La consulta a Módulo 2 se hace **fuera** de la transacción de base de datos, para no mantenerla abierta durante la llamada remota. Después, la transacción de la baja bloquea la fila de `room` con `SELECT … FOR UPDATE` y vuelve a validar que la habitación siga `Available` (regla 13 del plan base).
   - Cualquier reserva que devuelva Módulo 2 bloquea la baja, sin importar qué tan lejana sea su fecha (FR-004, caso borde "Reservas lejanas"). Módulo 2 solo devuelve las vigentes (`PENDING`, `ACTIVE` o `IN_PROGRESS`), así que Módulo 1 no filtra por estado.
@@ -35,32 +35,23 @@ Implementar el caso de uso **Dar de Baja Habitación** para el Administrador, de
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `ADMINISTRATOR`. El Administrador se toma del token.
 - **Fechas**: fechas de reserva como fecha de calendario (`YYYY-MM-DD`); la fecha y hora de la baja es ISO 8601 con zona de Colombia.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
 
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `ADMINISTRATOR` (FR-001) | "No tienes permiso para realizar esta acción." |
-
-Los datos de la habitación del paso del motivo se cargan con `GET /api/rooms/{roomId}` (`plan-consultar-inventario-habitaciones.md`).
+Los datos de la habitación del paso del motivo se cargan con `GET /api/rooms/inventory/{roomId}` (`plan-consultar-inventario-habitaciones.md`).
 
 ---
 
 ## POST /api/rooms/{roomId}/decommission
 
 **Descripción:** Verifica las reservas vigentes desde hoy y, si no hay ninguna, da de baja la habitación (FR-001 a FR-011). Es el mismo endpoint para el primer intento y para "Reintentar" (FR-009).
-**Rol autorizado:** `ADMINISTRATOR`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
 
@@ -199,14 +190,14 @@ backend/src/main/java/com/hospitua/habitaciones/
         └── adapter/JpaRoomDecommissionAdapter.java
 frontend/src/
 ├── pages/administracion/
-│   └── DecommissionRoomPage.jsx                   # Pasos: motivo, confirmación, verificación y resultado
+│   └── DecommissionRoomPage.tsx                   # Pasos: motivo, confirmación, verificación y resultado
 ├── components/
-│   └── ReservationConflictList.jsx                # Reservas en conflicto: referencia, fechas y estado
+│   └── ReservationConflictList.tsx                # Reservas en conflicto: referencia, fechas y estado
 └── api/
-    └── roomService.js                             # Se agrega decommissionRoom()
+    └── roomService.ts                             # Se agrega decommissionRoom()
 ```
 
-**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T026), que consulta desde hoy sin límite superior (`dateTo = 9999-12-31`, *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (del token).
+**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T026), que consulta desde hoy sin límite superior (`dateTo = 9999-12-31`, *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (usuario actual).
 
 ---
 
@@ -230,6 +221,7 @@ No aplica: usa la infraestructura del plan base.
 **Goal**: Que el Administrador dé de baja una habitación `Available` sin reservas que lo impidan, con motivo y trazabilidad, y que la baja se rechace o se cancele en los demás casos sin modificar la habitación.
 
 **Independent Test**: Con `MockRestServiceServer`:
+
 - Módulo 2 responde sin reservas: la habitación pasa a `Inactive` con su registro en `room_decommission` y su periodo en `room_state_history`.
 - Módulo 2 responde con una reserva vigente, aunque sea dentro de meses: `409 RESERVATION_CONFLICT` con la reserva listada.
 - Módulo 2 supera el timeout: `503 MODULE_2_UNAVAILABLE`.
@@ -261,8 +253,8 @@ En los dos últimos casos la habitación sigue `Available`.
   - Validar el motivo y que la habitación exista y esté `Available`.
   - Fuera de transacción, invocar `checkDecommissionConflict(roomId)`; si devuelve alguna reserva, lanzar `ReservationConflictException` con la lista.
   - En una transacción (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` y volver a validar `Available` (regla 13 del plan base); invocar `TransitionRoomStateUseCase.transition(roomId, Inactive, administratorId, DECOMMISSION_ROOM, null)`; crear `RoomDecommission`.
-- [ ] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission`, restringido a `ADMINISTRATOR` (FR-001).
-- [ ] T017 [US1] Construir en el frontend `DecommissionRoomPage.jsx` con los cuatro pasos y `ReservationConflictList.jsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
+- [ ] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission` (FR-001).
+- [ ] T017 [US1] Construir en el frontend `DecommissionRoomPage.tsx` con los cuatro pasos y `ReservationConflictList.tsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
 
 **Checkpoint**: La baja funciona de forma independiente; la reactivación queda para `plan-marcar-habitacion-como-disponible.md`.
 
@@ -270,16 +262,16 @@ En los dos últimos casos la habitación sigue `Available`.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Integration test: una habitación dada de baja no aparece en `GET /api/rooms?status=Available` y sí en `GET /api/rooms?status=Inactive` (SC-003).
+- [ ] T018 Integration test: una habitación dada de baja no aparece en `GET /api/rooms/inventory?status=Available` y sí en `GET /api/rooms/inventory?status=Inactive` (SC-003).
 - [ ] T019 Integration test con `MockRestServiceServer`: la petición a Módulo 2 lleva `dateFrom` = hoy y `dateTo` = `9999-12-31`, y una reserva a varios meses devuelta por Módulo 2 impide la baja (FR-002; caso borde "Reservas lejanas").
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), `SourceFlow` con `DECOMMISSION_ROOM` (T020), el cliente REST de Módulo 2 con timeouts (regla 5, T013), la tabla `room_decommission` (T007), el rol `ADMINISTRATOR` (T015) y `ClockConfig`.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), `SourceFlow` con `DECOMMISSION_ROOM` (T020), el cliente REST de Módulo 2 con timeouts (regla 5, T013), la tabla `room_decommission` (T007) y `ClockConfig`.
 - **Planes de los que depende**:
   - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (Phase 5 de ese plan).
-  - `plan-consultar-inventario-habitaciones.md`: acción "Dar de baja" y `GET /api/rooms/{roomId}`.
+  - `plan-consultar-inventario-habitaciones.md`: acción "Dar de baja" y `GET /api/rooms/inventory/{roomId}`.
 - **Plan que depende de este**: `plan-marcar-habitacion-como-disponible.md` lee `room_decommission` para la confirmación de la reactivación.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. La Phase 5 de `plan-consultar-reservas.md` debe estar lista.

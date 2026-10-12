@@ -93,7 +93,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 **Por qué esta prioridad**: Previene que se inhabiliten o den de baja habitaciones que ya tienen compromisos comerciales futuros en el Módulo 2.
 
-**Prueba Independiente**: Enviar la consulta REST a Módulo 2 con la credencial de servicio de Módulo 1 y los parámetros `dateFrom`, `dateTo` y `roomId`. Validar que se consulta una única habitación por petición y que se detecta si existe o no algún cruce con reservas.
+**Prueba Independiente**: Enviar la consulta REST a Módulo 2 con los parámetros `dateFrom`, `dateTo` y `roomId`. Validar que se consulta una única habitación por petición y que se detecta si existe o no algún cruce con reservas.
 
 **Escenarios de Aceptación**:
 
@@ -125,7 +125,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 - **Reserva multi-habitación (1 a 10 habitaciones)**: La copia local modela y almacena cada habitación de la reserva en `daily_reservation_room`, permitiendo su gestión individual por habitación en llegadas.
 - **Campo `source`**: El valor de `source` se persiste y muestra exactamente como se recibe (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
 - **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día y `updatedAt`.
-- **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`, autenticado con la credencial de servicio de Módulo 1. Sin coincidencias responde una lista vacía (no hay 404).
+- **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`. Sin coincidencias responde una lista vacía (no hay 404).
 
 ---
 
@@ -152,7 +152,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 - **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
 - **FR-006**: Consultas para Recepción: Las consultas y búsquedas de llegadas en mostrador y Panel de Recepción DEBEN ejecutarse exclusivamente contra la copia local, sin realizar peticiones HTTP/REST hacia el Módulo 2.
 - **FR-007**: Consulta REST de Mantenimiento y Baja:
-  - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), autenticado con la credencial de servicio de Módulo 1, únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
+  - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
   - La petición DEBE enviar `dateFrom` y `dateTo` (obligatorios, formato `AAAA-MM-DD`, ambos inclusivos) y siempre el `roomId` de la habitación; solo se consulta una habitación por petición.
   - Para programar bloqueo técnico: `dateFrom` es el inicio del mantenimiento y `dateTo` su fecha estimada de finalización.
   - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es `9999-12-31`, que representa "sin límite superior": cualquier reserva vigente desde hoy cuenta.

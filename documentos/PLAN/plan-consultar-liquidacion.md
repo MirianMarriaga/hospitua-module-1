@@ -20,9 +20,9 @@ Enfoque técnico:
 ### Alcance: plan general vs. este plan
 
 | Tema | Dónde vive |
-|---|---|
+| --- | --- |
 | Stack (Java 21, Spring Boot, React), estructura base del repositorio, linting | Plan general (`base/plan.md`) |
-| Setup, seguridad JWT, formato unificado de errores, logging, configuración de entornos | Plan general |
+| Setup, formato unificado de errores, logging, configuración de entornos | Plan general |
 | Contrato REST con Módulo 3, mapeo de errores, resultado `UNAVAILABLE` | **Este plan** |
 | Modelos, puertos, servicio, adaptador y componentes UI de esta feature | **Este plan** |
 | Estrategia de testing y tareas de las historias US1 y US2 | **Este plan** |
@@ -30,11 +30,11 @@ Enfoque técnico:
 ### Trazabilidad Spec → Plan
 
 | Requisito del Spec | Cobertura en este plan |
-|---|---|
+| --- | --- |
 | FR-001 (`<<includes>>` desde Check-Out) | Puerto `QuerySettlementUseCase` (T009, T010) |
 | FR-002 (REST GET reactivo y parámetros) | Endpoint 1 y `SettlementRestAdapter` (T007) |
 | FR-003 (estructura `SettlementSummary`) | Estructuras de datos y Endpoint 1 (T004) |
-| FR-004 (presentación pasos 2 y 3) | Endpoint 2, `SettlementCard.jsx`, `PaymentReviewCard.jsx` (T008, T013, T014) |
+| FR-004 (presentación pasos 2 y 3) | Endpoint 2, `SettlementCard.tsx`, `PaymentReviewCard.tsx` (T008, T013, T014) |
 | FR-005 (solo consulta, sin pagos ni cambios a cifras) | T002, T015 |
 | FR-006 (sin liberación autónoma ante falla) | T019, T023 |
 | SC-001, SC-004 | T001, T002 |
@@ -46,7 +46,7 @@ Enfoque técnico:
 Hereda el stack y las convenciones del plan general. Solo se declara lo propio de esta feature:
 
 **Storage**: N/A — consulta remota a Módulo 3; sin persistencia propia de liquidaciones ni cuentas contables
-**Testing**: JUnit 5, Mockito, MockRestServiceServer y WireMock para simular Módulo 3; Jest/Testing Library para los componentes React
+**Testing**: JUnit 5, Mockito, MockRestServiceServer y WireMock para simular Módulo 3; Vitest y React Testing Library para los componentes React
 **Performance Goals**: p95 < 800 ms contra Módulo 3 en condiciones normales (techo del SC-002: 2 s)
 **Constraints**:
 
@@ -97,19 +97,19 @@ backend/src/
 │           ├── SettlementRestAdapter.java
 │           └── Module3Properties.java
 └── test/java/com/hospitua/habitaciones/
-    ├── contract/SettlementModule3ContractTest.java
-    ├── integration/
-    │   ├── SettlementQueryIntegrationTest.java
-    │   └── SettlementUnavailabilityIntegrationTest.java
-    └── unit/
-        ├── SettlementQueryServiceTest.java
-        └── SettlementRestAdapterTest.java
+    ├── application/
+    │   └── SettlementQueryServiceTest.java
+    └── infrastructure/rest/
+        ├── SettlementRestAdapterTest.java
+        ├── SettlementModule3ContractTest.java
+        ├── SettlementQueryIntegrationTest.java
+        └── SettlementUnavailabilityIntegrationTest.java
 
 frontend/src/
 ├── components/settlement/
-│   ├── SettlementCard.jsx             # Paso 2: Liquidación
-│   └── PaymentReviewCard.jsx          # Paso 3: Pago (solo revisión)
-└── services/settlementService.js
+│   ├── SettlementCard.tsx             # Paso 2: Liquidación
+│   └── PaymentReviewCard.tsx          # Paso 3: Pago (solo revisión)
+└── api/settlementService.ts
 ```
 
 **Structure Decision**: Se respeta la arquitectura hexagonal (domain / application / infrastructure) y la convención de puertos `in` / `out` definidas en el plan general. Este plan solo agrega los archivos listados.
@@ -117,8 +117,7 @@ frontend/src/
 **Prerrequisitos del plan general** (deben existir antes de iniciar las tareas de este plan):
 
 - Estructura base del módulo `habitaciones` y del frontend.
-- Dependencias de Spring Web, Resilience4j, Lombok, WireMock y Jest/Testing Library.
-- Seguridad JWT y propagación del token del usuario.
+- Dependencias de Spring Web, Resilience4j, Lombok, WireMock, Vitest y React Testing Library.
 - Formato unificado de errores y convención de logging.
 - Entidades `Stay` y `Room` con `source`, `reservationRef`, `checkInDate`, `expectedCheckinTime`, `expectedCheckoutTime` y `category`.
 
@@ -139,7 +138,7 @@ frontend/src/
 No hay tablas ni migraciones. Modelos en memoria:
 
 | Modelo | Campos |
-|---|---|
+| --- | --- |
 | `SettlementRequest` | `reservationRef`, `checkInDate`, `checkOutDate`, `source`, `roomId`, `categoryRoom` |
 | `SettlementSummary` | `invoiceNumber` (Integer consecutivo o null si informativa), `accommodationTotalAmount`, `otaCommissionPercentage`, `otaCommissionAmount`, `taxAmount` (null si informativa), `netIncomeAmount`, `totalAmount` (null si informativa), `settlementType` (`INFORMATIVA` \| `FINAL`; nombre y valores confirmados por Módulo 3) (montos como `BigDecimal`) |
 | `SettlementAvailabilityStatus` | `AVAILABLE`, `UNAVAILABLE` |
@@ -166,13 +165,12 @@ GET /api/settlements
 
 | Nombre | Obligatorio | Descripción |
 |---|---|---|
-| `Authorization` | Sí | `Bearer <JWT>` obtenido con la credencial de servicio de Módulo 1 en Módulo 3 (T005) |
 | `Accept` | No | `application/json` (por defecto) |
 
 **Query Parameters** (sin path params ni body):
 
 | Nombre | Tipo | Obligatorio | Origen en Módulo 1 | Descripción |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `reservationRef` | string (RES-000123) | Sí | `Stay.reservationRef` | Identificador de la reserva |
 | `checkInDate` | `YYYY-MM-DD` | Sí | `Stay.checkInDate` | Check-In real |
 | `checkOutDate` | `YYYY-MM-DD` | Sí | Fecha actual | Check-Out real |
@@ -185,7 +183,6 @@ GET /api/settlements
 ```http
 GET /api/settlements?reservationRef=RES-000123&checkInDate=2026-10-04&checkOutDate=2026-10-06&source=BOOKING&roomId=123e4567-e89b-12d3-a456-426614174000&categoryRoom=Suite HTTP/1.1
 Host: modulo3.sistema.local
-Authorization: Bearer <JWT>
 ```
 
 **Respuesta `200 OK`** (no incluye `source`):
@@ -210,14 +207,14 @@ Authorization: Bearer <JWT>
 **Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista):
 
 | Código | Caso | Excepción en Módulo 1 | Resultado en Módulo 1 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `404` | Reserva no encontrada (`RESERVATION_NOT_FOUND`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `RESERVATION_NOT_FOUND` |
 | `404` | Cotización no encontrada (`QUOTE_NOT_FOUND`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `QUOTE_NOT_FOUND` |
 | `404` | Módulo 2 no disponible (`MODULE2_UNAVAILABLE`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `MODULE2_UNAVAILABLE` |
 | Timeout | Sin respuesta en 3 s | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `TIMEOUT` |
 | Red | Error de red | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `CONNECTION_ERROR` |
 
-Los códigos `400`, `401`, `403`, `422` y el circuit breaker no son códigos confirmados por Módulo 3.
+Los códigos `400`, `422` y el circuit breaker no son códigos confirmados por Módulo 3.
 
 **Paginación**: no aplica.
 
@@ -225,7 +222,6 @@ Los códigos `400`, `401`, `403`, `422` y el circuit breaker no son códigos con
 
 ```
 GET /api/stays/{stayId}/settlement
-Authorization: Bearer <JWT del recepcionista>
 ```
 
 | Parámetro | Tipo | Obligatorio | Descripción |
@@ -279,10 +275,8 @@ Sin query params ni body. Módulo 1 arma los parámetros de Módulo 3 desde `Sta
 Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de Módulo 3 nunca son errores, sino la respuesta controlada anterior:
 
 | Status Code | errorCode | Excepción | Cuándo ocurre |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `stayId` no es un UUID |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | Falta el token o venció |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no es Recepcionista |
 | 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` (`plan-registrar-check-out.md`) | No existe una estancia activa con ese `stayId` (mismo código que `plan-registrar-check-out.md`) |
 
 ```json
@@ -299,11 +293,11 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Estrategia de testing
 
 | Tipo | Qué cubre | Archivo |
-|---|---|---|
-| Contrato | Query params enviados, headers y mapeo de `SettlementSummary` contra WireMock | `contract/SettlementModule3ContractTest.java` |
-| Unitario | No alteración de montos; composición de `nights`, `totalToPay` y `source`; traducción de errores del adaptador | `unit/SettlementQueryServiceTest.java`, `unit/SettlementRestAdapterTest.java` |
-| Integración | Escenarios DIRECTA y OTA; timeout y 4xx → `UNAVAILABLE`; ausencia de efectos secundarios | `integration/*IntegrationTest.java` |
-| Frontend | Render de pasos 2 y 3 en estados `AVAILABLE` y `UNAVAILABLE`; sin campos de captura de pago | `frontend/tests/settlement/*.test.jsx` |
+| --- | --- | --- |
+| Contrato | Query params enviados, headers y mapeo de `SettlementSummary` contra WireMock | `infrastructure/rest/SettlementModule3ContractTest.java` |
+| Unitario | No alteración de montos; composición de `nights`, `totalToPay` y `source`; traducción de errores del adaptador | `application/SettlementQueryServiceTest.java`, `infrastructure/rest/SettlementRestAdapterTest.java` |
+| Integración | Escenarios DIRECTA y OTA; timeout y 4xx → `UNAVAILABLE`; ausencia de efectos secundarios | `infrastructure/rest/*IntegrationTest.java` |
+| Frontend | Render de pasos 2 y 3 en estados `AVAILABLE` y `UNAVAILABLE`; sin campos de captura de pago | `frontend/src/test/settlement/*.test.tsx` |
 | Rendimiento | p95 < 800 ms y respuesta controlada < 3 s ante falla | T026 |
 
 ---
@@ -316,25 +310,25 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ### Tests for User Story 1
 
-- [ ] T001 [P] [US1] Contract test del adaptador contra WireMock (query params incluidos `source` y `categoryRoom`, headers, mapeo de respuesta) en `contract/SettlementModule3ContractTest.java`
-- [ ] T002 [P] [US1] Test unitario de no alteración: montos de salida idénticos a Módulo 3 y ausencia de consumos locales, en `unit/SettlementQueryServiceTest.java`
-- [ ] T003 [P] [US1] Test de integración de los escenarios 1 y 2 (DIRECTA con comisión 0 e ingreso neto = hospedaje; OTA con comisión) en `integration/SettlementQueryIntegrationTest.java`
+- [ ] T001 [P] [US1] Contract test del adaptador contra WireMock (query params incluidos `source` y `categoryRoom`, headers, mapeo de respuesta) en `infrastructure/rest/SettlementModule3ContractTest.java`
+- [ ] T002 [P] [US1] Test unitario de no alteración: montos de salida idénticos a Módulo 3 y ausencia de consumos locales, en `application/SettlementQueryServiceTest.java`
+- [ ] T003 [P] [US1] Test de integración de los escenarios 1 y 2 (DIRECTA con comisión 0 e ingreso neto = hospedaje; OTA con comisión) en `infrastructure/rest/SettlementQueryIntegrationTest.java`
 
 ### Implementation for User Story 1
 
 - [ ] T004 [P] [US1] Crear `SettlementRequest`, `SettlementSummary` (sin `source`) y `SettlementAvailabilityStatus` en `domain/model/`
-- [ ] T005 [P] [US1] Crear `Module3Properties` (base-url, timeout y credencial de servicio de Módulo 1 en Módulo 3) y el `RestClient` hacia Módulo 3 en `infrastructure/adapters/out/rest/`, que envía `Authorization: Bearer <JWT>` obtenido con esa credencial (plan base, T013)
+- [ ] T005 [P] [US1] Crear `Module3Properties` (base-url y timeout) y el `RestClient` hacia Módulo 3 en `infrastructure/adapters/out/rest/` (plan base, T013)
 - [ ] T006 [P] [US1] Crear `SettlementQueryCommand` y `SettlementResponseDto` en `application/dto/`
 - [ ] T007 [US1] Implementar `SettlementRestAdapter` (GET con query params desde `SettlementRequest`, mapeo a `SettlementSummary`) (depende de T004, T005, T009)
-- [ ] T008 [P] [US1] Implementar `settlementService.js` en `frontend/src/services/`
+- [ ] T008 [P] [US1] Implementar `settlementService.ts` en `frontend/src/api/`
 - [ ] T009 [US1] Definir `QuerySettlementUseCase` y `SettlementRestQueryPort` en `domain/ports/` (depende de T004)
 - [ ] T010 [US1] Implementar `SettlementQueryService`: cargar `Stay` y `Room`, construir `SettlementRequest`, invocar el puerto, tomar `source` de `Stay.source`, calcular `nights` y tomar `totalToPay` desde `totalAmount` de Módulo 3 (depende de T006, T007, T009)
 - [ ] T011 [US1] Exponer el caso de uso para su inclusión desde Registrar Check-Out, sin lógica de liberación de habitación (depende de T010)
 - [ ] T012 [US1] Implementar `SettlementController` (Endpoint 2) (depende de T010)
-- [ ] T013 [P] [US1] Implementar `SettlementCard.jsx` (Paso 2): factura arriba, Fuente, % y valor de comisión OTA, ingreso neto
-- [ ] T014 [P] [US1] Implementar `PaymentReviewCard.jsx` (Paso 3): factura arriba, hospedaje, IVA, total a pagar, noches, fechas de entrada y salida; sin captura de pago
+- [ ] T013 [P] [US1] Implementar `SettlementCard.tsx` (Paso 2): factura arriba, Fuente, % y valor de comisión OTA, ingreso neto
+- [ ] T014 [P] [US1] Implementar `PaymentReviewCard.tsx` (Paso 3): factura arriba, hospedaje, IVA, total a pagar, noches, fechas de entrada y salida; sin captura de pago
 - [ ] T015 [US1] Garantizar idempotencia de reconsultas: sin escrituras en servicio ni controlador y `Cache-Control: no-store` respetado
-- [ ] T016 [US1] Agregar logging (referencia de reserva, `source`, estado, latencia; sin montos ni token)
+- [ ] T016 [US1] Agregar logging (referencia de reserva, `source`, estado, latencia; sin montos)
 
 **Checkpoint**: La historia 1 es funcional y verificable de forma independiente.
 
@@ -348,8 +342,8 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Test de integración de timeout (respuesta con retraso > 3 s) → `UNAVAILABLE` / `TIMEOUT` en `integration/SettlementUnavailabilityIntegrationTest.java`
-- [ ] T018 [P] [US2] Test unitario del adaptador: mapeo de los códigos confirmados (`RESERVATION_NOT_FOUND`, `QUOTE_NOT_FOUND`, `MODULE2_UNAVAILABLE`) y de errores de red/tiempo a su causa, en `unit/SettlementRestAdapterTest.java`
+- [ ] T017 [P] [US2] Test de integración de timeout (respuesta con retraso > 3 s) → `UNAVAILABLE` / `TIMEOUT` en `infrastructure/rest/SettlementUnavailabilityIntegrationTest.java`
+- [ ] T018 [P] [US2] Test unitario del adaptador: mapeo de los códigos confirmados (`RESERVATION_NOT_FOUND`, `QUOTE_NOT_FOUND`, `MODULE2_UNAVAILABLE`) y de errores de red/tiempo a su causa, en `infrastructure/rest/SettlementRestAdapterTest.java`
 - [ ] T019 [P] [US2] Test de no efectos secundarios: tras `UNAVAILABLE` no se invoca ningún repositorio de escritura (Mockito `verifyNoInteractions`)
 
 ### Implementation for User Story 2

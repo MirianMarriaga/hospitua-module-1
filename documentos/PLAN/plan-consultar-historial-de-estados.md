@@ -31,30 +31,21 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
 
 ## Convenciones de los endpoints
 
-- **Autenticación**: `Authorization: Bearer <JWT>`; rol requerido `MANAGER` (FR-001).
 - **Fechas**: los filtros son fechas de calendario (`YYYY-MM-DD`); la interfaz las pide y muestra como DD-MM-YYYY. Los periodos son ISO 8601 con zona de Colombia; la interfaz los muestra como DD-MM-YYYY HH:MM.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Estados**: la API usa el nombre en inglés; la interfaz muestra el nombre en español (regla 12 del plan base).
-- **Errores comunes a todos los endpoints**:
-
-| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
-| --- | --- | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | No hay token o venció | "Tu sesión expiró. Inicia sesión de nuevo." |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no tiene el rol `MANAGER` (FR-001) | "No tienes permiso para realizar esta acción." |
 
 ---
 
 ## GET /api/room-state-history
 
 **Descripción:** Devuelve los periodos del historial de estados con filtros y paginación (FR-002 a FR-006, FR-008).
-**Rol autorizado:** `MANAGER`
 
 ### Petición (Request)
 
 **Headers:**
 
 ```http
-Authorization: Bearer <JWT>
 Accept: application/json
 ```
 
@@ -183,13 +174,13 @@ backend/src/main/
     └── V5__room_state_history_indexes.sql
 frontend/src/
 ├── pages/gerencia/
-│   ├── RoomStateHistoryPage.jsx                   # Filtros, tabla y paginación
-│   └── RoomStateHistoryFilters.jsx                # Habitación, tipo, estado, "Desde" y "Hasta"
+│   ├── RoomStateHistoryPage.tsx                   # Filtros, tabla y paginación
+│   └── RoomStateHistoryFilters.tsx                # Habitación, tipo, estado, "Desde" y "Hasta"
 └── api/
-    └── roomStateHistoryService.js
+    └── roomStateHistoryService.ts
 ```
 
-**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T020). Reutiliza `Pagination.jsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
+**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T020). Reutiliza `Pagination.tsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
 
 ---
 
@@ -231,9 +222,9 @@ No aplica: usa la infraestructura del plan base.
 ### Implementation for User Story 1
 
 - [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
-- [ ] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history`, restringido a `MANAGER` (FR-001).
-- [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.jsx` y `RoomStateHistoryPage.jsx` con `Pagination.jsx`, leyendo `roomId` de la URL (FR-007).
-- [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.jsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
+- [ ] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
+- [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
+- [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
 
 **Checkpoint**: El Gerente puede auditar el historial de estados de cualquier habitación.
 
@@ -248,9 +239,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T017) y el rol `MANAGER` (T015).
+- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T017).
 - **Planes de los que depende**:
   - `plan-registrar-habitacion.md`: periodo inicial de cada habitación.
-  - `plan-consultar-inventario-habitaciones.md`: "Ver historial", `Pagination.jsx` y `PagedResultDto`.
+  - `plan-consultar-inventario-habitaciones.md`: "Ver historial", `Pagination.tsx` y `PagedResultDto`.
   - Todos los planes que cambian el estado de una habitación alimentan el historial a través de la regla 8.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. Se implementa después de `plan-consultar-inventario-habitaciones.md`.
