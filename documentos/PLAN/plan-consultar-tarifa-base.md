@@ -11,7 +11,7 @@ Implementar el caso de uso técnico de consulta **Consultar Tarifa Base**, expue
 
 Responsabilidades:
 
-1. **Endpoint REST de solo lectura**: Exponer `GET /api/rooms/{roomId}/base-rate` permitiendo la consulta por el identificador único de habitación (`roomId`) o número de habitación.
+1. **Endpoint REST de solo lectura**: Exponer `GET /api/rooms/{roomId}/base-rate` permitiendo la consulta por el identificador único de habitación (`roomId`).
 2. **Payload de respuesta**: Retornar únicamente los datos necesarios para la tarifación:
     - `roomId` (UUID)
     - `roomNumber` (String)
