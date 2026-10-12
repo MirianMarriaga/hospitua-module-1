@@ -277,7 +277,9 @@ const RESERVAS_ASIGNADAS = {
     { ref: "RES-10588", llegada: 34, salida: 37, estado: "PENDING" }
   ],
   "303": [{ ref: "RES-10477", llegada: 0.4, salida: 2.4, estado: "ACTIVE" }],
-  "401": [{ ref: "RES-10611", llegada: 120, salida: 125, estado: "ACTIVE" }]
+  "401": [{ ref: "RES-10611", llegada: 120, salida: 125, estado: "ACTIVE" }],
+  // Reserva después del horizonte de 366 días: no se consulta ni impide la baja.
+  "205": [{ ref: "RES-10950", llegada: 400, salida: 403, estado: "ACTIVE" }]
 };
 // Habitaciones para las que el sistema de reservas no responde (demostración del error).
 const SIN_RESPUESTA_RESERVAS = ["405"];
@@ -410,8 +412,8 @@ function registrarHabitacion(datos, usuario) {
   return hab;
 }
 
-// Simula la consulta de reservas a Módulo 2 desde hoy, sin límite superior de fechas
-// (Dar de baja habitación, FR-002): Módulo 2 solo devuelve las reservas vigentes.
+// Simula la consulta de reservas a Módulo 2 de hoy a hoy + 365 días (366 días, el máximo que acepta
+// Módulo 2; Dar de baja habitación, FR-002). Módulo 2 solo devuelve las reservas vigentes.
 function consultarReservasDeHabitacion(numero) {
   return new Promise((resolver, rechazar) => {
     setTimeout(() => {
@@ -422,7 +424,8 @@ function consultarReservasDeHabitacion(numero) {
         salida: cargarDatos().creado + r.salida * 24 * HORA,
         estado: r.estado
       }));
-      resolver(lista.filter(r => r.estado in ESTADOS_RESERVA && r.salida > Date.now()));
+      const fin = Date.now() + 365 * 24 * HORA;
+      resolver(lista.filter(r => r.estado in ESTADOS_RESERVA && r.salida > Date.now() && r.llegada <= fin));
     }, 1400);
   });
 }
