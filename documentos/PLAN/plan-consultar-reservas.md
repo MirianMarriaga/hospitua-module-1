@@ -21,7 +21,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
    - **Parámetros Requeridos**: La petición envía 3 parámetros: `dateFrom`, `dateTo` y `roomId`.
    - **Restricción**: Se consulta exactamente **una sola habitación por petición** (no por categoría ni por listas).
    - **Regla para Bloqueo Técnico**: `startDate` = fecha de inicio del mantenimiento, `endDate` = fecha estimada de finalización.
-   - **Regla para Dar de Baja Habitación**: `startDate` = fecha actual (`LocalDate.now()`), `endDate` = `9999-12-31` (constante `NO_UPPER_LIMIT`: sin límite superior), para que cualquier reserva vigente desde hoy impida la baja. No afecta el rendimiento: Módulo 2 filtra por `roomId` (índice `room_id` y restricción anti-solape por habitación), así que el costo depende de las reservas vigentes de esa habitación y no del ancho del rango.
+   - **Regla para Dar de Baja Habitación**: `startDate` = fecha actual (`LocalDate.now()`), `endDate` = fecha actual + 365 días (constante `DECOMMISSION_HORIZON_DAYS = 365`): 366 días contando hoy, el rango máximo que acepta Módulo 2 en su consulta C5 (FR-023); un rango mayor responde `400 DATE_RANGE_TOO_LARGE`.
    - **Ruta REST (Módulo 2, *Consultar reservas* FR-023)**: `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}`. Módulo 1 implementa el puerto `Module2ReservationConflictClientPort` con `roomId`, `startDate` y `endDate`, que el adaptador envía como `roomId`, `dateFrom` y `dateTo`.
    - **Resiliencia y Manejo de Errores**: Timeouts estrictos (conexión 1 s, lectura 2 s), traduciendo caídas, latencias o errores 503 en excepciones controladas (`ExternalModule2UnavailableException`) para informar al usuario sin generar fallos 500 no capturados.
 
@@ -42,7 +42,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 - **Constraints**:
   - Mostrador / Recepción / Check-In: **Cero llamadas HTTP/REST a Módulo 2**.
   - Mantenimiento / Administración: Consulta REST restringida a exactamente 1 habitación y 3 parámetros (`roomId`, `dateFrom`, `dateTo`).
-  - Dar de Baja: consulta desde hoy y sin límite superior (`endDate` = `9999-12-31`).
+  - Dar de Baja: consulta desde hoy hasta hoy + 365 días (máximo de 366 días de Módulo 2).
   - Fechas sin horas en contratos de negocio (`LocalDate` / YYYY-MM-DD). Cero campo `nights` persistido.
 
 ---
@@ -377,7 +377,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
      - `endDate` = fecha estimada de finalización del mantenimiento.
    - **Dar de Baja Habitación (Administrador)**:
      - `startDate` = fecha actual (`LocalDate.now()`).
-     - `endDate` = `9999-12-31` (`NO_UPPER_LIMIT`): sin límite superior, cualquier reserva vigente desde hoy cuenta.
+     - `endDate` = hoy + 365 días (`DECOMMISSION_HORIZON_DAYS`): 366 días contando hoy, el máximo que acepta Módulo 2.
 4. **Puerto y Adaptador REST** (*Consultar reservas* FR-023 de Módulo 2). El puerto `Module2ReservationConflictClientPort` usa `startDate`/`endDate` y el adaptador los envía como `dateFrom`/`dateTo`, ambos inclusivos. Cada reserva devuelta es un conflicto; una lista vacía significa que la operación es segura. El servicio arma `ReservationConflictResult` con `hasConflict = items no vacío` y las reservas recibidas, sin reevaluar estados ni fechas.
 
    **Contrato de la llamada (Módulo 1 → Módulo 2)**
@@ -390,7 +390,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
    | Parámetro | Tipo | Obligatorio | Descripción |
    | --- | --- | --- | --- |
    | `dateFrom` | fecha (`AAAA-MM-DD`) | Sí | Inicio del rango (inclusivo) |
-   | `dateTo` | fecha (`AAAA-MM-DD`) | Sí | Fin del rango (inclusivo); `9999-12-31` para la baja |
+   | `dateTo` | fecha (`AAAA-MM-DD`) | Sí | Fin del rango (inclusivo); hoy + 365 días para la baja. Módulo 2 rechaza rangos de más de 366 días |
    | `roomId` | UUID | Sí para Módulo 1 (opcional en Módulo 2) | Habitación consultada; siempre una por petición |
 
    Respuesta `200 OK`. Los campos son los de FR-023 de Módulo 2; la envoltura `items` es la acordada con Módulo 2 y está **pendiente de confirmar** en su plan, junto con la paginación:
@@ -434,7 +434,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 ### Tests for User Story 3
 
 - [ ] T021 [P] [US3] Unit test en `RoomReservationConflictServiceTest`:
-  - Consulta de "Dar de baja" con `startDate = hoy` y `endDate = 9999-12-31`.
+  - Consulta de "Dar de baja" con `startDate = hoy` y `endDate = hoy + 365 días`.
   - Validación de consulta para Bloqueo Técnico con `startDate` y `endDate` válidos (`startDate <= endDate`).
   - Mapeo de `items` vacío (`hasConflict = false`) y de `items` con reservas (`hasConflict = true`, con cada reserva devuelta).
   - Lanzamiento de `ExternalModule2UnavailableException` ante fallo o timeout del cliente REST.
@@ -448,7 +448,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 - [ ] T025 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` mediante `RestClient` con headers y timeouts estrictos.
 - [ ] T026 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
   - Método `checkMaintenanceConflict(UUID roomId, LocalDate startDate, LocalDate endDate)`
-  - Método `checkDecommissionConflict(UUID roomId)` (calcula automáticamente `startDate = LocalDate.now()` y `endDate = 9999-12-31`).
+  - Método `checkDecommissionConflict(UUID roomId)` (calcula automáticamente `startDate = LocalDate.now()` y `endDate = LocalDate.now().plusDays(365)`).
 - [ ] T027 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
 - [ ] T028 [P] [US3] Implementar `ReservationConflictException` (409 `RESERVATION_CONFLICT`) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
 

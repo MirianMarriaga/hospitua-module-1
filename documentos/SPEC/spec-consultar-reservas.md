@@ -102,10 +102,10 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
    - **Cuando** el Personal de mantenimiento consulta al Módulo 2 enviando `roomId`, `dateFrom` (inicio) y `dateTo` (fin)
    - **Entonces** Módulo 2 responde indicando que no existen reservas que se crucen en ese rango, permitiendo proceder con la programación del bloqueo.
 
-2. **Escenario**: Consulta para dar de baja habitación (sin límite superior)
+2. **Escenario**: Consulta para dar de baja habitación (366 días)
    - **Dado** una habitación que el Administrador requiere dar de baja
-   - **Cuando** se ejecuta la consulta al Módulo 2 enviando `roomId`, `dateFrom = hoy` y `dateTo = 9999-12-31`
-   - **Entonces** el sistema obtiene todas las reservas vigentes de la habitación desde hoy para que *Dar de baja habitación* rechace la operación si existe al menos una.
+   - **Cuando** se ejecuta la consulta al Módulo 2 enviando `roomId`, `dateFrom = hoy` y `dateTo = hoy + 365 días`
+   - **Entonces** el sistema obtiene las reservas vigentes de la habitación en esos 366 días para que *Dar de baja habitación* rechace la operación si existe al menos una.
 
 3. **Escenario**: Detección de cruce con reservas futuras
     - **Dado** que la habitación posee al menos una reserva que se solapa con el rango (`startDate` a `endDate`) consultado
@@ -155,7 +155,7 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
   - La petición DEBE enviar `dateFrom` y `dateTo` (obligatorios, formato `AAAA-MM-DD`, ambos inclusivos) y siempre el `roomId` de la habitación; solo se consulta una habitación por petición.
   - Para programar bloqueo técnico: `dateFrom` es el inicio del mantenimiento y `dateTo` su fecha estimada de finalización.
-  - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es `9999-12-31`, que representa "sin límite superior": cualquier reserva vigente desde hoy cuenta.
+  - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es la fecha actual + 365 días: 366 días contando hoy, el rango máximo que acepta Módulo 2 (`DATE_RANGE_TOO_LARGE` si se supera). Las reservas que empiezan después no se consultan.
   - Módulo 2 devuelve en `items` solo las reservas vigentes (`PENDING`, `ACTIVE` o `IN_PROGRESS`) cuya estadía se cruza con el rango (`startDate` ≤ `dateTo` y `endDate` > `dateFrom`: el día de salida no se considera ocupado), con `reservationRef`, `status`, `startDate`, `endDate` y sus habitaciones. El sistema DEBE tratar cada reserva devuelta como un conflicto, sin volver a evaluar estados ni fechas; una lista vacía significa que no hay conflictos.
 - **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad, timeout o una respuesta de error de Módulo 2 (por ejemplo, 400 con `INVALID_DATE`, `INCOMPLETE_DATE_RANGE` o `INVALID_ROOM_ID`) en la consulta de mantenimiento o baja, el sistema DEBE cancelar la operación sin cambiar la habitación, capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
 - **FR-009**: Efecto de la ingesta sobre el estado de las habitaciones: al persistir en la copia local la lista diaria de las 00:00 o una actualización `ADDED` con `startDate` = hoy, el sistema DEBE invocar el caso de uso *Marcar habitación como reservada* por cada habitación de la reserva. Al procesar un `REMOVED`, o al no figurar en la nueva lista de las 00:00 una reserva que mantenía una habitación en `Reserved`, el sistema DEBE liberar esa habitación a `Available` mediante el caso de uso *Marcar habitación como disponible*. En la ingesta de las 00:00 las liberaciones DEBEN ejecutarse antes de apartar las habitaciones de la nueva lista. Un `UPDATED` que cambia la habitación asignada DEBE tratarse como la liberación de la habitación anterior y el apartado de la nueva.

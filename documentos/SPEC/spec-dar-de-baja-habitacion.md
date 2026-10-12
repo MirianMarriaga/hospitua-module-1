@@ -17,7 +17,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Baja exitosa de una habitación sin actividad pendiente
-   - **Dado** una habitación existe en estado "Available" y no tiene reservas vigentes asignadas en Módulo 2 desde la fecha actual en adelante
+   - **Dado** una habitación existe en estado "Available" y no tiene reservas vigentes asignadas en Módulo 2 entre la fecha actual y los próximos 365 días
    - **Cuando** el Administrador selecciona la habitación, indica el motivo de la baja y confirma la acción de dar de baja
    - **Entonces** el sistema ejecuta el caso de uso incluido "Consultar reservas" (`<<includes>>`), comprueba que no existen reservas asignadas, cambia el estado de la habitación a "Inactive", la excluye de los resultados de disponibilidad y conserva su historial
 
@@ -27,7 +27,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
    - **Entonces** el sistema rechaza la operación y muestra un mensaje indicando que la habitación tiene un huésped activo, validando que debe estar en estado "Available".
 
 3. **Escenario**: Rechazo de la baja por reservas vigentes
-   - **Dado** una habitación en estado "Available" que tiene una o más reservas vigentes asignadas en Módulo 2 desde la fecha actual en adelante, sin importar qué tan lejana sea su fecha
+   - **Dado** una habitación en estado "Available" que tiene una o más reservas vigentes asignadas en Módulo 2 entre la fecha actual y los próximos 365 días
    - **Cuando** el Administrador intenta darla de baja
    - **Entonces** el sistema invoca "Consultar reservas" con el `roomId` de la habitación, recibe una o más reservas vigentes, rechaza la baja, mantiene la habitación en "Available" y alerta al Administrador listando por cada reserva en conflicto su `reservationRef`, fechas de estadía (`startDate`, `endDate`) y estado (`status`), para que sean reasignadas antes de reintentar la baja.
 
@@ -49,7 +49,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - Reactivación de una habitación: el Administrador puede revertir la baja y devolver la habitación al estado "Available" mediante el caso de uso "Marcar habitación como disponible".
 - Pérdida de conexión o fallo del proceso tras confirmar: la transacción se cancela, evitando que la habitación quede en un estado intermedio inconsistente.
 - Fallo o indisponibilidad de Módulo 2 al consultar reservas: si la invocación de "Consultar reservas" presenta una caída de red o no responde, el sistema cancela la operación, la habitación permanece en estado "Available" y se informa al Administrador que la baja no pudo verificarse, ofreciéndole la opción "Reintentar", que vuelve a ejecutar la verificación de reservas con el mismo motivo ya registrado.
-- Reservas lejanas: la consulta no tiene límite superior de fechas, por lo que cualquier reserva vigente desde hoy impide la baja. Así ninguna reserva queda sobre una habitación dada de baja, y Módulo 2 tampoco puede crear nuevas, porque *Consultar inventario de habitaciones* no le ofrece habitaciones "Inactive".
+- Reservas posteriores al horizonte: la consulta abarca 366 días contando hoy (de hoy a hoy + 365 días), el rango máximo que acepta Módulo 2. Una reserva que empieza después de ese rango no se consulta ni impide la baja; Módulo 2 deberá reasignarla. Módulo 2 tampoco puede crear reservas nuevas sobre la habitación, porque *Consultar inventario de habitaciones* no le ofrece habitaciones "Inactive".
 - Motivo de baja sin categoría: el sistema impide confirmar la baja hasta que el Administrador seleccione una categoría de motivo.
 - Detalle demasiado largo: el campo de texto no admite más de 500 caracteres.
 - Motivo "Otro" sin descripción: si el Administrador selecciona la categoría "Otro" y deja vacío el campo de texto (o solo con espacios), el sistema impide continuar e indica que debe escribir el motivo de la baja.
@@ -60,7 +60,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 
 - **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" dar de baja habitaciones del inventario.
 
-- **FR-002**: El sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) antes de ejecutar la baja, enviando el identificador de la habitación (`roomId`), `startDate` = fecha actual y sin límite superior de fechas ("Consultar reservas", FR-007), y recibir la lista de `ReservationSummary` de las reservas vigentes asignadas a esa habitación desde hoy.
+- **FR-002**: El sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) antes de ejecutar la baja, enviando el identificador de la habitación (`roomId`), `startDate` = fecha actual y `endDate` = fecha actual + 365 días (366 días contando hoy, el rango máximo que acepta Módulo 2; "Consultar reservas", FR-007), y recibir la lista de `ReservationSummary` de las reservas vigentes asignadas a esa habitación en ese rango.
 
 - **FR-003**: El sistema DEBE impedir dar de baja una habitación que no se encuentre en estado "Available" ("Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock" o "Inactive"), independientemente de la causa que originó ese estado, según documentos/SPEC/referencias/maquina-estados-habitacion.md.
 
@@ -94,4 +94,4 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 - **SC-002**: El 100% de los intentos de baja sobre habitaciones que no estén en estado "Available" son rechazados por el sistema.
 - **SC-003**: El 0% de las habitaciones dadas de baja aparece en los resultados de disponibilidad.
 - **SC-004**: El 100% de las bajas ejecutadas quedan registradas con usuario responsable, fecha/hora y motivo, sin pérdida del historial previo de la habitación.
-- **SC-005**: El 100% de los intentos de baja sobre habitaciones con reservas vigentes asignadas desde la fecha actual son rechazados, sin que la habitación cambie de estado.
+- **SC-005**: El 100% de los intentos de baja sobre habitaciones con reservas vigentes asignadas entre la fecha actual y los próximos 365 días son rechazados, sin que la habitación cambie de estado.
