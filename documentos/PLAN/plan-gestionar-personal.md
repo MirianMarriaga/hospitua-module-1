@@ -346,6 +346,7 @@ backend/src/main/
 │       │   │   ├── web/StaffController.java       # /api/staff
 │       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-011)
 │       │   └── out/
+│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Spring Data sobre UserAccountJpaEntity (plan base)
 │       │       ├── persistence/adapter/JpaStaffAccountAdapter.java
 │       │       └── security/BCryptPasswordEncoderAdapter.java   # Implementa PasswordEncoderPort con spring-security-crypto
 │       └── config/
@@ -378,7 +379,7 @@ frontend/src/
 - [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T021) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
 - [ ] T003 [P] Implementar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
 - [ ] T004 [P] Implementar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter`, y verificar que `LoginService` (plan base, T021) use el mismo puerto.
-- [ ] T005 [P] Implementar `StaffAccountRepositoryPort` y `JpaStaffAccountAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
+- [ ] T005 [P] Implementar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` (Spring Data sobre `UserAccountJpaEntity`) y `JpaStaffAccountAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
 - [ ] T006 [P] Registrar en `GlobalExceptionHandler` `USERNAME_ALREADY_EXISTS`, `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y mapear la violación de la clave primaria de `user_account` a `409 USERNAME_ALREADY_EXISTS`.
 
 ---

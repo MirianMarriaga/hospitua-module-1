@@ -298,7 +298,9 @@ backend/
     │   │   │   │   ├── TechnicalBlockStatus.java             # Enum: Scheduled / Applied / Completed / Expired
     │   │   │   │   ├── MaintenanceDateRange.java             # Value Object: días evaluados, inclusivos (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   ├── MaintenanceConflict.java              # Value Object: inicio y fin de un cruce (plan-consultar-informacion-mantenimientos.md)
-    │   │   │   │   └── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
+    │   │   │   │   ├── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
+    │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (plan-gestionar-personal.md)
+    │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (plan-gestionar-personal.md)
     │   │   │   ├── exception/                                # Excepciones de reglas de negocio
     │   │   │   │   ├── DomainException.java
     │   │   │   │   ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
@@ -325,7 +327,12 @@ backend/
     │   │   │   │   ├── InvalidCheckInDateException.java      # Check-in fuera de la fecha de la reserva (plan-registrar-check-in.md)
     │   │   │   │   ├── StayAlreadyExistsException.java       # Ya existe estancia para la reserva y habitación (plan-registrar-check-in.md)
     │   │   │   │   ├── ActiveStayNotFoundException.java      # Sin estancia activa para el check-out (plan-registrar-check-out.md)
-    │   │   │   │   └── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
+    │   │   │   │   ├── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
+    │   │   │   │   ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (plan-gestionar-personal.md)
+    │   │   │   │   ├── StaffAccountNotFoundException.java    # Cuenta inexistente (404) (plan-gestionar-personal.md)
+    │   │   │   │   ├── AccountInactiveException.java         # Cuenta desactivada (409) (plan-gestionar-personal.md)
+    │   │   │   │   ├── CannotDeactivateSelfException.java    # Desactivar la cuenta propia (409) (plan-gestionar-personal.md)
+    │   │   │   │   └── LastAdministratorException.java       # Última cuenta activa de Administración (409) (plan-gestionar-personal.md)
     │   │   │   └── ports/                                    # CONTRATOS / INTERFACES DE PUERTOS
     │   │   │       ├── in/                                   # Puertos de Entrada (Casos de Uso primarios)
     │   │   │       │   ├── LoginUseCase.java                 # Inicio de sesión: identifica al usuario (regla 14)
@@ -366,7 +373,12 @@ backend/
     │   │   │       │   ├── EditRoomUseCase.java              # Editar habitación (plan-editar-habitacion.md)
     │   │   │       │   ├── DecommissionRoomUseCase.java      # Dar de baja (plan-dar-de-baja-habitacion.md)
     │   │   │       │   ├── GetRoomDecommissionUseCase.java   # Datos de la baja vigente (plan-marcar-habitacion-como-disponible.md)
-    │   │   │       │   └── ReactivateRoomUseCase.java        # Reactivar habitación (plan-marcar-habitacion-como-disponible.md)
+    │   │   │       │   ├── ReactivateRoomUseCase.java        # Reactivar habitación (plan-marcar-habitacion-como-disponible.md)
+    │   │   │       │   ├── RegisterStaffAccountUseCase.java  # Registrar cuenta (plan-gestionar-personal.md)
+    │   │   │       │   ├── ListStaffAccountsUseCase.java     # Lista del personal (plan-gestionar-personal.md)
+    │   │   │       │   ├── GetStaffAccountUseCase.java       # Una cuenta (plan-gestionar-personal.md)
+    │   │   │       │   ├── EditStaffAccountUseCase.java      # Editar cuenta (plan-gestionar-personal.md)
+    │   │   │       │   └── DeactivateStaffAccountUseCase.java # Desactivar cuenta (plan-gestionar-personal.md)
     │   │   │       └── out/                                  # Puertos de Salida (Persistencia, Clientes, Mensajería)
     │   │   │           ├── RoomPersistencePort.java
     │   │   │           ├── StayPersistencePort.java
@@ -381,7 +393,9 @@ backend/
     │   │   │           ├── TechnicalBlockReportRepositoryPort.java
     │   │   │           ├── OutboxEventPublisherPort.java
     │   │   │           ├── Module2ReservationConflictClientPort.java # Hacia GET /api/reservations de Módulo 2
-    │   │   │           └── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
+    │   │   │           ├── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
+    │   │   │           ├── StaffAccountRepositoryPort.java   # Cuentas del personal (plan-gestionar-personal.md)
+    │   │   │           └── PasswordEncoderPort.java          # Cifrado de contraseñas; también lo usa LoginService (plan-gestionar-personal.md)
     │   │   ├── application/                                  # CAPA DE APLICACIÓN (Orquestación de Casos de Uso)
     │   │   │   ├── service/                                  # Implementaciones de Puertos de Entrada
     │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña cifrada contra user_account
@@ -425,7 +439,11 @@ backend/
     │   │   │   │   ├── EditRoomService.java
     │   │   │   │   ├── DecommissionRoomService.java
     │   │   │   │   ├── RoomDecommissionQueryService.java
-    │   │   │   │   └── ReactivateRoomService.java
+    │   │   │   │   ├── ReactivateRoomService.java
+    │   │   │   │   ├── RegisterStaffAccountService.java
+    │   │   │   │   ├── StaffAccountQueryService.java         # Listar y obtener cuentas
+    │   │   │   │   ├── EditStaffAccountService.java
+    │   │   │   │   └── DeactivateStaffAccountService.java
     │   │   │   ├── event/                                    # Eventos de aplicación (Spring) internos de Módulo 1
     │   │   │   │   └── DailyReservationListIngestedEvent.java # Fin de la ingesta de las 00:00 (Regla 10)
     │   │   │   └── dto/                                      # DTOs de comando y consulta de la capa de aplicación
@@ -483,13 +501,17 @@ backend/
     │   │   │       ├── DecommissionRoomCommand.java
     │   │   │       ├── RoomDecommissionDto.java
     │   │   │       ├── RoomDecommissionInfoDto.java
-    │   │   │       └── ReactivationResultDto.java
+    │   │   │       ├── ReactivationResultDto.java
+    │   │   │       ├── RegisterStaffAccountCommand.java      # Personal
+    │   │   │       ├── EditStaffAccountCommand.java
+    │   │   │       └── StaffAccountDto.java                  # Sin contraseña
     │   │   └── infrastructure/                               # CAPA DE INFRAESTRUCTURA (Adaptadores y Configuración)
     │   │       ├── adapters/
     │   │       │   ├── in/                                   # Adaptadores Primarios / Driving (Entrada)
     │   │       │   │   ├── web/                              # Controladores REST
     │   │       │   │   │   ├── AuthController.java           # POST /api/auth/login
     │   │       │   │   │   ├── CurrentUserResolver.java      # Lee el encabezado X-User y lo entrega como usuario actual (regla 14)
+    │   │       │   │   │   ├── StaffController.java          # /api/staff (plan-gestionar-personal.md)
     │   │       │   │   │   ├── ReceptionPanelController.java # /api/reception/...
     │   │       │   │   │   ├── CheckInController.java        # /api/check-in/...
     │   │       │   │   │   ├── CheckOutController.java       # /api/check-out/...
@@ -505,8 +527,10 @@ backend/
     │   │       │   │   │   └── GlobalExceptionHandler.java   # Mapeo a ApiError
     │   │       │   │   ├── amqp/                             # Consumidores de RabbitMQ
     │   │       │   │   │   └── DailyReservationRabbitListener.java # Listener de m1.reservas.diarias.queue
-    │   │       │   │   └── scheduling/                       # Trabajos programados
-    │   │       │   │       └── TechnicalBlockScheduler.java  # Aplica los bloqueos técnicos tras la ingesta de las 00:00 (Regla 10)
+    │   │       │   │   ├── scheduling/                       # Trabajos programados
+    │   │       │   │   │   └── TechnicalBlockScheduler.java  # Aplica los bloqueos técnicos tras la ingesta de las 00:00 (Regla 10)
+    │   │       │   │   └── startup/                          # Tareas al arrancar
+    │   │       │   │       └── StaffAccountBootstrapper.java # Cuenta inicial de Administrador por el puerto de registro (plan-gestionar-personal.md)
     │   │       │   └── out/                                  # Adaptadores Secundarios / Driven (Salida)
     │   │       │       ├── persistence/                      # Repositorios JPA y entidades de BD (PostgreSQL)
     │   │       │       │   ├── entity/                       # Entidades JPA (una por tabla)
@@ -528,7 +552,8 @@ backend/
     │   │       │       │   ├── repository/                   # Spring Data JPA Repositories y consultas
     │   │       │       │   │   ├── DailyReservationRepository.java # Búsquedas de la copia local por referencia, documento y nombre
     │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications)
-    │   │       │       │   │   └── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account
+    │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account
+    │   │       │       │   │   └── UserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (plan-gestionar-personal.md)
     │   │       │       │   ├── mapper/                       # Mappers Dominio <-> JPA Entity
     │   │       │       │   └── adapter/                      # Implementaciones de puertos de persistencia
     │   │       │       │       ├── RoomRepositoryAdapter.java # Implementa RoomPersistencePort
@@ -540,20 +565,24 @@ backend/
     │   │       │       │       ├── JpaReparationTaskRepositoryAdapter.java # Implementa ReparationTaskRepositoryPort
     │   │       │       │       ├── JpaDamageReportRepositoryAdapter.java # Implementa DamageReportRepositoryPort
     │   │       │       │       ├── JpaTechnicalBlockReportRepositoryAdapter.java # Implementa TechnicalBlockReportRepositoryPort
-    │   │       │       │       └── OutboxNotificationRepositoryAdapter.java # Implementa OutboxEventPublisherPort (encola en outbox_notification)
+    │   │       │       │       ├── OutboxNotificationRepositoryAdapter.java # Implementa OutboxEventPublisherPort (encola en outbox_notification)
+    │   │       │       │       └── JpaStaffAccountAdapter.java # Implementa StaffAccountRepositoryPort (plan-gestionar-personal.md)
     │   │       │       ├── rest/                             # Clientes HTTP hacia otros módulos
     │   │       │       │   ├── Module2ReservationConflictRestAdapter.java # Implementa Module2ReservationConflictClientPort
     │   │       │       │   ├── Module2Properties.java        # URL y timeouts hacia Módulo 2
     │   │       │       │   ├── SettlementRestAdapter.java    # Implementa SettlementRestQueryPort
     │   │       │       │   └── Module3Properties.java        # URL y timeouts hacia Módulo 3
-    │   │       │       └── messaging/                        # Publicadores hacia RabbitMQ
-    │   │       │           ├── RabbitMqOutboxPublisherAdapter.java # Publica en RabbitMQ con Publisher Confirms lo que toma el worker
-    │   │       │           └── OutboxScheduledWorker.java    # Worker de sondeo y reintento con backoff
+    │   │       │       ├── messaging/                        # Publicadores hacia RabbitMQ
+    │   │       │       │   ├── RabbitMqOutboxPublisherAdapter.java # Publica en RabbitMQ con Publisher Confirms lo que toma el worker
+    │   │       │       │   └── OutboxScheduledWorker.java    # Worker de sondeo y reintento con backoff
+    │   │       │       └── security/                         # Cifrado de contraseñas
+    │   │       │           └── BCryptPasswordEncoderAdapter.java # Implementa PasswordEncoderPort con spring-security-crypto (plan-gestionar-personal.md)
     │   │       └── config/                                   # Configuración Spring (AMQP, RestClient, Clock)
     │   │           ├── RabbitConfig.java
     │   │           ├── RestClientConfig.java
     │   │           ├── ClockConfig.java
-    │   │           └── MaintenanceProperties.java            # Límites de rangos de mantenimiento (90 / 365 días)
+    │   │           ├── MaintenanceProperties.java            # Límites de rangos de mantenimiento (90 / 365 días)
+    │   │           └── StaffBootstrapProperties.java         # hospitua.bootstrap.admin.* (cuenta inicial) (plan-gestionar-personal.md)
     │   └── resources/
     │       ├── application.yml
     │       └── db/migration/                                 # Scripts Flyway
@@ -587,10 +616,12 @@ frontend/
     │   ├── cleaningService.ts
     │   ├── maintenanceService.ts
     │   ├── damageReportService.ts
-    │   └── technicalBlockService.ts
+    │   ├── technicalBlockService.ts
+    │   └── staffService.ts                                   # Cuentas del personal (plan-gestionar-personal.md)
     ├── assets/                                               # Estilos y recursos visuales
     ├── components/                                           # Navbar, Sidebar, Badges de estado, Modales y componentes compartidos
     │   ├── roomCategoryLabels.ts                             # SENCILLA → "Sencilla", …
+    │   ├── staffAreaLabels.ts                                # RECEPCION → "Recepción", … (plan-gestionar-personal.md)
     │   ├── RoomInventoryTable.tsx                            # Tabla compartida del inventario
     │   ├── RoomInventoryFilters.tsx                          # Número, tipo, piso y estado
     │   ├── Pagination.tsx
@@ -634,7 +665,7 @@ frontend/
     │   │   ├── ActiveRepairTaskPage.tsx
     │   │   ├── ConfirmRepairEndDialog.tsx
     │   │   └── ReleaseRepairTaskDialog.tsx
-    │   ├── administracion/                                   # Inventario, registro, edición, baja y reactivación de habitaciones
+    │   ├── administracion/                                   # Inventario, registro, edición, baja y reactivación de habitaciones, y personal
     │   │   ├── AdminRoomInventoryPage.tsx
     │   │   ├── RegisterRoomPage.tsx
     │   │   ├── RegisterRoomConfirmation.tsx
@@ -642,7 +673,12 @@ frontend/
     │   │   ├── EditRoomConfirmation.tsx
     │   │   ├── DecommissionRoomPage.tsx
     │   │   ├── ReactivateRoomDialog.tsx
-    │   │   └── ReactivationResult.tsx
+    │   │   ├── ReactivationResult.tsx
+    │   │   ├── StaffListPage.tsx                             # Lista del personal (plan-gestionar-personal.md)
+    │   │   ├── RegisterStaffPage.tsx
+    │   │   ├── EditStaffPage.tsx
+    │   │   ├── StaffConfirmation.tsx
+    │   │   └── DeactivateStaffDialog.tsx
     │   └── gerencia/                                         # Inventario e historial de estados
     │       ├── ManagerRoomInventoryPage.tsx
     │       ├── RoomStateHistoryPage.tsx
