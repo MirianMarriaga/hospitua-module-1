@@ -128,7 +128,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 - **Room**: Unidad habitacional. Atributos clave: `roomId` (UUID), número, piso, tipo, `maxCapacity`, tarifa base, `status` (8 estados), `reservedByReservationRef` (solo en `Reserved`).
 - **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` (`DIRECTA` o nombre de la OTA), `checkInDate`, `checkOutDate`, `expectedCheckinTime`, `expectedCheckoutTime`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `receptionistIdCheckIn`, `receptionistIdCheckOut`.
 - **RoomGuest**: Ocupante inmutable vinculado a la Estancia. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace` (solo extranjeros), `destinationPlace` (solo extranjeros), `isReservationGuest`.
-- **DailyReservation / DailyReservationRoom**: Copia local de la reserva. Fuente de verdad en el paso 1 y para el precargado del titular. De 1 a 10 habitaciones por reserva. No persiste `nights`, `status`, `guestRef`, `externalConfirmationCode`.
+- **DailyReservation / DailyReservationRoom**: Copia local de la reserva. Fuente de verdad en el paso 1 y para el precargado del titular. De 1 a 10 habitaciones por reserva. No persiste `status`, `guestRef`, `externalConfirmationCode`.
 - **Receptionist**: Actor que ejecuta el flujo de admisión.
 
 ---
