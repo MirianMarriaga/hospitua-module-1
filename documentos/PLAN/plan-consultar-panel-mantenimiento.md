@@ -37,6 +37,7 @@ Las acciones no se implementan aquí:
 
 - **Fechas**: las fechas de mantenimiento son de calendario (`YYYY-MM-DD`) y la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base.
+- **Usuario actual**: el miembro del Personal de mantenimiento se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
 
 ---
@@ -50,6 +51,7 @@ Las acciones no se implementan aquí:
 **Headers:**
 
 ```http
+X-User: mtorres
 Accept: application/json
 ```
 
@@ -124,7 +126,11 @@ Una búsqueda sin coincidencias (incluida una habitación `Inactive`) o un panel
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 

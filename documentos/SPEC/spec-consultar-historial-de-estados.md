@@ -50,7 +50,7 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor **Gerente** (`Manager`) consultar el historial de estados de una habitación.
+- **FR-001**: El actor **Gerente** (`Manager`) consulta el historial de estados de una habitación.
 - **FR-002**: El sistema DEBE permitir filtrar el historial por:
   - habitación (identificador o número)
   - tipo de habitación

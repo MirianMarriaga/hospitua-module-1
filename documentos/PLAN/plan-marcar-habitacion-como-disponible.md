@@ -58,6 +58,7 @@ Ante un origen no válido lanza `InvalidRoomTransitionException` (plan base) con
 
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-09T16:00:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el Administrador responsable de la reactivación se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa `POST /api/rooms/{roomId}/reactivation`.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -146,6 +147,7 @@ Si `decommissionId` es nulo, la confirmación muestra "Sin registro" en la fecha
 **Headers:**
 
 ```http
+X-User: lmendez
 Content-Type: application/json
 ```
 
@@ -197,6 +199,7 @@ El resultado indica que la habitación ya puede recibir reservas y estancias; co
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Inactive` y no es un reintento de la misma baja (esc. 3; FR-006) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
 

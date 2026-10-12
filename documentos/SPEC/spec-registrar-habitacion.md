@@ -55,7 +55,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" registrar nuevas habitaciones en el inventario.
+- **FR-001**: El actor "Administrador" registra nuevas habitaciones en el inventario.
 - **FR-002**: El sistema DEBE generar automáticamente un identificador único (UUID) para cada habitación registrada, sin intervención manual del usuario.
 - **FR-003**: El sistema DEBE requerir y validar como obligatorios los siguientes campos al registrar una habitación: número de habitación, piso, tipo de habitación, capacidad máxima de personas y tarifa base.
 - **FR-004**: El sistema DEBE validar que el número de habitación sea único en todo el inventario, independientemente de su estado (incluidas las habitaciones en estado "Inactive") y de su piso, rechazando el registro si ya existe cualquier habitación con el mismo número.

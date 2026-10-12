@@ -35,6 +35,7 @@ Usa la tabla `damage_report` del plan base (T018).
 
 - **Fechas**: ISO 8601 con zona de Colombia; la interfaz las muestra como DD-MM-YYYY HH:MM.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el autor del reporte se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa `POST /api/rooms/{roomId}/damage-reports`.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -48,6 +49,7 @@ Usa la tabla `damage_report` del plan base (T018).
 **Headers:**
 
 ```http
+X-User: mtorres
 Content-Type: application/json
 ```
 
@@ -95,6 +97,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede reportar un daño en ella." |

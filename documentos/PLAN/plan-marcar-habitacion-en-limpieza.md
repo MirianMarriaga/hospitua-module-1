@@ -34,6 +34,7 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-08T09:15:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con el campo adicional `details` cuando aporta contexto (ej. `currentStatus`).
+- **Usuario actual**: el miembro del Personal de limpieza se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -47,6 +48,7 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 **Headers:**
 
 ```http
+X-User: jramirez
 Content-Type: application/json
 ```
 
@@ -88,6 +90,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a ninguna habitación | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede limpiar." |

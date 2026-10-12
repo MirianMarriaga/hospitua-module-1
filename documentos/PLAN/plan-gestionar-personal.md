@@ -45,7 +45,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o está desactivado (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 
 ---
 
@@ -364,7 +364,7 @@ frontend/src/
     └── staffService.ts
 ```
 
-**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y con el responsable "sistema" (FR-011, FR-012). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T021), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
+**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y sin responsable: `created_by` queda nulo, como el `actor_id` de las acciones autónomas, y la interfaz lo muestra como "Sistema" (FR-011, FR-012). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T021), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
 
 ---
 
@@ -403,7 +403,7 @@ frontend/src/
 ### Implementation for User Story 1
 
 - [ ] T014 [US1] Implementar `RegisterStaffAccountService` (`@Transactional`): normalizar y validar el usuario, validar la unicidad, cifrar la contraseña con `PasswordEncoderPort`, crear la cuenta activa y registrar el responsable y la hora (FR-002 a FR-005, FR-012).
-- [ ] T015 [US1] Implementar `StaffAccountBootstrapper` (al arrancar la aplicación) y `StaffBootstrapProperties` (FR-011).
+- [ ] T015 [US1] Implementar `StaffAccountBootstrapper` (al arrancar la aplicación) y `StaffBootstrapProperties`; la cuenta inicial queda con `created_by` nulo (FR-011, FR-012).
 - [ ] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
 - [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
 
@@ -491,4 +491,5 @@ frontend/src/
   - Plan base, T021: `LoginService` usa `PasswordEncoderPort` de este plan y rechaza las cuentas desactivadas.
   - `plan-consultar-historial-de-estados.md`: muestra `full_name` de `user_account` como responsable, también de las cuentas desactivadas.
   - `plan-consultar-inventario-habitaciones.md`: `Pagination.tsx` y el menú de la vista del Administrador.
+- **Alcance provisional**: el manejo de contraseñas de este plan es provisional (regla 14 y punto abierto 1 del plan base). Si se adopta un inicio de sesión compartido, se retiran la contraseña y `PasswordEncoderPort`, y se conservan el registro, la consulta, la edición y la desactivación de las cuentas como perfil local.
 - **Orden**: Phase 1 → Phase 2 → Phase 3 (la cuenta inicial debe existir antes que todo lo demás) → Phase 4 → Phase 5 → Phase 6 → Phase 7.

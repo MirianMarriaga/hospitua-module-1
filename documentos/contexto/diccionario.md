@@ -6,7 +6,7 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 
 ## Actores
 
-* **Administrador**: Usuario interno con permisos transversales. En Módulo 1: registrar, editar, dar de baja y reactivar habitaciones del inventario. En Módulo 3: gestionar facturación, revisar/modificar tarifas por temporada, y actualizar el porcentaje de IVA.
+* **Administrador**: Usuario interno con permisos transversales. En Módulo 1: registrar, editar, dar de baja y reactivar habitaciones del inventario, y gestionar las cuentas del personal. En Módulo 3: gestionar facturación, revisar/modificar tarifas por temporada, y actualizar el porcentaje de IVA.
 * **Personal de limpieza**: Actor de Módulo 1 responsable de ejecutar el aseo de las habitaciones: desde el panel de limpieza marca el inicio de la limpieza y, desde la vista de tarea activa, confirma su finalización (reportando un daño si lo encuentra) o libera la tarea para que otro miembro la retome. También puede reportar daños en habitaciones disponibles.
 * **Personal de mantenimiento**: Actor de Módulo 1 que, desde el panel de mantenimiento, reporta daños (inhabilitando habitaciones por reparaciones), programa bloqueos técnicos preventivos e inicia reparaciones; desde la vista de tarea activa confirma cuando la intervención finaliza o libera la tarea para que otro miembro la retome.
 * **Gerente**: Actor de Módulo 1 con acceso de solo lectura a reportes de estado y al inventario completo de habitaciones.
@@ -44,6 +44,9 @@ Glosario compartido por los tres módulos del proyecto, para que todos usemos lo
 * **Panel de mantenimiento**: Pantalla de inicio del Personal de mantenimiento (*Consultar panel de mantenimiento*). Lista todas las habitaciones excepto las `Inactive`, primero las que requieren intervención (`DisabledForRepairs` y `TechnicalBlock`), con su mantenimiento programado, y ofrece Programar mantenimiento, Reportar daño, Ver informe e Iniciar reparaciones. Se actualiza cada 60 segundos.
 * **Vista de tarea activa**: Pantalla exclusiva a la que se redirige al Personal de limpieza o de mantenimiento mientras tiene una tarea abierta; solo permite "Confirmar fin" o "Liberar tarea".
 * **Liberar tarea**: Acción con la que el dueño de una tarea abierta la cierra sin terminarla (`Outcome` = `Released`) para que otro miembro la retome desde el panel. En limpieza devuelve la habitación a `PendingCleaning`; en reparación no cambia el estado.
+* **Cuenta del personal**: Registro de una persona que trabaja en el hotel y usa Módulo 1 (`user_account`). Tiene usuario (único y no editable), contraseña cifrada, nombre completo, área y estado (activa o desactivada). La gestiona el Administrador (*Gestionar personal*); una cuenta desactivada no se borra, para que el historial siga mostrando quién hizo cada cambio.
+* **Área**: Sección del hotel a la que pertenece una cuenta del personal: Recepción, Administración, Gerencia, Limpieza o Mantenimiento. Decide la pantalla de inicio después de iniciar sesión; no otorga ni restringe permisos.
+* **Usuario actual**: Persona que realiza la acción, identificada al iniciar sesión. Es el responsable que registran el historial de estados, las tareas de limpieza y reparación, las estancias y las bajas.
 
 ## Módulo 2: Operación de Reservas y Cumplimiento Legal
 

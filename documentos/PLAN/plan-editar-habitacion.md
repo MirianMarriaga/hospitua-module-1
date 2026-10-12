@@ -36,6 +36,7 @@ Editar no cambia el estado de la habitación, así que no escribe en `room_state
 ## Convenciones de los endpoints
 
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el Administrador responsable se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 El formulario se carga con `GET /api/rooms/inventory/{roomId}` (`plan-consultar-inventario-habitaciones.md`), que devuelve los datos actuales y la `version`.
@@ -51,6 +52,7 @@ El formulario se carga con `GET /api/rooms/inventory/{roomId}` (`plan-consultar-
 **Headers:**
 
 ```http
+X-User: lmendez
 Content-Type: application/json
 ```
 
@@ -115,6 +117,7 @@ Con `changed: false` el frontend muestra "No se modificó ningún dato" y no hay
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |

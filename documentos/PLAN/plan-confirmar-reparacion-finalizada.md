@@ -35,6 +35,7 @@ Usa la tabla `reparation_task` del plan base (T018).
 
 - **Fechas**: ISO 8601 con zona de Colombia; las fechas de mantenimiento programado son de calendario (`YYYY-MM-DD`) y la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el miembro del Personal de mantenimiento se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -48,6 +49,7 @@ Usa la tabla `reparation_task` del plan base (T018).
 **Headers:**
 
 ```http
+X-User: mtorres
 Content-Type: application/json
 ```
 
@@ -89,6 +91,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 4) | "La habitación está {estado}; no necesita reparación." |
@@ -116,6 +119,7 @@ Content-Type: application/json
 **Headers:**
 
 ```http
+X-User: mtorres
 Accept: application/json
 ```
 
@@ -155,6 +159,7 @@ Accept: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 404 | `NO_ACTIVE_TASK` | `NoActiveTaskException` | El miembro no tiene una tarea abierta; el frontend redirige al panel | (sin mensaje; redirección al panel) |
 
 ```json
@@ -177,6 +182,7 @@ Accept: application/json
 **Headers:**
 
 ```http
+X-User: mtorres
 ```
 
 **Parámetros:**
@@ -217,6 +223,7 @@ Accept: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-003, HU-1 esc. 3) | "Esta reparación la está haciendo otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (FR-003, HU-1 esc. 2) | "La habitación está {estado}; ya no se puede terminar esta reparación." |
@@ -245,6 +252,7 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 **Headers:**
 
 ```http
+X-User: mtorres
 ```
 
 **Parámetros:**
@@ -285,6 +293,7 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-015) | "Esta reparación la está haciendo otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
 | 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada (FR-019) | "Esta reparación ya se había terminado o dejado." |

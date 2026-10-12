@@ -193,7 +193,7 @@ Routing key: habitacion.checkin
 
 ## Endpoints REST internos (Frontend → Módulo 1)
 
-Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual. Los errores usan `ApiError` del plan base.
+Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual, que se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa el Endpoint 2. Los errores usan `ApiError` del plan base.
 
 ### Endpoint 1 — Validar la reserva y la habitación (Paso 1)
 
@@ -236,6 +236,7 @@ Valida solo contra la copia local (`DailyReservationPersistencePort`) y el inven
 
 ```http
 POST /api/check-in
+X-User: aruiz
 Content-Type: application/json
 ```
 
@@ -289,6 +290,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base); la interfaz muestra "Tu sesión terminó. Inicia sesión de nuevo." | 2 |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, `documentType` no admitido, `birthDate` no anterior a hoy, o extranjero sin `originPlace`/`destinationPlace`; `details.field` y `details.guestIndex` señalan el campo (FR-006, FR-009) | 1 y 2 |
 | 400 | `GUEST_COUNT_MISMATCH` | `GuestCountMismatchException` | La cantidad de huéspedes difiere de `guestCount` de la habitación (FR-008) | 2 |
 | 400 | `ROOM_CAPACITY_EXCEEDED` | `RoomCapacityExceededException` | La cantidad de huéspedes supera `maxCapacity` (FR-008) | 2 |

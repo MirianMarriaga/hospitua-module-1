@@ -34,6 +34,7 @@ Al terminar muestra una confirmación con los datos de la habitación y las opci
 
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-09T10:05:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el Administrador responsable se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: la interfaz muestra los estados con su nombre en español (regla 12 del plan base).
 - **Categorías**: la API usa `categoryRoom` con los valores `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE`, los mismos que usan Módulo 2 y Módulo 3; la interfaz los muestra como "Sencilla", "Doble", "Suite" y "Boutique".
 
@@ -48,6 +49,7 @@ Al terminar muestra una confirmación con los datos de la habitación y las opci
 **Headers:**
 
 ```http
+X-User: lmendez
 Content-Type: application/json
 ```
 
@@ -107,6 +109,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.fields` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |

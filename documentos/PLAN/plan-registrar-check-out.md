@@ -200,7 +200,7 @@ Routing key: habitacion.checkout
 
 ## Endpoints REST internos (Frontend → Módulo 1)
 
-Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual. Los errores usan `ApiError` del plan base. La liquidación de los pasos 2 y 3 se obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2).
+Los usa el Recepcionista (FR-001); el recepcionista responsable es el usuario actual, que se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa el Endpoint 2. Los errores usan `ApiError` del plan base. La liquidación de los pasos 2 y 3 se obtiene con `GET /api/stays/{stayId}/settlement` (`plan-consultar-liquidacion.md`, Endpoint 2).
 
 ### Endpoint 1 — Estancia activa de la habitación (Paso 1)
 
@@ -239,6 +239,7 @@ Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Respuest
 
 ```http
 POST /api/check-out
+X-User: aruiz
 Content-Type: application/json
 ```
 
@@ -274,6 +275,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base); la interfaz muestra "Tu sesión terminó. Inicia sesión de nuevo." | 2 |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, o tiene formato inválido | 1 y 2 |
 | 400 | `CONFIRMATION_REQUIRED` | `MandatoryConfirmationMissingException` | `confirmed` no es `true` (FR-008) | 2 |
 | 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` | No hay una estancia activa para ese par o ese `stayId` | 1 y 2 |

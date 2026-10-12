@@ -83,7 +83,7 @@ Como Personal de limpieza (`CleaningStaff`), quiero que al confirmar la finaliza
 ### Requisitos Funcionales
 
 - **FR-001**: El sistema DEBE estructurar "Marcar habitación como disponible" como un servicio transaccional centralizado y reutilizable en el Módulo 1.
-- **FR-002**: El sistema DEBE permitir la invocación directa de este caso de uso exclusivamente al actor "Administrador" (`Administrator`) para reactivar unidades desde el estado `Inactive`.
+- **FR-002**: El actor "Administrador" (`Administrator`) invoca directamente este caso de uso para reactivar unidades desde el estado `Inactive`.
 - **FR-003**: El sistema DEBE permitir la invocación de este caso de uso mediante inclusión (`<<includes>>`) desde el caso de uso "Confirmar fin de limpieza de habitación", ejecutado por el actor "Personal de limpieza" (`CleaningStaff`).
 - **FR-004**: Precondición: la entidad `Room` DEBE encontrarse en estado `Inactive` (para reactivación directa administrativa), en estado `InCleaning` (para el flujo proveniente de fin de limpieza; tras la transición a `Available`, en la misma transacción, la habitación continúa a `DisabledForRepairs` si se reportó un daño, o a `Reserved` mediante "Marcar habitación como reservada" si no se reportó daño y tiene una reserva con `startDate` = hoy pendiente) o en estado `Reserved` (para liberar una habitación cuya reserva fue cancelada o liberada en Módulo 2, invocado por *Consultar reservas*, FR-009), según documentos/SPEC/referencias/maquina-estados-habitacion.md.
 - **FR-005**: Transición de estado: El sistema DEBE actualizar de forma atómica el estado de la entidad `Room` a `Available` tras completarse la validación del flujo correspondiente.

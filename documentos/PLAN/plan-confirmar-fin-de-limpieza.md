@@ -39,6 +39,7 @@ En ambos casos el miembro queda desvinculado y vuelve al panel de limpieza.
 
 - **Fechas**: ISO 8601 con zona de Colombia (ej. `2026-10-08T10:05:00-05:00`).
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el miembro del Personal de limpieza se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -52,6 +53,7 @@ En ambos casos el miembro queda desvinculado y vuelve al panel de limpieza.
 **Headers:**
 
 ```http
+X-User: jramirez
 Accept: application/json
 ```
 
@@ -93,6 +95,7 @@ Accept: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 404 | `NO_ACTIVE_TASK` | `NoActiveTaskException` | El miembro no tiene una tarea abierta; el frontend redirige al panel | (sin mensaje; redirección al panel) |
 
 ```json
@@ -115,6 +118,7 @@ Accept: application/json
 **Headers:**
 
 ```http
+X-User: jramirez
 Content-Type: application/json
 ```
 
@@ -166,6 +170,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `damageDescription` supera 500 caracteres | "La descripción del daño admite máximo 500 caracteres." |
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-005, HU-1 esc. 3) | "Esta habitación la está limpiando otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta limpieza. Vuelve al panel." |
@@ -195,6 +200,7 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 **Headers:**
 
 ```http
+X-User: jramirez
 ```
 
 **Parámetros:**
@@ -235,6 +241,7 @@ Si falla la persistencia o la conexión, la transacción se revierte completa (h
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-014) | "Esta habitación la está limpiando otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta limpieza. Vuelve al panel." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `InCleaning` | "La habitación está {estado}; ya no se puede dejar esta limpieza." |

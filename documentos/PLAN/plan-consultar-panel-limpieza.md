@@ -33,6 +33,7 @@ Las acciones no se implementan aquí: **Iniciar limpieza** usa `POST /api/cleani
 
 - **Fechas**: ISO 8601 con zona de Colombia; la interfaz las muestra como DD-MM-YYYY HH:MM.
 - **Errores**: esquema `ApiError` del plan base.
+- **Usuario actual**: el miembro del Personal de limpieza se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
 
 ---
@@ -46,6 +47,7 @@ Las acciones no se implementan aquí: **Iniciar limpieza** usa `POST /api/cleani
 **Headers:**
 
 ```http
+X-User: jramirez
 Accept: application/json
 ```
 
@@ -108,7 +110,11 @@ Una búsqueda sin coincidencias o un panel sin habitaciones responde `200` con `
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
+| --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 

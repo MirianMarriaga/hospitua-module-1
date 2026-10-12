@@ -211,7 +211,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | --- | --- | --- | --- |
 | `VALIDATION_ERROR` | 400 | `MethodArgumentNotValidException` (cuerpo con `@Valid`, incluidas las restricciones de clase del comando) o `ConstraintViolationException` (parámetros con `@Validated`); un parámetro con tipo inválido (`MethodArgumentTypeMismatchException`) también responde `VALIDATION_ERROR`. `details.field` indica el campo | Spring (Bean Validation) |
 | `INVALID_CREDENTIALS` | 401 | `InvalidCredentialsException` | Solo en `POST /api/auth/login`: usuario inexistente, contraseña incorrecta o cuenta desactivada (`active = false`), con el mismo mensaje para no revelar cuál fue ("Usuario o contraseña incorrectos.") |
-| `CURRENT_USER_REQUIRED` | 400 | `CurrentUserRequiredException` | Una petición del frontend que registra un responsable llega sin el encabezado `X-User`, con un usuario que no existe o con una cuenta desactivada (regla 14) |
+| `CURRENT_USER_REQUIRED` | 400 | `CurrentUserRequiredException` | Una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin el encabezado `X-User`, con un usuario que no existe o con una cuenta desactivada (regla 14). Texto en la interfaz: "Tu sesión terminó. Inicia sesión de nuevo." |
 | `ROOM_NOT_FOUND` | 404 | `RoomNotFoundException` | Plan base (`domain/exception/`) |
 | `ROOM_INVALID_STATE` | 409 | `InvalidRoomTransitionException`, con `details.currentStatus` | Plan base (`domain/exception/`) |
 | `CONCURRENT_UPDATE` | 409 | `ObjectOptimisticLockingFailureException` (control optimista de `version`); un plan puede mapear también la violación de un índice único (`DataIntegrityViolationException`) | Spring Data JPA |
@@ -328,6 +328,8 @@ backend/
     │   │   │   │   ├── StayAlreadyExistsException.java       # Ya existe estancia para la reserva y habitación (plan-registrar-check-in.md)
     │   │   │   │   ├── ActiveStayNotFoundException.java      # Sin estancia activa para el check-out (plan-registrar-check-out.md)
     │   │   │   │   ├── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
+    │   │   │   │   ├── InvalidCredentialsException.java      # 401 INVALID_CREDENTIALS en el inicio de sesión (regla 14, T021)
+    │   │   │   │   ├── CurrentUserRequiredException.java     # 400 CURRENT_USER_REQUIRED: falta X-User o la cuenta no existe o está desactivada (regla 14, T021)
     │   │   │   │   ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (plan-gestionar-personal.md)
     │   │   │   │   ├── StaffAccountNotFoundException.java    # Cuenta inexistente (404) (plan-gestionar-personal.md)
     │   │   │   │   ├── AccountInactiveException.java         # Cuenta desactivada (409) (plan-gestionar-personal.md)
@@ -398,7 +400,7 @@ backend/
     │   │   │           └── PasswordEncoderPort.java          # Cifrado de contraseñas; también lo usa LoginService (plan-gestionar-personal.md)
     │   │   ├── application/                                  # CAPA DE APLICACIÓN (Orquestación de Casos de Uso)
     │   │   │   ├── service/                                  # Implementaciones de Puertos de Entrada
-    │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña cifrada contra user_account
+    │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña con StaffAccountRepositoryPort y PasswordEncoderPort
     │   │   │   │   ├── ReceptionPanelQueryService.java       # KPIs del panel de recepción
     │   │   │   │   ├── DepartureSearchService.java           # Búsqueda local de salidas
     │   │   │   │   ├── DailyReservationIngestionService.java # Ingesta asíncrona de lista diaria y actualizaciones
@@ -575,7 +577,7 @@ backend/
     │   │       │       ├── messaging/                        # Publicadores hacia RabbitMQ
     │   │       │       │   ├── RabbitMqOutboxPublisherAdapter.java # Publica en RabbitMQ con Publisher Confirms lo que toma el worker
     │   │       │       │   └── OutboxScheduledWorker.java    # Worker de sondeo y reintento con backoff
-    │   │       │       └── security/                         # Cifrado de contraseñas
+    │   │       │       └── security/                         # Solo cifrado de contraseñas; no es una capa de seguridad (regla 14)
     │   │       │           └── BCryptPasswordEncoderAdapter.java # Implementa PasswordEncoderPort con spring-security-crypto (plan-gestionar-personal.md)
     │   │       └── config/                                   # Configuración Spring (AMQP, RestClient, Clock)
     │   │           ├── RabbitConfig.java
@@ -709,7 +711,7 @@ frontend/
 | `daily_reservation_room` | `DailyReservationRoomJpaEntity` | Habitaciones asociadas a cada reserva diaria (1 a 10). `reservation_ref` (FK), `room_id` (UUID FK a `room`), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`). |
 | `daily_reservation_message_log` | `DailyReservationMessageLogJpaEntity` | Bitácora de idempotencia para la cola de reservas diarias. `message_id` (VARCHAR PK), `sequence_number` (BIGINT), `message_type` (VARCHAR), `received_at` (TIMESTAMP). |
 | `outbox_notification` | `OutboxNotificationJpaEntity` | Mensajes asíncronos pendientes de envío hacia RabbitMQ. `id` (UUID), `event_type`, `routing_key`, `payload` (JSONB), `message_id` (UUID único; se genera una vez y se repite en los reintentos), `sequence_number` (BIGINT; creciente por cola y nunca reiniciado, tomado de una secuencia de PostgreSQL por routing key), `status` (`PENDING`, `PUBLISHED`, `FAILED`), `retry_count`, `next_attempt_at`, `last_error` (nullable), `created_at`, `published_at`. Índice por `(status, next_attempt_at)`. |
-| `user_account` | `UserAccountJpaEntity` | Cuentas del personal de Módulo 1. `username` (PK, no editable), `password_hash` (contraseña cifrada con BCrypt; nunca en texto plano), `full_name`, `area` (`RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA`, `MANTENIMIENTO`: solo decide la pantalla de inicio, no restringe endpoints), `active` (BOOLEAN, por defecto `true`; una cuenta desactivada no inicia sesión, pero se conserva para el historial), `created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by` (nullable) y `version` (control optimista). El historial muestra `full_name` como responsable. Las cuentas se gestionan solo por los puertos de `plan-gestionar-personal.md` (regla 14). |
+| `user_account` | `UserAccountJpaEntity` | Cuentas del personal de Módulo 1. `username` (PK, no editable), `password_hash` (contraseña cifrada con BCrypt; nunca en texto plano), `full_name`, `area` (`RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA`, `MANTENIMIENTO`: solo decide la pantalla de inicio, no restringe endpoints), `active` (BOOLEAN, por defecto `true`; una cuenta desactivada no inicia sesión, pero se conserva para el historial), `created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by` (nullable) y `version` (control optimista). `created_by` es nulo en la cuenta inicial que crea el sistema al arrancar, como el `actor_id` de las acciones autónomas; la interfaz la muestra como "Sistema". El historial muestra `full_name` como responsable. Las cuentas se gestionan solo por los puertos de `plan-gestionar-personal.md` (regla 14). |
 
 ### Diagrama Entidad-Relación (PostgreSQL)
 
@@ -882,6 +884,8 @@ erDiagram
     boolean active
     timestamp created_at
     string created_by
+    timestamp updated_at
+    string updated_by
     timestamp deactivated_at
     string deactivated_by
     int version
@@ -914,8 +918,12 @@ erDiagram
 11. **Alerta operativa a Recepción**: no es un mensaje, una notificación ni un registro. Es la indicación "No disponible: [Estado]" que el panel de recepción muestra en la fila de una llegada del día cuya habitación asignada está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive`, calculada a partir del estado de la habitación al consultar el panel (*Consultar panel de recepción* escenario 6 y FR-005). Los casos de uso que "emiten" o "aplican" esta alerta (*Marcar habitación como reservada* FR-012, *Confirmar fin de limpieza* FR-019) la cumplen dejando la habitación en ese estado, sin apartarla a `Reserved`.
 12. **Nombres de estado en la interfaz**: la interfaz muestra cada estado con su nombre en español de `maquina-estados-habitacion.md` (Disponible, Reservada, Ocupada, Pendiente de limpieza, En limpieza, Inhabilitada por reparaciones, Bloqueo técnico, Inactiva). El nombre en inglés solo se usa en la API, el código y los datos; los textos de interfaz con `{estado}` o `[Estado]` usan el nombre en español. Las categorías de habitación siguen la misma regla: la API, el código y los datos usan los códigos `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE` (los que usa Módulo 2 en `categoryRoom`), y la interfaz muestra Sencilla, Doble, Suite y Boutique.
 13. **Bloqueo de la habitación en decisiones concurrentes**: toda operación que lee el estado de una habitación para decidir qué hacer con ella (apartarla, liberarla o registrar un conflicto en la ingesta de reservas, confirmar el fin de limpieza o programar un bloqueo técnico) bloquea la fila de `room` con `SELECT … FOR UPDATE` al inicio de su transacción, antes de leer el estado y los datos relacionados (copia local de reservas, informes de bloqueo técnico). Una operación concurrente sobre la misma habitación espera y ve el resultado de la primera. El control optimista (`version`) se mantiene para el resto de las transiciones.
-14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que registra un responsable llega sin `X-User` o con un usuario inexistente, responde `400 CURRENT_USER_REQUIRED`.
+14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin `X-User`, con un usuario inexistente o con una cuenta desactivada, responde `400 CURRENT_USER_REQUIRED`. Cada plan muestra `X-User` en los ejemplos de los endpoints que lo usan y lista ese error en su tabla.
    - **Gestión de las cuentas del personal:** las cuentas se registran, consultan, editan y desactivan por el backend, con los puertos y endpoints de `plan-gestionar-personal.md` (caso de uso *Gestionar personal*, del Administrador). Ninguna cuenta se escribe directamente en la base de datos. La primera cuenta de Administrador la crea al arrancar `StaffAccountBootstrapper`, llamando al mismo puerto de registro con los datos de configuración, si no existe ninguna cuenta activa de Administración. Desactivar es `active = false`: la cuenta no se borra, para que el historial siga mostrando el nombre de quien hizo cada cambio.
+   - **Carácter provisional:** el inicio de sesión de Módulo 1 identifica al usuario; no controla el acceso. Es una solución de esta etapa, mientras los tres módulos no definan una identidad compartida (punto abierto 1). Si se adopta un proveedor de identidad común (SSO), se reemplaza sin tocar los casos de uso:
+     - `CurrentUserResolver` toma el usuario de la identidad del proveedor en lugar del encabezado `X-User`;
+     - `POST /api/auth/login`, `LoginService`, `PasswordEncoderPort` y `password_hash` se retiran;
+     - `user_account` queda como perfil local (`username`, `full_name`, `area`, `active`) para el historial y los responsables.
 
 ---
 
@@ -971,7 +979,15 @@ erDiagram
 - [ ] T018 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9). Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
 - [ ] T019 Implementar los puertos transversales `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`) y `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`), según sus specs, sobre `TransitionRoomStateUseCase`. Los usan la ingesta de reservas y *Confirmar fin de limpieza*
 - [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365)
-- [ ] T021 Implementar el inicio de sesión (regla 14): la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que validan la contraseña con `PasswordEncoderPort` (`plan-gestionar-personal.md`) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Las cuentas y la cuenta inicial de Administrador las implementa `plan-gestionar-personal.md`
+- [ ] T021 Implementar el inicio de sesión (regla 14): la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que leen la cuenta con `StaffAccountRepositoryPort` y validan la contraseña con `PasswordEncoderPort` (ambos de `plan-gestionar-personal.md`) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Las cuentas y la cuenta inicial de Administrador las implementa `plan-gestionar-personal.md`
 - [ ] T022 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición con el interceptor de Axios (T016), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
+
+---
+
+## Puntos abiertos
+
+1. **Identidad compartida entre módulos** (regla 14). Hay que acordar con Módulo 2 y Módulo 3:
+   - Que el `username` sea el identificador único de cada persona en los tres módulos, para que los responsables que viajan en las notificaciones (por ejemplo, el recepcionista del check-in) se puedan cruzar entre módulos.
+   - Si habrá un inicio de sesión compartido (SSO) y quién lo implementa. Mientras no haya respuesta, Módulo 1 mantiene su login provisional y no amplía *Gestionar personal* (sin políticas de contraseña ni recuperación de cuenta).

@@ -277,8 +277,6 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 | Status Code | errorCode | Excepción | Cuándo ocurre |
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `stayId` no es un UUID |
-| 401 | `UNAUTHORIZED` | `AuthenticationException` | Falta el token o venció |
-| 403 | `FORBIDDEN` | `AccessDeniedException` | El usuario no es Recepcionista |
 | 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` (`plan-registrar-check-out.md`) | No existe una estancia activa con ese `stayId` (mismo código que `plan-registrar-check-out.md`) |
 
 ```json

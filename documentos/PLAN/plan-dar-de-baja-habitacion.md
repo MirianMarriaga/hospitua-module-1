@@ -37,6 +37,7 @@ Implementar el caso de uso **Dar de Baja Habitación** para el Administrador, de
 
 - **Fechas**: fechas de reserva como fecha de calendario (`YYYY-MM-DD`); la fecha y hora de la baja es ISO 8601 con zona de Colombia.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el Administrador responsable se toma del encabezado `X-User` (regla 14 del plan base).
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 Los datos de la habitación del paso del motivo se cargan con `GET /api/rooms/inventory/{roomId}` (`plan-consultar-inventario-habitaciones.md`).
@@ -52,6 +53,7 @@ Los datos de la habitación del paso del motivo se cargan con `GET /api/rooms/in
 **Headers:**
 
 ```http
+X-User: lmendez
 Content-Type: application/json
 ```
 
@@ -115,6 +117,7 @@ El resultado indica que la habitación ya no aparece entre las habitaciones disp
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta la categoría o no es válida (FR-008, caso borde "Motivo sin categoría") | "Selecciona el motivo de la baja." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Categoría `OTHER` con detalle vacío o solo espacios (FR-008, caso borde "Otro sin descripción") | "Escribe el motivo de la baja." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Detalle de más de 500 caracteres (FR-008, caso borde "Detalle demasiado largo") | "El detalle admite máximo 500 caracteres." |

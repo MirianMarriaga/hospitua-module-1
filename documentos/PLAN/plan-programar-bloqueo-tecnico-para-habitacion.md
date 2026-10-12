@@ -35,6 +35,7 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
 
 - **Fechas**: las fechas del mantenimiento son de calendario en la API (`YYYY-MM-DD`); la interfaz las pide y muestra como DD-MM-YYYY (FR-012). `reportDateTime` es ISO 8601 con zona de Colombia.
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
+- **Usuario actual**: el miembro del Personal de mantenimiento que programa se toma del encabezado `X-User` (regla 14 del plan base); solo lo usa `POST /api/rooms/{roomId}/technical-blocks`.
 - **Estados en los mensajes**: `{estado}` se reemplaza por el nombre en español del estado (regla 12 del plan base).
 
 ---
@@ -48,6 +49,7 @@ Además ofrece "Ver informe" (FR-011) para habitaciones con un informe `Schedule
 **Headers:**
 
 ```http
+X-User: mtorres
 Content-Type: application/json
 ```
 
@@ -103,6 +105,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
+| 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
 | 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |

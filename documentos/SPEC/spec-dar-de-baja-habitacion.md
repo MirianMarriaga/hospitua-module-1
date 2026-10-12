@@ -58,7 +58,7 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir únicamente al actor "Administrador" dar de baja habitaciones del inventario.
+- **FR-001**: El actor "Administrador" da de baja habitaciones del inventario.
 
 - **FR-002**: El sistema DEBE invocar obligatoriamente el caso de uso "Consultar reservas" (`<<includes>>`) antes de ejecutar la baja, enviando el identificador de la habitación (`roomId`), `startDate` = fecha actual y `endDate` = fecha actual + 365 días (366 días contando hoy, el rango máximo que acepta Módulo 2; "Consultar reservas", FR-007), y recibir la lista de `ReservationSummary` de las reservas vigentes asignadas a esa habitación en ese rango.
 
