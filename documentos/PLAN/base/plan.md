@@ -20,7 +20,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 ## Technical Context
 
 - **Language/Version**: Java 21 (LTS)
-- **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Bean Validation (Hibernate Validator), Lombok, Spring AMQP (RabbitMQ), Flyway
+- **Primary Dependencies**: Spring Boot 4.1+ (Spring Framework 7), Spring Web MVC, Spring Data JPA, Bean Validation (Hibernate Validator), Lombok, Spring AMQP (RabbitMQ), Flyway, Resilience4j (`resilience4j-spring-boot4`), `spring-security-crypto`
 - **Storage**: PostgreSQL 16+
 - **Build Tool**: Maven 3.9+
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, colas durables, Dead-Letter Exchange)
@@ -50,10 +50,11 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | --- | --- | --- |
 | Herramienta de compilación | Maven | Estándar empresarial con Spring Boot y soporte multi-módulo |
 | Migraciones de Base de Datos | Flyway | Versionamiento determinista del esquema SQL en `src/main/resources/db/migration/` |
-| Resiliencia y Timeouts REST | `RestClient` con timeouts + Resilience4j | Evitar bloqueos ante lentitud o caída de Módulo 2 o Módulo 3 |
+| Resiliencia y Timeouts REST | `RestClient` con timeouts + Resilience4j (`resilience4j-spring-boot4` con `spring-boot-starter-aspectj` para las anotaciones) | Evitar bloqueos ante lentitud o caída de Módulo 2 o Módulo 3 |
 | Patrón Outbox Transaccional | Tabla `outbox_notification` + `@Scheduled` worker | Garantiza entrega eventual y consistencia atómica entre la base de datos y RabbitMQ |
 | Cifrado de contraseñas | `spring-security-crypto` (`BCryptPasswordEncoder`), solo la librería de cifrado | Guardar las contraseñas de `user_account` cifradas para el inicio de sesión; no se usa la capa de seguridad (regla 14) |
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
+| Formato de código | Spotless con palantir-java-format (`./mvnw spotless:apply`; `verify` falla si el código no está formateado) | Formato uniforme sin discusiones en las revisiones |
 
 ---
 
@@ -962,11 +963,11 @@ erDiagram
 ## Phase 1: Setup (Infraestructura Compartida)
 
 - [ ] T001 Inicializar el repositorio con la estructura monorepo `backend/` y `frontend/`
-- [ ] T002 Configurar `backend/pom.xml` con Java 21, Spring Boot 3.3+ y dependencias aprobadas
+- [x] T002 Configurar `backend/pom.xml` con Java 21, Spring Boot 4.1+ y dependencias aprobadas
 - [ ] T003 Configurar `frontend/` con React 18+, TypeScript (TSX, `tsconfig.json`) y Vite
-- [ ] T004 [P] Configurar herramientas de formateo y calidad de código (Checkstyle/Spotless en backend, ESLint/Prettier en frontend)
-- [ ] T005 [P] Crear `docker-compose.yml` para desarrollo local con PostgreSQL 16 y RabbitMQ 3.13 con interfaz de gestión
-- [ ] T006 Configurar `application.yml` y perfiles (`dev`, `test`, `prod`) con variables de entorno
+- [ ] T004 [P] Configurar herramientas de formateo y calidad de código (backend: Spotless con palantir-java-format, hecho; frontend: ESLint/Prettier, pendiente junto con T003)
+- [x] T005 [P] Crear `docker-compose.yml` para desarrollo local con PostgreSQL 16 y RabbitMQ 3.13 con interfaz de gestión
+- [x] T006 Configurar `application.yml` y perfiles (`dev`, `test`, `prod`) con variables de entorno
 
 ---
 
@@ -984,7 +985,7 @@ erDiagram
   - `OutboxScheduledWorker` toma los `PENDING` con `next_attempt_at` vencido, los publica con `RabbitMqOutboxPublisherAdapter` (Publisher Confirms) y los marca `PUBLISHED`. Si la publicación falla, aumenta `retry_count` y programa `next_attempt_at` con espera creciente (1 s, 2 s, 4 s… hasta 5 min), sin frenar los demás mensajes de la cola.
   - Agotados los reintentos (`hospitua.outbox.max-retries`, por defecto 10), el mensaje pasa a `FAILED` con `last_error` y se registra una alerta `OUTBOX_PUBLISH_FAILED` en el log de errores para revisión humana.
 - [ ] T013 [P] Configurar `RestClientConfig` con timeouts e implementar los adaptadores de salida `Module2ReservationConflictRestAdapter` (implementa `Module2ReservationConflictClientPort`, configurado con `Module2Properties`) y `SettlementRestAdapter` (implementa `SettlementRestQueryPort`, configurado con `Module3Properties`). Las URL y los timeouts se configuran en `application.yml`
-- [ ] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
+- [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
 - [ ] T015 [eliminada: la seguridad no es responsabilidad de esta etapa; la identificación del usuario la cubren T021 y T022]
 - [ ] T016 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)

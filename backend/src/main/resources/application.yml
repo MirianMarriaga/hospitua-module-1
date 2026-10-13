@@ -1,0 +1,98 @@
+# Configuración base de Módulo 1 (plan base, T006).
+# Perfiles: dev (por defecto, con docker-compose.yml), test (Testcontainers) y prod (todo por variables de entorno).
+spring:
+  application:
+    name: habitaciones
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  rabbitmq:
+    # Publisher Confirms para el worker del Outbox (plan base, T012)
+    publisher-confirm-type: correlated
+    publisher-returns: true
+  jackson:
+    time-zone: America/Bogota
+
+server:
+  port: ${SERVER_PORT:8080}
+
+hospitua:
+  # Clientes REST hacia los otros módulos (plan base, regla 5 y T013)
+  module2:
+    connect-timeout: 1s
+    read-timeout: 2s
+  module3:
+    connect-timeout: 1s
+    read-timeout: 3s
+  outbox:
+    max-retries: 10
+  maintenance:
+    max-range-days: 90
+    max-advance-days: 365
+
+---
+# Desarrollo local contra docker-compose.yml (raíz del repositorio).
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hospitua_m1}
+    username: ${DB_USERNAME:hospitua}
+    password: ${DB_PASSWORD:hospitua}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:hospitua}
+    password: ${RABBITMQ_PASSWORD:hospitua}
+
+hospitua:
+  module2:
+    base-url: ${MODULE2_BASE_URL:http://localhost:8082}
+  module3:
+    base-url: ${MODULE3_BASE_URL:http://localhost:8083}
+
+logging:
+  level:
+    com.hospitua.habitaciones: DEBUG
+
+---
+# PostgreSQL y RabbitMQ los inyecta Testcontainers con @ServiceConnection.
+# Las pruebas de clientes REST usan MockRestServiceServer.
+spring:
+  config:
+    activate:
+      on-profile: test
+
+hospitua:
+  module2:
+    base-url: http://localhost:8082
+  module3:
+    base-url: http://localhost:8083
+
+---
+# Sin valores por defecto: toda la configuración llega por variables de entorno.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+hospitua:
+  module2:
+    base-url: ${MODULE2_BASE_URL}
+  module3:
+    base-url: ${MODULE3_BASE_URL}

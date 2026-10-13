@@ -24,7 +24,7 @@ Responsabilidades:
 ## Technical Context
 
 - **Language/Version**: Java 21 (LTS)
-- **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Hibernate Validator, Lombok
+- **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Hibernate Validator, Lombok
 - **Storage**: PostgreSQL 16+ (Lectura directa sobre la tabla `room`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL)
 - **Target Platform**: Servidor Linux/Windows

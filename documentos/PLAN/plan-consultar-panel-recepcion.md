@@ -31,7 +31,7 @@ Componentes y lógica operativa:
 ## Technical Context
 
 - **Language/Version**: Java 21 (LTS)
-- **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Lombok
+- **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Lombok
 - **Storage**: PostgreSQL 16+ (Lectura optimizada sobre `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)

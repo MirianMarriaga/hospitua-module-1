@@ -30,7 +30,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 ## Technical Context
 
 - **Language/Version**: Java 21 (LTS)
-- **Primary Dependencies**: Spring Boot 3.3+, Spring Web, Spring Data JPA, Spring AMQP (RabbitMQ), Lombok, Resilience4j, RestClient
+- **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Spring AMQP (RabbitMQ), Lombok, Resilience4j, RestClient
 - **Storage**: PostgreSQL 16+ (tablas `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `room`)
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, cola durable `m1.reservas.diarias.queue`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer / WireMock
