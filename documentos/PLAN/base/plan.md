@@ -11,7 +11,7 @@ El **Módulo 1 (Gestión de Habitaciones e Inventario de Aforo, Check-In y Check
 
 Opera el **Panel de Recepción** al inicio de la jornada, consultando la copia local de la lista diaria de reservas (alimentada por la cola `m1.reservas.diarias.queue`) para las llegadas del día y las estancias activas locales para las salidas, operando de forma 100% autónoma sin peticiones REST a Módulo 2 para llegadas ni para Check-In. Durante el Check-In formaliza la ocupación transicionando atómicamente la habitación de `Reserved` a `Occupied`, captura y valida los datos de identidad de los huéspedes (`RoomGuest`: titular y acompañantes con nombres y apellidos separados, campos migratorios si extranjero) y notifica de forma asíncrona por la cola `m2.habitacion.checkin.queue` en un mensaje plano con `guests[]` conteniendo a todos los ocupantes (sin cola separada de extranjeros). Durante el Check-Out consulta síncronamente a Módulo 3 la liquidación (`SettlementSummary`: informativa o final), formaliza la salida transicionando la habitación a `PendingCleaning` (pasando de inmediato a la bandeja del Personal de limpieza) y notifica de forma asíncrona por la cola `m2.habitacion.checkout.queue` con `guests[]` conteniendo a todos los ocupantes para que Módulo 2 registre la salida de la habitación. Además, atiende solicitudes síncronas de Módulo 2 (consultar inventario por categoría o estado y consultar información de mantenimientos) y de Módulo 3 (consultar tarifa base).
 
-Gestiona además el inventario (registro, edición, baja y reactivación de habitaciones por el Administrador; consulta del inventario y del historial de estados por el Gerente) y el ciclo operativo de limpieza y mantenimiento: el Personal de limpieza toma habitaciones desde su panel y confirma o libera su tarea activa; el Personal de mantenimiento reporta daños, programa bloqueos técnicos que un trabajo autónomo aplica en su fecha de inicio (o que se aplican de inmediato si inician el mismo día) e interviene las habitaciones mediante tareas de reparación. Toda transición de estado queda registrada por periodos en el historial de estados (`room_state_history`).
+Gestiona además el inventario (registro, edición, baja y reactivación de habitaciones por el Administrador; consulta del inventario y del historial de estados por el Gerente) y el ciclo operativo de limpieza y mantenimiento: el Personal de limpieza toma habitaciones desde su panel y confirma o libera su tarea activa; el Personal de mantenimiento reporta daños, programa bloqueos técnicos que un trabajo autónomo aplica en su fecha de inicio (o que se aplican de inmediato si inician el mismo día) e interviene las habitaciones mediante tareas de reparación. Toda transición de estado queda registrada por periodos en el historial de estados (`room_state_history`). Cada persona inicia sesión con su cuenta (`user_account`), y el Administrador registra, consulta, edita y desactiva las cuentas del personal (*Gestionar personal*, regla 14).
 
 Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persistencia relacional, contratos de integración (REST y colas RabbitMQ), política de resiliencia "HTTP a Cola", manejo de errores uniforme (siempre 4xx, nunca 500 no controlado) y la infraestructura transversal de pruebas.
 
@@ -149,7 +149,7 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 | `GET /api/stays/{stayId}/settlement` | Recepcionista (Frontend M1) | Pasos 2 y 3 del Check-Out: liquidación de la estancia obtenida de Módulo 3 (`plan-consultar-liquidacion.md`, Endpoint 2) |
 | `GET /api/rooms/inventory` | Gerente, Administrador (Frontend M1) | Inventario de habitaciones para las vistas internas: paginado (10), filtrable por número, tipo, piso y estado, con las `Inactive` incluidas (`plan-consultar-inventario-habitaciones.md`) |
 | `GET /api/rooms/inventory/{roomId}` | Administrador (Frontend M1) | Detalle completo de una habitación con su `version`, para los formularios de edición y baja (`plan-consultar-inventario-habitaciones.md`) |
-| `GET /api/rooms?categoryRoom={cat}` | Módulo 2 | Lista sin paginar de las habitaciones vendibles de la categoría, sin `Inactive`, con `id`, `roomNumber`, `categoryRoom` y `maxCapacity` (`spec-consultar-inventario-habitaciones.md` FR-010 y FR-011) |
+| `GET /api/rooms?categoryRoom={cat}` | Módulo 2 | Lista sin paginar de las habitaciones vendibles de la categoría, sin `Inactive`, con `id`, `roomNumber`, `categoryRoom` y `maxCapacity` (`plan-consultar-inventario-habitaciones.md`) |
 | `GET /api/rooms/{roomId}` | Módulo 2 | Habitación vendible por su ID: solo `id`, `roomNumber`, `categoryRoom` y `maxCapacity`, y 404 `ROOM_NOT_FOUND` si la habitación no existe o está `Inactive` (`plan-consultar-inventario-habitaciones.md`) |
 | `POST /api/rooms` | Administrador (Frontend M1) | Registrar habitación en `Available` con su periodo inicial en el historial (`plan-registrar-habitacion.md`) |
 | `PATCH /api/rooms/{roomId}` | Administrador (Frontend M1) | Editar los atributos de una habitación `Available` (`plan-editar-habitacion.md`) |
@@ -196,6 +196,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 ```
 
 - **HTTP 400**: Errores de validación o datos faltantes.
+- **HTTP 401**: Usuario o contraseña incorrectos, o cuenta desactivada, solo en `POST /api/auth/login` (`INVALID_CREDENTIALS`).
 - **HTTP 403**: La tarea pertenece a otro miembro del personal (`TASK_NOT_OWNED`).
 - **HTTP 404**: Recurso inexistente (ej. habitación no encontrada).
 - **HTTP 409**: Conflicto de concurrencia optimista o violación del ciclo de vida de la máquina de estados habitacional.
@@ -235,8 +236,13 @@ documentos/
 │   ├── diccionario.md
 │   └── hospitua.md
 ├── diagramas/
-│   ├── mod-1-2-3.drawio.xml
-│   └── maquina-de-estados.png
+│   ├── cdu-modulo-1-d.drawio         # Diagrama de casos de uso (fuente)
+│   ├── cdu-modulo-1.png
+│   ├── cdu-modulo-1.md               # Copia en XML de draw.io de cdu-modulo-1-d.drawio
+│   ├── entidad-relacion.md           # Diagrama entidad-relación por áreas
+│   ├── maquina-de-estados.png
+│   ├── mod-1-2-3.drawio.xml          # Integración entre los tres módulos
+│   └── mod-1-2-3.png
 ├── SPEC/
 │   ├── referencias/maquina-estados-habitacion.md
 │   └── spec-*.md                     # Un spec por caso de uso de Módulo 1
@@ -244,8 +250,12 @@ documentos/
 │   ├── base/
 │   │   └── plan.md                   # Este archivo (plataforma técnica compartida)
 │   └── plan-*.md                     # Un plan por caso de uso (ej. plan-registrar-check-out.md)
-└── vistas/
-    └── recepcionista/                # Prototipos HTML/CSS de vistas 01 a 11
+└── vistas/                           # Prototipos HTML/CSS por área
+    ├── recepcionista/
+    ├── limpieza/
+    ├── mantenimiento/
+    ├── administrador/                # Incluye las vistas 12 a 16 de Gestionar personal
+    └── gerente/
 ```
 
 ### Source Code (Arquitectura Hexagonal — Puertos y Adaptadores)
@@ -297,7 +307,9 @@ backend/
     │   │   │   │   ├── TechnicalBlockStatus.java             # Enum: Scheduled / Applied / Completed / Expired
     │   │   │   │   ├── MaintenanceDateRange.java             # Value Object: días evaluados, inclusivos (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   ├── MaintenanceConflict.java              # Value Object: inicio y fin de un cruce (plan-consultar-informacion-mantenimientos.md)
-    │   │   │   │   └── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
+    │   │   │   │   ├── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
+    │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (plan-gestionar-personal.md)
+    │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (plan-gestionar-personal.md)
     │   │   │   ├── exception/                                # Excepciones de reglas de negocio
     │   │   │   │   ├── DomainException.java
     │   │   │   │   ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
@@ -918,7 +930,7 @@ erDiagram
 11. **Alerta operativa a Recepción**: no es un mensaje, una notificación ni un registro. Es la indicación "No disponible: [Estado]" que el panel de recepción muestra en la fila de una llegada del día cuya habitación asignada está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive`, calculada a partir del estado de la habitación al consultar el panel (*Consultar panel de recepción* escenario 6 y FR-005). Los casos de uso que "emiten" o "aplican" esta alerta (*Marcar habitación como reservada* FR-012, *Confirmar fin de limpieza* FR-019) la cumplen dejando la habitación en ese estado, sin apartarla a `Reserved`.
 12. **Nombres de estado en la interfaz**: la interfaz muestra cada estado con su nombre en español de `maquina-estados-habitacion.md` (Disponible, Reservada, Ocupada, Pendiente de limpieza, En limpieza, Inhabilitada por reparaciones, Bloqueo técnico, Inactiva). El nombre en inglés solo se usa en la API, el código y los datos; los textos de interfaz con `{estado}` o `[Estado]` usan el nombre en español. Las categorías de habitación siguen la misma regla: la API, el código y los datos usan los códigos `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE` (los que usa Módulo 2 en `categoryRoom`), y la interfaz muestra Sencilla, Doble, Suite y Boutique.
 13. **Bloqueo de la habitación en decisiones concurrentes**: toda operación que lee el estado de una habitación para decidir qué hacer con ella (apartarla, liberarla o registrar un conflicto en la ingesta de reservas, confirmar el fin de limpieza o programar un bloqueo técnico) bloquea la fila de `room` con `SELECT … FOR UPDATE` al inicio de su transacción, antes de leer el estado y los datos relacionados (copia local de reservas, informes de bloqueo técnico). Una operación concurrente sobre la misma habitación espera y ve el resultado de la primera. El control optimista (`version`) se mantiene para el resto de las transiciones.
-14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin `X-User`, con un usuario inexistente o con una cuenta desactivada, responde `400 CURRENT_USER_REQUIRED`. Cada plan muestra `X-User` en los ejemplos de los endpoints que lo usan y lista ese error en su tabla.
+14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora, y `created_by`, `updated_by` y `deactivated_by` de las cuentas del personal). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin `X-User`, con un usuario inexistente o con una cuenta desactivada, responde `400 CURRENT_USER_REQUIRED`. Cada plan muestra `X-User` en los ejemplos de los endpoints que lo usan y lista ese error en su tabla.
    - **Gestión de las cuentas del personal:** las cuentas se registran, consultan, editan y desactivan por el backend, con los puertos y endpoints de `plan-gestionar-personal.md` (caso de uso *Gestionar personal*, del Administrador). Ninguna cuenta se escribe directamente en la base de datos. La primera cuenta de Administrador la crea al arrancar `StaffAccountBootstrapper`, llamando al mismo puerto de registro con los datos de configuración, si no existe ninguna cuenta activa de Administración. Desactivar es `active = false`: la cuenta no se borra, para que el historial siga mostrando el nombre de quien hizo cada cambio.
    - **Carácter provisional:** el inicio de sesión de Módulo 1 identifica al usuario; no controla el acceso. Es una solución de esta etapa, mientras los tres módulos no definan una identidad compartida (punto abierto 1). Si se adopta un proveedor de identidad común (SSO), se reemplaza sin tocar los casos de uso:
      - `CurrentUserResolver` toma el usuario de la identidad del proveedor en lugar del encabezado `X-User`;

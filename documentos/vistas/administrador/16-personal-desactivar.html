@@ -748,7 +748,6 @@ function cuentaNoEncontrada(contenedor) {
     if (!mensajeError) $("confirmar").addEventListener("click", () => {
       const r = desactivarCuenta(cuenta.usuario, USUARIOS.admin.usuario);
       if (r.error) { pintarConfirmacion(r.error); return; }
-      avisar(`La cuenta de ${cuenta.nombre} quedó desactivada.`);
       location.href = "12-personal.html";
     });
   }

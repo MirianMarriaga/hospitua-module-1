@@ -738,7 +738,6 @@ function cuentaNoEncontrada(contenedor) {
         <select id="f-estado" class="tbl-input">
           <option value="">Todos</option><option value="activa">Activa</option><option value="desactivada">Desactivada</option>
         </select></div>
-      <button type="button" id="limpiar" class="btn-text" style="padding-bottom:10px">Limpiar filtros</button>
     </div>
     <div class="table-wrap">
       <table style="min-width:760px">
@@ -780,7 +779,6 @@ function cuentaNoEncontrada(contenedor) {
   }
 
   ["f-buscar", "f-area", "f-estado"].forEach(id => $(id).addEventListener("input", () => { pagina = 1; pintar(); }));
-  $("limpiar").addEventListener("click", () => { $("f-buscar").value = ""; $("f-area").value = ""; $("f-estado").value = ""; pagina = 1; pintar(); });
   pintar();
   montarPie();
 </script>

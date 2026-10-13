@@ -30,6 +30,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
   - Desactivar no borra la fila: `active = false`. El login y `CurrentUserResolver` ya rechazan las cuentas desactivadas (regla 14 del plan base; SC-003).
   - La validación de "propia cuenta" y "último Administrador activo" se hace dentro de la transacción, bloqueando las cuentas activas de Administración con `SELECT … FOR UPDATE`, para que dos desactivaciones simultáneas no dejen el sistema sin Administrador (FR-010).
   - Ediciones simultáneas: control optimista con `user_account.version` (caso borde "Ediciones simultáneas").
+  - Cada operación es una sola transacción (`@Transactional`): si la conexión se pierde o falla el guardado, no se guarda nada y la cuenta queda como estaba (caso borde "Pérdida de conexión o fallo al guardar").
   - En esta etapa no hay permisos por rol (regla 14 del plan base): la sección "Personal" solo aparece en la vista del Administrador.
 
 ---
@@ -41,7 +42,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Áreas**: la API usa `area` con los valores `RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA` y `MANTENIMIENTO`; la interfaz los muestra como "Recepción", "Administración", "Gerencia", "Limpieza" y "Mantenimiento".
 - **Contraseña**: viaja solo en el cuerpo de `POST` y `PATCH`; ninguna respuesta la incluye.
-- **Errores comunes a todos los endpoints**:
+- **Errores comunes a los endpoints que usan el usuario actual** (`POST /api/staff`, `PATCH /api/staff/{username}` y `POST /api/staff/{username}/deactivation`; las dos consultas no envían `X-User`, regla 14 del plan base):
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
@@ -134,7 +135,6 @@ Content-Type: application/json
 **Headers:**
 
 ```http
-X-User: lmendez
 Accept: application/json
 ```
 
@@ -195,7 +195,6 @@ Una consulta sin coincidencias responde `200` con `items` vacío; el frontend mu
 **Headers:**
 
 ```http
-X-User: lmendez
 Accept: application/json
 ```
 
@@ -236,7 +235,7 @@ X-User: lmendez
 Content-Type: application/json
 ```
 
-**Body (JSON):** `version` es obligatoria. `password` es opcional: si falta o está vacía, la contraseña actual se conserva (esc. 7). `username` no se acepta: el usuario no cambia.
+**Body (JSON):** `version` es obligatoria. `password` es opcional: si falta o está vacía, la contraseña actual se conserva (esc. 7). El cuerpo no lleva `username`: el usuario sale de la ruta y no cambia (FR-008); si llega, se ignora.
 
 ```json
 {
@@ -393,7 +392,7 @@ frontend/src/
 ### Tests for User Story 1
 
 - [ ] T007 [P] [US1] Unit test en `RegisterStaffAccountServiceTest`: el registro válido crea la cuenta activa, normaliza el usuario, guarda la contraseña cifrada y registra al Administrador y la hora de `Clock` (esc. 1; FR-002 a FR-005, FR-012).
-- [ ] T008 [P] [US1] Unit test: rechazo con `USERNAME_ALREADY_EXISTS` si el usuario existe, incluido uno desactivado o con otras mayúsculas (esc. 2; FR-003).
+- [ ] T008 [P] [US1] Unit test: rechazo con `USERNAME_ALREADY_EXISTS` si el usuario existe, incluido uno desactivado o con otras mayúsculas (esc. 2; FR-003; SC-004).
 - [ ] T009 [P] [US1] Unit test: rechazo de campos faltantes, usuario con caracteres no permitidos o fuera de 3 a 30 caracteres, contraseña de menos de 8 y área inválida (esc. 3; FR-002 a FR-004).
 - [ ] T010 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo usuario; solo uno tiene éxito (FR-003).
 - [ ] T011 [US1] Integration test: con la base de datos sin cuentas activas de Administración, `StaffAccountBootstrapper` crea la cuenta de la configuración por `RegisterStaffAccountUseCase`; si ya existe una, no crea otra (FR-011).
@@ -403,7 +402,7 @@ frontend/src/
 ### Implementation for User Story 1
 
 - [ ] T014 [US1] Implementar `RegisterStaffAccountService` (`@Transactional`): normalizar y validar el usuario, validar la unicidad, cifrar la contraseña con `PasswordEncoderPort`, crear la cuenta activa y registrar el responsable y la hora (FR-002 a FR-005, FR-012).
-- [ ] T015 [US1] Implementar `StaffAccountBootstrapper` (al arrancar la aplicación) y `StaffBootstrapProperties`; la cuenta inicial queda con `created_by` nulo (FR-011, FR-012).
+- [ ] T015 [US1] Implementar `StaffAccountBootstrapper` (al arrancar la aplicación) y `StaffBootstrapProperties`; la cuenta inicial queda con `created_by` nulo (FR-011, FR-012). Si no hay ninguna cuenta activa de Administración y faltan las propiedades o no cumplen FR-002 a FR-004, la aplicación no arranca y registra el motivo en el log, sin la contraseña.
 - [ ] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
 - [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
 
@@ -463,7 +462,7 @@ frontend/src/
 ### Tests for User Story 4
 
 - [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-012).
-- [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010).
+- [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010; SC-004).
 - [ ] T031 [US4] Integration test con Testcontainers: dos desactivaciones simultáneas de las dos únicas cuentas activas de Administración; solo una tiene éxito y la otra recibe `LAST_ADMINISTRATOR` (FR-010).
 - [ ] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
 - [ ] T033 [P] [US4] Component test en `DeactivateStaffDialog`: muestra usuario, nombre y área, advierte que la persona no podrá iniciar sesión y cancelar no envía nada (esc. 9; FR-009).
@@ -480,7 +479,7 @@ frontend/src/
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
-- [ ] T037 Medir que el registro completo responda en menos de 2 segundos (SC-001).
+- [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
 
 ---
 
