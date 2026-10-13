@@ -135,14 +135,14 @@ backend/src/
 │   │   ├── model/
 │   │   │   ├── Room.java
 │   │   │   └── RoomStatus.java
-│   │   ├── exception/
-│   │   │   └── RoomNotFoundException.java   # Definida en el plan base (catálogo de errores)
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   └── GetRoomBaseRateUseCase.java
-│   │       └── out/
-│   │           └── RoomPersistencePort.java
+│   │   └── exception/
+│   │       └── RoomNotFoundException.java   # Definida en el plan base (catálogo de errores)
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   └── GetRoomBaseRateUseCase.java
+│   │   │   └── out/
+│   │   │       └── RoomRepositoryPort.java
 │   │   ├── service/
 │   │   │   └── RoomBaseRateQueryService.java
 │   │   └── dto/
@@ -162,7 +162,7 @@ backend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar la configuración del repositorio `RoomPersistencePort` en [PLAN/base/plan.md](base/plan.md).
+- [ ] T001 Verificar la configuración del repositorio `RoomRepositoryPort` en [PLAN/base/plan.md](base/plan.md).
 - [ ] T002 Asegurar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`).
 
 ---

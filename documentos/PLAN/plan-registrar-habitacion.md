@@ -155,12 +155,12 @@ backend/src/main/
 │   ├── domain/
 │   │   ├── model/
 │   │   │   └── RoomCategory.java                  # Enum: SENCILLA, DOBLE, SUITE, BOUTIQUE
-│   │   ├── exception/
-│   │   │   └── RoomNumberAlreadyExistsException.java   # 409
-│   │   └── ports/
-│   │       └── in/
-│   │           └── RegisterRoomUseCase.java
+│   │   └── exception/
+│   │       └── RoomNumberAlreadyExistsException.java   # 409
 │   ├── application/
+│   │   ├── ports/
+│   │   │   └── in/
+│   │   │       └── RegisterRoomUseCase.java
 │   │   ├── service/
 │   │   │   └── RegisterRoomService.java
 │   │   └── dto/

@@ -210,15 +210,15 @@ backend/src/
 │   ├── domain/
 │   │   ├── model/
 │   │   │   └── DamageReport.java                 # Definido en el plan base; aquí se implementa
-│   │   ├── exception/
-│   │   │   └── DamageReportNotFoundException.java # 404 DAMAGE_REPORT_NOT_FOUND
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── ReportDamageUseCase.java
-│   │       │   └── GetLatestDamageReportUseCase.java
-│   │       └── out/
-│   │           └── DamageReportRepositoryPort.java
+│   │   └── exception/
+│   │       └── DamageReportNotFoundException.java # 404 DAMAGE_REPORT_NOT_FOUND
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── ReportDamageUseCase.java
+│   │   │   │   └── GetLatestDamageReportUseCase.java
+│   │   │   └── out/
+│   │   │       └── DamageReportRepositoryPort.java
 │   │   ├── service/
 │   │   │   ├── ReportDamageService.java
 │   │   │   └── DamageReportQueryService.java
@@ -231,7 +231,7 @@ backend/src/
 │       │   └── DamageReportController.java
 │       └── out/persistence/
 │           ├── entity/DamageReportJpaEntity.java
-│           └── adapter/JpaDamageReportRepositoryAdapter.java
+│           └── adapter/DamageReportRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `damage_report` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/

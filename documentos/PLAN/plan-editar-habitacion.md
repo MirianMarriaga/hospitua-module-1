@@ -162,11 +162,11 @@ documentos/
 ```text
 backend/src/main/java/com/hospitua/habitaciones/
 ├── domain/
-│   ├── model/
-│   │   └── RoomAttributeChange.java               # Value Object: campo, valor anterior y valor nuevo
-│   └── ports/in/
-│       └── EditRoomUseCase.java
+│   └── model/
+│       └── RoomAttributeChange.java               # Value Object: campo, valor anterior y valor nuevo
 ├── application/
+│   ├── ports/in/
+│   │   └── EditRoomUseCase.java
 │   ├── service/
 │   │   └── EditRoomService.java
 │   └── dto/
@@ -194,7 +194,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogPort` estén disponibles (plan base, T007 y T017) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
+- [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T017) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
 - [ ] T002 [P] Mover a `Room` las validaciones de piso, tipo, capacidad y tarifa, si `plan-registrar-habitacion.md` las dejó en el servicio, e implementar `Room.applyChanges(...)` con `RoomAttributeChange`.
 - [ ] T003 [P] Registrar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE`.
 
@@ -279,7 +279,7 @@ No aplica: usa la infraestructura del plan base.
 
 - **Foundational**: Requiere del plan base la tabla `room` con `version` (T007) y `ClockConfig`.
 - **Planes de los que depende**:
-  - Plan base: `room_audit_log` (T007) y `RoomAuditLogPort` (T017).
+  - Plan base: `room_audit_log` (T007) y `RoomAuditLogRepositoryPort` (T017).
   - `plan-registrar-habitacion.md`: `RoomCategory` y `RoomNumberAlreadyExistsException`.
   - `plan-consultar-inventario-habitaciones.md`: acción "Editar" y `GET /api/rooms/inventory/{roomId}` para cargar el formulario.
 - **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6.

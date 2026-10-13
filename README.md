@@ -14,7 +14,7 @@ El contexto funcional completo está en [`documentos/contexto/hospitua.md`](docu
 .
 ├── backend/            # Spring Boot 4 (Java 21), arquitectura hexagonal
 ├── documentos/         # Documentación del desarrollo guiado por specs
-│   ├── contexto/       # Visión del sistema y diccionario de términos
+│   ├── contexto/       # Visión del sistema, arquitectura hexagonal y diccionario
 │   ├── SPEC/           # Un spec por caso de uso y la máquina de estados
 │   ├── PLAN/           # Plan base (plataforma común) y un plan por caso de uso
 │   ├── diagramas/      # Casos de uso, entidad-relación, estados, integración M1-M2-M3

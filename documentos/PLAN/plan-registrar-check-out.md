@@ -69,19 +69,19 @@ backend/src/
 │   │   │   ├── Stay.java
 │   │   │   ├── RoomGuest.java
 │   │   │   └── CheckOutDetails.java
-│   │   ├── exception/
-│   │   │   ├── ActiveStayNotFoundException.java
-│   │   │   └── MandatoryConfirmationMissingException.java
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── RegisterCheckOutUseCase.java
-│   │       │   └── GetActiveStayUseCase.java
-│   │       └── out/
-│   │           ├── RoomPersistencePort.java
-│   │           ├── StayPersistencePort.java
-│   │           ├── RoomGuestPersistencePort.java
-│   │           └── OutboxEventPublisherPort.java
+│   │   └── exception/
+│   │       ├── ActiveStayNotFoundException.java
+│   │       └── MandatoryConfirmationMissingException.java
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── RegisterCheckOutUseCase.java
+│   │   │   │   └── GetActiveStayUseCase.java
+│   │   │   └── out/
+│   │   │       ├── RoomRepositoryPort.java
+│   │   │       ├── StayRepositoryPort.java
+│   │   │       ├── RoomGuestRepositoryPort.java
+│   │   │       └── OutboxEventPublisherPort.java
 │   │   ├── service/
 │   │   │   ├── CheckOutExecutionService.java
 │   │   │   ├── CheckOutValidationService.java
@@ -353,7 +353,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
     ```
 
     `birthDate` se incluye para todos los huéspedes; `originPlace` y `destinationPlace` únicamente si `nationality != "Colombia"`. Todos se reutilizan de los registros de Check-In (`RoomGuest`).
-  - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación, mediante `RoomAuditLogPort` (FR-015).
+  - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación, mediante `RoomAuditLogRepositoryPort` (FR-015).
   - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkout", "CHECK_OUT", payload)` dentro de la misma transacción; `messageId` y `sequenceNumber` los asigna el outbox (plan base, T012).
 - [ ] T014 [US1] Implementar endpoints REST en `CheckOutController.java`:
   - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).

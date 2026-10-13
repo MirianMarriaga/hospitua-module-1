@@ -81,12 +81,12 @@ backend/src/
 │   │   │   ├── SettlementRequest.java
 │   │   │   ├── SettlementSummary.java
 │   │   │   └── SettlementAvailabilityStatus.java
-│   │   ├── exception/
-│   │   │   └── ExternalModule3UnavailableException.java
-│   │   └── ports/
-│   │       ├── in/QuerySettlementUseCase.java
-│   │       └── out/SettlementRestQueryPort.java
+│   │   └── exception/
+│   │       └── ExternalModule3UnavailableException.java
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/QuerySettlementUseCase.java
+│   │   │   └── out/SettlementRestQueryPort.java
 │   │   ├── service/SettlementQueryService.java
 │   │   └── dto/
 │   │       ├── SettlementQueryCommand.java

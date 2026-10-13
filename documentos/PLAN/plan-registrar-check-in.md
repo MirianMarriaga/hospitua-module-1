@@ -74,23 +74,23 @@ backend/src/
 │   │   │   ├── RoomGuest.java
 │   │   │   ├── DailyReservation.java
 │   │   │   └── DailyReservationRoom.java
-│   │   ├── exception/
-│   │   │   ├── GuestCountMismatchException.java
-│   │   │   ├── RoomCapacityExceededException.java
-│   │   │   ├── DuplicateGuestDocumentException.java
-│   │   │   ├── InvalidCheckInDateException.java
-│   │   │   └── StayAlreadyExistsException.java
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── RegisterCheckInUseCase.java
-│   │       │   └── ValidateCheckInReservationUseCase.java
-│   │       └── out/
-│   │           ├── RoomPersistencePort.java
-│   │           ├── StayPersistencePort.java
-│   │           ├── RoomGuestPersistencePort.java
-│   │           ├── DailyReservationPersistencePort.java   # Definido en plan-consultar-reservas.md; aquí solo se lee
-│   │           └── OutboxEventPublisherPort.java
+│   │   └── exception/
+│   │       ├── GuestCountMismatchException.java
+│   │       ├── RoomCapacityExceededException.java
+│   │       ├── DuplicateGuestDocumentException.java
+│   │       ├── InvalidCheckInDateException.java
+│   │       └── StayAlreadyExistsException.java
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── RegisterCheckInUseCase.java
+│   │   │   │   └── ValidateCheckInReservationUseCase.java
+│   │   │   └── out/
+│   │   │       ├── RoomRepositoryPort.java
+│   │   │       ├── StayRepositoryPort.java
+│   │   │       ├── RoomGuestRepositoryPort.java
+│   │   │       ├── DailyReservationRepositoryPort.java   # Definido en plan-consultar-reservas.md; aquí solo se lee
+│   │   │       └── OutboxEventPublisherPort.java
 │   │   ├── service/
 │   │   │   ├── CheckInExecutionService.java
 │   │   │   └── CheckInValidationService.java
@@ -112,7 +112,7 @@ backend/src/
 │       │       │       ├── RoomRepositoryAdapter.java
 │       │       │       ├── StayRepositoryAdapter.java
 │       │       │       ├── RoomGuestRepositoryAdapter.java
-│       │       │       ├── DailyReservationPersistenceAdapter.java # Definido en plan-consultar-reservas.md
+│       │       │       ├── DailyReservationRepositoryAdapter.java # Definido en plan-consultar-reservas.md
 │       │       │       └── OutboxNotificationRepositoryAdapter.java
 │       │       └── messaging/
 │       │           └── RabbitMqOutboxPublisherAdapter.java
@@ -215,7 +215,7 @@ GET /api/check-in/validate?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b
 | `reservationRef` | string | Sí | Referencia que entrega el botón "Check-in" del panel de recepción (FR-003) |
 | `roomId` | UUID | Sí | Habitación seleccionada en el panel |
 
-Valida solo contra la copia local (`DailyReservationPersistencePort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
+Valida solo contra la copia local (`DailyReservationRepositoryPort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
 
 ```json
 {
@@ -364,7 +364,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationPersistencePort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
+- [ ] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationRepositoryPort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
 - [ ] T009 [P] [US1] Unit test: Verificar que el titular queda precargado con `isReservationGuest = true`, selector de país bloqueado y campos de solo lectura.
 - [ ] T010 [P] [US1] Unit test: Validar rechazo si cualquier huésped no incluye `birthDate` o si es igual o posterior a hoy, si un extranjero no incluye `originPlace` o `destinationPlace`, o si `documentType` no es uno de los códigos admitidos.
 - [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
@@ -375,7 +375,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 ### Implementation for User Story 1
 
 - [ ] T015 [P] [US1] Implementar en `CheckInValidationService`:
-  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationPersistencePort`, el puerto de la copia local de `plan-consultar-reservas.md` (implementado por `DailyReservationPersistenceAdapter`), usado aquí solo para lectura y sin un segundo origen de datos.
+  - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationRepositoryPort`, el puerto de la copia local de `plan-consultar-reservas.md` (implementado por `DailyReservationRepositoryAdapter`), usado aquí solo para lectura y sin un segundo origen de datos.
   - Validación de existencia y no duplicidad de `Stay` previo para ese `(reservationRef, roomId)`.
   - Validación de habitación física en estado `Reserved` con `reservedByReservationRef == reservationRef`.
 - [ ] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
@@ -385,7 +385,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Validar unicidad de documento dentro de la habitación (`DuplicateGuestDocumentException`).
   - Crear y guardar entidad `Stay` con `source`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
   - Persistir ocupantes en `RoomGuest`.
-  - Registrar en `room_audit_log` el evento `CHECK_IN` con `stayId`, `reservationRef`, recepcionista y marca de tiempo, mediante `RoomAuditLogPort` (FR-015).
+  - Registrar en `room_audit_log` el evento `CHECK_IN` con `stayId`, `reservationRef`, recepcionista y marca de tiempo, mediante `RoomAuditLogRepositoryPort` (FR-015).
   - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base).
   - Construir el mensaje plano `CheckInMessagePayload`; `messageId` y `sequenceNumber` (creciente por cola, nunca reiniciado) los asigna `OutboxEventPublisherPort.enqueue(...)` (plan base, T012).
   - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkin", "CHECK_IN", payload)` dentro de la misma transacción, para su publicación asíncrona hacia `m2.habitacion.checkin.queue`.

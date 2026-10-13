@@ -256,10 +256,9 @@ documentos/
 ```text
 backend/src/main/
 ├── java/com/hospitua/habitaciones/
-│   ├── domain/
-│   │   └── ports/in/
-│   │       └── ConsultRoomInventoryUseCase.java
 │   ├── application/
+│   │   ├── ports/in/
+│   │   │   └── ConsultRoomInventoryUseCase.java
 │   │   ├── service/
 │   │   │   └── RoomInventoryQueryService.java
 │   │   └── dto/

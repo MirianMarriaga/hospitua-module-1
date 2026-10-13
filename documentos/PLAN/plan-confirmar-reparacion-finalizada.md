@@ -335,17 +335,17 @@ documentos/
 backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
-│   │   ├── model/
-│   │   │   └── ReparationTask.java               # Definido en el plan base; aquí se implementa
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── StartRepairUseCase.java
-│   │       │   ├── GetActiveRepairTaskUseCase.java
-│   │       │   ├── CompleteRepairUseCase.java
-│   │       │   └── ReleaseRepairTaskUseCase.java
-│   │       └── out/
-│   │           └── ReparationTaskRepositoryPort.java
+│   │   └── model/
+│   │       └── ReparationTask.java               # Definido en el plan base; aquí se implementa
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── StartRepairUseCase.java
+│   │   │   │   ├── GetActiveRepairTaskUseCase.java
+│   │   │   │   ├── CompleteRepairUseCase.java
+│   │   │   │   └── ReleaseRepairTaskUseCase.java
+│   │   │   └── out/
+│   │   │       └── ReparationTaskRepositoryPort.java
 │   │   ├── service/
 │   │   │   ├── StartRepairService.java
 │   │   │   ├── ActiveRepairTaskQueryService.java
@@ -360,7 +360,7 @@ backend/src/
 │       │   └── MaintenanceController.java
 │       └── out/persistence/
 │           ├── entity/ReparationTaskJpaEntity.java
-│           └── adapter/JpaReparationTaskRepositoryAdapter.java
+│           └── adapter/ReparationTaskRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `reparation_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/

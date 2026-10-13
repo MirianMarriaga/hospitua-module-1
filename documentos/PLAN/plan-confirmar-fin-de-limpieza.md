@@ -285,12 +285,11 @@ documentos/
 
 ```text
 backend/src/main/java/com/hospitua/habitaciones/
-├── domain/
-│   └── ports/in/
-│       ├── GetActiveCleaningTaskUseCase.java
-│       ├── CompleteCleaningUseCase.java
-│       └── ReleaseCleaningTaskUseCase.java
 ├── application/
+│   ├── ports/in/
+│   │   ├── GetActiveCleaningTaskUseCase.java
+│   │   ├── CompleteCleaningUseCase.java
+│   │   └── ReleaseCleaningTaskUseCase.java
 │   ├── service/
 │   │   ├── ActiveCleaningTaskQueryService.java
 │   │   ├── CompleteCleaningService.java

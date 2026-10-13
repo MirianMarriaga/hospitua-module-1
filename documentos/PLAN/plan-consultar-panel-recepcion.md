@@ -308,20 +308,20 @@ documentos/
 backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
-│   │   ├── model/
-│   │   │   ├── ReceptionDashboardKpis.java
-│   │   │   ├── ArrivalItemSummary.java
-│   │   │   └── DepartureSummary.java
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── GetReceptionPanelUseCase.java
-│   │       │   ├── SearchDailyReservationsUseCase.java   # Definido en plan-consultar-reservas.md; pestaña Llegadas
-│   │       │   └── SearchDeparturesUseCase.java
-│   │       └── out/
-│   │           ├── RoomPersistencePort.java
-│   │           ├── StayPersistencePort.java
-│   │           └── DailyReservationPersistencePort.java # Lectura 100% copia local
+│   │   └── model/
+│   │       ├── ReceptionDashboardKpis.java
+│   │       ├── ArrivalItemSummary.java
+│   │       └── DepartureSummary.java
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── GetReceptionPanelUseCase.java
+│   │   │   │   ├── SearchDailyReservationsUseCase.java   # Definido en plan-consultar-reservas.md; pestaña Llegadas
+│   │   │   │   └── SearchDeparturesUseCase.java
+│   │   │   └── out/
+│   │   │       ├── RoomRepositoryPort.java
+│   │   │       ├── StayRepositoryPort.java
+│   │   │       └── DailyReservationRepositoryPort.java # Lectura 100% copia local
 │   │   ├── service/
 │   │   │   ├── ReceptionPanelQueryService.java       # Consolida los 4 KPIs
 │   │   │   ├── DailyReservationSearchService.java    # Definido en plan-consultar-reservas.md; llegadas (1 fila por habitación)
@@ -340,7 +340,7 @@ backend/src/
 │       │           └── adapter/
 │       │               ├── RoomRepositoryAdapter.java
 │       │               ├── StayRepositoryAdapter.java
-│       │               └── DailyReservationPersistenceAdapter.java
+│       │               └── DailyReservationRepositoryAdapter.java
 frontend/src/
 ├── pages/panel/
 │   ├── ReceptionPanel.tsx
@@ -366,12 +366,12 @@ frontend/src/
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
-- [ ] T005 Implementar en `RoomPersistencePort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
-- [ ] T006 Implementar en `StayPersistencePort` las consultas de búsqueda de salidas activas:
+- [ ] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
+- [ ] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
   - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
-- [ ] T007 Implementar en `DailyReservationPersistencePort` las consultas locales:
+- [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
   - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T019).
   - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`reserva.lista-del-dia` con el `operationalDate` de hoy) (FR-010).

@@ -72,11 +72,10 @@ documentos/
 ```text
 backend/src/
 ├── main/java/com/hospitua/habitaciones/
-│   ├── domain/
-│   │   └── ports/
-│   │       └── in/
-│   │           └── MarkPendingCleaningUseCase.java
 │   └── application/
+│       ├── ports/
+│       │   └── in/
+│       │       └── MarkPendingCleaningUseCase.java
 │       ├── service/
 │       │   └── MarkPendingCleaningService.java
 │       └── dto/

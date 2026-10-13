@@ -241,12 +241,11 @@ documentos/
 
 ```text
 backend/src/main/java/com/hospitua/habitaciones/
-├── domain/
-│   └── ports/in/
-│       ├── MarkRoomAvailableUseCase.java          # Puerto transversal (plan base, T019)
-│       ├── ReactivateRoomUseCase.java
-│       └── GetRoomDecommissionUseCase.java         # Datos de la baja vigente para la confirmación
 ├── application/
+│   ├── ports/in/
+│   │   ├── MarkRoomAvailableUseCase.java          # Puerto transversal (plan base, T019)
+│   │   ├── ReactivateRoomUseCase.java
+│   │   └── GetRoomDecommissionUseCase.java         # Datos de la baja vigente para la confirmación
 │   ├── service/
 │   │   ├── MarkRoomAvailableService.java
 │   │   ├── ReactivateRoomService.java

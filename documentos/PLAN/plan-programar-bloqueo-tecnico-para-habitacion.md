@@ -239,18 +239,18 @@ backend/src/
 │   ├── domain/
 │   │   ├── model/
 │   │   │   └── TechnicalBlockReport.java          # Definido en el plan base; aquí se implementa
-│   │   ├── exception/
-│   │   │   ├── ReservationConflictException.java
-│   │   │   ├── MaintenanceConflictException.java
-│   │   │   └── TechnicalBlockNotFoundException.java # 404 TECHNICAL_BLOCK_NOT_FOUND
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── ScheduleTechnicalBlockUseCase.java
-│   │       │   ├── ApplyScheduledTechnicalBlocksUseCase.java
-│   │       │   └── GetCurrentTechnicalBlockUseCase.java
-│   │       └── out/
-│   │           └── TechnicalBlockReportRepositoryPort.java
+│   │   └── exception/
+│   │       ├── ReservationConflictException.java
+│   │       ├── MaintenanceConflictException.java
+│   │       └── TechnicalBlockNotFoundException.java # 404 TECHNICAL_BLOCK_NOT_FOUND
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── ScheduleTechnicalBlockUseCase.java
+│   │   │   │   ├── ApplyScheduledTechnicalBlocksUseCase.java
+│   │   │   │   └── GetCurrentTechnicalBlockUseCase.java
+│   │   │   └── out/
+│   │   │       └── TechnicalBlockReportRepositoryPort.java
 │   │   ├── service/
 │   │   │   ├── ScheduleTechnicalBlockService.java
 │   │   │   ├── ApplyScheduledTechnicalBlocksService.java
@@ -267,7 +267,7 @@ backend/src/
 │       │   │   └── TechnicalBlockScheduler.java
 │       │   └── out/persistence/
 │       │       ├── entity/TechnicalBlockReportJpaEntity.java
-│       │       └── adapter/JpaTechnicalBlockReportRepositoryAdapter.java
+│       │       └── adapter/TechnicalBlockReportRepositoryAdapter.java
 │       └── config/
 │           └── MaintenanceProperties.java         # Definido en el plan base (T020)
 └── main/resources/db/migration/

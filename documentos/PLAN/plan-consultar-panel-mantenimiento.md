@@ -155,9 +155,9 @@ documentos/
 ```text
 backend/src/
 └── main/java/com/hospitua/habitaciones/
-    ├── domain/ports/in/
-    │   └── GetMaintenancePanelUseCase.java
     ├── application/
+    │   ├── ports/in/
+    │   │   └── GetMaintenancePanelUseCase.java
     │   ├── service/
     │   │   └── MaintenancePanelQueryService.java
     │   └── dto/
@@ -185,7 +185,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan `ReparationTaskRepositoryPort` (`plan-confirmar-reparacion-finalizada.md`, T002), `TechnicalBlockReportRepositoryPort` con `isOverdue(today)` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) y la consulta de habitaciones distintas de `Inactive` en `RoomPersistencePort`.
+- [ ] T001 Verificar que existan `ReparationTaskRepositoryPort` (`plan-confirmar-reparacion-finalizada.md`, T002), `TechnicalBlockReportRepositoryPort` con `isOverdue(today)` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) y la consulta de habitaciones distintas de `Inactive` en `RoomRepositoryPort`.
 - [ ] T002 [P] Implementar `MaintenancePanelDto` (con `summary`) y el puerto `GetMaintenancePanelUseCase`.
 
 ---

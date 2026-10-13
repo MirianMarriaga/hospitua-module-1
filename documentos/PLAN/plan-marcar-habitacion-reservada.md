@@ -112,12 +112,12 @@ documentos/
 backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
-│   │   ├── model/
-│   │   │   ├── ReservationTrigger.java            # Enum: DAILY_LIST, ADDED_UPDATE, CLEANING_END
-│   │   │   └── MarkRoomReservedOutcome.java       # Enum: RESERVED, ALREADY_RESERVED, CONFLICT, ROOM_NOT_FOUND
-│   │   └── ports/in/
-│   │       └── MarkRoomReservedUseCase.java       # Puerto transversal (plan base, T019)
+│   │   └── model/
+│   │       ├── ReservationTrigger.java            # Enum: DAILY_LIST, ADDED_UPDATE, CLEANING_END
+│   │       └── MarkRoomReservedOutcome.java       # Enum: RESERVED, ALREADY_RESERVED, CONFLICT, ROOM_NOT_FOUND
 │   └── application/
+│       ├── ports/in/
+│       │   └── MarkRoomReservedUseCase.java       # Puerto transversal (plan base, T019)
 │       ├── service/
 │       │   └── MarkRoomReservedService.java
 │       └── dto/
@@ -143,7 +143,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) permita `Available` → `Reserved` y ninguna otra transición hacia `Reserved`, y que `SourceFlow` (T020) incluya `MARK_RESERVED`.
-- [ ] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogPort` (plan base, T007 y T017), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
+- [ ] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` (plan base, T007 y T017), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
 - [ ] T003 [P] Crear `ReservationTrigger`, `MarkRoomReservedOutcome`, `MarkRoomReservedCommand`, `MarkRoomReservedResult` y el puerto `MarkRoomReservedUseCase` con el contrato de este plan.
 
 ---

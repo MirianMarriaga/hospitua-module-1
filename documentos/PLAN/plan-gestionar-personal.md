@@ -313,23 +313,23 @@ backend/src/main/
 │   │   ├── model/
 │   │   │   ├── StaffAccount.java                  # Cuenta del personal y sus reglas (usuario, área, activa)
 │   │   │   └── StaffArea.java                     # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO
-│   │   ├── exception/
-│   │   │   ├── UsernameAlreadyExistsException.java    # 409
-│   │   │   ├── StaffAccountNotFoundException.java     # 404
-│   │   │   ├── AccountInactiveException.java          # 409
-│   │   │   ├── CannotDeactivateSelfException.java     # 409
-│   │   │   └── LastAdministratorException.java        # 409
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── RegisterStaffAccountUseCase.java
-│   │       │   ├── ListStaffAccountsUseCase.java
-│   │       │   ├── GetStaffAccountUseCase.java
-│   │       │   ├── EditStaffAccountUseCase.java
-│   │       │   └── DeactivateStaffAccountUseCase.java
-│   │       └── out/
-│   │           ├── StaffAccountRepositoryPort.java
-│   │           └── PasswordEncoderPort.java       # Cifrado de contraseñas; lo usa también LoginService (plan base, T021)
+│   │   └── exception/
+│   │       ├── UsernameAlreadyExistsException.java    # 409
+│   │       ├── StaffAccountNotFoundException.java     # 404
+│   │       ├── AccountInactiveException.java          # 409
+│   │       ├── CannotDeactivateSelfException.java     # 409
+│   │       └── LastAdministratorException.java        # 409
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── RegisterStaffAccountUseCase.java
+│   │   │   │   ├── ListStaffAccountsUseCase.java
+│   │   │   │   ├── GetStaffAccountUseCase.java
+│   │   │   │   ├── EditStaffAccountUseCase.java
+│   │   │   │   └── DeactivateStaffAccountUseCase.java
+│   │   │   └── out/
+│   │   │       ├── StaffAccountRepositoryPort.java
+│   │   │       └── PasswordEncoderPort.java       # Cifrado de contraseñas; lo usa también LoginService (plan base, T021)
 │   │   ├── service/
 │   │   │   ├── RegisterStaffAccountService.java
 │   │   │   ├── StaffAccountQueryService.java      # Listar y obtener
@@ -346,7 +346,7 @@ backend/src/main/
 │       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-011)
 │       │   └── out/
 │       │       ├── persistence/repository/UserAccountJpaRepository.java   # Spring Data sobre UserAccountJpaEntity (plan base)
-│       │       ├── persistence/adapter/JpaStaffAccountAdapter.java
+│       │       ├── persistence/adapter/StaffAccountRepositoryAdapter.java
 │       │       └── security/BCryptPasswordEncoderAdapter.java   # Implementa PasswordEncoderPort con spring-security-crypto
 │       └── config/
 │           └── StaffBootstrapProperties.java      # hospitua.bootstrap.admin.username, password y full-name (variables de entorno)
@@ -378,7 +378,7 @@ frontend/src/
 - [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T021) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
 - [ ] T003 [P] Implementar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
 - [ ] T004 [P] Implementar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter`, y verificar que `LoginService` (plan base, T021) use el mismo puerto.
-- [ ] T005 [P] Implementar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` (Spring Data sobre `UserAccountJpaEntity`) y `JpaStaffAccountAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
+- [ ] T005 [P] Implementar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` (Spring Data sobre `UserAccountJpaEntity`) y `StaffAccountRepositoryAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
 - [ ] T006 [P] Registrar en `GlobalExceptionHandler` `USERNAME_ALREADY_EXISTS`, `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y mapear la violación de la clave primaria de `user_account` a `409 USERNAME_ALREADY_EXISTS`.
 
 ---

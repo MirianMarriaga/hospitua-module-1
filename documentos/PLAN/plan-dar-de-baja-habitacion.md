@@ -172,14 +172,14 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   ├── model/
 │   │   ├── RoomDecommission.java
 │   │   └── DecommissionReason.java                # Enum: PERMANENT_REMODELING, FLOOR_CLOSURE, ADMINISTRATIVE_DECISION, OTHER
-│   ├── exception/
-│   │   └── ReservationConflictException.java      # 409 RESERVATION_CONFLICT (o la de plan-programar-bloqueo-tecnico-para-habitacion.md)
-│   └── ports/
-│       ├── in/
-│       │   └── DecommissionRoomUseCase.java
-│       └── out/
-│           └── RoomDecommissionRepositoryPort.java
+│   └── exception/
+│       └── ReservationConflictException.java      # 409 RESERVATION_CONFLICT (o la de plan-programar-bloqueo-tecnico-para-habitacion.md)
 ├── application/
+│   ├── ports/
+│   │   ├── in/
+│   │   │   └── DecommissionRoomUseCase.java
+│   │   └── out/
+│   │       └── RoomDecommissionRepositoryPort.java
 │   ├── service/
 │   │   └── DecommissionRoomService.java
 │   └── dto/
@@ -190,7 +190,7 @@ backend/src/main/java/com/hospitua/habitaciones/
     │   └── RoomController.java                    # Se agrega POST /api/rooms/{roomId}/decommission
     └── out/persistence/
         ├── entity/RoomDecommissionJpaEntity.java
-        └── adapter/JpaRoomDecommissionAdapter.java
+        └── adapter/RoomDecommissionRepositoryAdapter.java
 frontend/src/
 ├── pages/administracion/
 │   └── DecommissionRoomPage.tsx                   # Pasos: motivo, confirmación, verificación y resultado
@@ -214,7 +214,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T001 Verificar la tabla `room_decommission` en la migración inicial (plan base, T007).
 - [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T026), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
-- [ ] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `JpaRoomDecommissionAdapter` sobre la tabla `room_decommission` del plan base.
+- [ ] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `RoomDecommissionRepositoryAdapter` sobre la tabla `room_decommission` del plan base.
 - [ ] T004 [P] Registrar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations`, reutilizando la excepción de `plan-programar-bloqueo-tecnico-para-habitacion.md` si ya existe.
 
 ---

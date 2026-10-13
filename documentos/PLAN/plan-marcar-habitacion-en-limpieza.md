@@ -135,14 +135,14 @@ documentos/
 backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
-│   │   ├── model/
-│   │   │   └── CleaningTask.java                 # Definido en el plan base; aquí se implementa
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   └── StartCleaningUseCase.java
-│   │       └── out/
-│   │           └── CleaningTaskRepositoryPort.java
+│   │   └── model/
+│   │       └── CleaningTask.java                 # Definido en el plan base; aquí se implementa
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   └── StartCleaningUseCase.java
+│   │   │   └── out/
+│   │   │       └── CleaningTaskRepositoryPort.java
 │   │   ├── service/
 │   │   │   └── StartCleaningService.java
 │   │   └── dto/
@@ -154,7 +154,7 @@ backend/src/
 │           │   └── CleaningController.java
 │           └── out/persistence/
 │               ├── entity/CleaningTaskJpaEntity.java
-│               └── adapter/JpaCleaningTaskRepositoryAdapter.java
+│               └── adapter/CleaningTaskRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `cleaning_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
@@ -175,7 +175,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar que la tabla `cleaning_task` y sus índices únicos parciales existan (plan base, T018) (FR-006, FR-013; regla 9 del plan base).
-- [ ] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `JpaCleaningTaskRepositoryAdapter`, con las consultas "tarea abierta por miembro" y "última tarea cerrada con `outcome` `Completed` o `DamageReported` por habitación".
+- [ ] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`, con las consultas "tarea abierta por miembro" y "última tarea cerrada con `outcome` `Completed` o `DamageReported` por habitación".
 - [ ] T003 [P] Registrar en `GlobalExceptionHandler` los códigos `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `CONCURRENT_UPDATE` y `ROOM_NOT_FOUND`, y mapear las violaciones de los índices únicos y del bloqueo optimista a `409 CONCURRENT_UPDATE` o `ACTIVE_TASK_EXISTS` según el índice.
 
 ---

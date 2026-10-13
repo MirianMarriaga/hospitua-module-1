@@ -157,11 +157,11 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   ├── model/
 │   │   ├── MaintenanceDateRange.java              # Value Object: días evaluados (primer y último día, inclusivos)
 │   │   └── MaintenanceConflict.java               # Value Object: inicio y fin de un cruce
-│   ├── exception/
-│   │   └── InvalidDateRangeException.java         # Con la regla incumplida
-│   └── ports/in/
-│       └── ConsultMaintenanceAvailabilityUseCase.java
+│   └── exception/
+│       └── InvalidDateRangeException.java         # Con la regla incumplida
 ├── application/
+│   ├── ports/in/
+│   │   └── ConsultMaintenanceAvailabilityUseCase.java
 │   ├── service/
 │   │   ├── MaintenanceAvailabilityService.java
 │   │   └── MaintenanceDateRangeValidator.java     # Modos AVAILABILITY (esta consulta) y SCHEDULING (bloqueo técnico)

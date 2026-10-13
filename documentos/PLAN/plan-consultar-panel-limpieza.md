@@ -139,9 +139,9 @@ documentos/
 ```text
 backend/src/
 └── main/java/com/hospitua/habitaciones/
-    ├── domain/ports/in/
-    │   └── GetCleaningPanelUseCase.java
     ├── application/
+    │   ├── ports/in/
+    │   │   └── GetCleaningPanelUseCase.java
     │   ├── service/
     │   │   └── CleaningPanelQueryService.java
     │   └── dto/
@@ -170,7 +170,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan `CleaningTaskRepositoryPort` con sus consultas de tarea abierta y última limpieza (`plan-marcar-habitacion-en-limpieza.md`, T002) y la consulta de habitaciones por estado en `RoomPersistencePort` (plan base).
+- [ ] T001 Verificar que existan `CleaningTaskRepositoryPort` con sus consultas de tarea abierta y última limpieza (`plan-marcar-habitacion-en-limpieza.md`, T002) y la consulta de habitaciones por estado en `RoomRepositoryPort` (plan base).
 - [ ] T002 [P] Implementar `CleaningPanelDto` (con `summary`) y el puerto `GetCleaningPanelUseCase`.
 
 ---

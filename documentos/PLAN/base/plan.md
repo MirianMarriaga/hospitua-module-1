@@ -210,7 +210,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 
 | errorCode | HTTP | Excepción | Dónde se define |
 | --- | --- | --- | --- |
-| `VALIDATION_ERROR` | 400 | `MethodArgumentNotValidException` (cuerpo con `@Valid`, incluidas las restricciones de clase del comando) o `ConstraintViolationException` (parámetros con `@Validated`); un parámetro con tipo inválido (`MethodArgumentTypeMismatchException`) también responde `VALIDATION_ERROR`. `details.field` indica el campo | Spring (Bean Validation) |
+| `VALIDATION_ERROR` | 400 | `MethodArgumentNotValidException` (DTO de request del controlador con `@Valid`, incluidas sus restricciones de clase; regla 1) o `ConstraintViolationException` (parámetros con `@Validated`); un parámetro con tipo inválido (`MethodArgumentTypeMismatchException`) también responde `VALIDATION_ERROR`. `details.field` indica el campo | Spring (Bean Validation) |
 | `INVALID_CREDENTIALS` | 401 | `InvalidCredentialsException` | Solo en `POST /api/auth/login`: usuario inexistente, contraseña incorrecta o cuenta desactivada (`active = false`), con el mismo mensaje para no revelar cuál fue ("Usuario o contraseña incorrectos.") |
 | `CURRENT_USER_REQUIRED` | 400 | `CurrentUserRequiredException` | Una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin el encabezado `X-User`, con un usuario que no existe o con una cuenta desactivada (regla 14). Texto en la interfaz: "Tu sesión terminó. Inicia sesión de nuevo." |
 | `ROOM_NOT_FOUND` | 404 | `RoomNotFoundException` | Plan base (`domain/exception/`) |
@@ -234,6 +234,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 ```text
 documentos/
 ├── contexto/
+│   ├── arquitectura-hexagonal.md     # Capas, puertos, adaptadores y regla de dependencia
 │   ├── diccionario.md
 │   └── hospitua.md
 ├── diagramas/
@@ -311,103 +312,103 @@ backend/
     │   │   │   │   ├── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
     │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (plan-gestionar-personal.md)
     │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (plan-gestionar-personal.md)
-    │   │   │   ├── exception/                                # Excepciones de reglas de negocio
-    │   │   │   │   ├── DomainException.java
-    │   │   │   │   ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
-    │   │   │   │   ├── RoomNotFoundException.java            # Habitación inexistente (404 ROOM_NOT_FOUND)
-    │   │   │   │   ├── RoomNumberAlreadyExistsException.java # Número de habitación repetido (409) (plan-registrar-habitacion.md)
-    │   │   │   │   ├── TaskNotOwnedException.java            # Tarea de otro miembro del personal (403)
-    │   │   │   │   ├── TaskNotFoundException.java            # Tarea inexistente (404)
-    │   │   │   │   ├── TaskAlreadyClosedException.java       # Tarea ya confirmada o liberada (409)
-    │   │   │   │   ├── ActiveTaskExistsException.java        # El miembro ya tiene una tarea abierta (409)
-    │   │   │   │   ├── NoActiveTaskException.java            # El miembro no tiene tarea abierta (404)
-    │   │   │   │   ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
-    │   │   │   │   ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │   │   ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
-    │   │   │   │   ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │   │   ├── ReservationConflictException.java     # 409 RESERVATION_CONFLICT (bloqueo técnico y baja)
-    │   │   │   │   ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
-    │   │   │   │   ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
-    │   │   │   │   ├── ExternalModule2UnavailableException.java # 503 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
-    │   │   │   │   ├── ExternalModule3UnavailableException.java # Módulo 3 no responde (plan-consultar-liquidacion.md)
-    │   │   │   │   ├── GuestCountMismatchException.java      # Huéspedes distintos a los de la reserva (plan-registrar-check-in.md)
-    │   │   │   │   ├── RoomCapacityExceededException.java    # Supera la capacidad máxima (plan-registrar-check-in.md)
-    │   │   │   │   ├── DuplicateGuestDocumentException.java  # Documento repetido entre huéspedes (plan-registrar-check-in.md)
-    │   │   │   │   ├── InvalidCheckInDateException.java      # Check-in fuera de la fecha de la reserva (plan-registrar-check-in.md)
-    │   │   │   │   ├── StayAlreadyExistsException.java       # Ya existe estancia para la reserva y habitación (plan-registrar-check-in.md)
-    │   │   │   │   ├── ActiveStayNotFoundException.java      # Sin estancia activa para el check-out (plan-registrar-check-out.md)
-    │   │   │   │   ├── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
-    │   │   │   │   ├── InvalidCredentialsException.java      # 401 INVALID_CREDENTIALS en el inicio de sesión (regla 14, T021)
-    │   │   │   │   ├── CurrentUserRequiredException.java     # 400 CURRENT_USER_REQUIRED: falta X-User o la cuenta no existe o está desactivada (regla 14, T021)
-    │   │   │   │   ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (plan-gestionar-personal.md)
-    │   │   │   │   ├── StaffAccountNotFoundException.java    # Cuenta inexistente (404) (plan-gestionar-personal.md)
-    │   │   │   │   ├── AccountInactiveException.java         # Cuenta desactivada (409) (plan-gestionar-personal.md)
-    │   │   │   │   ├── CannotDeactivateSelfException.java    # Desactivar la cuenta propia (409) (plan-gestionar-personal.md)
-    │   │   │   │   └── LastAdministratorException.java       # Última cuenta activa de Administración (409) (plan-gestionar-personal.md)
-    │   │   │   └── ports/                                    # CONTRATOS / INTERFACES DE PUERTOS
-    │   │   │       ├── in/                                   # Puertos de Entrada (Casos de Uso primarios)
-    │   │   │       │   ├── LoginUseCase.java                 # Inicio de sesión: identifica al usuario (regla 14)
-    │   │   │       │   ├── GetReceptionPanelUseCase.java     # KPIs del panel de recepción (plan-consultar-panel-recepcion.md)
-    │   │   │       │   ├── SearchDeparturesUseCase.java      # Pestaña Salidas (plan-consultar-panel-recepcion.md)
-    │   │   │       │   ├── IngestDailyReservationsUseCase.java # Ingesta de la cola diaria (plan-consultar-reservas.md)
-    │   │   │       │   ├── SearchDailyReservationsUseCase.java # Pestaña Llegadas (plan-consultar-reservas.md)
-    │   │   │       │   ├── CheckRoomReservationConflictsUseCase.java # Consulta a Módulo 2 para bloqueo técnico y baja (plan-consultar-reservas.md)
-    │   │   │       │   ├── ValidateCheckInReservationUseCase.java # Paso 1 del check-in (plan-registrar-check-in.md)
-    │   │   │       │   ├── RegisterCheckInUseCase.java       # Formalización del check-in (plan-registrar-check-in.md)
-    │   │   │       │   ├── GetActiveStayUseCase.java         # Paso 1 del check-out (plan-registrar-check-out.md)
-    │   │   │       │   ├── RegisterCheckOutUseCase.java      # Formalización del check-out (plan-registrar-check-out.md)
-    │   │   │       │   ├── QuerySettlementUseCase.java       # Liquidación de Módulo 3 (plan-consultar-liquidacion.md)
-    │   │   │       │   ├── GetRoomBaseRateUseCase.java       # Tarifa base para Módulo 3 (plan-consultar-tarifa-base.md)
-    │   │   │       │   ├── TransitionRoomStateUseCase.java   # Transición única de estados con historial (Regla 8)
-    │   │   │       │   ├── MarkRoomAvailableUseCase.java     # Transiciones hacia Available (plan-marcar-habitacion-como-disponible.md)
-    │   │   │       │   ├── MarkRoomReservedUseCase.java      # Available → Reserved (plan-marcar-habitacion-reservada.md)
-    │   │   │       │   ├── MarkPendingCleaningUseCase.java   # Transiciones hacia PendingCleaning (plan-marcar-pendiente-a-limpieza.md)
-    │   │   │       │   ├── GetCleaningPanelUseCase.java      # Panel de limpieza (plan-consultar-panel-limpieza.md)
-    │   │   │       │   ├── StartCleaningUseCase.java         # → InCleaning (plan-marcar-habitacion-en-limpieza.md)
-    │   │   │       │   ├── GetActiveCleaningTaskUseCase.java # Tarea de limpieza activa (plan-confirmar-fin-de-limpieza.md)
-    │   │   │       │   ├── CompleteCleaningUseCase.java      # Confirmar fin de limpieza (plan-confirmar-fin-de-limpieza.md)
-    │   │   │       │   ├── ReleaseCleaningTaskUseCase.java   # Liberar tarea de limpieza (plan-confirmar-fin-de-limpieza.md)
-    │   │   │       │   ├── GetMaintenancePanelUseCase.java   # Panel de mantenimiento (plan-consultar-panel-mantenimiento.md)
-    │   │   │       │   ├── StartRepairUseCase.java           # Iniciar reparaciones (plan-confirmar-reparacion-finalizada.md)
-    │   │   │       │   ├── GetActiveRepairTaskUseCase.java   # Tarea de reparación activa (plan-confirmar-reparacion-finalizada.md)
-    │   │   │       │   ├── CompleteRepairUseCase.java        # Confirmar fin de reparación (plan-confirmar-reparacion-finalizada.md)
-    │   │   │       │   ├── ReleaseRepairTaskUseCase.java     # Liberar tarea de reparación (plan-confirmar-reparacion-finalizada.md)
-    │   │   │       │   ├── ReportDamageUseCase.java          # → DisabledForRepairs (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
-    │   │   │       │   ├── GetLatestDamageReportUseCase.java # "Ver informe" del daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
-    │   │   │       │   ├── ScheduleTechnicalBlockUseCase.java # Programar bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │       │   ├── ApplyScheduledTechnicalBlocksUseCase.java # Trabajo autónomo de las 00:00 (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │       │   ├── GetCurrentTechnicalBlockUseCase.java # "Ver informe" del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │       │   ├── ConsultMaintenanceAvailabilityUseCase.java # Cruces con mantenimientos (plan-consultar-informacion-mantenimientos.md)
-    │   │   │       │   ├── ConsultRoomInventoryUseCase.java  # Inventario de habitaciones (plan-consultar-inventario-habitaciones.md)
-    │   │   │       │   ├── ConsultRoomStateHistoryUseCase.java # Historial de estados (plan-consultar-historial-de-estados.md)
-    │   │   │       │   ├── RegisterRoomUseCase.java          # Registrar habitación (plan-registrar-habitacion.md)
-    │   │   │       │   ├── EditRoomUseCase.java              # Editar habitación (plan-editar-habitacion.md)
-    │   │   │       │   ├── DecommissionRoomUseCase.java      # Dar de baja (plan-dar-de-baja-habitacion.md)
-    │   │   │       │   ├── GetRoomDecommissionUseCase.java   # Datos de la baja vigente (plan-marcar-habitacion-como-disponible.md)
-    │   │   │       │   ├── ReactivateRoomUseCase.java        # Reactivar habitación (plan-marcar-habitacion-como-disponible.md)
-    │   │   │       │   ├── RegisterStaffAccountUseCase.java  # Registrar cuenta (plan-gestionar-personal.md)
-    │   │   │       │   ├── ListStaffAccountsUseCase.java     # Lista del personal (plan-gestionar-personal.md)
-    │   │   │       │   ├── GetStaffAccountUseCase.java       # Una cuenta (plan-gestionar-personal.md)
-    │   │   │       │   ├── EditStaffAccountUseCase.java      # Editar cuenta (plan-gestionar-personal.md)
-    │   │   │       │   └── DeactivateStaffAccountUseCase.java # Desactivar cuenta (plan-gestionar-personal.md)
-    │   │   │       └── out/                                  # Puertos de Salida (Persistencia, Clientes, Mensajería)
-    │   │   │           ├── RoomPersistencePort.java
-    │   │   │           ├── StayPersistencePort.java
-    │   │   │           ├── RoomGuestPersistencePort.java
-    │   │   │           ├── DailyReservationPersistencePort.java # Copia local de las reservas del día
-    │   │   │           ├── RoomStateHistoryPort.java
-    │   │   │           ├── RoomAuditLogPort.java
-    │   │   │           ├── RoomDecommissionRepositoryPort.java
-    │   │   │           ├── CleaningTaskRepositoryPort.java
-    │   │   │           ├── ReparationTaskRepositoryPort.java
-    │   │   │           ├── DamageReportRepositoryPort.java
-    │   │   │           ├── TechnicalBlockReportRepositoryPort.java
-    │   │   │           ├── OutboxEventPublisherPort.java
-    │   │   │           ├── Module2ReservationConflictClientPort.java # Hacia GET /api/reservations de Módulo 2
-    │   │   │           ├── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
-    │   │   │           ├── StaffAccountRepositoryPort.java   # Cuentas del personal (plan-gestionar-personal.md)
-    │   │   │           └── PasswordEncoderPort.java          # Cifrado de contraseñas; también lo usa LoginService (plan-gestionar-personal.md)
+    │   │   │   └── exception/                                # Excepciones de reglas de negocio
+    │   │   │       ├── DomainException.java
+    │   │   │       ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
+    │   │   │       ├── RoomNotFoundException.java            # Habitación inexistente (404 ROOM_NOT_FOUND)
+    │   │   │       ├── RoomNumberAlreadyExistsException.java # Número de habitación repetido (409) (plan-registrar-habitacion.md)
+    │   │   │       ├── TaskNotOwnedException.java            # Tarea de otro miembro del personal (403)
+    │   │   │       ├── TaskNotFoundException.java            # Tarea inexistente (404)
+    │   │   │       ├── TaskAlreadyClosedException.java       # Tarea ya confirmada o liberada (409)
+    │   │   │       ├── ActiveTaskExistsException.java        # El miembro ya tiene una tarea abierta (409)
+    │   │   │       ├── NoActiveTaskException.java            # El miembro no tiene tarea abierta (404)
+    │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
+    │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │       ├── ReservationConflictException.java     # 409 RESERVATION_CONFLICT (bloqueo técnico y baja)
+    │   │   │       ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
+    │   │   │       ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
+    │   │   │       ├── ExternalModule2UnavailableException.java # 503 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
+    │   │   │       ├── ExternalModule3UnavailableException.java # Módulo 3 no responde (plan-consultar-liquidacion.md)
+    │   │   │       ├── GuestCountMismatchException.java      # Huéspedes distintos a los de la reserva (plan-registrar-check-in.md)
+    │   │   │       ├── RoomCapacityExceededException.java    # Supera la capacidad máxima (plan-registrar-check-in.md)
+    │   │   │       ├── DuplicateGuestDocumentException.java  # Documento repetido entre huéspedes (plan-registrar-check-in.md)
+    │   │   │       ├── InvalidCheckInDateException.java      # Check-in fuera de la fecha de la reserva (plan-registrar-check-in.md)
+    │   │   │       ├── StayAlreadyExistsException.java       # Ya existe estancia para la reserva y habitación (plan-registrar-check-in.md)
+    │   │   │       ├── ActiveStayNotFoundException.java      # Sin estancia activa para el check-out (plan-registrar-check-out.md)
+    │   │   │       ├── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
+    │   │   │       ├── InvalidCredentialsException.java      # 401 INVALID_CREDENTIALS en el inicio de sesión (regla 14, T021)
+    │   │   │       ├── CurrentUserRequiredException.java     # 400 CURRENT_USER_REQUIRED: falta X-User o la cuenta no existe o está desactivada (regla 14, T021)
+    │   │   │       ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (plan-gestionar-personal.md)
+    │   │   │       ├── StaffAccountNotFoundException.java    # Cuenta inexistente (404) (plan-gestionar-personal.md)
+    │   │   │       ├── AccountInactiveException.java         # Cuenta desactivada (409) (plan-gestionar-personal.md)
+    │   │   │       ├── CannotDeactivateSelfException.java    # Desactivar la cuenta propia (409) (plan-gestionar-personal.md)
+    │   │   │       └── LastAdministratorException.java       # Última cuenta activa de Administración (409) (plan-gestionar-personal.md)
     │   │   ├── application/                                  # CAPA DE APLICACIÓN (Orquestación de Casos de Uso)
+    │   │   │   ├── ports/                                    # CONTRATOS / INTERFACES DE PUERTOS
+    │   │   │   │   ├── in/                                   # Puertos de Entrada (Casos de Uso primarios)
+    │   │   │   │   │   ├── LoginUseCase.java                 # Inicio de sesión: identifica al usuario (regla 14)
+    │   │   │   │   │   ├── GetReceptionPanelUseCase.java     # KPIs del panel de recepción (plan-consultar-panel-recepcion.md)
+    │   │   │   │   │   ├── SearchDeparturesUseCase.java      # Pestaña Salidas (plan-consultar-panel-recepcion.md)
+    │   │   │   │   │   ├── IngestDailyReservationsUseCase.java # Ingesta de la cola diaria (plan-consultar-reservas.md)
+    │   │   │   │   │   ├── SearchDailyReservationsUseCase.java # Pestaña Llegadas (plan-consultar-reservas.md)
+    │   │   │   │   │   ├── CheckRoomReservationConflictsUseCase.java # Consulta a Módulo 2 para bloqueo técnico y baja (plan-consultar-reservas.md)
+    │   │   │   │   │   ├── ValidateCheckInReservationUseCase.java # Paso 1 del check-in (plan-registrar-check-in.md)
+    │   │   │   │   │   ├── RegisterCheckInUseCase.java       # Formalización del check-in (plan-registrar-check-in.md)
+    │   │   │   │   │   ├── GetActiveStayUseCase.java         # Paso 1 del check-out (plan-registrar-check-out.md)
+    │   │   │   │   │   ├── RegisterCheckOutUseCase.java      # Formalización del check-out (plan-registrar-check-out.md)
+    │   │   │   │   │   ├── QuerySettlementUseCase.java       # Liquidación de Módulo 3 (plan-consultar-liquidacion.md)
+    │   │   │   │   │   ├── GetRoomBaseRateUseCase.java       # Tarifa base para Módulo 3 (plan-consultar-tarifa-base.md)
+    │   │   │   │   │   ├── TransitionRoomStateUseCase.java   # Transición única de estados con historial (Regla 8)
+    │   │   │   │   │   ├── MarkRoomAvailableUseCase.java     # Transiciones hacia Available (plan-marcar-habitacion-como-disponible.md)
+    │   │   │   │   │   ├── MarkRoomReservedUseCase.java      # Available → Reserved (plan-marcar-habitacion-reservada.md)
+    │   │   │   │   │   ├── MarkPendingCleaningUseCase.java   # Transiciones hacia PendingCleaning (plan-marcar-pendiente-a-limpieza.md)
+    │   │   │   │   │   ├── GetCleaningPanelUseCase.java      # Panel de limpieza (plan-consultar-panel-limpieza.md)
+    │   │   │   │   │   ├── StartCleaningUseCase.java         # → InCleaning (plan-marcar-habitacion-en-limpieza.md)
+    │   │   │   │   │   ├── GetActiveCleaningTaskUseCase.java # Tarea de limpieza activa (plan-confirmar-fin-de-limpieza.md)
+    │   │   │   │   │   ├── CompleteCleaningUseCase.java      # Confirmar fin de limpieza (plan-confirmar-fin-de-limpieza.md)
+    │   │   │   │   │   ├── ReleaseCleaningTaskUseCase.java   # Liberar tarea de limpieza (plan-confirmar-fin-de-limpieza.md)
+    │   │   │   │   │   ├── GetMaintenancePanelUseCase.java   # Panel de mantenimiento (plan-consultar-panel-mantenimiento.md)
+    │   │   │   │   │   ├── StartRepairUseCase.java           # Iniciar reparaciones (plan-confirmar-reparacion-finalizada.md)
+    │   │   │   │   │   ├── GetActiveRepairTaskUseCase.java   # Tarea de reparación activa (plan-confirmar-reparacion-finalizada.md)
+    │   │   │   │   │   ├── CompleteRepairUseCase.java        # Confirmar fin de reparación (plan-confirmar-reparacion-finalizada.md)
+    │   │   │   │   │   ├── ReleaseRepairTaskUseCase.java     # Liberar tarea de reparación (plan-confirmar-reparacion-finalizada.md)
+    │   │   │   │   │   ├── ReportDamageUseCase.java          # → DisabledForRepairs (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │   │   │   ├── GetLatestDamageReportUseCase.java # "Ver informe" del daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │   │   │   ├── ScheduleTechnicalBlockUseCase.java # Programar bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │   │   │   ├── ApplyScheduledTechnicalBlocksUseCase.java # Trabajo autónomo de las 00:00 (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │   │   │   ├── GetCurrentTechnicalBlockUseCase.java # "Ver informe" del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │   │   │   ├── ConsultMaintenanceAvailabilityUseCase.java # Cruces con mantenimientos (plan-consultar-informacion-mantenimientos.md)
+    │   │   │   │   │   ├── ConsultRoomInventoryUseCase.java  # Inventario de habitaciones (plan-consultar-inventario-habitaciones.md)
+    │   │   │   │   │   ├── ConsultRoomStateHistoryUseCase.java # Historial de estados (plan-consultar-historial-de-estados.md)
+    │   │   │   │   │   ├── RegisterRoomUseCase.java          # Registrar habitación (plan-registrar-habitacion.md)
+    │   │   │   │   │   ├── EditRoomUseCase.java              # Editar habitación (plan-editar-habitacion.md)
+    │   │   │   │   │   ├── DecommissionRoomUseCase.java      # Dar de baja (plan-dar-de-baja-habitacion.md)
+    │   │   │   │   │   ├── GetRoomDecommissionUseCase.java   # Datos de la baja vigente (plan-marcar-habitacion-como-disponible.md)
+    │   │   │   │   │   ├── ReactivateRoomUseCase.java        # Reactivar habitación (plan-marcar-habitacion-como-disponible.md)
+    │   │   │   │   │   ├── RegisterStaffAccountUseCase.java  # Registrar cuenta (plan-gestionar-personal.md)
+    │   │   │   │   │   ├── ListStaffAccountsUseCase.java     # Lista del personal (plan-gestionar-personal.md)
+    │   │   │   │   │   ├── GetStaffAccountUseCase.java       # Una cuenta (plan-gestionar-personal.md)
+    │   │   │   │   │   ├── EditStaffAccountUseCase.java      # Editar cuenta (plan-gestionar-personal.md)
+    │   │   │   │   │   └── DeactivateStaffAccountUseCase.java # Desactivar cuenta (plan-gestionar-personal.md)
+    │   │   │   │   └── out/                                  # Puertos de Salida (Persistencia, Clientes, Mensajería)
+    │   │   │   │       ├── RoomRepositoryPort.java
+    │   │   │   │       ├── StayRepositoryPort.java
+    │   │   │   │       ├── RoomGuestRepositoryPort.java
+    │   │   │   │       ├── DailyReservationRepositoryPort.java # Copia local de las reservas del día
+    │   │   │   │       ├── RoomStateHistoryRepositoryPort.java
+    │   │   │   │       ├── RoomAuditLogRepositoryPort.java
+    │   │   │   │       ├── RoomDecommissionRepositoryPort.java
+    │   │   │   │       ├── CleaningTaskRepositoryPort.java
+    │   │   │   │       ├── ReparationTaskRepositoryPort.java
+    │   │   │   │       ├── DamageReportRepositoryPort.java
+    │   │   │   │       ├── TechnicalBlockReportRepositoryPort.java
+    │   │   │   │       ├── OutboxEventPublisherPort.java
+    │   │   │   │       ├── Module2ReservationConflictClientPort.java # Hacia GET /api/reservations de Módulo 2
+    │   │   │   │       ├── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
+    │   │   │   │       ├── StaffAccountRepositoryPort.java   # Cuentas del personal (plan-gestionar-personal.md)
+    │   │   │   │       └── PasswordEncoderPort.java          # Cifrado de contraseñas; también lo usa LoginService (plan-gestionar-personal.md)
     │   │   │   ├── service/                                  # Implementaciones de Puertos de Entrada
     │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña con StaffAccountRepositoryPort y PasswordEncoderPort
     │   │   │   │   ├── ReceptionPanelQueryService.java       # KPIs del panel de recepción
@@ -457,7 +458,7 @@ backend/
     │   │   │   │   └── DeactivateStaffAccountService.java
     │   │   │   ├── event/                                    # Eventos de aplicación (Spring) internos de Módulo 1
     │   │   │   │   └── DailyReservationListIngestedEvent.java # Fin de la ingesta de las 00:00 (Regla 10)
-    │   │   │   └── dto/                                      # DTOs de comando y consulta de la capa de aplicación
+    │   │   │   └── dto/                                      # DTOs de comando y consulta de la capa de aplicación, sin anotaciones
     │   │   │       ├── ReceptionDashboardKpisDto.java        # Panel de recepción
     │   │   │       ├── ArrivalItemSummaryDto.java
     │   │   │       ├── DepartureSummaryDto.java
@@ -535,6 +536,7 @@ backend/
     │   │       │   │   │   ├── MaintenanceController.java    # /api/maintenance/...
     │   │       │   │   │   ├── DamageReportController.java   # /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   ├── TechnicalBlockController.java # /api/rooms/{roomId}/technical-blocks
+    │   │       │   │   │   ├── dto/                          # DTOs de request con Bean Validation; el controlador los convierte en comandos (regla 1)
     │   │       │   │   │   └── GlobalExceptionHandler.java   # Mapeo a ApiError
     │   │       │   │   ├── amqp/                             # Consumidores de RabbitMQ
     │   │       │   │   │   └── DailyReservationRabbitListener.java # Listener de m1.reservas.diarias.queue
@@ -567,17 +569,17 @@ backend/
     │   │       │       │   │   └── UserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (plan-gestionar-personal.md)
     │   │       │       │   ├── mapper/                       # Mappers Dominio <-> JPA Entity
     │   │       │       │   └── adapter/                      # Implementaciones de puertos de persistencia
-    │   │       │       │       ├── RoomRepositoryAdapter.java # Implementa RoomPersistencePort
-    │   │       │       │       ├── StayRepositoryAdapter.java # Implementa StayPersistencePort
-    │   │       │       │       ├── RoomGuestRepositoryAdapter.java # Implementa RoomGuestPersistencePort
-    │   │       │       │       ├── DailyReservationPersistenceAdapter.java # Implementa DailyReservationPersistencePort
-    │   │       │       │       ├── JpaRoomDecommissionAdapter.java # Implementa RoomDecommissionRepositoryPort
-    │   │       │       │       ├── JpaCleaningTaskRepositoryAdapter.java # Implementa CleaningTaskRepositoryPort
-    │   │       │       │       ├── JpaReparationTaskRepositoryAdapter.java # Implementa ReparationTaskRepositoryPort
-    │   │       │       │       ├── JpaDamageReportRepositoryAdapter.java # Implementa DamageReportRepositoryPort
-    │   │       │       │       ├── JpaTechnicalBlockReportRepositoryAdapter.java # Implementa TechnicalBlockReportRepositoryPort
+    │   │       │       │       ├── RoomRepositoryAdapter.java # Implementa RoomRepositoryPort
+    │   │       │       │       ├── StayRepositoryAdapter.java # Implementa StayRepositoryPort
+    │   │       │       │       ├── RoomGuestRepositoryAdapter.java # Implementa RoomGuestRepositoryPort
+    │   │       │       │       ├── DailyReservationRepositoryAdapter.java # Implementa DailyReservationRepositoryPort
+    │   │       │       │       ├── RoomDecommissionRepositoryAdapter.java # Implementa RoomDecommissionRepositoryPort
+    │   │       │       │       ├── CleaningTaskRepositoryAdapter.java # Implementa CleaningTaskRepositoryPort
+    │   │       │       │       ├── ReparationTaskRepositoryAdapter.java # Implementa ReparationTaskRepositoryPort
+    │   │       │       │       ├── DamageReportRepositoryAdapter.java # Implementa DamageReportRepositoryPort
+    │   │       │       │       ├── TechnicalBlockReportRepositoryAdapter.java # Implementa TechnicalBlockReportRepositoryPort
     │   │       │       │       ├── OutboxNotificationRepositoryAdapter.java # Implementa OutboxEventPublisherPort (encola en outbox_notification)
-    │   │       │       │       └── JpaStaffAccountAdapter.java # Implementa StaffAccountRepositoryPort (plan-gestionar-personal.md)
+    │   │       │       │       └── StaffAccountRepositoryAdapter.java # Implementa StaffAccountRepositoryPort (plan-gestionar-personal.md)
     │   │       │       ├── rest/                             # Clientes HTTP hacia otros módulos
     │   │       │       │   ├── Module2ReservationConflictRestAdapter.java # Implementa Module2ReservationConflictClientPort
     │   │       │       │   ├── Module2Properties.java        # URL y timeouts hacia Módulo 2
@@ -916,7 +918,12 @@ erDiagram
 
 ### Reglas Transversales de Arquitectura
 
-1. **Aislamiento de Dominio**: El dominio no depende de ningún framework ni biblioteca externa (Spring, Hibernate, etc.). Todo acceso a infraestructura se realiza mediante interfaces de puertos.
+1. **Regla de dependencia** ([arquitectura-hexagonal.md](../../contexto/arquitectura-hexagonal.md)): las dependencias apuntan siempre hacia el centro, `infrastructure/` → `application/` → `domain/`. Todo acceso a infraestructura se realiza mediante interfaces de puertos.
+   - **`domain/`** (`model/`, `exception/`): no depende de ningún framework ni biblioteca externa (Spring, Hibernate, Jakarta Validation, etc.) ni de las otras capas.
+   - **`application/`**: contiene los puertos (`ports/in/` y `ports/out/`), los servicios que implementan los puertos de entrada, los comandos y DTOs, y los eventos internos. Solo depende de `domain/`. Por decisión del equipo, se permiten estas anotaciones de Spring y ninguna otra: `@Service` para registrar los servicios, `@Transactional` (reglas 3 y 8, incluida `Propagation.MANDATORY`) y los eventos de aplicación de Spring (`ApplicationEventPublisher`, regla 10). No usa anotaciones de JPA, Jackson, web ni Bean Validation.
+   - **Validación de entrada**: los comandos y DTOs de `application/dto/` no llevan anotaciones. El controlador recibe un DTO de request de `infrastructure/adapters/in/web/dto/` con las restricciones de Bean Validation (incluidas las de clase), lo valida con `@Valid` y lo convierte en el comando. Las reglas de negocio (máquina de estados, aforo, fechas) se validan en el dominio y en los servicios.
+   - **`infrastructure/`**: implementa los puertos con adaptadores y es la única capa que conoce Spring Web, JPA, AMQP y los clientes REST.
+   - **Nombres**: los puertos de entrada terminan en `UseCase`. Los puertos de salida de persistencia terminan en `RepositoryPort` y los implementa un `RepositoryAdapter` del mismo nombre (`RoomRepositoryPort` → `RoomRepositoryAdapter`). Los demás puertos de salida se nombran por su función (`Module2ReservationConflictClientPort`, `SettlementRestQueryPort`, `OutboxEventPublisherPort`, `PasswordEncoderPort`).
 2. **Máquina de estados inquebrantable**: Todo cambio de estado en `Room.status` debe ejecutarse a través de un único método centralizado en el dominio (`Room.transitionTo(targetStatus)`) que valida la matriz de transiciones permitidas según `maquina-estados-habitacion.md`. Cualquier intento inválido arroja de inmediato una excepción de negocio que se traduce en HTTP 409 Conflict.
 3. **Atomismo físico**: La creación de `Stay`, el registro de `RoomGuest`, el cambio de `Room.status` a `Occupied` y la inserción del evento en `outbox_notification` ocurren en una **única transacción `@Transactional`** local.
 4. **Inmutabilidad de ocupantes**: La entidad `RoomGuest` no expone operaciones de actualización (`UPDATE`) en repositorios o APIs; una vez formalizado el Check-In, el registro queda sellado para auditoría y reportes migratorios.
@@ -976,7 +983,7 @@ erDiagram
 **CRÍTICO**: Ningún plan de feature puede comenzar su implementación hasta completar satisfactoriamente esta fase base.
 
 - [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `room_audit_log`, `room_decommission`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`), y la semilla `V2__seed_rooms.sql` con las habitaciones de prueba y el periodo inicial de cada una en `room_state_history` (`REGISTER_ROOM`, actor nulo), para que *Consultar historial de estados* las muestre desde el inicio
-- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomPersistencePort`, `StayPersistencePort`, `RoomGuestPersistencePort`, `DailyReservationPersistencePort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/adapter/`
+- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`, `DailyReservationRepositoryPort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/adapter/`
 - [ ] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`
 - [ ] T010 Implementar el servicio de validación de máquina de estados habitacional (`RoomStateTransitionService` implementando `TransitionRoomStateUseCase`) garantizando el cumplimiento estricto de los 8 estados canónicos, con la operación `registerInitialStatus` para el primer periodo de una habitación nueva (Regla 8)
 - [ ] T011 Configurar RabbitMQ: Exchange `hospitua.events`, colas de salida planas (`m2.habitacion.checkin.queue`, `m2.habitacion.checkout.queue` con `guests[]`), cola de entrada `m1.reservas.diarias.queue` con bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`, sin colas separadas de extranjeros, Dead-Letter Exchange (DLX) con la cola de mensajes fallidos `m1.reservas.diarias.dlq` para los mensajes ilegibles o que agotan sus reintentos (`spec-consultar-reservas.md`, FR-003), y serializador JSON en `config/RabbitConfig`
@@ -988,7 +995,7 @@ erDiagram
 - [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
 - [ ] T015 [eliminada: la seguridad no es responsabilidad de esta etapa; la identificación del usuario la cubren T021 y T022]
 - [ ] T016 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
-- [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
+- [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryRepositoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogRepositoryPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [ ] T018 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9). Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
 - [ ] T019 Implementar los puertos transversales `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`) y `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`), según sus specs, sobre `TransitionRoomStateUseCase`. Los usan la ingesta de reservas y *Confirmar fin de limpieza*
 - [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365)
