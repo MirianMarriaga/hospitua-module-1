@@ -386,7 +386,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 
 - [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T018) (FR-012).
 - [ ] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA, con el cierre que falla si la tarea ya está cerrada (FR-010, FR-019).
-- [ ] T003 [P] Registrar en `GlobalExceptionHandler` el código `ROOM_TASK_EXISTS` y mapear cada índice único a `ROOM_TASK_EXISTS` o `ACTIVE_TASK_EXISTS`.
+- [ ] T003 [P] Verificar en `GlobalExceptionHandler` los códigos comunes `ROOM_TASK_EXISTS` y `ACTIVE_TASK_EXISTS` (catálogo del plan base, T020) y mapear los índices únicos de `reparation_task`: el de la habitación a `ROOM_TASK_EXISTS` y el del miembro a `ACTIVE_TASK_EXISTS`.
 
 ---
 
@@ -460,8 +460,8 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 - **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020) y el layout de mantenimiento (T016).
 - **Planes de los que depende**:
-  - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones.
+  - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones. Ese plan necesita la Phase 2 de este (T002); su Phase 3 va antes de la Phase 3 de este plan.
   - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase`.
   - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: tabla `damage_report`.
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: `TechnicalBlockReport` (este plan lo marca como `Completed` sobre la tabla del plan base).
-- **Orden**: Phase 2 → Phase 3 (HU-2) → Phase 4 (HU-1) → Phase 5.
+- **Orden**: Phase 2 → (`plan-consultar-panel-mantenimiento.md`) → Phase 3 (HU-2) → Phase 4 (HU-1) → Phase 5.

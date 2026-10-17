@@ -301,7 +301,7 @@ No aplica: usa la infraestructura del plan base.
 
 - **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `damage_report` (T018), `SourceFlow` (T020) y `ClockConfig`.
 - **Planes relacionados**:
-  - `plan-marcar-habitacion-en-limpieza.md`: panel de limpieza con el botón "Reportar daño".
+  - `plan-consultar-panel-limpieza.md`: panel de limpieza con el botón "Reportar daño".
   - `plan-confirmar-fin-de-limpieza.md`: invoca `ReportDamageUseCase` en el fin de limpieza con daño.
-  - `plan-confirmar-reparacion-finalizada.md`: panel de mantenimiento, que usa `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx`.
+  - `plan-consultar-panel-mantenimiento.md`: panel de mantenimiento, que usa `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx`.
 - **Orden**: Phase 2 → Phase 3 → Phase 4. Su Phase 2 debe estar lista antes del camino con daño de `plan-confirmar-fin-de-limpieza.md`.

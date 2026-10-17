@@ -35,6 +35,7 @@ Responsabilidades:
 - **Constraints**:
   - Consulta estricta de solo lectura: sin modificación de atributos ni de estados en `Room`.
   - Tarifa base con hasta dos decimales (`BigDecimal`).
+  - Responde en cualquiera de los 8 estados, incluido `Inactive`: toda habitación tiene tarifa base porque es obligatoria al registrarla. A diferencia de `GET /api/rooms/{roomId}` (Módulo 2), que oculta las `Inactive` porque no son vendibles, este endpoint no las excluye; Módulo 3 no tiene casos en que deba consultar una habitación `Inactive`.
 
 ---
 
@@ -163,7 +164,7 @@ backend/src/
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar la configuración del repositorio `RoomRepositoryPort` en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Asegurar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`).
+- [ ] T002 Verificar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`) (catálogo del plan base, T009).
 
 ---
 

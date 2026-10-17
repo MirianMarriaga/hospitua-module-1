@@ -118,6 +118,7 @@ Accept: application/json
 | `START_IN_PAST` | *Programar Bloqueo Técnico para Habitación* | "La fecha de inicio no puede ser anterior a hoy." |
 | `RANGE_TOO_LONG` | *Programar Bloqueo Técnico para Habitación* | "El mantenimiento no puede durar más de {max-range-days} días." |
 | `START_TOO_FAR` | *Programar Bloqueo Técnico para Habitación* | "Solo se puede programar con hasta {max-advance-days} días de anticipación." |
+| `FROM_AFTER_TO` | *Consultar historial de estados* | "La fecha \"Desde\" no puede ser posterior a \"Hasta\"." |
 
 Los valores entre llaves salen de `MaintenanceProperties` (90 y 365 días por defecto).
 
@@ -177,13 +178,16 @@ backend/src/main/java/com/hospitua/habitaciones/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Implementar los dos modos de `MaintenanceDateRangeValidator`: `AVAILABILITY` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `SCHEDULING` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceProperties`, plan base T020) (FR-007, FR-008).
+- [ ] T001 [movida a la Phase 2, después de T002, porque usa `InvalidDateRangeException`: ver T002a]
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 Implementar `MaintenanceDateRange`, `MaintenanceConflict` e `InvalidDateRangeException` (con `rule`: `INVALID_DATE`, `END_BEFORE_START`, `RANGE_IN_PAST`, `START_IN_PAST`, `RANGE_TOO_LONG`, `START_TOO_FAR`) con `Clock` (FR-005 a FR-008).
+**Requisito previo**: la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003: `TechnicalBlockReport` con `isOverdue(today)` y `TechnicalBlockReportRepositoryPort`), que usan T003 y T012 de este plan.
+
+- [ ] T002 Implementar `MaintenanceDateRange`, `MaintenanceConflict` e `InvalidDateRangeException` (con `rule`: `INVALID_DATE`, `END_BEFORE_START`, `RANGE_IN_PAST`, `START_IN_PAST`, `RANGE_TOO_LONG`, `START_TOO_FAR`, `FROM_AFTER_TO`) con `Clock` (FR-005 a FR-008). `FROM_AFTER_TO` la usa *Consultar historial de estados*.
+- [ ] T002a Implementar los dos modos de `MaintenanceDateRangeValidator`: `AVAILABILITY` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `SCHEDULING` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceProperties`, plan base T020) (FR-007, FR-008).
 - [ ] T003 [P] Agregar a `TechnicalBlockReportRepositoryPort` la consulta de cruces: informes `Scheduled` o `Applied` de la habitación con `technical_block_start_date <= lastDay` y `estimated_technical_block_end_date >= firstDay`, devolviendo sus dos fechas ordenadas por inicio, y la consulta del informe `Applied` vigente de la habitación (FR-010, FR-014).
 - [ ] T004 [eliminada: la seguridad no es responsabilidad de esta etapa]
 
@@ -226,8 +230,8 @@ backend/src/main/java/com/hospitua/habitaciones/
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `technical_block_report` (T018), `MaintenanceProperties` (T020), `GlobalExceptionHandler` y `ClockConfig`.
+- **Foundational**: Requiere del plan base la tabla `technical_block_report` (T018), `MaintenanceProperties` (T020), `GlobalExceptionHandler` y `ClockConfig`, y la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003).
 - **Planes relacionados**:
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: consume `ConsultMaintenanceAvailabilityUseCase` (días inclusivos) y `MaintenanceDateRangeValidator` en modo `SCHEDULING`.
-  - `plan-confirmar-reparacion-finalizada.md`: marca en el panel de mantenimiento los bloqueos `Applied` vencidos, que esta consulta ya no reporta como cruce para fechas futuras.
-- **Orden**: Phases 1 a 3 de este plan antes de la Phase 3 de `plan-programar-bloqueo-tecnico-para-habitacion.md`.
+  - `plan-consultar-panel-mantenimiento.md`: marca en el panel de mantenimiento los bloqueos `Applied` vencidos, que esta consulta ya no reporta como cruce para fechas futuras.
+- **Orden**: Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` → Phases 2 y 3 de este plan → Phase 3 de `plan-programar-bloqueo-tecnico-para-habitacion.md`.

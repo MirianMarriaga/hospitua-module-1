@@ -179,7 +179,7 @@ frontend/src/
     └── roomService.ts                             # Se agrega registerRoom()
 ```
 
-**Structure Decision**: El servicio no escribe en `room_state_history` directamente: abre el primer periodo con el componente transversal del historial (regla 8 del plan base), al que este plan agrega la operación de periodo inicial (T001). `RegisterRoomCommand` contiene `roomNumber`, `floor`, `categoryRoom`, `maxCapacity`, `baseRate` y `administratorId` (usuario actual).
+**Structure Decision**: El servicio no escribe en `room_state_history` directamente: abre el primer periodo con la operación `registerInitialStatus` del componente transversal del historial (regla 8 del plan base, T010). `RegisterRoomCommand` contiene `roomNumber`, `floor`, `categoryRoom`, `maxCapacity`, `baseRate` y `administratorId` (usuario actual).
 
 ---
 
@@ -191,7 +191,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Implementar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` definida en la regla 8 del plan base (T010 y T017): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
+- [ ] T001 Verificar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` (regla 8 del plan base, T010 y T017): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
 - [ ] T002 [P] Implementar `RoomCategory` y registrar en `GlobalExceptionHandler` `RoomNumberAlreadyExistsException` (`409 ROOM_NUMBER_ALREADY_EXISTS`), mapeando también la violación del índice único de `room.room_number`.
 
 ---

@@ -11,7 +11,7 @@ Implementar el caso de uso **Marcar Habitación como Disponible**, que centraliz
 
 1. **Reactivación directa del Administrador** (FR-002, FR-009, FR-010): desde la acción "Marcar como disponible" de una habitación `Inactive` en el inventario, el Administrador confirma la reactivación viendo la fecha, el motivo y el detalle de la baja; la habitación pasa de `Inactive` a `Available`. Es el único flujo con endpoints propios.
 2. **Fin de limpieza** (FR-003): *Confirmar fin de limpieza* invoca el puerto para pasar de `InCleaning` a `Available`. En la misma transacción, ese flujo continúa a `Reserved` (*Marcar habitación como reservada*) o a `DisabledForRepairs` (si se reportó un daño); este plan no decide esa continuación (FR-004).
-3. **Liberación de una reserva** (FR-004): la ingesta de reservas (*Consultar reservas*, FR-009) invoca el puerto para pasar de `Reserved` a `Available` cuando la reserva se retira (`REMOVED`, que incluye el no-show que decide Módulo 2), cuando un `UPDATED` quita la habitación o cuando la reserva no figura en la lista de las 00:00. Limpia `reserved_by_reservation_ref`.
+3. **Liberación de una reserva** (FR-004): la ingesta de reservas (*Consultar reservas*, FR-009) invoca el puerto para pasar de `Reserved` a `Available` cuando la reserva se retira (`REMOVED`, que incluye el no-show que decide Módulo 2), cuando un `UPDATED` quita la habitación o cuando la reserva no figura en la lista de las 00:00. `reserved_by_reservation_ref` lo limpia `Room.transitionTo()` al salir de `Reserved` (regla 2 del plan base).
 
 La trazabilidad de los tres flujos es el periodo en `room_state_history` (FR-008, FR-011), que registra `TransitionRoomStateUseCase` una sola vez con el `sourceFlow` del invocador. No se registra en `room_audit_log`: esa tabla es para eventos que no son transiciones o que necesitan datos que `room_state_history` no guarda, y el periodo ya guarda el actor, el flujo y la hora que pide FR-008.
 
@@ -265,7 +265,7 @@ frontend/src/
     └── roomService.ts                             # Se agregan getDecommission() y reactivateRoom()
 ```
 
-**Structure Decision**: `MarkRoomAvailableService` valida el origen, delega la transición y el periodo del historial en `TransitionRoomStateUseCase` (regla 8 del plan base) sin escribir en `room_audit_log`. En la liberación, además limpia `reserved_by_reservation_ref`. `ReactivateRoomService` agrega lo propio de la reactivación: la idempotencia por `decommissionId` y la marca de reversión en `room_decommission`.
+**Structure Decision**: `MarkRoomAvailableService` valida el origen, delega la transición y el periodo del historial en `TransitionRoomStateUseCase` (regla 8 del plan base) sin escribir en `room_audit_log`. En la liberación, `reserved_by_reservation_ref` lo limpia `Room.transitionTo()` (regla 2 del plan base). `ReactivateRoomService` agrega lo propio de la reactivación: la idempotencia por `decommissionId` y la marca de reversión en `room_decommission`.
 
 ---
 
@@ -307,7 +307,7 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T010 [US1] Implementar `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-001, FR-004 a FR-006, FR-008, FR-011):
   - Validar el origen según `sourceFlow` y los datos del comando: `MARK_AVAILABLE` acepta `Inactive` con `actorId`, o `Reserved` con `reservationRef` igual a `reserved_by_reservation_ref`; `CONFIRM_CLEANING_END` acepta solo `InCleaning`.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
-  - En la liberación, limpiar `reserved_by_reservation_ref`.
+  - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
 - [ ] T011 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
 - [ ] T012 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
@@ -336,7 +336,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T013 ya invoca este puerto; T012 todavía describe "transiciones automáticas" sin nombrarlo, aunque *Consultar reservas* FR-009 exige invocar este caso de uso.
+- [ ] T019 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
 La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la decide *Confirmar fin de limpieza* después de este puerto; sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
 

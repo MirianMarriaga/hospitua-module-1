@@ -240,7 +240,7 @@ backend/src/
 │   │   ├── model/
 │   │   │   └── TechnicalBlockReport.java          # Definido en el plan base; aquí se implementa
 │   │   └── exception/
-│   │       ├── ReservationConflictException.java
+│   │       ├── ReservationConflictException.java   # Definida en plan-consultar-reservas.md (T028); aquí se reutiliza
 │   │       ├── MaintenanceConflictException.java
 │   │       └── TechnicalBlockNotFoundException.java # 404 TECHNICAL_BLOCK_NOT_FOUND
 │   ├── application/
@@ -280,7 +280,7 @@ frontend/src/
     └── technicalBlockService.ts
 ```
 
-**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T025) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos en modo `SCHEDULING` (rechaza inicios anteriores a hoy y aplica los límites de 90 y 365 días, que la consulta para Módulo 2 no aplica). El puerto se llama con días inclusivos: el inicio y el fin estimado del mantenimiento (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base). `ScheduleTechnicalBlockCommand` contiene `roomId`, `memberId` (usuario actual), `reason`, `startDate` y `estimatedEndDate`.
+**Structure Decision**: La consulta de reservas reutiliza `CheckRoomReservationConflictsUseCase.checkMaintenanceConflict` (`plan-consultar-reservas.md`, T026) y la de mantenimientos reutiliza `ConsultMaintenanceAvailabilityUseCase` y su validador de rangos en modo `SCHEDULING` (rechaza inicios anteriores a hoy y aplica los límites de 90 y 365 días, que la consulta para Módulo 2 no aplica). El puerto se llama con días inclusivos: el inicio y el fin estimado del mantenimiento (`plan-consultar-informacion-mantenimientos.md`). El trabajo autónomo se dispara con el evento que publica la ingesta de la lista diaria (regla 10 del plan base). `ScheduleTechnicalBlockCommand` contiene `roomId`, `memberId` (usuario actual), `reason`, `startDate` y `estimatedEndDate`.
 
 ---
 
@@ -294,7 +294,7 @@ frontend/src/
 
 - [ ] T002 Verificar que la tabla `technical_block_report` y su índice por `(room_id, status)` existan (plan base, T018) (FR-009).
 - [ ] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`, sin edición de campos, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA, `TechnicalBlockReportRepositoryPort` y su adaptador (FR-019).
-- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `INVALID_DATE_RANGE`, `RESERVATION_CONFLICT`, `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`).
+- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`), y verificar `INVALID_DATE_RANGE` (`plan-consultar-informacion-mantenimientos.md`, T002) y `RESERVATION_CONFLICT` (`plan-consultar-reservas.md`, T028).
 - [ ] T005 Verificar que la ingesta de la lista diaria publique `DailyReservationListIngestedEvent` (regla 10 del plan base).
 
 ---
@@ -330,8 +330,8 @@ frontend/src/
   - Consultar reservas con `checkMaintenanceConflict` (rechazar si devuelve alguna reserva) y mantenimientos con `ConsultMaintenanceAvailabilityUseCase` (rechazar si `available = false`, pasando sus `conflicts` al error).
   - Crear el informe en `Scheduled` con `reportDateTime` de `Clock` y el miembro que lo programa (usuario actual).
   - Si `startDate` es hoy: `TransitionRoomStateUseCase.transition(roomId, TechnicalBlock, miembro, TECHNICAL_BLOCK, null)` (registra el periodo) e informe `Applied`.
-- [ ] T020 [US1] Implementar `ApplyScheduledTechnicalBlocksService` (`@Transactional` por informe): recorrer los informes `Scheduled`; aplicar los que contienen hoy si la habitación está `Available` (con `TransitionRoomStateUseCase`, `sourceFlow = TECHNICAL_BLOCK` y actor nulo); marcar `Expired` los vencidos y los de habitaciones `Inactive`; dejar el resto para el día siguiente (FR-002, FR-018, FR-020).
-- [ ] T021 [US1] Implementar `TechnicalBlockScheduler`: escuchar `DailyReservationListIngestedEvent` y ejecutar `ApplyScheduledTechnicalBlocksUseCase` (FR-002, FR-018; regla 10 del plan base).
+- [ ] T020 [US1] Implementar `ApplyScheduledTechnicalBlocksService` (`@Transactional` por informe, idempotente por `operationalDate`): recorrer los informes `Scheduled`; por cada uno, bloquear la fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de leer su estado; aplicar los que contienen hoy si la habitación está `Available` (con `TransitionRoomStateUseCase`, `sourceFlow = TECHNICAL_BLOCK` y actor nulo); marcar `Expired` los vencidos y los de habitaciones `Inactive`; dejar el resto para el día siguiente (FR-002, FR-018, FR-020).
+- [ ] T021 [US1] Implementar `TechnicalBlockScheduler`: escuchar `DailyReservationListIngestedEvent` y ejecutar `ApplyScheduledTechnicalBlocksUseCase`; como respaldo, ejecutarlo a las 01:00 si ese día todavía no se aplicó; un segundo evento del mismo `operationalDate` no repite el trabajo (FR-002, FR-018; regla 10 del plan base).
 - [ ] T022 [US1] Implementar `TechnicalBlockQueryService` y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (FR-003, FR-011).
 - [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-006, FR-011.1, FR-016).
 
@@ -350,7 +350,8 @@ frontend/src/
 
 - **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `technical_block_report` (T018), `SourceFlow` y `MaintenanceProperties` (T020), el evento de la regla 10, la carpeta `scheduling/` y `ClockConfig`.
 - **Planes de los que depende**:
-  - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase` (T025) y `ExternalModule2UnavailableException`.
+  - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase` (T026), `ExternalModule2UnavailableException` y `ReservationConflictException` (T028).
   - `plan-consultar-informacion-mantenimientos.md`: `ConsultMaintenanceAvailabilityUseCase` y el validador de rangos. Debe implementarse antes de la Phase 3 de este plan.
-  - `plan-confirmar-reparacion-finalizada.md`: panel de mantenimiento con los botones que abren los diálogos de este plan y cierre del informe como `Completed`.
-- **Orden**: Phase 1 → Phase 2 → Phase 3 → Phase 4, con la Phase 3 después de las Phases 1 a 3 de `plan-consultar-informacion-mantenimientos.md`.
+  - `plan-consultar-panel-mantenimiento.md`: panel de mantenimiento con los botones que abren los diálogos de este plan.
+  - `plan-confirmar-reparacion-finalizada.md`: cierre del informe como `Completed`.
+- **Orden**: Phase 1 → Phase 2 → (Phases 2 y 3 de `plan-consultar-informacion-mantenimientos.md`, que usan T003 de este plan) → Phase 3 → Phase 4.

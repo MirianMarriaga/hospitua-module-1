@@ -224,5 +224,5 @@ No aplica: usa la infraestructura del plan base.
   - `plan-confirmar-fin-de-limpieza.md`: `CompleteCleaningService` con `CLEANING_END`.
 - **Planes relacionados**:
   - `plan-consultar-panel-recepcion.md`: muestra la alerta operativa (regla 11 del plan base).
-  - `plan-registrar-check-in.md`: acepta `Reserved` como origen (FR-010). Como `reserved_by_reservation_ref` solo tiene sentido en `Reserved`, el check-in debería limpiarlo al pasar a `Occupied`; hoy ese plan valida que coincida con la reserva, pero no dice que lo limpie.
+  - `plan-registrar-check-in.md`: acepta `Reserved` como origen (FR-010) y valida que `reserved_by_reservation_ref` coincida con la reserva. Al pasar a `Occupied`, `Room.transitionTo()` lo limpia (regla 2 del plan base).
 - **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5. El puerto (T003, T008) debe estar listo antes de que los planes invocadores implementen sus servicios.

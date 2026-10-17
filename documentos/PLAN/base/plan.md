@@ -24,7 +24,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 - **Storage**: PostgreSQL 16+
 - **Build Tool**: Maven 3.9+
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, colas durables, Dead-Letter Exchange)
-- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer
+- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer, WireMock (contratos con Módulo 2 y Módulo 3)
 - **Target Platform**: Servidor Linux/Windows + Navegador Web moderno
 - **Project Type**: Web Application monorepo estructurado (`backend/` + `frontend/`)
 - **API**: REST JSON, con errores en el formato `ApiError` (sección "Formato Estándar de Error")
@@ -54,6 +54,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | Patrón Outbox Transaccional | Tabla `outbox_notification` + `@Scheduled` worker | Garantiza entrega eventual y consistencia atómica entre la base de datos y RabbitMQ |
 | Cifrado de contraseñas | `spring-security-crypto` (`BCryptPasswordEncoder`), solo la librería de cifrado | Guardar las contraseñas de `user_account` cifradas para el inicio de sesión; no se usa la capa de seguridad (regla 14) |
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
+| Pruebas de contrato REST | WireMock (junto con `MockRestServiceServer`) | Simular Módulo 2 y Módulo 3 con respuestas, errores y retrasos reales sobre HTTP en las pruebas de contrato |
 | Formato de código | Spotless con palantir-java-format (`./mvnw spotless:apply`; `verify` falla si el código no está formateado) | Formato uniforme sin discusiones en las revisiones |
 
 ---
@@ -71,7 +72,7 @@ Regla arquitectónica de HOSPITUA:
 | --- | --- | --- | --- | --- |
 | **Notificación de Check-In** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkin.queue` / routing key `habitacion.checkin`) con `guests[]` completo plano | Proactiva | `plan-registrar-check-in.md` |
 | **Notificación de Check-Out** | M1 → M2 | Cola RabbitMQ (`m2.habitacion.checkout.queue` / routing key `habitacion.checkout`) con `guests[]` completo plano | Proactiva | `plan-registrar-check-out.md` |
-| **Ingestión de Reservas Diarias** | M2 → M1 | Cola RabbitMQ (`m1.reservas.diarias.queue` / routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`) | Reactiva (push) | `plan-consultar-reservas.md` |
+| **Ingestión de Reservas Diarias** | M2 → M1 | Cola RabbitMQ (`m1.reservas.diarias.queue` / routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`) | Proactiva | `plan-consultar-reservas.md` |
 | **Consultar Inventario de Habitaciones** | M2 → M1 | REST GET (`/api/rooms?categoryRoom={cat}` y `/api/rooms/{roomId}`) — solo habitaciones vendibles (sin `Inactive`) | Reactiva | `spec-consultar-inventario-habitaciones.md` |
 | **Consultar Disponibilidad de Reservas para Mantenimiento/Baja** | M1 → M2 | REST GET (`/api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`) — solo para Mantenimiento/Administración | Reactiva | `plan-consultar-reservas.md` |
 | **Consultar Liquidación** | M1 → M3 | REST GET (`/api/settlements?reservationRef={ref}&checkInDate={in}&checkOutDate={out}&source={src}&roomId={room}&categoryRoom={cat}`) | Reactiva | `plan-consultar-liquidacion.md`, `plan-registrar-check-out.md` |
@@ -82,15 +83,16 @@ Regla arquitectónica de HOSPITUA:
 
 - **Exchange**: `hospitua.events` (Tipo: `topic`, durable).
 - **Colas / Routing Keys emitidas por Módulo 1 hacia Módulo 2**:
-  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada al confirmar el paso 4 de Check-In. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = ENTRY`, `movementDate = checkInDate`, y el array `guests[]` con todos los ocupantes (nacionales y extranjeros; `birthDate` para todos y `originPlace`, `destinationPlace` incluidos únicamente si la nacionalidad es distinta de Colombia; `documentType` es `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`). Sin cola separada de extranjeros.
-  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada al confirmar el paso 5 de Check-Out. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate`, y el array `guests[]` con todos los ocupantes (reutilizando los datos migratorios capturados en Check-In).
+  - `m2.habitacion.checkin.queue` (routing key `habitacion.checkin`): Disparada por `POST /api/check-in`, al confirmar el paso 3 (Confirmación) del flujo de 4 pasos del Check-In. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = ENTRY`, `movementDate = checkInDate`, y el array `guests[]` con todos los ocupantes (nacionales y extranjeros; `birthDate` para todos y `originPlace`, `destinationPlace` incluidos únicamente si la nacionalidad es distinta de Colombia; `documentType` es `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`). Sin cola separada de extranjeros.
+  - `m2.habitacion.checkout.queue` (routing key `habitacion.checkout`): Disparada por `POST /api/check-out`, al confirmar el paso 4 (Confirmación) del flujo de 5 pasos del Check-Out. Emite mensaje plano con `messageId`, `sequenceNumber`, `reservationRef`, `roomId`, `movementType = DEPARTURE`, `movementDate = checkOutDate`, y el array `guests[]` con todos los ocupantes (reutilizando los datos migratorios capturados en Check-In).
 - **Cola recibida por Módulo 1 desde Módulo 2**:
   - `m1.reservas.diarias.queue`: Ingesta asíncrona para alimentar y actualizar la copia local de reservas del día:
     - Routing key `reserva.lista-del-dia`: Lista diaria de reservas `ACTIVE` con `startDate = hoy` recibida a las 00:00 (purga del día anterior, `sequenceNumber = 1`, transiciones automáticas `Available → Reserved`).
     - Routing key `reserva.lista-del-dia.actualizacion`: Actualizaciones continuas durante el día con acciones `ADDED`, `UPDATED` (evalúa `updatedAt`) o `REMOVED` (libera `Reserved → Available`).
+- **Mensajes fallidos**: el Dead-Letter Exchange envía a la cola `m1.reservas.diarias.dlq` los mensajes ilegibles o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef`, sin aplicarlos, y los que fallan por un error temporal después de 3 reintentos con espera creciente (`spec-consultar-reservas.md`, FR-003).
 - **Control de Idempotencia y Secuencia**:
   - Todo mensaje incluye `messageId` único para descarte de duplicados contra `daily_reservation_message_log`.
-  - Mensajes recibidos: orden estricto por `sequenceNumber` dentro del mismo `operationalDate`.
+  - Mensajes recibidos: se aplican en orden de llegada dentro del mismo `operationalDate`. Un `sequenceNumber` mayor que el esperado se aplica y se registra como `SEQUENCE_GAP`, sin detener la ingesta; un `sequenceNumber` ya superado no se descarta por su número: se resuelve con `updatedAt` (un `UPDATED` con `updatedAt` anterior al local se descarta). Los mensajes de un `operationalDate` anterior al de la copia local se descartan (`plan-consultar-reservas.md`, T012).
   - Mensajes enviados: `sequenceNumber` creciente por cola, que nunca se reinicia (contrato de Módulo 2).
 - **Estructura estándar de los mensajes salientes (formato plano unificado)**:
 
@@ -144,8 +146,8 @@ De acuerdo con el diagrama arquitectónico oficial `mod-1-2-3.drawio`:
 | `GET /api/reception/departures?query={q}` | Recepcionista (Frontend M1) | Pestaña Salidas del Panel de Recepción: estancias activas locales (`plan-consultar-panel-recepcion.md`) |
 | `GET /api/reception/panel/kpis` | Recepcionista (Frontend M1) | Indicadores del Panel de Recepción (`plan-consultar-panel-recepcion.md`) |
 | `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` | Recepcionista (Frontend M1) | Paso 1 del Check-In: validación de la reserva contra la copia local y de la habitación en `Reserved` (`plan-registrar-check-in.md`) |
-| `POST /api/check-in` | Recepcionista (Frontend M1) | Formalización del Check-In (4 pasos: validación, captura `RoomGuest`, transición atómica a `Occupied`, outbox) (`plan-registrar-check-in.md`) |
-| `POST /api/check-out` | Recepcionista (Frontend M1) | Formalización del Check-Out (5 pasos: consulta estancia, liquidación M3, resumen pago, transición a `PendingCleaning`, outbox) (`plan-registrar-check-out.md`) |
+| `POST /api/check-in` | Recepcionista (Frontend M1) | Formalización del Check-In al confirmar el paso 3 del flujo de 4 pasos (validar reserva, datos de huéspedes, confirmación, éxito): `Stay`, `RoomGuest`, transición atómica a `Occupied` y outbox (`plan-registrar-check-in.md`) |
+| `POST /api/check-out` | Recepcionista (Frontend M1) | Formalización del Check-Out al confirmar el paso 4 del flujo de 5 pasos (estancia, liquidación, pago, confirmación, liberar habitación): cierre de `Stay`, transición a `PendingCleaning` y outbox (`plan-registrar-check-out.md`) |
 | `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}` | Recepcionista (Frontend M1) | Paso 1 del Check-Out: datos locales de la estancia activa de esa habitación (`plan-registrar-check-out.md`) |
 | `GET /api/stays/{stayId}/settlement` | Recepcionista (Frontend M1) | Pasos 2 y 3 del Check-Out: liquidación de la estancia obtenida de Módulo 3 (`plan-consultar-liquidacion.md`, Endpoint 2) |
 | `GET /api/rooms/inventory` | Gerente, Administrador (Frontend M1) | Inventario de habitaciones para las vistas internas: paginado (10), filtrable por número, tipo, piso y estado, con las `Inactive` incluidas (`plan-consultar-inventario-habitaciones.md`) |
@@ -219,10 +221,11 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `TASK_NOT_OWNED` | 403 | `TaskNotOwnedException` | Plan base (`domain/exception/`) |
 | `TASK_NOT_FOUND` | 404 | `TaskNotFoundException` | Plan base (`domain/exception/`) |
 | `TASK_ALREADY_CLOSED` | 409 | `TaskAlreadyClosedException` | Plan base (`domain/exception/`) |
-| `ACTIVE_TASK_EXISTS` | 409 | `ActiveTaskExistsException` | Plan base (`domain/exception/`) |
+| `ACTIVE_TASK_EXISTS` | 409 | `ActiveTaskExistsException` o la violación del índice único de tarea abierta por miembro (`DataIntegrityViolationException`) | Plan base (`domain/exception/`) |
+| `ROOM_TASK_EXISTS` | 409 | La violación del índice único de tarea abierta por habitación en `cleaning_task` o `reparation_task` (`DataIntegrityViolationException`): otro miembro ya tiene una tarea abierta sobre la habitación | Plan base (T020); lo usan *Marcar habitación en limpieza* y *Confirmar fin de reparación* |
 | `NO_ACTIVE_TASK` | 404 | `NoActiveTaskException` | Plan base (`domain/exception/`) |
 | `INVALID_DATE_RANGE` | 400 | `InvalidDateRangeException`, con `details.rule` | `plan-consultar-informacion-mantenimientos.md` (T002); la reutilizan *Programar bloqueo técnico* y *Consultar historial de estados* |
-| `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-programar-bloqueo-tecnico-para-habitacion.md`; la reutiliza *Dar de baja* |
+| `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T028); la reutilizan *Programar bloqueo técnico* y *Dar de baja* |
 | `MODULE_2_UNAVAILABLE` | 503 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` |
 
 ---
@@ -279,17 +282,18 @@ backend/
     │   │   │   │   ├── DecommissionReason.java               # Enum: PERMANENT_REMODELING, FLOOR_CLOSURE, ADMINISTRATIVE_DECISION, OTHER
     │   │   │   │   ├── Stay.java                             # Estancia física formalizada en check-in (source: `DIRECTA` o nombre de la OTA, tal como llega de Módulo 2)
     │   │   │   │   ├── RoomGuest.java                        # Ocupante físico inmutable (isReservationGuest, identidad)
-    │   │   │   │   ├── ForeignGuestData.java                 # Value Object migratorio SIRE (originPlace, destinationPlace)
-    │   │   │   │   ├── MovementType.java                     # Enum: ENTRY (check-in) / DEPARTURE (check-out)
-    │   │   │   │   ├── CheckOutDetails.java                  # Datos de cierre de la estancia (plan-registrar-check-out.md)
+    │   │   │   │   ├── ForeignGuestData.java                 # Value Object migratorio SIRE (originPlace, destinationPlace) # Sin uso asignado
+    │   │   │   │   ├── MovementType.java                     # Enum: ENTRY (check-in) / DEPARTURE (check-out); lo usan CheckInMessagePayload y CheckOutMessagePayload
+    │   │   │   │   ├── CheckOutDetails.java                  # Datos de cierre de la estancia (plan-registrar-check-out.md) # Sin uso asignado
     │   │   │   │   ├── ReceptionDashboardKpis.java           # Indicadores del panel de recepción (plan-consultar-panel-recepcion.md)
-    │   │   │   │   ├── ArrivalItemSummary.java               # Llegada del día, una fila por habitación (plan-consultar-panel-recepcion.md)
+    │   │   │   │   ├── ArrivalGroup.java                     # Reserva del día con sus habitaciones pendientes (pendingRooms, totalRooms, rooms) (plan-consultar-reservas.md, T019)
+    │   │   │   │   ├── ArrivalItemSummary.java               # Llegada del día, una fila por habitación: elemento de ArrivalGroup.rooms (plan-consultar-panel-recepcion.md)
     │   │   │   │   ├── DepartureSummary.java                 # Salida (estancia activa) (plan-consultar-panel-recepcion.md)
-    │   │   │   │   ├── ReservationSummary.java               # Resumen contractual consumido reactivamente de Módulo 2
+    │   │   │   │   ├── ReservationSummary.java               # Resumen contractual consumido reactivamente de Módulo 2 # Sin uso asignado
     │   │   │   │   ├── DailyReservation.java                 # Copia local de una reserva del día (plan-consultar-reservas.md)
     │   │   │   │   ├── DailyReservationRoom.java             # Habitación de una reserva del día (plan-consultar-reservas.md)
     │   │   │   │   ├── DailyReservationMessageLog.java       # Registro de idempotencia de la cola diaria (plan-consultar-reservas.md)
-    │   │   │   │   ├── EnrichedReservationSummary.java       # Reserva del día enriquecida con el estado de la habitación (plan-consultar-reservas.md)
+    │   │   │   │   ├── EnrichedReservationSummary.java       # Reserva del día enriquecida con el estado de la habitación (plan-consultar-reservas.md) # Sin uso asignado
     │   │   │   │   ├── ReservationConflictQuery.java         # Value Object (roomId, startDate, endDate) (plan-consultar-reservas.md)
     │   │   │   │   ├── ReservationConflictResult.java        # Resultado de cruce (hasConflict, conflicts) (plan-consultar-reservas.md)
     │   │   │   │   ├── ReservationTrigger.java               # Enum: DAILY_LIST, ADDED_UPDATE, CLEANING_END (plan-marcar-habitacion-reservada.md)
@@ -310,8 +314,8 @@ backend/
     │   │   │   │   ├── MaintenanceDateRange.java             # Value Object: días evaluados, inclusivos (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   ├── MaintenanceConflict.java              # Value Object: inicio y fin de un cruce (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   ├── SourceFlow.java                       # Enum: catálogo de flujos de origen del historial (Regla 8)
-    │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (plan-gestionar-personal.md)
-    │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (plan-gestionar-personal.md)
+    │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (T023)
+    │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (T023)
     │   │   │   └── exception/                                # Excepciones de reglas de negocio
     │   │   │       ├── DomainException.java
     │   │   │       ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
@@ -326,7 +330,7 @@ backend/
     │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
     │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
-    │   │   │       ├── ReservationConflictException.java     # 409 RESERVATION_CONFLICT (bloqueo técnico y baja)
+    │   │   │       ├── ReservationConflictException.java     # 409 RESERVATION_CONFLICT (plan-consultar-reservas.md, T028; la usan el bloqueo técnico y la baja)
     │   │   │       ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
     │   │   │       ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
     │   │   │       ├── ExternalModule2UnavailableException.java # 503 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
@@ -340,7 +344,7 @@ backend/
     │   │   │       ├── MandatoryConfirmationMissingException.java # Falta la confirmación obligatoria del paso 4 (plan-registrar-check-out.md)
     │   │   │       ├── InvalidCredentialsException.java      # 401 INVALID_CREDENTIALS en el inicio de sesión (regla 14, T021)
     │   │   │       ├── CurrentUserRequiredException.java     # 400 CURRENT_USER_REQUIRED: falta X-User o la cuenta no existe o está desactivada (regla 14, T021)
-    │   │   │       ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (plan-gestionar-personal.md)
+    │   │   │       ├── UsernameAlreadyExistsException.java   # Usuario repetido (409) (T023)
     │   │   │       ├── StaffAccountNotFoundException.java    # Cuenta inexistente (404) (plan-gestionar-personal.md)
     │   │   │       ├── AccountInactiveException.java         # Cuenta desactivada (409) (plan-gestionar-personal.md)
     │   │   │       ├── CannotDeactivateSelfException.java    # Desactivar la cuenta propia (409) (plan-gestionar-personal.md)
@@ -387,17 +391,17 @@ backend/
     │   │   │   │   │   ├── DecommissionRoomUseCase.java      # Dar de baja (plan-dar-de-baja-habitacion.md)
     │   │   │   │   │   ├── GetRoomDecommissionUseCase.java   # Datos de la baja vigente (plan-marcar-habitacion-como-disponible.md)
     │   │   │   │   │   ├── ReactivateRoomUseCase.java        # Reactivar habitación (plan-marcar-habitacion-como-disponible.md)
-    │   │   │   │   │   ├── RegisterStaffAccountUseCase.java  # Registrar cuenta (plan-gestionar-personal.md)
+    │   │   │   │   │   ├── RegisterStaffAccountUseCase.java  # Registrar cuenta (T023)
     │   │   │   │   │   ├── ListStaffAccountsUseCase.java     # Lista del personal (plan-gestionar-personal.md)
     │   │   │   │   │   ├── GetStaffAccountUseCase.java       # Una cuenta (plan-gestionar-personal.md)
     │   │   │   │   │   ├── EditStaffAccountUseCase.java      # Editar cuenta (plan-gestionar-personal.md)
     │   │   │   │   │   └── DeactivateStaffAccountUseCase.java # Desactivar cuenta (plan-gestionar-personal.md)
     │   │   │   │   └── out/                                  # Puertos de Salida (Persistencia, Clientes, Mensajería)
-    │   │   │   │       ├── RoomRepositoryPort.java
+    │   │   │   │       ├── RoomRepositoryPort.java           # Incluye searchInventory(RoomInventoryFilter, page) (plan-consultar-inventario-habitaciones.md)
     │   │   │   │       ├── StayRepositoryPort.java
     │   │   │   │       ├── RoomGuestRepositoryPort.java
     │   │   │   │       ├── DailyReservationRepositoryPort.java # Copia local de las reservas del día
-    │   │   │   │       ├── RoomStateHistoryRepositoryPort.java
+    │   │   │   │       ├── RoomStateHistoryRepositoryPort.java # Incluye search(RoomStateHistoryFilter, page) (plan-consultar-historial-de-estados.md)
     │   │   │   │       ├── RoomAuditLogRepositoryPort.java
     │   │   │   │       ├── RoomDecommissionRepositoryPort.java
     │   │   │   │       ├── CleaningTaskRepositoryPort.java
@@ -405,10 +409,11 @@ backend/
     │   │   │   │       ├── DamageReportRepositoryPort.java
     │   │   │   │       ├── TechnicalBlockReportRepositoryPort.java
     │   │   │   │       ├── OutboxEventPublisherPort.java
+    │   │   │   │       ├── OutboxMessage.java            # Record que devuelve enqueue: messageId y sequenceNumber (T012)
     │   │   │   │       ├── Module2ReservationConflictClientPort.java # Hacia GET /api/reservations de Módulo 2
     │   │   │   │       ├── SettlementRestQueryPort.java      # Hacia GET /api/settlements de Módulo 3
-    │   │   │   │       ├── StaffAccountRepositoryPort.java   # Cuentas del personal (plan-gestionar-personal.md)
-    │   │   │   │       └── PasswordEncoderPort.java          # Cifrado de contraseñas; también lo usa LoginService (plan-gestionar-personal.md)
+    │   │   │   │       ├── StaffAccountRepositoryPort.java   # Cuentas del personal (T023)
+    │   │   │   │       └── PasswordEncoderPort.java          # Cifrado de contraseñas; lo usan LoginService y RegisterStaffAccountService (T023)
     │   │   │   ├── service/                                  # Implementaciones de Puertos de Entrada
     │   │   │   │   ├── LoginService.java                     # Valida usuario y contraseña con StaffAccountRepositoryPort y PasswordEncoderPort
     │   │   │   │   ├── ReceptionPanelQueryService.java       # KPIs del panel de recepción
@@ -452,7 +457,7 @@ backend/
     │   │   │   │   ├── DecommissionRoomService.java
     │   │   │   │   ├── RoomDecommissionQueryService.java
     │   │   │   │   ├── ReactivateRoomService.java
-    │   │   │   │   ├── RegisterStaffAccountService.java
+    │   │   │   │   ├── RegisterStaffAccountService.java   # T023
     │   │   │   │   ├── StaffAccountQueryService.java         # Listar y obtener cuentas
     │   │   │   │   ├── EditStaffAccountService.java
     │   │   │   │   └── DeactivateStaffAccountService.java
@@ -460,12 +465,13 @@ backend/
     │   │   │   │   └── DailyReservationListIngestedEvent.java # Fin de la ingesta de las 00:00 (Regla 10)
     │   │   │   └── dto/                                      # DTOs de comando y consulta de la capa de aplicación, sin anotaciones
     │   │   │       ├── ReceptionDashboardKpisDto.java        # Panel de recepción
-    │   │   │       ├── ArrivalItemSummaryDto.java
+    │   │   │       ├── ArrivalGroupDto.java                  # groups[] de GET /api/reception/arrivals
+    │   │   │       ├── ArrivalItemSummaryDto.java            # groups[].rooms[]
     │   │   │       ├── DepartureSummaryDto.java
     │   │   │       ├── DailyReservationListMessageDto.java   # Reservas
     │   │   │       ├── DailyReservationUpdateMessageDto.java
-    │   │   │       ├── DailyReservationResponseDto.java
-    │   │   │       ├── ReservationConflictResponseDto.java
+    │   │   │       ├── DailyReservationResponseDto.java # Sin uso asignado
+    │   │   │       ├── ReservationConflictResponseDto.java # Sin uso asignado
     │   │   │       ├── CheckInValidationResponse.java        # Check-in
     │   │   │       ├── RegisterCheckInCommand.java
     │   │   │       ├── GuestInputDto.java
@@ -475,7 +481,7 @@ backend/
     │   │   │       ├── ActiveStayResponseDto.java            # Check-out
     │   │   │       ├── RegisterCheckOutCommand.java
     │   │   │       ├── CheckOutResultDto.java
-    │   │   │       ├── OutboxCheckOutEventDto.java
+    │   │   │       ├── CheckOutMessagePayload.java       # Mensaje plano de check-out; reutiliza GuestMessageDto
     │   │   │       ├── SettlementQueryCommand.java           # Liquidación y tarifa base
     │   │   │       ├── SettlementResponseDto.java
     │   │   │       ├── RoomBaseRateResponseDto.java
@@ -537,13 +543,14 @@ backend/
     │   │       │   │   │   ├── DamageReportController.java   # /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   ├── TechnicalBlockController.java # /api/rooms/{roomId}/technical-blocks
     │   │       │   │   │   ├── dto/                          # DTOs de request con Bean Validation; el controlador los convierte en comandos (regla 1)
+    │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   └── GlobalExceptionHandler.java   # Mapeo a ApiError
     │   │       │   │   ├── amqp/                             # Consumidores de RabbitMQ
     │   │       │   │   │   └── DailyReservationRabbitListener.java # Listener de m1.reservas.diarias.queue
     │   │       │   │   ├── scheduling/                       # Trabajos programados
     │   │       │   │   │   └── TechnicalBlockScheduler.java  # Aplica los bloqueos técnicos tras la ingesta de las 00:00 (Regla 10)
     │   │       │   │   └── startup/                          # Tareas al arrancar
-    │   │       │   │       └── StaffAccountBootstrapper.java # Cuenta inicial de Administrador por el puerto de registro (plan-gestionar-personal.md)
+    │   │       │   │       └── StaffAccountBootstrapper.java # Cuenta inicial de Administrador por el puerto de registro (T023)
     │   │       │   └── out/                                  # Adaptadores Secundarios / Driven (Salida)
     │   │       │       ├── persistence/                      # Repositorios JPA y entidades de BD (PostgreSQL)
     │   │       │       │   ├── entity/                       # Entidades JPA (una por tabla)
@@ -564,13 +571,28 @@ backend/
     │   │       │       │   │   └── UserAccountJpaEntity.java
     │   │       │       │   ├── repository/                   # Spring Data JPA Repositories y consultas
     │   │       │       │   │   ├── DailyReservationRepository.java # Búsquedas de la copia local por referencia, documento y nombre
-    │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications)
-    │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account
-    │   │       │       │   │   └── UserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (plan-gestionar-personal.md)
+    │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications); solo la usa RoomRepositoryAdapter
+    │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account; solo la usa RoomStateHistoryRepositoryAdapter
+    │   │       │       │   │   └── UserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (T023)
     │   │       │       │   ├── mapper/                       # Mappers Dominio <-> JPA Entity
+    │   │       │       │   │   ├── RoomMapper.java
+    │   │       │       │   │   ├── StayMapper.java
+    │   │       │       │   │   ├── RoomGuestMapper.java
+    │   │       │       │   │   ├── DailyReservationMapper.java
+    │   │       │       │   │   ├── RoomStateHistoryMapper.java
+    │   │       │       │   │   ├── RoomAuditLogMapper.java
+    │   │       │       │   │   ├── RoomDecommissionMapper.java
+    │   │       │       │   │   ├── CleaningTaskMapper.java
+    │   │       │       │   │   ├── ReparationTaskMapper.java
+    │   │       │       │   │   ├── DamageReportMapper.java
+    │   │       │       │   │   ├── TechnicalBlockReportMapper.java
+    │   │       │       │   │   ├── OutboxNotificationMapper.java
+    │   │       │       │   │   └── StaffAccountMapper.java
     │   │       │       │   └── adapter/                      # Implementaciones de puertos de persistencia
     │   │       │       │       ├── RoomRepositoryAdapter.java # Implementa RoomRepositoryPort
     │   │       │       │       ├── StayRepositoryAdapter.java # Implementa StayRepositoryPort
+    │   │       │       │       ├── RoomStateHistoryRepositoryAdapter.java # Implementa RoomStateHistoryRepositoryPort (T017), incluida la consulta paginada del historial
+    │   │       │       │       ├── RoomAuditLogRepositoryAdapter.java # Implementa RoomAuditLogRepositoryPort (T017)
     │   │       │       │       ├── RoomGuestRepositoryAdapter.java # Implementa RoomGuestRepositoryPort
     │   │       │       │       ├── DailyReservationRepositoryAdapter.java # Implementa DailyReservationRepositoryPort
     │   │       │       │       ├── RoomDecommissionRepositoryAdapter.java # Implementa RoomDecommissionRepositoryPort
@@ -579,7 +601,7 @@ backend/
     │   │       │       │       ├── DamageReportRepositoryAdapter.java # Implementa DamageReportRepositoryPort
     │   │       │       │       ├── TechnicalBlockReportRepositoryAdapter.java # Implementa TechnicalBlockReportRepositoryPort
     │   │       │       │       ├── OutboxNotificationRepositoryAdapter.java # Implementa OutboxEventPublisherPort (encola en outbox_notification)
-    │   │       │       │       └── StaffAccountRepositoryAdapter.java # Implementa StaffAccountRepositoryPort (plan-gestionar-personal.md)
+    │   │       │       │       └── StaffAccountRepositoryAdapter.java # Implementa StaffAccountRepositoryPort (T023)
     │   │       │       ├── rest/                             # Clientes HTTP hacia otros módulos
     │   │       │       │   ├── Module2ReservationConflictRestAdapter.java # Implementa Module2ReservationConflictClientPort
     │   │       │       │   ├── Module2Properties.java        # URL y timeouts hacia Módulo 2
@@ -589,13 +611,13 @@ backend/
     │   │       │       │   ├── RabbitMqOutboxPublisherAdapter.java # Publica en RabbitMQ con Publisher Confirms lo que toma el worker
     │   │       │       │   └── OutboxScheduledWorker.java    # Worker de sondeo y reintento con backoff
     │   │       │       └── security/                         # Solo cifrado de contraseñas; no es una capa de seguridad (regla 14)
-    │   │       │           └── BCryptPasswordEncoderAdapter.java # Implementa PasswordEncoderPort con spring-security-crypto (plan-gestionar-personal.md)
+    │   │       │           └── BCryptPasswordEncoderAdapter.java # Implementa PasswordEncoderPort con spring-security-crypto (T023)
     │   │       └── config/                                   # Configuración Spring (AMQP, RestClient, Clock)
     │   │           ├── RabbitConfig.java
     │   │           ├── RestClientConfig.java
     │   │           ├── ClockConfig.java
     │   │           ├── MaintenanceProperties.java            # Límites de rangos de mantenimiento (90 / 365 días)
-    │   │           └── StaffBootstrapProperties.java         # hospitua.bootstrap.admin.* (cuenta inicial) (plan-gestionar-personal.md)
+    │   │           └── StaffBootstrapProperties.java         # hospitua.bootstrap.admin.* (cuenta inicial) (T023)
     │   └── resources/
     │       ├── application.yml
     │       └── db/migration/                                 # Scripts Flyway
@@ -662,7 +684,7 @@ frontend/
     │   │   ├── Step2GuestCapture.tsx                         # Incluye el panel migratorio de extranjeros
     │   │   ├── Step3Confirmation.tsx
     │   │   └── Step4Success.tsx
-    │   ├── checkout/                                         # Vistas 07-10: Flujo de Check-Out (liquidación y entrega a limpieza)
+    │   ├── checkout/                                         # Vistas 06-09: Flujo de Check-Out (liquidación y entrega a limpieza)
     │   │   ├── CheckOutWizard.tsx
     │   │   ├── Step1ActiveStay.tsx
     │   │   ├── Step2SettlementSummary.tsx
@@ -714,21 +736,21 @@ frontend/
 
 | Tabla | Entidad JPA | Descripción y Atributos Clave |
 | --- | --- | --- |
-| `room` | `RoomJpaEntity` | Unidad habitacional física. `id` (UUID PK), `room_number` (VARCHAR único), `floor` (INT, mayor a 0), `room_category` (`SENCILLA`, `DOBLE`, `SUITE`, `BOUTIQUE`), `max_capacity` (INT), `base_rate` (NUMERIC), `status` (VARCHAR: 8 estados canónicos), `reserved_by_reservation_ref` (VARCHAR nullable: reserva que aparta la habitación, solo en `Reserved`), `version` (optimistic lock). |
+| `room` | `RoomJpaEntity` | Unidad habitacional física. `id` (UUID PK), `room_number` (VARCHAR único), `floor` (INT, mayor a 0), `category_room` (`SENCILLA`, `DOBLE`, `SUITE`, `BOUTIQUE`; mismo nombre que en `daily_reservation_room` y que `categoryRoom` en la API y el dominio), `max_capacity` (INT), `base_rate` (NUMERIC(12,2): hasta dos decimales), `status` (VARCHAR: 8 estados canónicos), `reserved_by_reservation_ref` (VARCHAR nullable: reserva que aparta la habitación, solo en `Reserved`), `version` (optimistic lock). |
 | `room_state_history` | `RoomStateHistoryJpaEntity` | Historial común de estados por periodos. `id`, `room_id`, `status`, `previous_status` (nullable), `start_date_time`, `end_date_time` (nullable mientras el periodo está abierto), `actor_id` (nullable en transiciones autónomas), `source_flow`, `reservation_ref` (nullable). |
 | `room_audit_log` | `RoomAuditLogJpaEntity` | Bitácora de auditoría de eventos de una habitación que no son transiciones de estado o que necesitan datos que `room_state_history` no guarda (estancia, liquidación). `id` (UUID PK), `room_id` (FK a `room`), `event_type` (`RESERVATION_STATE_CONFLICT`, `ROOM_EDITED`, `CHECK_IN`, `CHECK_OUT`), `actor_id` (nullable en eventos autónomos), `details` (JSON: estado actual, referencias de reserva o campos editados), `event_date_time`. Las transiciones de estado se registran solo en `room_state_history`. |
 | `room_decommission` | `RoomDecommissionJpaEntity` | Bajas de habitaciones. `id` (UUID PK), `room_id` (FK a `room`), `reason_category` (`PERMANENT_REMODELING`, `FLOOR_CLOSURE`, `ADMINISTRATIVE_DECISION`, `OTHER`), `reason_detail` (VARCHAR 500 nullable; obligatorio con `OTHER`), `decommissioned_by`, `decommission_date_time`, `reactivated_by` (nullable), `reactivation_date_time` (nullable). Índice por `(room_id, decommission_date_time DESC)`. La usan `plan-dar-de-baja-habitacion.md` y `plan-marcar-habitacion-como-disponible.md`. |
 | `cleaning_task` | `CleaningTaskJpaEntity` | Tarea de limpieza. `id` (UUID PK), `room_id` (FK a `room`), `cleaning_staff_member_id`, `start_date_time`, `end_date_time` (nullable mientras está abierta), `outcome` (`Completed`, `DamageReported`, `Released`; nullable), `version`. Índices únicos parciales por miembro y por habitación con `end_date_time IS NULL` (Regla 9). |
 | `reparation_task` | `ReparationTaskJpaEntity` | Tarea de reparación. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `start_date_time`, `end_date_time` (nullable), `outcome` (`Completed`, `Released`; nullable), `version`. Índices únicos parciales como en `cleaning_task`. |
-| `damage_report` | `DamageReportJpaEntity` | Reporte de daño inmutable. `id` (UUID PK), `room_id` (FK a `room`), `user_id`, `damage_description` (VARCHAR 500), `report_date_time`. Índice por `(room_id, report_date_time DESC)`. |
+| `damage_report` | `DamageReportJpaEntity` | Reporte de daño inmutable. `id` (UUID PK), `room_id` (FK a `room`), `author_id` (usuario que reporta el daño), `damage_description` (VARCHAR 500), `report_date_time`. Índice por `(room_id, report_date_time DESC)`. |
 | `technical_block_report` | `TechnicalBlockReportJpaEntity` | Bloqueo técnico programado. `id` (UUID PK), `room_id` (FK a `room`), `maintenance_staff_member_id`, `technical_block_reason` (VARCHAR 500), `technical_block_start_date` (DATE), `estimated_technical_block_end_date` (DATE), `report_date_time`, `status` (`Scheduled`, `Applied`, `Completed`, `Expired`), `version`. Índice por `(room_id, status)`. |
-| `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` (VARCHAR: `DIRECTA` o nombre de la OTA, ej. `BOOKING`), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_date` (DATE), `expected_checkout_date` (DATE), `titular_first_name` (VARCHAR), `titular_last_name` (VARCHAR), `titular_document_number` (VARCHAR), `version`. |
+| `stay` | `StayJpaEntity` | Estancia física real. `id` (UUID PK), `reservation_ref` (VARCHAR), `room_id` (FK a `room`), `source` (VARCHAR: `DIRECTA` o nombre de la OTA, ej. `BOOKING`), `check_in_date` (DATE), `check_out_date` (DATE nullable), `expected_checkin_date` (DATE), `expected_checkout_date` (DATE), `titular_first_name` (VARCHAR), `titular_last_name` (VARCHAR), `titular_document_number` (VARCHAR), `check_in_receptionist_id` (VARCHAR NOT NULL: usuario actual del check-in), `check_out_receptionist_id` (VARCHAR nullable: usuario actual del check-out), `version`. El titular se copia siempre, aunque no ocupe la habitación. |
 | `room_guest` | `RoomGuestJpaEntity` | Ocupante físico inmutable. `id` (UUID PK), `stay_id` (FK a `stay`), `first_name` (VARCHAR), `last_name` (VARCHAR), `document_type`, `document_number`, `nationality`, `birth_date` (DATE, obligatoria), `origin_place` (VARCHAR nullable), `destination_place` (VARCHAR nullable), `is_reservation_guest` (BOOLEAN). |
 | `daily_reservation` | `DailyReservationJpaEntity` | Copia local de llegadas del día recibida por `m1.reservas.diarias.queue`. `reservation_ref` (VARCHAR PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date` (DATE), `end_date` (DATE), `guest_count` (INT), `updated_at` (TIMESTAMP). |
-| `daily_reservation_room` | `DailyReservationRoomJpaEntity` | Habitaciones asociadas a cada reserva diaria (1 a 10). `reservation_ref` (FK), `room_id` (UUID FK a `room`), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`). |
-| `daily_reservation_message_log` | `DailyReservationMessageLogJpaEntity` | Bitácora de idempotencia para la cola de reservas diarias. `message_id` (VARCHAR PK), `sequence_number` (BIGINT), `message_type` (VARCHAR), `received_at` (TIMESTAMP). |
+| `daily_reservation_room` | `DailyReservationRoomJpaEntity` | Habitaciones asociadas a cada reserva diaria (1 a 10). `reservation_ref` (FK a `daily_reservation`), `room_id` (UUID, relación lógica con `room` **sin FK**: Módulo 2 puede enviar una habitación que Módulo 1 no conoce y la ingesta la salta con `ROOM_NOT_FOUND` sin revertir la lista), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`). |
+| `daily_reservation_message_log` | `DailyReservationMessageLogJpaEntity` | Bitácora de idempotencia para la cola de reservas diarias. `message_id` (VARCHAR PK), `sequence_number` (BIGINT), `operational_date` (DATE NOT NULL: día operativo del mensaje), `message_type` (VARCHAR), `received_at` (TIMESTAMP). Índice por `(operational_date, message_type)`: lo usan el orden de la ingesta y la verificación "lista del día recibida" del panel de recepción. |
 | `outbox_notification` | `OutboxNotificationJpaEntity` | Mensajes asíncronos pendientes de envío hacia RabbitMQ. `id` (UUID), `event_type`, `routing_key`, `payload` (JSONB), `message_id` (UUID único; se genera una vez y se repite en los reintentos), `sequence_number` (BIGINT; creciente por cola y nunca reiniciado, tomado de una secuencia de PostgreSQL por routing key), `status` (`PENDING`, `PUBLISHED`, `FAILED`), `retry_count`, `next_attempt_at`, `last_error` (nullable), `created_at`, `published_at`. Índice por `(status, next_attempt_at)`. |
-| `user_account` | `UserAccountJpaEntity` | Cuentas del personal de Módulo 1. `username` (PK, no editable), `password_hash` (contraseña cifrada con BCrypt; nunca en texto plano), `full_name`, `area` (`RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA`, `MANTENIMIENTO`: solo decide la pantalla de inicio, no restringe endpoints), `active` (BOOLEAN, por defecto `true`; una cuenta desactivada no inicia sesión, pero se conserva para el historial), `created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by` (nullable) y `version` (control optimista). `created_by` es nulo en la cuenta inicial que crea el sistema al arrancar, como el `actor_id` de las acciones autónomas; la interfaz la muestra como "Sistema". El historial muestra `full_name` como responsable. Las cuentas se gestionan solo por los puertos de `plan-gestionar-personal.md` (regla 14). |
+| `user_account` | `UserAccountJpaEntity` | Cuentas del personal de Módulo 1. `username` (PK, no editable), `password_hash` (contraseña cifrada con BCrypt; nunca en texto plano), `full_name`, `area` (`RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA`, `MANTENIMIENTO`: solo decide la pantalla de inicio, no restringe endpoints), `active` (BOOLEAN, por defecto `true`; una cuenta desactivada no inicia sesión, pero se conserva para el historial), `created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by` (nullable) y `version` (control optimista). `created_by` es nulo en la cuenta inicial que crea el sistema al arrancar, como el `actor_id` de las acciones autónomas; la interfaz la muestra como "Sistema". El historial muestra `full_name` como responsable. Las cuentas se gestionan solo por puertos: el registro y la cuenta inicial en T023, y la consulta, la edición y la desactivación en `plan-gestionar-personal.md` (regla 14). |
 
 ### Diagrama Entidad-Relación (PostgreSQL)
 
@@ -742,7 +764,7 @@ erDiagram
   ROOM ||--o{ REPARATION_TASK : repara
   ROOM ||--o{ DAMAGE_REPORT : reporta
   ROOM ||--o{ TECHNICAL_BLOCK_REPORT : programa
-  ROOM ||--o{ DAILY_RESERVATION_ROOM : asigna
+  ROOM ||..o{ DAILY_RESERVATION_ROOM : asigna
   STAY ||--o{ ROOM_GUEST : tiene
   DAILY_RESERVATION ||--o{ DAILY_RESERVATION_ROOM : incluye
   USER_ACCOUNT ||..o{ STAY : atiende
@@ -752,7 +774,7 @@ erDiagram
     uuid id PK
     string room_number UK
     int floor
-    string room_category
+    string category_room
     int max_capacity
     decimal base_rate
     string status
@@ -800,6 +822,8 @@ erDiagram
     string titular_first_name
     string titular_last_name
     string titular_document_number
+    string check_in_receptionist_id
+    string check_out_receptionist_id
     int version
   }
   ROOM_GUEST {
@@ -838,6 +862,7 @@ erDiagram
   DAILY_RESERVATION_MESSAGE_LOG {
     string message_id PK
     bigint sequence_number
+    date operational_date
     string message_type
     timestamp received_at
   }
@@ -862,7 +887,7 @@ erDiagram
   DAMAGE_REPORT {
     uuid id PK
     uuid room_id FK
-    string user_id
+    string author_id
     string damage_description
     timestamp report_date_time
   }
@@ -910,7 +935,7 @@ erDiagram
 **Cómo leer el diagrama:**
 
 - **Línea continua**: clave foránea real en la base de datos (`stay.room_id → room`, `room_guest.stay_id → stay`, `room_state_history.room_id → room`, `room_audit_log.room_id → room`, `room_decommission.room_id → room`, y `room_id → room` en `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`).
-- **Línea punteada**: relación lógica hacia `user_account`. El campo `actor_id` se almacena como cadena simple, sin FK declarada en el esquema.
+- **Línea punteada**: relación lógica sin FK declarada en el esquema. Hacia `user_account`, los campos de usuario (`actor_id`, `check_in_receptionist_id`, etc.) se almacenan como cadena simple. `daily_reservation_room.room_id` tampoco tiene FK a `room`, para que una habitación desconocida enviada por Módulo 2 no revierta la ingesta (`plan-consultar-reservas.md`).
 - **`outbox_notification`**: no tiene FK. Se vincula lógicamente con la estancia y la habitación a través del campo `payload` (JSONB con `reservationRef` y `roomId`) y se inserta en la misma transacción ACID que el cambio físico de estado (Regla 3).
 - **`room_guest`**: registro inmutable tras el Check-In (Regla 4). Los campos `origin_place` y `destination_place` son **nullable** — solo aplican a extranjeros y van en el payload migratorio hacia Módulo 2 (SIRE), no como FK. Aceptan texto libre `"Ciudad, País"` (ej. `"Madrid, España"`).
 - **`room_sequence` eliminada**: Módulo 1 es dueño exclusivo de la máquina de estados habitacional (Decisión B7/B8). No existe tabla de secuencias ni órdenes externas de bloqueo.
@@ -924,7 +949,7 @@ erDiagram
    - **Validación de entrada**: los comandos y DTOs de `application/dto/` no llevan anotaciones. El controlador recibe un DTO de request de `infrastructure/adapters/in/web/dto/` con las restricciones de Bean Validation (incluidas las de clase), lo valida con `@Valid` y lo convierte en el comando. Las reglas de negocio (máquina de estados, aforo, fechas) se validan en el dominio y en los servicios.
    - **`infrastructure/`**: implementa los puertos con adaptadores y es la única capa que conoce Spring Web, JPA, AMQP y los clientes REST.
    - **Nombres**: los puertos de entrada terminan en `UseCase`. Los puertos de salida de persistencia terminan en `RepositoryPort` y los implementa un `RepositoryAdapter` del mismo nombre (`RoomRepositoryPort` → `RoomRepositoryAdapter`). Los demás puertos de salida se nombran por su función (`Module2ReservationConflictClientPort`, `SettlementRestQueryPort`, `OutboxEventPublisherPort`, `PasswordEncoderPort`).
-2. **Máquina de estados inquebrantable**: Todo cambio de estado en `Room.status` debe ejecutarse a través de un único método centralizado en el dominio (`Room.transitionTo(targetStatus)`) que valida la matriz de transiciones permitidas según `maquina-estados-habitacion.md`. Cualquier intento inválido arroja de inmediato una excepción de negocio que se traduce en HTTP 409 Conflict.
+2. **Máquina de estados inquebrantable**: Todo cambio de estado en `Room.status` debe ejecutarse a través de un único método centralizado en el dominio (`Room.transitionTo(targetStatus)`) que valida la matriz de transiciones permitidas según `maquina-estados-habitacion.md`. Cualquier intento inválido arroja de inmediato una excepción de negocio que se traduce en HTTP 409 Conflict. `Room.transitionTo(targetStatus)` también mantiene `reserved_by_reservation_ref`: lo limpia siempre que `targetStatus ≠ Reserved` (check-in, liberación de la reserva o cualquier otra salida de `Reserved`); solo *Marcar habitación como reservada* lo asigna. Ningún servicio lo limpia por su cuenta.
 3. **Atomismo físico**: La creación de `Stay`, el registro de `RoomGuest`, el cambio de `Room.status` a `Occupied` y la inserción del evento en `outbox_notification` ocurren en una **única transacción `@Transactional`** local.
 4. **Inmutabilidad de ocupantes**: La entidad `RoomGuest` no expone operaciones de actualización (`UPDATE`) en repositorios o APIs; una vez formalizado el Check-In, el registro queda sellado para auditoría y reportes migratorios.
 5. **Cliente Módulo 2 y Módulo 3 con timeouts estrictos**:
@@ -934,12 +959,12 @@ erDiagram
 7. **Manejo de errores uniforme**: Ningún fallo no controlado produce código HTTP 500; todos los errores son traducidos por `GlobalExceptionHandler` al esquema `ApiError`.
 8. **Historial de estados**: Toda transición de `Room.status` se ejecuta mediante `TransitionRoomStateUseCase.transition(roomId, estadoDestino, actorId, sourceFlow, reservationRef)`, que valida la matriz, aplica `Room.transitionTo()`, registra el periodo en `room_state_history` dentro de la misma transacción (cierra el periodo abierto y abre el nuevo) y devuelve la marca de tiempo del periodo abierto. Los casos de uso no invocan `RoomStateHistoryRecorder` directamente. `sourceFlow` toma un valor del enum `SourceFlow` (un valor por caso de uso que cambia el estado de una habitación); `actorId` es nulo en las transiciones autónomas. Una habitación nueva no tiene estado previo: su primer periodo lo abre `TransitionRoomStateUseCase.registerInitialStatus(roomId, actorId, sourceFlow)`, con `previous_status` nulo, y devuelve la marca de tiempo del periodo (`plan-registrar-habitacion.md`).
 9. **Tareas operativas**: Un miembro del personal y una habitación tienen como máximo una tarea abierta (`end_date_time` nulo) a la vez, garantizado con índices únicos parciales en `cleaning_task` y `reparation_task`. Solo el dueño de la tarea la cierra, asignando su `outcome`.
-10. **Orden de las 00:00**: Primero se procesa la ingesta de la lista diaria de reservas (que libera y luego aparta habitaciones); al terminar, la ingesta publica el evento de aplicación `DailyReservationListIngestedEvent(LocalDate operationalDate)` (evento de Spring, dentro de Módulo 1), y el trabajo de aplicación de bloqueos técnicos programados (`TechnicalBlockScheduler`) se ejecuta al recibirlo para ese día operativo. Si la lista de las 00:00 no llega, el evento no se publica y los bloqueos de ese día se aplican al recibirse la lista.
+10. **Orden de las 00:00**: Primero se procesa la ingesta de la lista diaria de reservas (que libera y luego aparta habitaciones); al terminar, la ingesta publica el evento de aplicación `DailyReservationListIngestedEvent(LocalDate operationalDate)` (evento de Spring, dentro de Módulo 1), y el trabajo de aplicación de bloqueos técnicos programados (`TechnicalBlockScheduler`) se ejecuta al recibirlo para ese día operativo. Si la lista de las 00:00 no llega, el evento no se publica y los bloqueos de ese día se aplican al recibirse la lista; como respaldo, `TechnicalBlockScheduler` también corre a las 01:00 (`hospitua.maintenance.fallback-apply-time`) si para ese `operationalDate` todavía no se aplicaron los bloqueos. El trabajo es idempotente por `operationalDate`: si el evento llega dos veces o se reprocesa tras un reinicio, no vuelve a aplicar ni a marcar `Expired` lo que ya procesó ese día.
 11. **Alerta operativa a Recepción**: no es un mensaje, una notificación ni un registro. Es la indicación "No disponible: [Estado]" que el panel de recepción muestra en la fila de una llegada del día cuya habitación asignada está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive`, calculada a partir del estado de la habitación al consultar el panel (*Consultar panel de recepción* escenario 6 y FR-005). Los casos de uso que "emiten" o "aplican" esta alerta (*Marcar habitación como reservada* FR-012, *Confirmar fin de limpieza* FR-019) la cumplen dejando la habitación en ese estado, sin apartarla a `Reserved`.
-12. **Nombres de estado en la interfaz**: la interfaz muestra cada estado con su nombre en español de `maquina-estados-habitacion.md` (Disponible, Reservada, Ocupada, Pendiente de limpieza, En limpieza, Inhabilitada por reparaciones, Bloqueo técnico, Inactiva). El nombre en inglés solo se usa en la API, el código y los datos; los textos de interfaz con `{estado}` o `[Estado]` usan el nombre en español. Las categorías de habitación siguen la misma regla: la API, el código y los datos usan los códigos `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE` (los que usa Módulo 2 en `categoryRoom`), y la interfaz muestra Sencilla, Doble, Suite y Boutique.
-13. **Bloqueo de la habitación en decisiones concurrentes**: toda operación que lee el estado de una habitación para decidir qué hacer con ella (apartarla, liberarla o registrar un conflicto en la ingesta de reservas, confirmar el fin de limpieza o programar un bloqueo técnico) bloquea la fila de `room` con `SELECT … FOR UPDATE` al inicio de su transacción, antes de leer el estado y los datos relacionados (copia local de reservas, informes de bloqueo técnico). Una operación concurrente sobre la misma habitación espera y ve el resultado de la primera. El control optimista (`version`) se mantiene para el resto de las transiciones.
+12. **Nombres de estado en la interfaz**: la interfaz muestra cada estado con su nombre en español de `maquina-estados-habitacion.md` (Disponible, Reservada, Ocupada, Pendiente de limpieza, En limpieza, Inhabilitada por reparaciones, Bloqueo técnico, Inactiva). El nombre en inglés solo se usa en la API, el código y los datos; los textos de interfaz con `{estado}` o `[Estado]` usan el nombre en español. Las categorías de habitación siguen la misma regla: en todo el sistema (API, mensajes, integraciones con Módulo 2 y Módulo 3, código y datos) solo se usan los códigos `SENCILLA`, `DOBLE`, `SUITE` y `BOUTIQUE`, con el nombre `categoryRoom` (atributo `Room.categoryRoom`, columna `category_room`), y la interfaz muestra Sencilla, Doble, Suite y Boutique.
+13. **Bloqueo de la habitación en decisiones concurrentes**: toda operación que lee el estado de una habitación para decidir qué hacer con ella (apartarla, liberarla o registrar un conflicto en la ingesta de reservas, confirmar el fin de limpieza, programar un bloqueo técnico, aplicar un bloqueo técnico programado en el trabajo de las 00:00, dar de baja una habitación o reactivarla) bloquea la fila de `room` con `SELECT … FOR UPDATE` al inicio de su transacción, antes de leer el estado y los datos relacionados (copia local de reservas, informes de bloqueo técnico). Una operación concurrente sobre la misma habitación espera y ve el resultado de la primera. El control optimista (`version`) se mantiene para el resto de las transiciones (por ejemplo, check-in, check-out, iniciar limpieza o reportar daño), que responden `409 CONCURRENT_UPDATE` si otra operación cambió la habitación.
 14. **Inicio de sesión y usuario actual**: en esta etapa no hay capa de seguridad (sin permisos por rol, T015 eliminada), pero cada persona tiene su cuenta en `user_account` e inicia sesión con `POST /api/auth/login`. El frontend guarda el `username` que devuelve el login y lo envía en el encabezado `X-User` en cada petición; `CurrentUserResolver` lo entrega a los casos de uso como **usuario actual** (`actorId` del historial, dueño de las tareas, recepcionista de la estancia, Administrador de la baja, `actor_id` de la bitácora, y `created_by`, `updated_by` y `deactivated_by` de las cuentas del personal). Las consultas de Módulo 2 y Módulo 3 no envían `X-User`. Si una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin `X-User`, con un usuario inexistente o con una cuenta desactivada, responde `400 CURRENT_USER_REQUIRED`. Cada plan muestra `X-User` en los ejemplos de los endpoints que lo usan y lista ese error en su tabla.
-   - **Gestión de las cuentas del personal:** las cuentas se registran, consultan, editan y desactivan por el backend, con los puertos y endpoints de `plan-gestionar-personal.md` (caso de uso *Gestionar personal*, del Administrador). Ninguna cuenta se escribe directamente en la base de datos. La primera cuenta de Administrador la crea al arrancar `StaffAccountBootstrapper`, llamando al mismo puerto de registro con los datos de configuración, si no existe ninguna cuenta activa de Administración. Desactivar es `active = false`: la cuenta no se borra, para que el historial siga mostrando el nombre de quien hizo cada cambio.
+   - **Gestión de las cuentas del personal:** las cuentas se registran, consultan, editan y desactivan por el backend, con los puertos de T023 y los puertos y endpoints de `plan-gestionar-personal.md` (caso de uso *Gestionar personal*, del Administrador). Ninguna cuenta se escribe directamente en la base de datos. La primera cuenta de Administrador la crea al arrancar `StaffAccountBootstrapper` (T023), llamando al mismo puerto de registro con los datos de configuración, si no existe ninguna cuenta activa de Administración. Desactivar es `active = false`: la cuenta no se borra, para que el historial siga mostrando el nombre de quien hizo cada cambio.
    - **Carácter provisional:** el inicio de sesión de Módulo 1 identifica al usuario; no controla el acceso. Es una solución de esta etapa, mientras los tres módulos no definan una identidad compartida (punto abierto 1). Si se adopta un proveedor de identidad común (SSO), se reemplaza sin tocar los casos de uso:
      - `CurrentUserResolver` toma el usuario de la identidad del proveedor en lugar del encabezado `X-User`;
      - `POST /api/auth/login`, `LoginService`, `PasswordEncoderPort` y `password_hash` se retiran;
@@ -958,7 +983,7 @@ erDiagram
   - Verificación del patrón Outbox publicando eventos en un broker RabbitMQ real en Testcontainers.
   - Pruebas de concurrencia optimista sobre `Room` y `Stay`.
 - **Tests de Contrato de Clientes REST**:
-  - `MockRestServiceServer` simulando respuestas exitosas, respuestas con error y caídas por timeout de Módulo 2 y Módulo 3.
+  - `MockRestServiceServer` y WireMock simulando respuestas exitosas, respuestas con error y caídas por timeout de Módulo 2 y Módulo 3.
 - **Tests con tiempo controlado**:
   - `Clock` fijo para los timestamps generados por el servidor y los trabajos programados de las 00:00.
 - **Tests de Frontend (Vitest + React Testing Library)**:
@@ -983,7 +1008,7 @@ erDiagram
 **CRÍTICO**: Ningún plan de feature puede comenzar su implementación hasta completar satisfactoriamente esta fase base.
 
 - [ ] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `room_audit_log`, `room_decommission`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`), y la semilla `V2__seed_rooms.sql` con las habitaciones de prueba y el periodo inicial de cada una en `room_state_history` (`REGISTER_ROOM`, actor nulo), para que *Consultar historial de estados* las muestre desde el inicio
-- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`, `DailyReservationRepositoryPort`) y adaptadores JPA en `infrastructure/adapters/out/persistence/adapter/`
+- [ ] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`), sus adaptadores JPA en `infrastructure/adapters/out/persistence/adapter/` y sus mappers en `mapper/`. `DailyReservationRepositoryPort` y su adaptador los implementa `plan-consultar-reservas.md` (T005, T007 y T011) sobre las tablas de T007
 - [ ] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`
 - [ ] T010 Implementar el servicio de validación de máquina de estados habitacional (`RoomStateTransitionService` implementando `TransitionRoomStateUseCase`) garantizando el cumplimiento estricto de los 8 estados canónicos, con la operación `registerInitialStatus` para el primer periodo de una habitación nueva (Regla 8)
 - [ ] T011 Configurar RabbitMQ: Exchange `hospitua.events`, colas de salida planas (`m2.habitacion.checkin.queue`, `m2.habitacion.checkout.queue` con `guests[]`), cola de entrada `m1.reservas.diarias.queue` con bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`, sin colas separadas de extranjeros, Dead-Letter Exchange (DLX) con la cola de mensajes fallidos `m1.reservas.diarias.dlq` para los mensajes ilegibles o que agotan sus reintentos (`spec-consultar-reservas.md`, FR-003), y serializador JSON en `config/RabbitConfig`
@@ -991,18 +1016,45 @@ erDiagram
   - Puerto `OutboxEventPublisherPort`, implementado por `OutboxNotificationRepositoryAdapter`: `OutboxMessage enqueue(String routingKey, String eventType, Object payload)`. Se invoca dentro de la transacción del flujo (Check-In o Check-Out), genera `messageId` (UUIDv4) y el siguiente `sequenceNumber` de la cola, los agrega al contenido del mensaje y guarda el registro en `PENDING`. `OutboxMessage` devuelve `messageId` y `sequenceNumber`.
   - `OutboxScheduledWorker` toma los `PENDING` con `next_attempt_at` vencido, los publica con `RabbitMqOutboxPublisherAdapter` (Publisher Confirms) y los marca `PUBLISHED`. Si la publicación falla, aumenta `retry_count` y programa `next_attempt_at` con espera creciente (1 s, 2 s, 4 s… hasta 5 min), sin frenar los demás mensajes de la cola.
   - Agotados los reintentos (`hospitua.outbox.max-retries`, por defecto 10), el mensaje pasa a `FAILED` con `last_error` y se registra una alerta `OUTBOX_PUBLISH_FAILED` en el log de errores para revisión humana.
-- [ ] T013 [P] Configurar `RestClientConfig` con timeouts e implementar los adaptadores de salida `Module2ReservationConflictRestAdapter` (implementa `Module2ReservationConflictClientPort`, configurado con `Module2Properties`) y `SettlementRestAdapter` (implementa `SettlementRestQueryPort`, configurado con `Module3Properties`). Las URL y los timeouts se configuran en `application.yml`
+- [ ] T013 [P] Configurar `RestClientConfig` con los timeouts de la regla 5 y las propiedades `Module2Properties` (`hospitua.integration.module2.base-url`, `connect-timeout-ms` = 1000, `read-timeout-ms` = 2000) y `Module3Properties` (`hospitua.integration.module3.base-url`, `connect-timeout-ms` = 1000, `read-timeout-ms` = 3000) en `application.yml`. Los adaptadores los implementan sus planes, porque dependen de modelos que esos planes definen: `Module2ReservationConflictRestAdapter` en `plan-consultar-reservas.md` (T025) y `SettlementRestAdapter` en `plan-consultar-liquidacion.md` (T010)
 - [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
+  - [ ] Agregar WireMock a la infraestructura de pruebas (dependencia de test y configuración base) para los contratos con Módulo 2 y Módulo 3
 - [ ] T015 [eliminada: la seguridad no es responsabilidad de esta etapa; la identificación del usuario la cubren T021 y T022]
 - [ ] T016 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [ ] T017 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryRepositoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogRepositoryPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [ ] T018 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9). Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
-- [ ] T019 Implementar los puertos transversales `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`) y `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`), según sus specs, sobre `TransitionRoomStateUseCase`. Los usan la ingesta de reservas y *Confirmar fin de limpieza*
-- [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365)
-- [ ] T021 Implementar el inicio de sesión (regla 14): la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que leen la cuenta con `StaffAccountRepositoryPort` y validan la contraseña con `PasswordEncoderPort` (ambos de `plan-gestionar-personal.md`) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Las cuentas y la cuenta inicial de Administrador las implementa `plan-gestionar-personal.md`
+- [ ] T019 Puertos transversales de transición, sobre `TransitionRoomStateUseCase`. Se implementan en sus planes, que van primero en el orden de implementación (ver "Orden de implementación de los planes"), antes que los planes que los invocan:
+  - `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`): `plan-marcar-habitacion-como-disponible.md` (T003 y T010). Lo usan la ingesta de reservas, la reactivación y *Confirmar fin de limpieza*.
+  - `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`): `plan-marcar-habitacion-reservada.md` (T003 y T008). Lo usan la ingesta de reservas y *Confirmar fin de limpieza*.
+  - `MarkPendingCleaningUseCase` (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning` → `PendingCleaning`): `plan-marcar-pendiente-a-limpieza.md` (T003 y T012). Lo usan *Registrar check-out*, *Confirmar fin de reparación* y la liberación de la tarea de limpieza.
+- [ ] T020 [P] Implementar los componentes compartidos de limpieza y mantenimiento: enum `SourceFlow` (`REGISTER_ROOM`, `MARK_RESERVED`, `MARK_AVAILABLE`, `CHECK_IN`, `CHECK_OUT`, `START_CLEANING`, `CONFIRM_CLEANING_END`, `RELEASE_CLEANING_TASK`, `REPORT_DAMAGE`, `CONFIRM_REPAIR_END`, `TECHNICAL_BLOCK`, `DECOMMISSION_ROOM`, cada uno con el nombre legible del caso de uso que muestra el historial), las excepciones de tareas de `domain/exception/` registradas en `GlobalExceptionHandler`, y `MaintenanceProperties` (`hospitua.maintenance.max-range-days` = 90, `max-advance-days` = 365, `fallback-apply-time` = 01:00, regla 10)
+- [ ] T021 Implementar el inicio de sesión (regla 14), después de T023: la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que leen la cuenta con `StaffAccountRepositoryPort` y validan la contraseña con `PasswordEncoderPort` (ambos de T023) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Los endpoints y las vistas de las cuentas los implementa `plan-gestionar-personal.md`
 - [ ] T022 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición con el interceptor de Axios (T016), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`. No hay vista prototipo del inicio de sesión: `LoginPage.tsx` sigue el estilo de las vistas existentes (punto abierto 2)
+- [ ] T023 Implementar el núcleo de las cuentas del personal, que necesitan el inicio de sesión (T021) y todo endpoint con `X-User` (regla 14), según `spec-gestionar-personal.md` (FR-002 a FR-005 y FR-011):
+  - `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
+  - `StaffAccountRepositoryPort`, `UserAccountJpaRepository` y `StaffAccountRepositoryAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
+  - `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (`spring-security-crypto`).
+  - `RegisterStaffAccountUseCase` y `RegisterStaffAccountService`, con `UsernameAlreadyExistsException` (`409 USERNAME_ALREADY_EXISTS`).
+  - `StaffAccountBootstrapper` y `StaffBootstrapProperties` (`hospitua.bootstrap.admin.username`, `password` y `full-name`, leídas de variables de entorno): si no hay ninguna cuenta activa de Administración, crea la de la configuración por `RegisterStaffAccountUseCase`, con `created_by` nulo; si faltan las propiedades o no son válidas, la aplicación no arranca.
+  - `plan-gestionar-personal.md` verifica estas piezas y agrega los endpoints `/api/staff`, la edición, la desactivación y las vistas.
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
+
+---
+
+## Orden de implementación de los planes
+
+Los planes de feature dependen unos de otros. Este es el orden que evita implementar algo antes que sus dependencias:
+
+1. Este plan base, Phase 2 completa (incluidas T019 y T023).
+2. `plan-registrar-habitacion.md` → `plan-consultar-inventario-habitaciones.md` → `plan-consultar-historial-de-estados.md`.
+3. Puertos transversales de T019: `plan-marcar-habitacion-como-disponible.md`, `plan-marcar-habitacion-reservada.md` y `plan-marcar-pendiente-a-limpieza.md`.
+4. `plan-consultar-reservas.md` (Phases 1 a 4) → `plan-consultar-panel-recepcion.md` → `plan-registrar-check-in.md` → `plan-consultar-liquidacion.md` → `plan-registrar-check-out.md`.
+5. Limpieza: `plan-marcar-habitacion-en-limpieza.md` (Phase 2) → `plan-consultar-panel-limpieza.md` → `plan-marcar-habitacion-inhabilitada-por-reparaciones.md` → el resto de `plan-marcar-habitacion-en-limpieza.md` → `plan-confirmar-fin-de-limpieza.md`.
+6. Mantenimiento: `plan-programar-bloqueo-tecnico-para-habitacion.md` (Phase 2) → `plan-consultar-informacion-mantenimientos.md` → `plan-consultar-reservas.md` (Phase 5) → el resto de `plan-programar-bloqueo-tecnico-para-habitacion.md` → `plan-confirmar-reparacion-finalizada.md` (Phase 2) → `plan-consultar-panel-mantenimiento.md` → el resto de `plan-confirmar-reparacion-finalizada.md`.
+7. `plan-dar-de-baja-habitacion.md` (después de la Phase 5 de `plan-consultar-reservas.md`), `plan-editar-habitacion.md`, `plan-consultar-tarifa-base.md` y `plan-gestionar-personal.md`.
+
+**Dueño único de cada artefacto**: lo que usan dos o más planes lo implementa un solo plan (el plan base o el plan de feature que lo nombra como propio); los demás lo verifican con una tarea "Verificar".
 
 ---
 
@@ -1012,3 +1064,4 @@ erDiagram
    - Que el `username` sea el identificador único de cada persona en los tres módulos, para que los responsables que viajan en las notificaciones (por ejemplo, el recepcionista del check-in) se puedan cruzar entre módulos.
    - Si habrá un inicio de sesión compartido (SSO) y quién lo implementa. Mientras no haya respuesta, Módulo 1 mantiene su login provisional y no amplía *Gestionar personal* (sin políticas de contraseña ni recuperación de cuenta).
 2. **Vista prototipo del inicio de sesión** (T022). Falta en `documentos/vistas/`; la define el frente de vistas. Mientras tanto, `LoginPage.tsx` sigue el estilo de las vistas existentes.
+3. **Vistas de resultado de limpieza y mantenimiento**. `vistas/limpieza/03-limpieza-finalizada.html` y `vistas/mantenimiento/03-reparacion-finalizada.html` no las usa ningún plan: *Confirmar fin de limpieza* y *Confirmar fin de reparación* redirigen al panel tras el éxito. Hay que decidir si se muestra esa pantalla antes de volver al panel o si se retiran las vistas.

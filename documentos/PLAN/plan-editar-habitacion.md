@@ -196,7 +196,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T017) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
 - [ ] T002 [P] Mover a `Room` las validaciones de piso, tipo, capacidad y tarifa, si `plan-registrar-habitacion.md` las dejó en el servicio, e implementar `Room.applyChanges(...)` con `RoomAttributeChange`.
-- [ ] T003 [P] Registrar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE`.
+- [ ] T003 [P] Verificar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE` (catálogo del plan base, T009).
 
 ---
 

@@ -24,7 +24,7 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
   - Snapshot consistente sin bloquear las transiciones de otras habitaciones: transacción `readOnly` con aislamiento `REPEATABLE_READ`, que en PostgreSQL lee una instantánea sin bloquear escrituras (caso borde "Concurrente"; SC-004).
   - Rango de fechas: incluye los periodos que se cruzan con el rango, es decir, que empiezan antes del fin de "Hasta" y terminan después del inicio de "Desde" o siguen abiertos.
   - Orden cronológico por inicio del periodo; a igual inicio, por número de habitación (SC-002).
-  - El tipo que se muestra y se filtra es el tipo actual de la habitación (`room.room_category`); el historial no guarda el tipo de cada periodo.
+  - El tipo que se muestra y se filtra es el tipo actual de la habitación (`room.category_room`); el historial no guarda el tipo de cada periodo.
   - Toda habitación tiene al menos un periodo, el abierto por *Registrar habitación* (FR-013 de ese spec); una habitación sin cambios muestra una fila "En curso" (caso borde "Historial vacío").
 
 ---
@@ -158,6 +158,8 @@ backend/src/main/
 │   ├── application/
 │   │   ├── ports/in/
 │   │   │   └── ConsultRoomStateHistoryUseCase.java
+│   │   ├── ports/out/
+│   │   │   └── RoomStateHistoryRepositoryPort.java  # Plan base (T017); se agrega search(RoomStateHistoryFilter, page)
 │   │   ├── service/
 │   │   │   └── RoomStateHistoryQueryService.java
 │   │   └── dto/
@@ -168,6 +170,7 @@ backend/src/main/
 │       ├── in/web/
 │       │   └── RoomStateHistoryController.java
 │       └── out/persistence/
+│           ├── adapter/RoomStateHistoryRepositoryAdapter.java     # Plan base (T017); se agrega search(...)
 │           └── repository/RoomStateHistoryQueryRepository.java   # Consulta con join a room y a user_account
 └── resources/db/migration/
     └── V5__room_state_history_indexes.sql
@@ -192,7 +195,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Crear la migración `V5__room_state_history_indexes.sql` con índices sobre `room_state_history(room_id, start_date_time)` y `room_state_history(status, start_date_time)` (SC-001).
-- [ ] T002 [P] Implementar `RoomStateHistoryQueryRepository` con los filtros combinables, el cruce de rango de fechas, el orden cronológico y la paginación de 15.
+- [ ] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
 
 ---
 
@@ -220,7 +223,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
+- [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
 - [ ] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
 - [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
 - [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).

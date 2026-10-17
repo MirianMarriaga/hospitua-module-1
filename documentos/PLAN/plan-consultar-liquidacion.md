@@ -3,7 +3,7 @@
 **Date**: 2026-10-08
 **Spec**: [spec-consultar-liquidacion.md](../SPEC/spec-consultar-liquidacion.md)
 **Plan general**: [base/plan.md](base/plan.md)
-**Plan relacionado**: [plan-registrar-check-out.md](plan-registrar-check-out.md) (caso de uso que incluye este mediante `<<includes>>`)
+**Plan relacionado**: [plan-registrar-check-out.md](plan-registrar-check-out.md) (caso de uso que incluye este mediante `<<includes>>`; su frontend consume el Endpoint 2 en los pasos 2 y 3)
 
 > Este es un **plan específico** de una feature. Todo lo transversal al proyecto (stack, estructura base, setup, infraestructura compartida, convenciones) vive en el plan general `base/plan.md` y aquí solo se referencia.
 
@@ -31,7 +31,7 @@ Enfoque técnico:
 
 | Requisito del Spec | Cobertura en este plan |
 | --- | --- |
-| FR-001 (`<<includes>>` desde Check-Out) | Puerto `QuerySettlementUseCase` (T005, T012) |
+| FR-001 (`<<includes>>` desde Check-Out) | Puerto `QuerySettlementUseCase` (T005, T012), consumido por el Endpoint 2 desde los pasos 2 y 3 del check-out (T013, T014) |
 | FR-002 (REST GET reactivo y parámetros) | Endpoint 1 y `SettlementRestAdapter` (T010) |
 | FR-003 (estructura `SettlementSummary`) | Estructuras de datos y Endpoint 1 (T004) |
 | FR-004 (presentación pasos 2 y 3) | Endpoint 2, `SettlementCard.tsx`, `PaymentReviewCard.tsx` (T011, T015, T016) |
@@ -51,7 +51,7 @@ Hereda el stack y las convenciones del plan general. Solo se declara lo propio d
 **Constraints**:
 
 - Consumidor estricto de solo lectura: no recalcular ni redondear valores financieros de Módulo 3.
-- Timeout de 3 s con circuit breaker; sin reintentos automáticos.
+- Timeout de lectura de 3 s (regla 5 del plan base) con circuit breaker; sin reintentos automáticos.
 - Fechas de negocio como `LocalDate` (`YYYY-MM-DD`), sin horas.
 - `invoiceNumber` inmutable, emitido exclusivamente por Módulo 3 (entero consecutivo, sin prefijo).
 - Sin consumos locales (minibar, restaurante, lavandería, daños) ni recaudos.
@@ -119,7 +119,7 @@ frontend/src/
 - Estructura base del módulo `habitaciones` y del frontend.
 - Dependencias de Spring Web, Resilience4j, Lombok, WireMock, Vitest y React Testing Library.
 - Formato unificado de errores y convención de logging.
-- Entidades `Stay` y `Room` con `source`, `reservationRef`, `checkInDate`, `expectedCheckinDate`, `expectedCheckoutDate` y `category`.
+- Entidades `Stay` y `Room` con `source`, `reservationRef`, `checkInDate`, `expectedCheckinDate`, `expectedCheckoutDate` y `categoryRoom` (regla 12 del plan base).
 
 ---
 
@@ -127,7 +127,7 @@ frontend/src/
 
 ### Flujo
 
-1. Registrar Check-Out invoca `QuerySettlementUseCase` con el identificador de la estancia.
+1. El frontend de Registrar Check-Out llama a `GET /api/stays/{stayId}/settlement` (Endpoint 2); `SettlementController` invoca `QuerySettlementUseCase` con el identificador de la estancia. El backend del check-out no invoca este caso de uso: recibe `invoiceNumber` en `POST /api/check-out`.
 2. `SettlementQueryService` carga `Stay` y `Room` y construye `SettlementRequest` (`checkOutDate` = fecha actual sin hora).
 3. `SettlementRestQueryPort` llama a Módulo 3 (Endpoint 1).
 4. El servicio compone `SettlementResponseDto`: toma `source` de `Stay.source`, calcula `nights` y toma `totalToPay` desde `totalAmount` de Módulo 3.
@@ -176,12 +176,12 @@ GET /api/settlements
 | `checkOutDate` | `YYYY-MM-DD` | Sí | Fecha actual | Check-Out real |
 | `source` | string | Sí | `Stay.source` | `DIRECTA`, `BOOKING`, `EXPEDIA`, etc. |
 | `roomId` | string (UUID) | Sí | `Room.id` | Habitación física |
-| `categoryRoom` | string | Sí | `Room.category` | Ej. `Sencilla`, `Suite` |
+| `categoryRoom` | string | Sí | `Room.categoryRoom` | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (regla 12 del plan base) |
 
 **Ejemplo de petición:**
 
 ```http
-GET /api/settlements?reservationRef=RES-000123&checkInDate=2026-10-04&checkOutDate=2026-10-06&source=BOOKING&roomId=123e4567-e89b-12d3-a456-426614174000&categoryRoom=Suite HTTP/1.1
+GET /api/settlements?reservationRef=RES-000123&checkInDate=2026-10-04&checkOutDate=2026-10-06&source=BOOKING&roomId=123e4567-e89b-12d3-a456-426614174000&categoryRoom=SUITE HTTP/1.1
 Host: modulo3.sistema.local
 ```
 
@@ -305,7 +305,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de comunicación REST, Resilience4j y WireMock en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Configurar `Module3Properties` (base-url y timeout síncrono de 3000 ms) y el bean `RestClient` hacia Módulo 3 (`GET /api/settlements`) en `infrastructure/adapters/out/rest/` (plan base, T013).
+- [ ] T002 Verificar `Module3Properties` (`hospitua.integration.module3.*`: base-url y timeout de lectura de 3000 ms) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
 - [ ] T003 Configurar el entorno de pruebas con WireMock y `MockRestServiceServer` para simular las respuestas del contrato `GET /api/settlements` de Módulo 3.
 
 ---
@@ -313,7 +313,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 Implementar los modelos de dominio `SettlementRequest`, `SettlementSummary` (sin `source`), `SettlementAvailabilityStatus` y la excepción `ExternalModule3UnavailableException` en `domain/model/` y `domain/exception/`.
-- [ ] T005 Definir la interfaz del puerto de entrada `QuerySettlementUseCase` y del puerto de salida `SettlementRestQueryPort` para `GET /api/settlements` en `domain/ports/`.
+- [ ] T005 Definir la interfaz del puerto de entrada `QuerySettlementUseCase` en `application/ports/in/` y del puerto de salida `SettlementRestQueryPort` para `GET /api/settlements` en `application/ports/out/` (regla 1 del plan base).
 - [ ] T006 Implementar los DTOs de aplicación `SettlementQueryCommand` y `SettlementResponseDto` en `application/dto/`.
 
 ---
@@ -335,7 +335,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 - [ ] T010 [US1] Implementar `SettlementRestAdapter` (GET con query params desde `SettlementRequest`, mapeo a `SettlementSummary`) (depende de T002, T004, T005)
 - [ ] T011 [P] [US1] Implementar `settlementService.ts` en `frontend/src/api/`
 - [ ] T012 [US1] Implementar `SettlementQueryService`: cargar `Stay` y `Room`, construir `SettlementRequest`, invocar el puerto, tomar `source` de `Stay.source`, calcular `nights` y tomar `totalToPay` desde `totalAmount` de Módulo 3 (depende de T005, T006, T010)
-- [ ] T013 [US1] Exponer el caso de uso para su inclusión desde Registrar Check-Out, sin lógica de liberación de habitación (depende de T012)
+- [ ] T013 [US1] Verificar que el único consumidor de `QuerySettlementUseCase` sea `SettlementController` (Endpoint 2), que usa el frontend del check-out en los pasos 2 y 3; el caso de uso no tiene lógica de liberación de habitación (depende de T012)
 - [ ] T014 [US1] Implementar `SettlementController` (Endpoint 2) (depende de T012)
 - [ ] T015 [P] [US1] Implementar `SettlementCard.tsx` (Paso 2): factura arriba, Fuente, % y valor de comisión OTA, ingreso neto
 - [ ] T016 [P] [US1] Implementar `PaymentReviewCard.tsx` (Paso 3): factura arriba, hospedaje, IVA, total a pagar, noches, fechas de entrada y salida; sin captura de pago
@@ -361,7 +361,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ### Implementation for User Story 2
 
 - [ ] T022 [US2] Traducir errores HTTP, timeouts y errores de red a `ExternalModule3UnavailableException` en `SettlementRestAdapter` (depende de T004, T010)
-- [ ] T023 [US2] Aplicar `@CircuitBreaker` y `@TimeLimiter` (3 s) de Resilience4j a la llamada, sin reintentos
+- [ ] T023 [US2] Aplicar `@CircuitBreaker` de Resilience4j a la llamada, sin reintentos; el límite de 3 s lo da el timeout de lectura de `RestClient` (regla 5 del plan base), porque `@TimeLimiter` solo funciona con llamadas asíncronas
 - [ ] T024 [US2] En `SettlementQueryService`, capturar la excepción y devolver `status=UNAVAILABLE` con `unavailableCause`, sin montos parciales ni calculados
 - [ ] T025 [US2] Mapear `UNAVAILABLE` como respuesta `200` controlada en `SettlementController` y registrar la contingencia
 - [ ] T026 [P] [US2] Mostrar en las dos tarjetas el mensaje de indisponibilidad del servicio de facturación y devolver el control a Registrar Check-Out

@@ -22,13 +22,12 @@ Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepc
 - **Language/Version**: Java 21 (LTS)
 - **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
 - **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_history`)
-- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer
+- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ)
 - **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Transición atómica de `Room.status` a `PendingCleaning` y cierre de `Stay`: < 50 ms.
   - Tiempo total de operación en mostrador: < 1 min desde la recepción de la liquidación de Módulo 3.
-  - Consulta reactiva REST GET a Módulo 3: timeout de 3s con degradación airosa.
 - **Constraints**:
   - No exponer horas en los campos de fecha en pantalla ni en contratos de negocio (`LocalDate` / YYYY-MM-DD).
   - Cero transacciones monetarias, pasarelas de pago o cobros de consumos de minibar/restaurante en Módulo 1 (responsabilidad exclusiva de Módulo 3).
@@ -54,6 +53,7 @@ documentos/
     │   └── plan.md
     ├── plan-registrar-check-out.md
     ├── plan-consultar-liquidacion.md
+    ├── plan-marcar-pendiente-a-limpieza.md
     └── plan-consultar-panel-recepcion.md
 ```
 
@@ -68,7 +68,7 @@ backend/src/
 │   │   │   ├── RoomStatus.java
 │   │   │   ├── Stay.java
 │   │   │   ├── RoomGuest.java
-│   │   │   └── CheckOutDetails.java
+│   │   │   └── CheckOutDetails.java   # Sin uso asignado
 │   │   └── exception/
 │   │       ├── ActiveStayNotFoundException.java
 │   │       └── MandatoryConfirmationMissingException.java
@@ -76,11 +76,13 @@ backend/src/
 │   │   ├── ports/
 │   │   │   ├── in/
 │   │   │   │   ├── RegisterCheckOutUseCase.java
-│   │   │   │   └── GetActiveStayUseCase.java
+│   │   │   │   ├── GetActiveStayUseCase.java
+│   │   │   │   └── MarkPendingCleaningUseCase.java   # Definido en plan-marcar-pendiente-a-limpieza.md; aquí se invoca
 │   │   │   └── out/
 │   │   │       ├── RoomRepositoryPort.java
 │   │   │       ├── StayRepositoryPort.java
 │   │   │       ├── RoomGuestRepositoryPort.java
+│   │   │       ├── RoomAuditLogRepositoryPort.java   # Definido en el plan base (T017)
 │   │   │       └── OutboxEventPublisherPort.java
 │   │   ├── service/
 │   │   │   ├── CheckOutExecutionService.java
@@ -90,12 +92,13 @@ backend/src/
 │   │       ├── ActiveStayResponseDto.java
 │   │       ├── RegisterCheckOutCommand.java
 │   │       ├── CheckOutResultDto.java
-│   │       └── OutboxCheckOutEventDto.java
+│   │       └── CheckOutMessagePayload.java   # Mensaje plano de check-out; reutiliza GuestMessageDto de plan-registrar-check-in.md
 │   └── infrastructure/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   └── web/
-│       │   │       └── CheckOutController.java
+│       │   │       ├── CheckOutController.java
+│       │   │       └── CurrentUserResolver.java   # Definido en el plan base (T021); recepcionista del check-out
 │       │   └── out/
 │       │       ├── persistence/
 │       │       │   └── adapter/
@@ -275,7 +278,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 | 400 | `CONFIRMATION_REQUIRED` | `MandatoryConfirmationMissingException` | `confirmed` no es `true` (FR-008) | 2 |
 | 404 | `ACTIVE_STAY_NOT_FOUND` | `ActiveStayNotFoundException` | No hay una estancia activa para ese par o ese `stayId` | 1 y 2 |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Occupied`; `details.currentStatus` lleva el estado actual (FR-004) | 1 y 2 |
-| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (regla 13 del plan base); se puede reintentar | 2 |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (control optimista, regla 13 del plan base, último párrafo); se puede reintentar | 2 |
 
 ```json
 {
@@ -292,15 +295,15 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 [eliminada: el cliente REST hacia Módulo 3 y su timeout los implementa plan-consultar-liquidacion.md (T005)]
-- [ ] T003 Configurar la cola `m2.habitacion.checkout.queue` y binding topic con routing key `habitacion.checkout` en RabbitMQ.
+- [ ] T002 [eliminada: el cliente REST hacia Módulo 3 y su timeout los implementa plan-consultar-liquidacion.md (T002)]
+- [ ] T003 Verificar la cola `m2.habitacion.checkout.queue` y su binding con routing key `habitacion.checkout` (plan base, T011).
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 [eliminada: `SettlementSummary` lo implementa plan-consultar-liquidacion.md (T004)]
-- [ ] T005 [eliminada: `SettlementRestQueryPort` y `SettlementRestAdapter` los implementa plan-consultar-liquidacion.md (T007)]
+- [ ] T005 [eliminada: `SettlementRestQueryPort` y `SettlementRestAdapter` los implementa plan-consultar-liquidacion.md (T005 y T010)]
 - [ ] T006 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
 
 ---
@@ -315,9 +318,9 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 
 - [ ] T007 [P] [US1] Unit test para `ActiveStayQueryService` verificando recuperación 100% local desde `Stay`, `Room` y `RoomGuest` sin llamadas externas a Módulo 2.
 - [ ] T008 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
-- [ ] T009 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `OutboxCheckOutEventDto`.
+- [ ] T009 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`).
 - [ ] T010 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
-- [ ] T011 [P] [US1] Unit test verificando que la habitación liberada queda visible de inmediato en las consultas de inventario para el Personal de limpieza en estado `PendingCleaning`.
+- [ ] T011 [P] [US1] Integration test verificando que la habitación liberada aparece de inmediato en `GET /api/cleaning/panel` en estado `PendingCleaning` (`plan-consultar-panel-limpieza.md`).
 
 ### Implementation for User Story 1
 
@@ -326,7 +329,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
   - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
-  - Actualizar `Stay` asignando `checkOutDate = LocalDate.now()`.
+  - Actualizar `Stay` asignando `checkOutDate = LocalDate.now(clock)` (regla 6 del plan base) y `checkOutReceptionistId` (usuario actual, columna `check_out_receptionist_id`).
   - Construir el payload plano para outbox:
 
     ```json
@@ -359,11 +362,11 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
   - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
   - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
 - [ ] T015 [US1] Construir los componentes frontend en React:
-  - `Step1ActiveStay.tsx`: Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
-  - `Step2SettlementSummary.tsx`: Muestra `settlementType`, `invoiceNumber` (entero o "Pendiente de facturación"), canal local `Stay.source`, comisión OTA e ingreso neto.
-  - `Step3PaymentReview.tsx`: En liquidación final: `invoiceNumber`, hospedaje, IVA, `totalAmount` de M3 (sin recálculo local), noches y fechas. En liquidación informativa: solo hospedaje, comisión e ingreso neto; sin IVA, total ni factura.
-  - `Step4Confirmation.tsx`: Checkbox obligatorio de confirmación y nota informativa de contingencia sin jerga técnica.
-  - `Step5SuccessCleaning.tsx`: Badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
+  - `Step1ActiveStay.tsx` (vista `vistas/recepcionista/06-checkout-1-reserva.html`): Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
+  - `Step2SettlementSummary.tsx` (vista `vistas/recepcionista/07-checkout-2-liquidacion.html`): Muestra `settlementType`, `invoiceNumber` (entero o "Pendiente de facturación"), canal local `Stay.source`, comisión OTA e ingreso neto.
+  - `Step3PaymentReview.tsx` (vista `vistas/recepcionista/07b-checkout-2b-pago.html`): En liquidación final: `invoiceNumber`, hospedaje, IVA, `totalAmount` de M3 (sin recálculo local), noches y fechas. En liquidación informativa: solo hospedaje, comisión e ingreso neto; sin IVA, total ni factura.
+  - `Step4Confirmation.tsx` (vista `vistas/recepcionista/08-checkout-3-confirmacion.html`): Checkbox obligatorio de confirmación y nota informativa de contingencia sin jerga técnica.
+  - `Step5SuccessCleaning.tsx` (vista `vistas/recepcionista/09-checkout-4-exito.html`): Badges "Habitación: Pendiente de limpieza", estado de notificación enviada y botón "Volver al inicio".
 
 ---
 
@@ -383,7 +386,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 ### Implementation for User Story 2
 
 - [ ] T020 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
-- [ ] T021 [eliminada: la traducción de fallas de Módulo 3 a `UNAVAILABLE` la implementa plan-consultar-liquidacion.md (T021 y T023)]
+- [ ] T021 [eliminada: la traducción de fallas de Módulo 3 a `UNAVAILABLE` la implementa plan-consultar-liquidacion.md (T022 y T024)]
 - [ ] T022 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 
 ---
@@ -401,5 +404,6 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 - **Foundational**: Requiere `Room`, `Stay`, `RoomGuest` y el esquema Outbox de [PLAN/base/plan.md](base/plan.md).
 - **Sub-planes Requeridos**:
   - `plan-consultar-panel-recepcion.md`: Suministra la estancia seleccionada desde el buscador de Salidas.
-  - `plan-consultar-liquidacion.md`: Provee el contrato y servicio reactivo hacia Módulo 3 (`GET /api/settlements`).
+  - `plan-consultar-liquidacion.md`: Provee el contrato y servicio reactivo hacia Módulo 3 (`GET /api/settlements`) y el Endpoint 2 que consume el frontend.
+  - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
 - **Flujo de Ejecución**: Paso 1 (Consultar reserva local) → Paso 2 (Liquidación M3) → Paso 3 (Pago informativo) → Paso 4 (Confirmación con checkbox) → Paso 5 (Liberar habitación a `PendingCleaning`).

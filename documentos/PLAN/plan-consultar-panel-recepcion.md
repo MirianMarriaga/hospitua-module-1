@@ -310,7 +310,8 @@ backend/src/
 │   ├── domain/
 │   │   └── model/
 │   │       ├── ReceptionDashboardKpis.java
-│   │       ├── ArrivalItemSummary.java
+│   │       ├── ArrivalGroup.java                         # Definido en plan-consultar-reservas.md (T019); groups[]
+│   │       ├── ArrivalItemSummary.java                   # groups[].rooms[]
 │   │       └── DepartureSummary.java
 │   ├── application/
 │   │   ├── ports/
@@ -328,6 +329,7 @@ backend/src/
 │   │   │   └── DepartureSearchService.java           # Búsqueda local de salidas
 │   │   └── dto/
 │   │       ├── ReceptionDashboardKpisDto.java
+│   │       ├── ArrivalGroupDto.java
 │   │       ├── ArrivalItemSummaryDto.java
 │   │       └── DepartureSummaryDto.java
 │   └── infrastructure/
@@ -359,13 +361,13 @@ frontend/src/
 
 - [ ] T001 Verificar la configuración base de repositorios en [PLAN/base/plan.md](base/plan.md).
 - [ ] T002 Verificar que las tablas `daily_reservation` y `daily_reservation_room` estén disponibles (creadas por `V1__init_schema.sql` del plan base y alimentadas por `plan-consultar-reservas.md`).
-- [ ] T003 Configurar el mapeo de excepciones en `GlobalExceptionHandler`.
+- [ ] T003 Verificar `GlobalExceptionHandler` (plan base, T009): los endpoints del panel no tienen errores propios.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
+- [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
 - [ ] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
 - [ ] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
@@ -374,7 +376,7 @@ frontend/src/
 - [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
   - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T019).
-  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`reserva.lista-del-dia` con el `operationalDate` de hoy) (FR-010).
+  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-010).
 
 ---
 
@@ -387,7 +389,7 @@ frontend/src/
 ### Tests for User Story 1
 
 - [ ] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
-- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005).
+- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005).
 - [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-007; SC-004).
 
 ### Implementation for User Story 1

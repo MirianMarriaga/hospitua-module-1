@@ -95,7 +95,8 @@ Content-Type: application/json
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a ninguna habitación | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `PendingCleaning` ni `Available` (FR-005, HU-1 esc. 3) | "La habitación está {estado}; ahora no se puede limpiar." |
 | 409 | `ACTIVE_TASK_EXISTS` | `ActiveTaskExistsException` o `DataIntegrityViolationException` del índice único del miembro (T003) | El miembro ya tiene una `CleaningTask` abierta (FR-013, HU-1 esc. 4) | "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." |
-| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` o `DataIntegrityViolationException` del índice único de la habitación (T003) | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro compañero ya está limpiando esta habitación." |
+| 409 | `ROOM_TASK_EXISTS` | `DataIntegrityViolationException` del índice único de tarea abierta por habitación (T003) | Otro miembro inició la limpieza de la misma habitación al mismo tiempo (FR-006, caso límite 1) | "Otro compañero ya está limpiando esta habitación." |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (control optimista de `room.version`) | "La habitación acaba de cambiar; vuelve al panel." |
 
 ```json
 {
@@ -176,7 +177,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 
 - [ ] T001 Verificar que la tabla `cleaning_task` y sus índices únicos parciales existan (plan base, T018) (FR-006, FR-013; regla 9 del plan base).
 - [ ] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`, con las consultas "tarea abierta por miembro" y "última tarea cerrada con `outcome` `Completed` o `DamageReported` por habitación".
-- [ ] T003 [P] Registrar en `GlobalExceptionHandler` los códigos `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `CONCURRENT_UPDATE` y `ROOM_NOT_FOUND`, y mapear las violaciones de los índices únicos y del bloqueo optimista a `409 CONCURRENT_UPDATE` o `ACTIVE_TASK_EXISTS` según el índice.
+- [ ] T003 [P] Verificar en `GlobalExceptionHandler` los códigos comunes `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS`, `CONCURRENT_UPDATE` y `ROOM_NOT_FOUND` (plan base, T009 y T020), y mapear las violaciones de los índices únicos de `cleaning_task`: el del miembro a `409 ACTIVE_TASK_EXISTS` y el de la habitación a `409 ROOM_TASK_EXISTS`.
 
 ---
 
@@ -193,7 +194,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 - [ ] T006 [P] [US1] Unit test: rechazo desde cualquier otro estado con `ROOM_INVALID_STATE` y el estado actual (HU-1 esc. 3; FR-005).
 - [ ] T007 [P] [US1] Unit test: rechazo con `ACTIVE_TASK_EXISTS` si el miembro ya tiene una tarea abierta (HU-1 esc. 4; FR-013).
 - [ ] T008 [P] [US1] Unit test con `Clock` fijo: `startDateTime` de la tarea y `start_date_time` del periodo en `room_state_history` son iguales y no se toman del cliente (FR-010, FR-011, FR-014; caso límite 3; SC-002).
-- [ ] T009 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409` con el estado `InCleaning` (FR-006; caso límite 1).
+- [ ] T009 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409 ROOM_TASK_EXISTS` o `409 CONCURRENT_UPDATE` (FR-006; caso límite 1).
 - [ ] T010 [US1] Integration test: un fallo forzado al guardar el registro del historial revierte la transición y la tarea (FR-016).
 - [ ] T011 [P] [US1] Component test de la acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el motivo y vuelve al panel recargado (FR-001, FR-009, FR-017).
 - [ ] T012 [eliminada: la seguridad no es responsabilidad de esta etapa]

@@ -149,4 +149,4 @@ No aplica: usa la infraestructura del plan base.
   - `plan-registrar-check-out.md`: `CheckOutExecutionService` invoca `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
   - `plan-confirmar-reparacion-finalizada.md`: invoca con `sourceFlow = CONFIRM_REPAIR_END`.
   - `plan-confirmar-fin-de-limpieza.md`: invoca con `sourceFlow = RELEASE_CLEANING_TASK` desde la liberación de la tarea.
-- **Orden**: Este plan es el primero de limpieza y mantenimiento; los invocadores lo usan una vez completada la Phase 3.
+- **Orden**: Es uno de los puertos transversales de T019 del plan base y va antes de check-out y de los planes de limpieza y mantenimiento ("Orden de implementación de los planes" del plan base); los invocadores lo usan una vez completada la Phase 3.

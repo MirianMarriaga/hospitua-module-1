@@ -259,6 +259,8 @@ backend/src/main/
 │   ├── application/
 │   │   ├── ports/in/
 │   │   │   └── ConsultRoomInventoryUseCase.java
+│   │   ├── ports/out/
+│   │   │   └── RoomRepositoryPort.java            # Se agrega searchInventory(RoomInventoryFilter, page, size)
 │   │   ├── service/
 │   │   │   └── RoomInventoryQueryService.java
 │   │   └── dto/
@@ -270,6 +272,7 @@ backend/src/main/
 │       ├── in/web/
 │       │   └── RoomController.java                # Se agregan GET /api/rooms/inventory, GET /api/rooms/inventory/{roomId}, GET /api/rooms y GET /api/rooms/{roomId}
 │       └── out/persistence/
+│           ├── adapter/RoomRepositoryAdapter.java     # Se agrega searchInventory(...), que usa RoomInventorySpecifications
 │           └── repository/RoomInventorySpecifications.java   # Filtros dinámicos (JPA Specifications)
 └── resources/db/migration/
     └── V4__room_inventory_indexes.sql
@@ -299,8 +302,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(room_category)` y `room(floor)` (SC-001).
-- [ ] T002 [P] Implementar `RoomInventorySpecifications` con los filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`, y el orden por las columnas permitidas.
+- [ ] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
+- [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter` con `RoomInventorySpecifications` (filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`, y orden por las columnas permitidas). El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
 - [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T016).
 
 ---
@@ -327,7 +330,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implementar `RoomInventoryQueryService` (`@Transactional(readOnly = true)`) sobre `RoomInventorySpecifications`, con paginación y orden (FR-003 a FR-006, FR-009), y con el filtro `status != Inactive` en la consulta de Módulo 2 (FR-010).
+- [ ] T015 [US1] Implementar `RoomInventoryQueryService` (`@Transactional(readOnly = true)`) sobre `RoomRepositoryPort.searchInventory(...)`, con paginación y orden (FR-003 a FR-006, FR-009), y con el filtro `status != Inactive` en la consulta de Módulo 2 (FR-010).
 - [ ] T016 [US1] Agregar a `RoomController` (FR-001, FR-004, FR-010):
   - Para las vistas: `GET /api/rooms/inventory`, que responde `PagedResultDto<RoomDto>`, y `GET /api/rooms/inventory/{roomId}`, que responde `RoomDto` con `version`.
   - Para Módulo 2: `GET /api/rooms` (con `categoryRoom` obligatorio), que responde un arreglo sin paginar de `Module2RoomDto`, y `GET /api/rooms/{roomId}`, que responde `Module2RoomDto` y `404` para una `Inactive`.
