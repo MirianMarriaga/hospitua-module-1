@@ -329,7 +329,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
   - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
-  - Actualizar `Stay` asignando `checkOutDate = LocalDate.now(clock)` (regla 6 del plan base) y `checkOutReceptionistId` (usuario actual, columna `check_out_receptionist_id`).
+  - Actualizar `Stay` asignando `checkOutDate = LocalDate.now(clock)` (regla 6 del plan base).
   - Construir el payload plano para outbox:
 
     ```json

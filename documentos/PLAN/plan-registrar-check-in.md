@@ -327,7 +327,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 1: Setup & Database Migrations
 
-- [ ] T001 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `stay` tenga `titular_first_name`, `titular_last_name`, `titular_document_number`, `source` (`DIRECTA` o el nombre de la OTA), `check_in_receptionist_id` y `check_out_receptionist_id`. Este plan no tiene migración propia.
+- [ ] T001 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `stay` tenga `titular_first_name`, `titular_last_name`, `titular_document_number`, `source` (`DIRECTA` o el nombre de la OTA). Este plan no tiene migración propia.
 - [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `room_guest` tenga `first_name` y `last_name` (sin `full_name`), `birth_date` (DATE NOT NULL), `origin_place` y `destination_place` (VARCHAR nullable).
 - [ ] T003 Verificar el exchange `hospitua.events` y la cola `m2.habitacion.checkin.queue` con routing key `habitacion.checkin` (plan base, T011).
 
@@ -343,7 +343,6 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - `titularFirstName`, `titularLastName`, `titularDocumentNumber`
   - `checkInDate` (LocalDate), `checkOutDate` (LocalDate nullable)
   - `expectedCheckinDate` (LocalDate), `expectedCheckoutDate` (LocalDate)
-  - `checkInReceptionistId` (String, usuario actual del check-in), `checkOutReceptionistId` (String nullable; lo asigna *Registrar check-out*), columnas `check_in_receptionist_id` y `check_out_receptionist_id` de `stay` (plan base)
 - [ ] T005 Actualizar entidad inmutable `RoomGuest`:
   - `id` (UUID), `stayId` (UUID)
   - `firstName` (String), `lastName` (String)
@@ -386,7 +385,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Validar `birthDate < LocalDate.now(clock)` (regla 6 del plan base) y `documentType` admitido para todos los huéspedes, y `originPlace` y `destinationPlace` no vacíos para extranjeros.
   - Validar aforo: la cantidad de ocupantes debe ser igual a `guest_count` de la habitación en `daily_reservation_room` (`GuestCountMismatchException`) y nunca mayor que `room.maxCapacity` (`RoomCapacityExceededException`).
   - Validar unicidad de documento dentro de la habitación (`DuplicateGuestDocumentException`).
-  - Crear y guardar entidad `Stay` con `source`, `titularFirstName`, `titularLastName`, `titularDocumentNumber` y `checkInReceptionistId` (usuario actual).
+  - Crear y guardar entidad `Stay` con `source`, `titularFirstName`, `titularLastName`, `titularDocumentNumber` (usuario actual).
   - Persistir ocupantes en `RoomGuest`.
   - Registrar en `room_audit_log` el evento `CHECK_IN` con `stayId`, `reservationRef`, recepcionista y marca de tiempo, mediante `RoomAuditLogRepositoryPort` (FR-015).
   - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base) y, al salir de `Reserved`, limpia `reserved_by_reservation_ref` (regla 2 del plan base).

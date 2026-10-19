@@ -108,7 +108,6 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
   1. Creación de `Stay` con `source`, `checkInDate`, `expectedCheckinDate`, `expectedCheckoutDate`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
   2. Creación de los registros `RoomGuest` inmutables con `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`; para extranjeros: también `originPlace`, `destinationPlace`; y `isReservationGuest`.
   3. Transición a `Occupied` en el inventario (`Reserved → Occupied`).
-  4. Registro del recepcionista responsable (`receptionistIdCheckIn`).
 - **FR-012**: Al confirmar el Check-In, el sistema DEBE generar una notificación asíncrona de movimiento de entrada dirigida a Módulo 2 que consolide a la totalidad de los huéspedes admitidos (nacionales y extranjeros) en un único aviso, sin canales separados para extranjeros. La notificación DEBE incluir:
   - Identificador único para control de duplicados e idempotencia.
   - Referencia de reserva e identificador de habitación.
@@ -126,7 +125,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional. Atributos clave: `roomId` (UUID), número, piso, tipo, `maxCapacity`, tarifa base, `status` (8 estados), `reservedByReservationRef` (solo en `Reserved`).
-- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` (`DIRECTA` o nombre de la OTA), `checkInDate`, `checkOutDate`, `expectedCheckinDate`, `expectedCheckoutDate`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`, `receptionistIdCheckIn`, `receptionistIdCheckOut`.
+- **Stay**: Estancia física. Atributos: `id`, `reservationRef`, `roomId`, `source` (`DIRECTA` o nombre de la OTA), `checkInDate`, `checkOutDate`, `expectedCheckinDate`, `expectedCheckoutDate`, `titularFirstName`, `titularLastName`, `titularDocumentNumber`.
 - **RoomGuest**: Ocupante inmutable vinculado a la Estancia. Atributos: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace` (solo extranjeros), `destinationPlace` (solo extranjeros), `isReservationGuest`.
 - **DailyReservation / DailyReservationRoom**: Copia local de la reserva. Fuente de verdad en el paso 1 y para el precargado del titular. De 1 a 10 habitaciones por reserva. No persiste `status`, `guestRef`, `externalConfirmationCode`.
 - **Receptionist**: Actor que ejecuta el flujo de admisión.
