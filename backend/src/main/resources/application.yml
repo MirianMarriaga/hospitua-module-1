@@ -34,6 +34,8 @@ hospitua:
   maintenance:
     max-range-days: 90
     max-advance-days: 365
+    # Respaldo del trabajo de bloqueos técnicos si la lista de las 00:00 no llega (plan base, regla 10)
+    fallback-apply-time: "01:00"
 
 ---
 # Desarrollo local contra docker-compose.yml (raíz del repositorio).
@@ -56,6 +58,12 @@ hospitua:
     base-url: ${MODULE2_BASE_URL:http://localhost:8082}
   module3:
     base-url: ${MODULE3_BASE_URL:http://localhost:8083}
+  # Cuenta inicial de Administración que crea StaffAccountBootstrapper (plan base, T023)
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:admin123}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:Administrador}
 
 logging:
   level:
@@ -63,7 +71,7 @@ logging:
 
 ---
 # PostgreSQL y RabbitMQ los inyecta Testcontainers con @ServiceConnection.
-# Las pruebas de clientes REST usan MockRestServiceServer.
+# Las pruebas de clientes REST usan MockRestServiceServer y WireMock.
 spring:
   config:
     activate:
@@ -74,6 +82,11 @@ hospitua:
     base-url: http://localhost:8082
   module3:
     base-url: http://localhost:8083
+  bootstrap:
+    admin:
+      username: admin
+      password: admin123
+      full-name: Administrador
 
 ---
 # Sin valores por defecto: toda la configuración llega por variables de entorno.
@@ -96,3 +109,8 @@ hospitua:
     base-url: ${MODULE2_BASE_URL}
   module3:
     base-url: ${MODULE3_BASE_URL}
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME}

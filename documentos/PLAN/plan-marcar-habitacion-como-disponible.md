@@ -96,9 +96,9 @@ Accept: application/json
 | `floor` | integer | Piso | `3` |
 | `categoryRoom` | string | Categoría (tipo) | `"SUITE"` |
 | `status` | string | `Inactive` | `"Inactive"` |
-| `decommissionId` | UUID \| null | Baja vigente; nulo si la habitación no tiene registro de baja (ej. cargada inactiva por la semilla) | `"7d6c…"` |
-| `decommissionDateTime` | string \| null | Fecha de la baja | `"2026-10-09T15:00:00-05:00"` |
-| `reasonCategory` | string \| null | Categoría del motivo | `"FLOOR_CLOSURE"` |
+| `decommissionId` | UUID | Baja vigente. Toda habitación `Inactive` tiene una: la crea *Dar de baja habitación* o, en las habitaciones que la semilla carga inactivas, la semilla `V2__seed_rooms.sql` (plan base, T007) | `"7d6c…"` |
+| `decommissionDateTime` | string | Fecha de la baja | `"2026-10-09T15:00:00-05:00"` |
+| `reasonCategory` | string | Categoría del motivo | `"FLOOR_CLOSURE"` |
 | `reasonDetail` | string \| null | Detalle, si existe | `"Cierre del piso 3…"` |
 
 **Body (JSON):**
@@ -117,7 +117,6 @@ Accept: application/json
 }
 ```
 
-Si `decommissionId` es nulo, la confirmación muestra "Sin registro" en la fecha y el motivo.
 
 ### Respuestas de error
 
@@ -157,7 +156,7 @@ Content-Type: application/json
 | --- | --- | --- | --- | --- | --- |
 | `roomId` | path | UUID | Sí | Habitación a reactivar | `9b2e7c1a-4d3f-4e8a-b1c2-3d4e5f607182` |
 
-**Body (JSON):** `decommissionId` es el que devolvió `GET /api/rooms/{roomId}/decommission`; nulo si la habitación no tenía registro de baja.
+**Body (JSON):** `decommissionId` (obligatorio, UUID) es el que devolvió `GET /api/rooms/{roomId}/decommission`.
 
 ```json
 {
@@ -200,6 +199,7 @@ El resultado indica que la habitación ya puede recibir reservas y estancias; co
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta `decommissionId` o no tiene formato de UUID | "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Inactive` y no es un reintento de la misma baja (esc. 3; FR-006) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
 
@@ -278,46 +278,11 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Inactive`, `InCleaning` y `Reserved` → `Available`, y que `SourceFlow` (T020) incluya `MARK_AVAILABLE` y `CONFIRM_CLEANING_END`.
-- [ ] T002 [P] Verificar la tabla `room_decommission` (plan base, T007) y `RoomDecommissionRepositoryPort` (`plan-dar-de-baja-habitacion.md`, T003).
-- [ ] T003 [P] Crear `MarkRoomAvailableCommand`, `MarkRoomAvailableResult` y el puerto `MarkRoomAvailableUseCase` con el contrato de este plan.
+- [ ] T002 [P] Crear `MarkRoomAvailableCommand`, `MarkRoomAvailableResult` y el puerto `MarkRoomAvailableUseCase` con el contrato de este plan.
 
 ---
 
-## Phase 3: User Story 1 - Revertir la baja de una habitación inactiva (Priority: P1)
-
-**Goal**: Que el Administrador reactive una habitación `Inactive` tras confirmar con los datos de su baja, y que cualquier otro estado se rechace.
-
-**Independent Test**: Dar de baja la habitación "305" y luego reactivarla: verificar `Available`, la baja con `reactivation_date_time` y el periodo en `room_state_history` con `MARK_AVAILABLE` y el Administrador como actor. Repetir la petición con el mismo `decommissionId` y verificar `alreadyReactivated: true` sin periodo nuevo. Intentar reactivar una habitación `Available` con otra baja y verificar el `409`.
-
-### Tests for User Story 1
-
-- [ ] T004 [P] [US1] Unit test en `ReactivateRoomServiceTest`: `Inactive` → `Available` vía el puerto con `MARK_AVAILABLE`, la baja queda con `reactivated_by` y `reactivation_date_time` y el periodo del historial queda con el Administrador como actor (esc. 1; FR-005, FR-008, FR-011; SC-004).
-- [ ] T005 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en `Available`, `Occupied`, `PendingCleaning`, `DisabledForRepairs` y `TechnicalBlock` (esc. 3; FR-006; SC-002).
-- [ ] T006 [P] [US1] Unit test: un reintento con el `decommissionId` de una baja ya revertida devuelve `alreadyReactivated: true` sin transición ni periodo nuevo (FR-010, caso borde 2).
-- [ ] T007 [P] [US1] Unit test en `RoomDecommissionQueryServiceTest`: devuelve la habitación con la fecha, la categoría y el detalle de su baja vigente; sin registro, devuelve esos campos nulos (esc. 2; FR-009).
-- [ ] T008 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
-- [ ] T009 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
-  - La confirmación muestra número, piso, tipo y estado, más la fecha, el motivo y el detalle de la baja, o "Sin registro" si no hay.
-  - Cancelar no envía nada.
-  - El resultado indica que la habitación ya puede recibir reservas y estancias, o que no fue necesario hacer cambios.
-  - (esc. 2; FR-009, FR-010)
-
-### Implementation for User Story 1
-
-- [ ] T010 [US1] Implementar `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-001, FR-004 a FR-006, FR-008, FR-011):
-  - Validar el origen según `sourceFlow` y los datos del comando: `MARK_AVAILABLE` acepta `Inactive` con `actorId`, o `Reserved` con `reservationRef` igual a `reserved_by_reservation_ref`; `CONFIRM_CLEANING_END` acepta solo `InCleaning`.
-  - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
-  - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
-  - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
-- [ ] T011 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
-- [ ] T012 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
-- [ ] T013 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
-
-**Checkpoint**: El Administrador puede revertir bajas.
-
----
-
-## Phase 4: User Story 2 - Reintegración operativa de la habitación tras fin de limpieza (Priority: P1)
+## Phase 3: User Story 2 - Reintegración operativa de la habitación tras fin de limpieza (Priority: P1)
 
 **Goal**: Que *Confirmar fin de limpieza* y la ingesta de reservas usen el mismo puerto para volver a `Available`, con un solo periodo en el historial por transición.
 
@@ -328,15 +293,20 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Unit test en `MarkRoomAvailableServiceTest`: `InCleaning` → `Available` con `CONFIRM_CLEANING_END`; el periodo del historial queda con ese `source_flow` y el miembro como actor, y no se crea un segundo periodo (esc. 4; FR-003, FR-011).
-- [ ] T015 [P] [US2] Unit test: `Reserved` → `Available` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` vinculada; limpia `reserved_by_reservation_ref`. Con una `reservationRef` distinta, rechazo sin cambios (FR-004, FR-011).
-- [ ] T016 [P] [US2] Unit test: rechazo con `CONFIRM_CLEANING_END` desde cualquier estado distinto de `InCleaning`, con el estado actual en la excepción (esc. 8; FR-006).
-- [ ] T017 [P] [US2] Unit test: en los tres flujos, el periodo del historial registra el actor (nulo si es autónoma), el `sourceFlow` del invocador y la hora del servidor, y no se escribe en `room_audit_log` (FR-008; SC-004).
-- [ ] T018 [US2] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el puerto, la habitación queda en su estado de origen sin periodo ni evento nuevos (casos borde 3 y 4).
+- [ ] T003 [P] [US2] Unit test en `MarkRoomAvailableServiceTest`: `InCleaning` → `Available` con `CONFIRM_CLEANING_END`; el periodo del historial queda con ese `source_flow` y el miembro como actor, y no se crea un segundo periodo (esc. 4; FR-003, FR-011).
+- [ ] T004 [P] [US2] Unit test: `Reserved` → `Available` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` vinculada; limpia `reserved_by_reservation_ref`. Con una `reservationRef` distinta, rechazo sin cambios (FR-004, FR-011).
+- [ ] T005 [P] [US2] Unit test: rechazo con `CONFIRM_CLEANING_END` desde cualquier estado distinto de `InCleaning`, con el estado actual en la excepción (esc. 8; FR-006).
+- [ ] T006 [P] [US2] Unit test: en los tres flujos, el periodo del historial registra el actor (nulo si es autónoma), el `sourceFlow` del invocador y la hora del servidor, y no se escribe en `room_audit_log` (FR-008; SC-004).
+- [ ] T007 [US2] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el puerto, la habitación queda en su estado de origen sin periodo nuevo (casos borde 3 y 4).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
+- [ ] T008 [US2] Implementar `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-001, FR-004 a FR-006, FR-008, FR-011):
+  - Validar el origen según `sourceFlow` y los datos del comando: `MARK_AVAILABLE` acepta `Inactive` con `actorId`, o `Reserved` con `reservationRef` igual a `reserved_by_reservation_ref`; `CONFIRM_CLEANING_END` acepta solo `InCleaning`.
+  - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
+  - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
+  - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
+- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
 La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la decide *Confirmar fin de limpieza* después de este puerto; sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
 
@@ -344,10 +314,43 @@ La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la deci
 
 ---
 
+## Phase 4: User Story 1 - Revertir la baja de una habitación inactiva (Priority: P1)
+
+**Goal**: Que el Administrador reactive una habitación `Inactive` tras confirmar con los datos de su baja, y que cualquier otro estado se rechace.
+
+**Independent Test**: Dar de baja la habitación "305" y luego reactivarla: verificar `Available`, la baja con `reactivation_date_time` y el periodo en `room_state_history` con `MARK_AVAILABLE` y el Administrador como actor. Repetir la petición con el mismo `decommissionId` y verificar `alreadyReactivated: true` sin periodo nuevo. Intentar reactivar una habitación `Available` con otra baja y verificar el `409`.
+
+**Requisito previo**: `plan-dar-de-baja-habitacion.md` (Phase 2, T003: `RoomDecommission` y `RoomDecommissionRepositoryPort`). Esta fase se implementa en el paso 7 del orden del plan base, después de dar de baja; las Phases 2 y 3 van en el paso 3.
+
+- [ ] T010 [US1] Verificar la tabla `room_decommission` (plan base, T007) y `RoomDecommissionRepositoryPort` (`plan-dar-de-baja-habitacion.md`, T003).
+
+### Tests for User Story 1
+
+- [ ] T011 [P] [US1] Unit test en `ReactivateRoomServiceTest`: `Inactive` → `Available` vía el puerto con `MARK_AVAILABLE`, la baja queda con `reactivated_by` y `reactivation_date_time` y el periodo del historial queda con el Administrador como actor (esc. 1; FR-005, FR-008, FR-011; SC-004).
+- [ ] T012 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en `Available`, `Occupied`, `PendingCleaning`, `DisabledForRepairs` y `TechnicalBlock` (esc. 3; FR-006; SC-002).
+- [ ] T013 [P] [US1] Unit test: un reintento con el `decommissionId` de una baja ya revertida devuelve `alreadyReactivated: true` sin transición ni periodo nuevo (FR-010, caso borde 2).
+- [ ] T014 [P] [US1] Unit test en `RoomDecommissionQueryServiceTest`: devuelve la habitación con la fecha, la categoría y el detalle de su baja vigente; el detalle es nulo si la baja no lo tiene (esc. 2; FR-009).
+- [ ] T015 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
+- [ ] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
+  - La confirmación muestra número, piso, tipo y estado, más la fecha, el motivo y el detalle de la baja (el detalle solo si existe).
+  - Cancelar no envía nada.
+  - El resultado indica que la habitación ya puede recibir reservas y estancias, o que no fue necesario hacer cambios.
+  - (esc. 2; FR-009, FR-010)
+
+### Implementation for User Story 1
+
+- [ ] T017 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
+- [ ] T018 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
+- [ ] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
+
+**Checkpoint**: El Administrador puede revertir bajas.
+
+---
+
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms/inventory?status=Available` sin retraso (esc. 7; FR-007; SC-003).
-- [ ] T021 Medir en las pruebas de integración que la transición con su periodo y su evento tome menos de 1 segundo (SC-001).
+- [ ] T021 Medir en las pruebas de integración que la transición con su periodo tome menos de 1 segundo (SC-001).
 
 ---
 
@@ -355,9 +358,9 @@ La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la deci
 
 - **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T017), `SourceFlow` (T020) y `ClockConfig`. Detalla el puerto `MarkRoomAvailableUseCase` de T019.
 - **Planes de los que depende**:
-  - `plan-dar-de-baja-habitacion.md`: `RoomDecommissionRepositoryPort` y las bajas que se revierten.
+  - `plan-dar-de-baja-habitacion.md`: `RoomDecommissionRepositoryPort` y las bajas que se revierten (solo la Phase 4).
   - `plan-consultar-inventario-habitaciones.md`: acción "Marcar como disponible".
 - **Planes que invocan el puerto** (FR-003, FR-004; ninguno debe reimplementar la transición):
   - `plan-confirmar-fin-de-limpieza.md`: `CompleteCleaningService` con `CONFIRM_CLEANING_END`.
   - `plan-consultar-reservas.md`: `DailyReservationIngestionService` con `MARK_AVAILABLE` al procesar un `REMOVED` o una reserva ausente de la lista de las 00:00, antes de apartar las habitaciones de la nueva lista (T012 y T013).
-- **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5. El puerto (T003, T010) debe estar listo antes de que los planes invocadores implementen sus servicios.
+- **Orden**: Phase 2 → Phase 3 en el paso 3 del orden del plan base (el puerto, T002 y T008, debe estar listo antes de que los planes invocadores implementen sus servicios); Phase 4 → Phase 5 en el paso 7, después de `plan-dar-de-baja-habitacion.md`.

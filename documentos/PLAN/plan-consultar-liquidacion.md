@@ -305,7 +305,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de comunicación REST, Resilience4j y WireMock en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar `Module3Properties` (`hospitua.integration.module3.*`: base-url y timeout de lectura de 3000 ms) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
+- [ ] T002 Verificar `Module3Properties` (`hospitua.module3.*`: `base-url` y `read-timeout` de `3s`) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
 - [ ] T003 Configurar el entorno de pruebas con WireMock y `MockRestServiceServer` para simular las respuestas del contrato `GET /api/settlements` de Módulo 3.
 
 ---

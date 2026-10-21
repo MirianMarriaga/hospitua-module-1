@@ -286,11 +286,10 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
   ```yaml
   hospitua:
-    integration:
-      module2:
-        base-url: "http://localhost:8082"
-        connect-timeout-ms: 1000
-        read-timeout-ms: 2000
+    module2:
+      base-url: ${MODULE2_BASE_URL:http://localhost:8082}
+      connect-timeout: 1s
+      read-timeout: 2s
   ```
 
 - [ ] T002 Verificar en `RabbitConfig.java` (plan base, T011) la cola durable `m1.reservas.diarias.queue`, el exchange topic `hospitua.events`, los bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` y la cola de mensajes fallidos `m1.reservas.diarias.dlq`.
@@ -306,7 +305,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `operational_date` DATE NOT NULL, `message_type` VARCHAR(50), `received_at` TIMESTAMP, con índice `(operational_date, message_type)`.
 - [ ] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
 - [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery`, `ReservationConflictResult` y `ArrivalGroup` (sus `rooms` son `ArrivalItemSummary`, `plan-consultar-panel-recepcion.md`).
-- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`.
+- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T019); la usa `plan-confirmar-fin-de-limpieza.md`.
 - [ ] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
 
 ---
@@ -326,11 +325,15 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - Procesamiento de actualización `UPDATED`: aplica cambios solo si `message.updatedAt > local.updatedAt`; descarta en caso contrario. Si cambia la habitación asignada, libera la anterior con `MarkRoomAvailableUseCase` y aparta la nueva con `MarkRoomReservedUseCase`.
   - Procesamiento de actualización `REMOVED`: elimina la reserva y habitaciones de la copia local, y libera cada habitación con `MarkRoomAvailableUseCase`.
   - La ingesta no invoca `TransitionRoomStateUseCase` directamente.
-- [ ] T010 [P] [US1] Integration test con Testcontainers RabbitMQ + PostgreSQL: Ingesta de lista diaria y mensaje duplicado, verificando idempotencia, transiciones en `Room` y logs.
+- [ ] T010 [P] [US1] Integration test con Testcontainers RabbitMQ + PostgreSQL: Ingesta de lista diaria y mensaje duplicado, verificando idempotencia, transiciones en `Room` y logs. Verificar también que `DailyReservationIngestionService` aparta las habitaciones solo a través de `MarkRoomReservedUseCase` (FR-009) y que (prueba trasladada desde `plan-marcar-habitacion-reservada.md`):
+  - invoca el puerto con `DAILY_LIST` y `ADDED_UPDATE` solo para reservas con `startDate` = hoy;
+  - en la lista de las 00:00 ejecuta primero las liberaciones (`MarkRoomAvailableUseCase`) y después los apartados;
+  - trata un `UPDATED` que cambia la habitación como liberación de la anterior y apartado de la nueva;
+  - continúa con la siguiente habitación ante `CONFLICT` o `ROOM_NOT_FOUND`.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implementar `DailyReservationRepositoryAdapter` para operaciones CRUD y purga atómica de la copia local.
+- [ ] T011 [P] [US1] Implementar `DailyReservationRepositoryAdapter` para operaciones CRUD y purga atómica de la copia local, incluida `findPendingArrivalReservationRef` (`daily_reservation_room` sin una fila de `stay` con la misma `reservation_ref` y `room_id`).
 - [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación y control de `sequenceNumber`. Aparta las habitaciones con `MarkRoomReservedUseCase` y las libera con `MarkRoomAvailableUseCase` (puertos de T019 del plan base), ejecutando primero las liberaciones a las 00:00; no transiciona las habitaciones por su cuenta (FR-009). Por cada habitación, bloquea su fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de invocar el puerto; el conflicto lo registra *Marcar habitación como reservada*. Guarda el `operationalDate` de cada mensaje en `daily_reservation_message_log.operational_date`; el día de la copia local es el `operationalDate` de la última lista `reserva.lista-del-dia` aplicada. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` (regla 10 del plan base).
 - [ ] T013 [P] [US1] Implementar en la ingesta de las 00:00 la liberación a `Available` (mediante `MarkRoomAvailableUseCase`) de cada habitación en `Reserved` cuya reserva no figura en la nueva lista, con la salvaguarda de `reservedByReservationRef`. No se implementa un corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
 - [ ] T014 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`. Los mensajes ilegibles o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` van, sin aplicarse, a la cola de mensajes fallidos `m1.reservas.diarias.dlq` (Dead-Letter Exchange del plan base, T011). Un fallo temporal se reintenta con espera creciente (3 intentos) y luego va a la misma cola (FR-003).

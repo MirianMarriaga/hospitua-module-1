@@ -21,7 +21,7 @@ El sistema gestiona la transición de estados para garantizar la integridad oper
 nombre canónico de cada estado (usado en SPECs y código) va en inglés; el nombre en
 español entre paréntesis es de referencia para los diagramas del equipo:
 1.  **Available** (Disponible): Puede pasar a `Reserved` (por ingesta de reservas), `InCleaning` (aseo preventivo), `DisabledForRepairs` (daño reportado), `TechnicalBlock` (bloqueo programado) o `Inactive` (baja de inventario).
-2.  **Reserved** (Reservada): Existe una reserva asociada en Módulo 2, aún no ocupada físicamente. La marca Módulo 2 mediante evento (no polling); el Check-In solo puede realizarse desde `Reserved`.
+2.  **Reserved** (Reservada): Existe una reserva asociada en Módulo 2, aún no ocupada físicamente. Módulo 1 la marca de forma autónoma al recibir la lista diaria de reservas de Módulo 2 (no polling); el Check-In solo puede realizarse desde `Reserved`.
 3.  **Occupied** (Ocupada): Huésped en sitio (Check-in realizado).
 4.  **PendingCleaning** (Pendiente de limpieza): Liberada tras el Check-out o tras una intervención de mantenimiento finalizada, en espera de ser tomada por el Personal de limpieza.
 5.  **InCleaning** (En Limpieza): El Personal de limpieza está realizando el aseo.
@@ -33,9 +33,9 @@ español entre paréntesis es de referencia para los diagramas del equipo:
 
 #### 1.3. Check-In y Check-Out
 El Recepcionista opera ambos eventos directamente en Módulo 1:
-*   **Check-In:** Transiciona la habitación de `Reserved` a `Occupied`, de forma interna y síncrona. No dispara ninguna llamada de liquidación. Notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_IN`.
-*   **Check-Out:** Transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Envía los datos de la estancia (fechas reservadas y reales, categoría de habitación) para obtener la liquidación final, y notifica de forma asíncrona a Módulo 2 para actualizar la reserva a `CHECKED_OUT`.
-*   Ningún fallo de integración con Módulo 2 o Módulo 3 bloquea el cierre físico de ninguno de los dos eventos: se marca `PENDING` localmente y se reintenta en segundo plano.
+*   **Check-In:** Transiciona la habitación de `Reserved` a `Occupied`, de forma interna y síncrona. No dispara ninguna llamada de liquidación. Notifica de forma asíncrona a Módulo 2 el check-in de la habitación (Módulo 2 actualiza el estado de la habitación en la reserva y el de la reserva).
+*   **Check-Out:** Transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Envía los datos de la estancia (fechas reservadas y reales, categoría de habitación) para obtener la liquidación final, y notifica de forma asíncrona a Módulo 2 el check-out de la habitación (Módulo 2 actualiza el estado de la habitación en la reserva y el de la reserva).
+*   Ningún fallo de integración con Módulo 2 o Módulo 3 bloquea el cierre físico de ninguno de los dos eventos: la notificación queda en el Outbox y se reintenta en segundo plano.
 
 ---
 

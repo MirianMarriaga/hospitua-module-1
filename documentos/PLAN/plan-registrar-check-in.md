@@ -372,7 +372,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 - [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
 - [ ] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `TransitionRoomStateUseCase` con `SourceFlow` = `CHECK_IN`.
 - [ ] T013 [P] [US1] Integration test: Verificar payload insertado en `outbox_notification`: formato plano (sin EventEnvelope), `movementType = ENTRY`, `movementDate = checkInDate`, `guests[]` con todos los ocupantes y `messageId` inmutable en reintentos.
-- [ ] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`.
+- [ ] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`, sobre una habitación que `MarkRoomReservedUseCase` dejó en `Reserved`: el check-in la acepta como origen válido hacia `Occupied` y `reserved_by_reservation_ref` queda nulo (*Marcar habitación como reservada*, esc. 2 y FR-010; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
 
 ### Implementation for User Story 1
 

@@ -161,14 +161,13 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T004 [P] [US1] Unit test en `MarkRoomReservedServiceTest`: `Available` → `Reserved` con `reserved_by_reservation_ref` = `reservationRef`, resultado `RESERVED` y periodo con estado previo `Available`, la `reservationRef`, `MARK_RESERVED` y hora de `Clock` (esc. 1; FR-004, FR-005, FR-011).
 - [ ] T005 [P] [US1] Unit test: falta `roomId` o `reservationRef` y se lanza la excepción de validación sin cambios (FR-003; NFR-003).
 - [ ] T006 [US1] Integration test con Testcontainers: transición encadenada; en una transacción la habitación pasa de `InCleaning` a `Available` (vía `MarkRoomAvailableUseCase` con `CONFIRM_CLEANING_END`) y a `Reserved` (vía este puerto con `CLEANING_END`), con dos periodos en `room_state_history` y el segundo con estado previo `Available` (esc. 3).
-- [ ] T007 [US1] Integration test: una habitación `Reserved` es aceptada por *Registrar check-in* como origen válido hacia `Occupied` (esc. 2; FR-010).
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implementar `MarkRoomReservedService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-003 a FR-011):
+- [ ] T007 [US1] Implementar `MarkRoomReservedService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-003 a FR-011):
   - Validar `roomId` y `reservationRef`.
   - Buscar la habitación; si no existe, registrar una advertencia en el log del sistema y devolver `ROOM_NOT_FOUND`.
-  - Si está `Available`: invocar `TransitionRoomStateUseCase.transition(roomId, Reserved, null, MARK_RESERVED, reservationRef)`, asignar `reserved_by_reservation_ref` y devolver `RESERVED`.
+  - Si está `Available`: invocar `TransitionRoomStateUseCase.transition(roomId, Reserved, null, MARK_RESERVED, reservationRef)`, que asigna `reserved_by_reservation_ref` mediante `Room.reserveFor(reservationRef)` (regla 2 del plan base), y devolver `RESERVED`. El servicio no asigna la referencia por su cuenta.
   - Si está `Reserved` con la misma `reservationRef`: devolver `ALREADY_RESERVED` sin escribir nada.
   - En cualquier otro caso: registrar `RESERVATION_STATE_CONFLICT` en `room_audit_log` y devolver `CONFLICT` con el estado actual y la reserva vinculada.
   - No bloquea la fila: el invocador ya la bloqueó con `SELECT … FOR UPDATE` (regla 13 del plan base).
@@ -185,21 +184,17 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 2
 
-- [ ] T009 [P] [US2] Unit test: misma habitación y misma reserva dos veces; la segunda devuelve `ALREADY_RESERVED` sin periodo ni evento nuevos (esc. 4; FR-006; SC-002).
-- [ ] T010 [P] [US2] Unit test: en `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive` devuelve `CONFLICT`, no cambia el estado y registra el conflicto con el estado actual y la `reservationRef` entrante (esc. 5 a 7; FR-007, FR-008; SC-003, SC-004).
-- [ ] T011 [P] [US2] Unit test: `Reserved` para "RES-101" e invocación con "RES-202" devuelve `CONFLICT`, conserva "RES-101" y registra ambas referencias (esc. 9; FR-007, FR-008; SC-004).
-- [ ] T012 [P] [US2] Unit test: `roomId` inexistente devuelve `ROOM_NOT_FOUND`, no altera ninguna entidad y deja la advertencia en el log (esc. 10).
-- [ ] T013 [US2] Integration test con Testcontainers: dos invocaciones concurrentes para la misma habitación `Available` con reservas distintas, cada una con su bloqueo de fila; solo una la aparta y la otra espera y queda como conflicto (caso borde 3; regla 13 del plan base).
-- [ ] T014 [US2] Integration test: un fallo de persistencia durante la transición revierte la transacción y la habitación sigue `Available` (caso borde "Interrupción de conectividad").
+- [ ] T008 [P] [US2] Unit test: misma habitación y misma reserva dos veces; la segunda devuelve `ALREADY_RESERVED` sin periodo ni evento nuevos (esc. 4; FR-006; SC-002).
+- [ ] T009 [P] [US2] Unit test: en `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive` devuelve `CONFLICT`, no cambia el estado y registra el conflicto con el estado actual y la `reservationRef` entrante (esc. 5 a 7; FR-007, FR-008; SC-003, SC-004).
+- [ ] T010 [P] [US2] Unit test: `Reserved` para "RES-101" e invocación con "RES-202" devuelve `CONFLICT`, conserva "RES-101" y registra ambas referencias (esc. 9; FR-007, FR-008; SC-004).
+- [ ] T011 [P] [US2] Unit test: `roomId` inexistente devuelve `ROOM_NOT_FOUND`, no altera ninguna entidad y deja la advertencia en el log (esc. 10).
+- [ ] T012 [US2] Integration test con Testcontainers: dos invocaciones concurrentes para la misma habitación `Available` con reservas distintas, cada una con su bloqueo de fila; solo una la aparta y la otra espera y queda como conflicto (caso borde 3; regla 13 del plan base).
+- [ ] T013 [US2] Integration test: un fallo de persistencia durante la transición revierte la transacción y la habitación sigue `Available` (caso borde "Interrupción de conectividad").
 
-### Implementation for User Story 2
+### Verificación de los invocadores
 
-- [ ] T015 [US2] Integration test con Testcontainers: `DailyReservationIngestionService` (`plan-consultar-reservas.md`, T012) aparta las habitaciones solo a través de este puerto (*Consultar reservas* FR-009), y:
-  - invoque el puerto con `DAILY_LIST` y `ADDED_UPDATE` solo para reservas con `startDate` = hoy;
-  - en la lista de las 00:00 ejecute primero las liberaciones (`MarkRoomAvailableUseCase`) y después los apartados;
-  - trate un `UPDATED` que cambia la habitación como liberación de la anterior y apartado de la nueva;
-  - continúe con la siguiente habitación ante `CONFLICT` o `ROOM_NOT_FOUND`.
-- [ ] T016 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T015) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la copia local tiene una reserva de hoy para la habitación (FR-004).
+- [ ] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T015) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
+- [ ] T015 [US2] Verificar que existan las pruebas de los flujos que usan este puerto, que viven en los planes de esos flujos: `plan-registrar-check-in.md` (T014: check-in desde `Reserved`, esc. 2, FR-010), `plan-consultar-reservas.md` (T010: apartados y liberaciones de la ingesta, FR-009) y `plan-consultar-panel-recepcion.md` (T009: alerta operativa sin mensajes a Módulo 2, esc. 7 y 8, FR-012, SC-006).
 
 **Checkpoint**: El caso de uso es idempotente y no sobrescribe estados físicos.
 
@@ -207,10 +202,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Integration test: una llegada de hoy cuya habitación quedó en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` aparece en `GET /api/reception/arrivals` con ese estado, que es la alerta a Recepción; y no se publica ningún mensaje hacia Módulo 2 (esc. 7 y 8; FR-012; SC-006).
-- [ ] T018 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
-- [ ] T019 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
-- [ ] T020 Medir en la prueba de integración T006 que cada invocación tome menos de 200 ms (NFR-001; SC-001).
+- [ ] T016 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
+- [ ] T017 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
+- [ ] T018 Medir en la prueba de integración T006 que cada invocación tome menos de 200 ms (NFR-001; SC-001).
 
 ---
 
@@ -225,4 +219,4 @@ No aplica: usa la infraestructura del plan base.
 - **Planes relacionados**:
   - `plan-consultar-panel-recepcion.md`: muestra la alerta operativa (regla 11 del plan base).
   - `plan-registrar-check-in.md`: acepta `Reserved` como origen (FR-010) y valida que `reserved_by_reservation_ref` coincida con la reserva. Al pasar a `Occupied`, `Room.transitionTo()` lo limpia (regla 2 del plan base).
-- **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5. El puerto (T003, T008) debe estar listo antes de que los planes invocadores implementen sus servicios.
+- **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5. El puerto (T003, T007) debe estar listo antes de que los planes invocadores implementen sus servicios.

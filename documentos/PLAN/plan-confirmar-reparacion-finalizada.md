@@ -95,7 +95,7 @@ Content-Type: application/json
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 4) | "La habitación está {estado}; no necesita reparación." |
-| 409 | `ROOM_TASK_EXISTS` | `DataIntegrityViolationException` del índice único de tarea abierta por habitación (T003) | La habitación ya tiene una tarea abierta de otro miembro, incluida una solicitud simultánea (HU-2 esc. 2) | "Otro compañero ya está reparando esta habitación." |
+| 409 | `ROOM_TASK_EXISTS` | `RoomTaskExistsException` o `DataIntegrityViolationException` del índice único de tarea abierta por habitación (T003) | La habitación ya tiene una tarea abierta de otro miembro, incluida una solicitud simultánea (HU-2 esc. 2) | "Otro compañero ya está reparando esta habitación." |
 | 409 | `ACTIVE_TASK_EXISTS` | `ActiveTaskExistsException` o `DataIntegrityViolationException` del índice único del miembro (T003) | El miembro ya tiene una tarea abierta (HU-2 esc. 3) | "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." |
 
 ```json
@@ -103,8 +103,7 @@ Content-Type: application/json
   "errorCode": "ROOM_TASK_EXISTS",
   "message": "Otro compañero ya está reparando esta habitación.",
   "timestamp": "2026-10-08T13:00:01-05:00",
-  "path": "/api/maintenance/tasks",
-  "details": { "currentStatus": "DisabledForRepairs" }
+  "path": "/api/maintenance/tasks"
 }
 ```
 
@@ -227,7 +226,8 @@ X-User: mtorres
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-003, HU-1 esc. 3) | "Esta reparación la está haciendo otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (FR-003, HU-1 esc. 2) | "La habitación está {estado}; ya no se puede terminar esta reparación." |
-| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-019) | "Esta reparación ya se había terminado o dejado." |
+| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada por otra solicitud simultánea (FR-019) | "Esta tarea ya fue cerrada." |
+| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra operación cambió la habitación al mismo tiempo (control optimista de `room.version`, regla 13 del plan base) | "La habitación acaba de cambiar. Vuelve a intentarlo." |
 
 ```json
 {
@@ -296,7 +296,7 @@ X-User: mtorres
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 403 | `TASK_NOT_OWNED` | `TaskNotOwnedException` | La tarea pertenece a otro miembro (FR-015) | "Esta reparación la está haciendo otro compañero." |
 | 404 | `TASK_NOT_FOUND` | `TaskNotFoundException` | No existe la tarea | "No encontramos esta reparación. Vuelve al panel." |
-| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada (FR-019) | "Esta reparación ya se había terminado o dejado." |
+| 409 | `TASK_ALREADY_CLOSED` | `TaskAlreadyClosedException` | La tarea ya fue confirmada o liberada (FR-019) | "Esta tarea ya fue cerrada." |
 
 ```json
 {
@@ -372,7 +372,7 @@ frontend/src/
     └── maintenanceService.ts
 ```
 
-**Structure Decision**: `MaintenanceController` agrupa `/api/maintenance/...`; `plan-consultar-panel-mantenimiento.md` le agrega el endpoint del panel y construye el panel con sus diálogos. Las excepciones de tareas (`TaskNotOwnedException`, `TaskNotFoundException`, `TaskAlreadyClosedException`, `NoActiveTaskException`) son las del plan base (T020).
+**Structure Decision**: `MaintenanceController` agrupa `/api/maintenance/...`. Este plan lo crea vacío en su Phase 2 y le agrega los endpoints de las tareas; `plan-consultar-panel-mantenimiento.md` le agrega el endpoint del panel y construye el panel con sus diálogos. Las excepciones de tareas (`TaskNotOwnedException`, `TaskNotFoundException`, `TaskAlreadyClosedException`, `NoActiveTaskException`) son las del plan base (T020).
 
 ---
 
@@ -384,9 +384,10 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T018) (FR-012).
-- [ ] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA, con el cierre que falla si la tarea ya está cerrada (FR-010, FR-019).
+- [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T018) (FR-012); que exista `MarkPendingCleaningUseCase`, con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003); y que `TechnicalBlockReport` tenga la transición `Applied` → `Completed` y `TechnicalBlockReportRepositoryPort` la consulta del informe `Applied` de la habitación (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) (FR-004, FR-014).
+- [ ] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA, con el cierre que falla si la tarea ya está cerrada y las consultas `findOpenByMember(String memberId)`, `existsOpenByRoom(UUID roomId)` y `findRoomIdsWithOpenTask()`; las dos últimas las usan `StartRepairService` y `plan-consultar-panel-mantenimiento.md` (etiqueta "En reparación") (FR-010, FR-012, FR-019).
 - [ ] T003 [P] Verificar en `GlobalExceptionHandler` los códigos comunes `ROOM_TASK_EXISTS` y `ACTIVE_TASK_EXISTS` (catálogo del plan base, T020) y mapear los índices únicos de `reparation_task`: el de la habitación a `ROOM_TASK_EXISTS` y el del miembro a `ACTIVE_TASK_EXISTS`.
+- [ ] T004 [P] Crear `MaintenanceController` (`@RestController`, `@RequestMapping("/api/maintenance")`) sin endpoints, para que `plan-consultar-panel-mantenimiento.md` le agregue el suyo aunque este plan termine después.
 
 ---
 
@@ -400,17 +401,21 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 2
 
-- [ ] T004 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 1; FR-011, FR-016).
-- [ ] T005 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 2; FR-012).
-- [ ] T006 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 3; FR-012).
-- [ ] T007 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 4; FR-012).
-- [ ] T008 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito (FR-012).
-- [ ] T009 [P] [US2] Component test de la acción "Iniciar reparaciones": redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el motivo y vuelve al panel recargado (FR-011, FR-013, FR-020).
+- [ ] T005 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 1; FR-011, FR-016).
+- [ ] T006 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 2; FR-012).
+- [ ] T007 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 3; FR-012).
+- [ ] T008 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 4; FR-012).
+- [ ] T009 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito (FR-012).
+- [ ] T010 [P] [US2] Component test de la acción "Iniciar reparaciones": redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el motivo y vuelve al panel recargado (FR-011, FR-013, FR-020).
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Implementar `StartRepairService` (`@Transactional`): validar estado y tareas abiertas, tomar la hora con `Clock` y crear la `ReparationTask` (FR-011, FR-012).
-- [ ] T011 [US2] Implementar en `MaintenanceController` `POST /api/maintenance/tasks`, tomando como miembro al usuario actual, y mostrar en el panel la retroalimentación de "Iniciar reparaciones" (FR-011, FR-013, FR-020). `plan-consultar-panel-mantenimiento.md` agrega `GET /api/maintenance/panel` al mismo controlador.
+- [ ] T011 [US2] Implementar `StartRepairService` (`@Transactional`) (FR-011, FR-012):
+  - Rechazar si el miembro tiene una tarea abierta (`ActiveTaskExistsException`, `ACTIVE_TASK_EXISTS`).
+  - Validar que la habitación exista y esté en `DisabledForRepairs` o `TechnicalBlock` (`ROOM_INVALID_STATE` con `currentStatus`).
+  - Rechazar si la habitación tiene una tarea abierta (`RoomTaskExistsException`, `ROOM_TASK_EXISTS`); el índice único por habitación queda como respaldo ante solicitudes simultáneas (T003).
+  - Tomar la hora con `Clock` (no hay transición de estado) y crear la `ReparationTask`.
+- [ ] T012 [US2] Agregar a `MaintenanceController` (T004) `POST /api/maintenance/tasks`, tomando como miembro al usuario actual, e implementar la retroalimentación de "Iniciar reparaciones" que muestra el panel: éxito con redirección a la vista de tarea activa y errores con el texto de la tabla de errores de este plan, volviendo al panel recargado (FR-011, FR-013, FR-020). El botón, la llamada y la navegación los implementa `plan-consultar-panel-mantenimiento.md`.
 
 **Checkpoint**: Desde el panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`) se pueden tomar habitaciones para reparar.
 
@@ -424,26 +429,26 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor (HU-1 esc. 1; FR-004, FR-005, FR-008, FR-018).
-- [ ] T013 [P] [US1] Unit test: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed` (FR-014).
-- [ ] T014 [P] [US1] Unit test: rechazo si la habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-1 esc. 2; FR-003, FR-006).
-- [ ] T015 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro (HU-1 esc. 3; FR-003, FR-015).
-- [ ] T016 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial y deja el informe en `Applied` (HU-1 esc. 4; FR-017).
-- [ ] T017 [P] [US1] Unit test con `Clock` fijo: `endDateTime` del servidor; si fuera anterior a `startDateTime` se rechaza sin cambios (FR-008, FR-009; caso límite 4).
-- [ ] T018 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito (FR-019).
-- [ ] T019 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe (caso límite 3).
-- [ ] T020 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel (FR-001, FR-002, FR-007, FR-017).
+- [ ] T013 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor (HU-1 esc. 1; FR-004, FR-005, FR-008, FR-018).
+- [ ] T014 [P] [US1] Unit test: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed` (FR-014).
+- [ ] T015 [P] [US1] Unit test: rechazo si la habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-1 esc. 2; FR-003, FR-006).
+- [ ] T016 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro (HU-1 esc. 3; FR-003, FR-015).
+- [ ] T017 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial y deja el informe en `Applied` (HU-1 esc. 4; FR-017).
+- [ ] T018 [P] [US1] Unit test con `Clock` fijo: al confirmar, `endDateTime` es la marca del periodo `PendingCleaning` que devuelve `MarkPendingCleaningUseCase`; al liberar, la hora de `Clock`; si fuera anterior a `startDateTime` se rechaza sin cambios (FR-008, FR-009; caso límite 4).
+- [ ] T019 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito (FR-019).
+- [ ] T020 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe (caso límite 3).
+- [ ] T021 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel (FR-001, FR-002, FR-007, FR-017).
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-003 a FR-010, FR-014, FR-016, FR-018):
+- [ ] T022 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-003 a FR-010, FR-014, FR-016, FR-018):
   - Validar la tarea, su titular y el estado de la habitación.
-  - Cerrar la tarea con la hora de `Clock` y `outcome = Completed`.
   - Si la habitación está en `TechnicalBlock`, marcar su informe `Applied` como `Completed`.
   - Invocar `MarkPendingCleaningUseCase` con `sourceFlow = CONFIRM_REPAIR_END` y el miembro como actor (registra el historial).
-- [ ] T022 [US1] Implementar `ReleaseRepairTaskService` (`@Transactional`): validar la tarea y su titular y cerrarla con `outcome = Released` (FR-015, FR-017).
-- [ ] T023 [US1] Implementar `ActiveRepairTaskQueryService` (`GetActiveRepairTaskUseCase`, `@Transactional(readOnly = true)`) y agregar a `MaintenanceController` `GET /api/maintenance/tasks/active`, `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release` (FR-001).
-- [ ] T024 [US1] Construir `ActiveRepairTaskPage.tsx` (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-002, FR-006, FR-007, FR-017).
+  - Cerrar la tarea con `outcome = Completed` y `MarkPendingCleaningResult.transitionDateTime` como `EndDateTime`, de modo que coincide con el inicio del periodo `PendingCleaning`, después de validar que no sea anterior a `StartDateTime` (FR-008, FR-009).
+- [ ] T023 [US1] Implementar `ReleaseRepairTaskService` (`@Transactional`): validar la tarea y su titular y cerrarla con `outcome = Released` y la hora de `Clock` como `EndDateTime` (no hay transición de estado) (FR-015, FR-017).
+- [ ] T024 [US1] Implementar `ActiveRepairTaskQueryService` (`GetActiveRepairTaskUseCase`, `@Transactional(readOnly = true)`) y agregar a `MaintenanceController` `GET /api/maintenance/tasks/active`, `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release` (FR-001).
+- [ ] T025 [US1] Construir `ActiveRepairTaskPage.tsx` (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-002, FR-006, FR-007, FR-017).
 
 **Checkpoint**: El ciclo de mantenimiento queda completo: tomar la habitación, confirmar o liberar.
 
@@ -451,8 +456,8 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T025 Integration test: tras confirmar, la habitación aparece en `PendingCleaning` en menos de 2 segundos (SC-002).
-- [ ] T026 Integration test: ninguna `ReparationTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-003, SC-004).
+- [ ] T026 Integration test: tras confirmar, la habitación aparece en `PendingCleaning` en menos de 2 segundos (SC-002).
+- [ ] T027 Integration test: ninguna `ReparationTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-003, SC-004).
 
 ---
 
@@ -460,8 +465,8 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 - **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020) y el layout de mantenimiento (T016).
 - **Planes de los que depende**:
-  - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones. Ese plan necesita la Phase 2 de este (T002); su Phase 3 va antes de la Phase 3 de este plan.
+  - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones. Ese plan necesita la Phase 2 de este (T002 y T004); su Phase 3 va antes de la Phase 3 de este plan.
   - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase`.
-  - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: tabla `damage_report`.
+  - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: los registros de `damage_report`, creados al reportar un daño sobre la tabla de V3 (plan base, T018), que dejan en `DisabledForRepairs` las habitaciones que se reparan.
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: `TechnicalBlockReport` (este plan lo marca como `Completed` sobre la tabla del plan base).
 - **Orden**: Phase 2 → (`plan-consultar-panel-mantenimiento.md`) → Phase 3 (HU-2) → Phase 4 (HU-1) → Phase 5.

@@ -185,7 +185,10 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan `ReparationTaskRepositoryPort` (`plan-confirmar-reparacion-finalizada.md`, T002), `TechnicalBlockReportRepositoryPort` con `isOverdue(today)` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) y la consulta de habitaciones distintas de `Inactive` en `RoomRepositoryPort`.
+- [ ] T001 Verificar que existan:
+  - `ReparationTaskRepositoryPort` con `findOpenByMember` y `findRoomIdsWithOpenTask`, y `MaintenanceController` (`plan-confirmar-reparacion-finalizada.md`, T002 y T004).
+  - `TechnicalBlockReport.isOverdue(today)` y `TechnicalBlockReportRepositoryPort` con `findAppliedByRoomIds` y `findEarliestScheduledByRoomIds` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003).
+  - `RoomRepositoryPort.findByStatusNot(RoomStatus)` (plan base, T008).
 - [ ] T002 [P] Implementar `MaintenancePanelDto` (con `summary`) y el puerto `GetMaintenancePanelUseCase`.
 
 ---
@@ -210,7 +213,8 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 - [ ] T009 [US1] Agregar a `MaintenanceController` el endpoint `GET /api/maintenance/panel`, tomando como miembro al usuario actual (FR-001).
 - [ ] T010 [US1] Construir `MaintenancePanelPage.tsx`, `MaintenanceSummary.tsx` y `MaintenanceRoomTable.tsx` según `vistas/mantenimiento/01-panel.html`: conteos, columnas número, tipo, estado (nombre en español o "Bloqueo técnico (vencido)"), mantenimiento programado (DD-MM-YYYY a DD-MM-YYYY o "Sin programar"), etiqueta "En reparación" y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003 a FR-005, FR-007 a FR-009).
 - [ ] T011 [US1] Conectar las acciones y la actualización (FR-005, FR-010):
-  - "Iniciar reparaciones" llama a `POST /api/maintenance/tasks` y redirige a la vista de tarea activa (`plan-confirmar-reparacion-finalizada.md`).
+  - Este plan es dueño del botón, la llamada y la navegación de cada acción; los mensajes de éxito y error los define el plan de cada caso de uso.
+  - "Iniciar reparaciones" llama a `POST /api/maintenance/tasks` y redirige a la vista de tarea activa, con la retroalimentación de `plan-confirmar-reparacion-finalizada.md` (T012).
   - "Programar mantenimiento" y "Ver informe" del bloqueo (`TB`, o cualquier habitación con programación salvo `DFR`) abren `ScheduleTechnicalBlockDialog.tsx` y `TechnicalBlockViewDialog.tsx` (`plan-programar-bloqueo-tecnico-para-habitacion.md`).
   - "Reportar daño" y "Ver informe" de `DFR` abren `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado o por tarea abierta.

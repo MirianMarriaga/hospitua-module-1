@@ -170,7 +170,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan `CleaningTaskRepositoryPort` con sus consultas de tarea abierta y última limpieza (`plan-marcar-habitacion-en-limpieza.md`, T002) y la consulta de habitaciones por estado en `RoomRepositoryPort` (plan base).
+- [ ] T001 Verificar que existan `CleaningTaskRepositoryPort` con sus consultas de tarea abierta por miembro y última limpieza (`plan-marcar-habitacion-en-limpieza.md`, T002), `CleaningController` (`plan-marcar-habitacion-en-limpieza.md`, T004) y `RoomRepositoryPort.findByStatusIn(Set<RoomStatus>)` (plan base, T008).
 - [ ] T002 [P] Implementar `CleaningPanelDto` (con `summary`) y el puerto `GetCleaningPanelUseCase`.
 
 ---
@@ -195,7 +195,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 - [ ] T009 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa, filtro de estados, orden, búsqueda exacta, conteo y última limpieza (FR-001 a FR-007, FR-010, FR-011).
 - [ ] T010 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
 - [ ] T011 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta; mensajes de FR-008; redirección si `activeTaskId` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
-- [ ] T012 [US1] Conectar las acciones y la actualización: "Iniciar limpieza" llama a `POST /api/cleaning/tasks` y redirige a la vista de tarea activa (`plan-marcar-habitacion-en-limpieza.md`); "Reportar daño" abre `DamageReportDialog.tsx` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`); el panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
+- [ ] T012 [US1] Conectar las acciones y la actualización. Este plan es dueño del botón, la llamada y la navegación de cada acción; los mensajes de éxito y error los define el plan de cada caso de uso: "Iniciar limpieza" llama a `POST /api/cleaning/tasks` y redirige a la vista de tarea activa, con la retroalimentación de `plan-marcar-habitacion-en-limpieza.md` (T015); "Reportar daño" abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T015); el panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
 
 **Checkpoint**: El Personal de limpieza ve su panel, busca habitaciones y entra a sus acciones; el panel se mantiene actualizado sin recargar la página.
 

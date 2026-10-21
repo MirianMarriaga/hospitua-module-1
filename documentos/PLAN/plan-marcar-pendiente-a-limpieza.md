@@ -23,7 +23,7 @@ El servicio valida el estado de origen según el flujo invocador (FR-001), aplic
 - **Performance Goals**: transición, actualización de estado y registro en el historial en menos de 300 ms (SC-002).
 - **Constraints**:
   - Se ejecuta solo dentro de la transacción del flujo invocador; si falla, el invocador hace rollback completo (casos límite 2 y 4).
-  - `TransitionDateTime` lo genera exclusivamente el servidor mediante `Clock` y no se acepta del cliente ni del invocador (FR-006).
+  - `TransitionDateTime` es la marca que genera `TransitionRoomStateUseCase` con `Clock` (regla 8 del plan base); no se acepta del cliente ni del invocador y el puerto la devuelve en su resultado (FR-006).
   - `InCleaning` solo es un origen válido cuando el invocador es la liberación de una tarea de limpieza (FR-001).
   - No hay caché de estados: el panel de limpieza y las consultas de disponibilidad leen el estado persistido, así que el cambio queda visible apenas se confirma la transacción (FR-003, caso límite 3, SC-004).
 
@@ -36,11 +36,15 @@ No aplica: es un caso de uso interno sin endpoint. Su contrato es el puerto de e
 ```java
 public interface MarkPendingCleaningUseCase {
     // Debe ejecutarse dentro de una transacción ya abierta por el flujo invocador.
-    void markPendingCleaning(MarkPendingCleaningCommand command);
+    MarkPendingCleaningResult markPendingCleaning(MarkPendingCleaningCommand command);
 }
 
 // sourceFlow (enum SourceFlow del plan base): CHECK_OUT | CONFIRM_REPAIR_END | RELEASE_CLEANING_TASK
 public record MarkPendingCleaningCommand(UUID roomId, SourceFlow sourceFlow, String actorId) {}
+
+// transitionDateTime: marca del periodo PendingCleaning abierto en room_state_history; los invocadores
+// que cierran una tarea en el mismo flujo la usan como EndDateTime
+public record MarkPendingCleaningResult(UUID roomId, RoomStatus previousStatus, OffsetDateTime transitionDateTime) {}
 ```
 
 Ante un rechazo lanza `InvalidRoomTransitionException` (plan base, traducida a HTTP 409 por `GlobalExceptionHandler` en el endpoint del invocador) con el estado actual de la habitación.
@@ -79,7 +83,8 @@ backend/src/
 │       ├── service/
 │       │   └── MarkPendingCleaningService.java
 │       └── dto/
-│           └── MarkPendingCleaningCommand.java
+│           ├── MarkPendingCleaningCommand.java
+│           └── MarkPendingCleaningResult.java
 └── test/java/com/hospitua/habitaciones/
     ├── application/
     │   └── MarkPendingCleaningServiceTest.java
@@ -101,7 +106,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Occupied`, `DisabledForRepairs`, `TechnicalBlock` e `InCleaning` → `PendingCleaning`, según `maquina-estados-habitacion.md`.
 - [ ] T002 Verificar que `TransitionRoomStateUseCase` registre el periodo en `room_state_history` (plan base, regla 8 y T017) y que el enum `SourceFlow` (plan base, T020) incluya `CHECK_OUT`, `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK`.
-- [ ] T003 [P] Crear el comando `MarkPendingCleaningCommand` y el puerto `MarkPendingCleaningUseCase`.
+- [ ] T003 [P] Crear el comando `MarkPendingCleaningCommand`, el resultado `MarkPendingCleaningResult` y el puerto `MarkPendingCleaningUseCase`.
 
 ---
 
@@ -117,7 +122,7 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T005 [P] [US1] Unit test: transición desde `DisabledForRepairs` y desde `TechnicalBlock` con `sourceFlow = CONFIRM_REPAIR_END` (HU-1 esc. 2; SC-001).
 - [ ] T006 [P] [US1] Unit test: transición `InCleaning` → `PendingCleaning` solo con `sourceFlow = RELEASE_CLEANING_TASK`; con otro `sourceFlow`, rechazo (HU-1 esc. 4, FR-001; SC-001).
 - [ ] T007 [P] [US1] Unit test: rechazo desde `Available` y desde cualquier otro estado no permitido, sin modificar la habitación y con el estado actual en la excepción (HU-1 esc. 3, FR-007; SC-003).
-- [ ] T008 [P] [US1] Unit test con `Clock` fijo: `TransitionDateTime` es la hora del servidor y el comando no admite fecha (FR-006).
+- [ ] T008 [P] [US1] Unit test con `Clock` fijo: `transitionDateTime` del resultado es la marca que devuelve `TransitionRoomStateUseCase` (hora del servidor) y el comando no admite fecha (FR-006).
 - [ ] T009 [P] [US1] Unit test: el registro en el historial cierra el periodo abierto y abre `PendingCleaning` con `previous_status`, `actor_id` y `source_flow` del comando (FR-004; SC-005).
 - [ ] T010 [US1] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el servicio, el rollback deja la habitación en su estado de origen y sin registro nuevo en `room_state_history` (casos límite 2 y 4).
 - [ ] T011 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación; la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1).
@@ -126,8 +131,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T012 [US1] Implementar `MarkPendingCleaningService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-002, casos límite 2 y 4):
   - Validar el estado de origen según `sourceFlow`: `CHECK_OUT` → `Occupied`; `CONFIRM_REPAIR_END` → `DisabledForRepairs` o `TechnicalBlock`; `RELEASE_CLEANING_TASK` → `InCleaning` (FR-001).
-  - Obtener la hora con `Clock` (FR-006).
-  - Invocar `TransitionRoomStateUseCase.transition(roomId, PendingCleaning, actorId, sourceFlow, null)`, que aplica la transición y registra el periodo en `room_state_history` (FR-002, FR-004).
+  - Invocar `TransitionRoomStateUseCase.transition(roomId, PendingCleaning, actorId, sourceFlow, null)`, que aplica la transición y registra el periodo en `room_state_history` (FR-002, FR-004), y devolver `MarkPendingCleaningResult` con la marca de tiempo que devuelve la transición (FR-006).
   - Ante un rechazo, lanzar `InvalidRoomTransitionException` con el estado actual (FR-007).
 - [ ] T013 [US1] Verificar que `room_state_history` no tenga operaciones de modificación ni de eliminación, salvo el cierre del periodo que hace la siguiente transición (FR-008).
 

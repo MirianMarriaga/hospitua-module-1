@@ -389,7 +389,7 @@ frontend/src/
 ### Tests for User Story 1
 
 - [ ] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
-- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005).
+- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
 - [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-007; SC-004).
 
 ### Implementation for User Story 1

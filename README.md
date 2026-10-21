@@ -50,9 +50,9 @@ cd backend
 
 | Perfil | Uso | Configuración |
 | --- | --- | --- |
-| `dev` (por defecto) | Desarrollo local | Valores por defecto que coinciden con `docker-compose.yml` |
+| `dev` (por defecto) | Desarrollo local | Valores por defecto que coinciden con `docker-compose.yml`; la cuenta inicial de Administración es `admin` / `admin123` (`BOOTSTRAP_ADMIN_*`) |
 | `test` | Pruebas automatizadas | PostgreSQL y RabbitMQ de Testcontainers |
-| `prod` | Despliegue | Todo por variables de entorno: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`, `MODULE2_BASE_URL`, `MODULE3_BASE_URL` |
+| `prod` | Despliegue | Todo por variables de entorno: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`, `MODULE2_BASE_URL`, `MODULE3_BASE_URL`, `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_ADMIN_FULL_NAME` (cuenta inicial de Administración) |
 
 ## Pruebas y formato
 

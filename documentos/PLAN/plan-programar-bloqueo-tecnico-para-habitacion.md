@@ -106,17 +106,18 @@ Content-Type: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha o no tiene formato de fecha (FR-006, FR-012, esc. 4) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
-| 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Fecha inexistente, inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`, `ConstraintViolationException` o `HttpMessageNotReadableException` | Justificación vacía, solo espacios o de más de 500 caracteres, o falta una fecha, no tiene formato de fecha o no existe en el calendario (ej. 31-02-2026) (FR-006, FR-012, esc. 4, caso límite 8) | "Escribe el motivo del mantenimiento (máximo 500 caracteres) y elige las dos fechas." |
+| 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Inicio anterior a hoy, fin anterior al inicio, rango mayor a 90 días o antelación mayor a 365 días (FR-012 a FR-016, esc. 5); `details.rule` indica la regla | Mensaje de la regla (tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`) |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación está `Inactive`, o el bloqueo inicia hoy y la habitación no está en `Available` (FR-001, FR-007, esc. 10) | "Hoy la habitación está {estado}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior." |
 | 409 | `RESERVATION_CONFLICT` | `ReservationConflictException` | *Consultar reservas* devuelve al menos una reserva en el rango (FR-005, esc. 2, caso límite 1); `details.reservations` lista cada reserva con `reservationRef`, `startDate`, `endDate` y `status` (la misma estructura y la misma `ReservationConflictException` que usa `plan-dar-de-baja-habitacion.md`) | "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.", seguido de cada reserva con su código y sus fechas de llegada y salida |
 | 409 | `MAINTENANCE_CONFLICT` | `MaintenanceConflictException` | *Consultar Información de Mantenimientos* responde `available = false`, incluida una programación simultánea (FR-005, esc. 3, caso límite 2); `details.conflicts` lista el inicio y el fin estimado de cada mantenimiento que se cruza | "Ya hay un mantenimiento programado del {inicio} al {fin}. Elige otras fechas." |
+| 503 | `MODULE_2_UNAVAILABLE` | `ExternalModule2UnavailableException` | Módulo 2 no respondió, superó el timeout o respondió con error al consultar las reservas (`plan-consultar-reservas.md`; caso límite 4); no se registra nada y la habitación no cambia | "Servicio de reservas temporalmente no disponible. No se programó el mantenimiento; inténtalo de nuevo." |
 
 ```json
 {
   "errorCode": "INVALID_DATE_RANGE",
-  "message": "La fecha estimada de finalización no puede ser anterior a la fecha de inicio.",
+  "message": "La fecha de fin no puede ser anterior a la fecha de inicio.",
   "timestamp": "2026-10-08T15:00:01-05:00",
   "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/technical-blocks",
   "details": { "rule": "END_BEFORE_START" }
@@ -286,15 +287,17 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar los límites `hospitua.maintenance.max-range-days` (90) y `max-advance-days` (365) de `MaintenanceProperties` (plan base, T020) (FR-015).
+- [ ] T001 Verificar los límites `hospitua.maintenance.max-range-days` (90) y `max-advance-days` (365) de `MaintenanceProperties` y el bean `MaintenanceLimits` que expone (plan base, T020) (FR-015).
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 Verificar que la tabla `technical_block_report` y su índice por `(room_id, status)` existan (plan base, T018) (FR-009).
-- [ ] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`, sin edición de campos, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA, `TechnicalBlockReportRepositoryPort` y su adaptador (FR-019).
-- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`), y verificar `INVALID_DATE_RANGE` (`plan-consultar-informacion-mantenimientos.md`, T002) y `RESERVATION_CONFLICT` (`plan-consultar-reservas.md`, T028).
+- [ ] T002 Verificar que la tabla `technical_block_report` y su índice por `(room_id, status)` existan (plan base, T018) y que `StaffAccountRepositoryPort` tenga `findByUsername` (plan base, T023) (FR-009, FR-011.1).
+- [ ] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`, sin edición de campos, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA, `TechnicalBlockReportRepositoryPort` y su adaptador (FR-019). El puerto incluye, además de las consultas propias de este plan:
+  - La consulta de cruces: informes `Scheduled` o `Applied` de la habitación con `technical_block_start_date <= lastDay` y `estimated_technical_block_end_date >= firstDay`, devolviendo sus dos fechas ordenadas por inicio, y la del informe `Applied` vigente de la habitación (las usa `plan-consultar-informacion-mantenimientos.md`, FR-010 y FR-014 de su spec; y `plan-confirmar-reparacion-finalizada.md` para pasar el informe a `Completed`).
+  - `findAppliedByRoomIds(Collection<UUID>)` y `findEarliestScheduledByRoomIds(Collection<UUID>)`: el informe `Applied` y el `Scheduled` de inicio más temprano de cada habitación (las usa `plan-consultar-panel-mantenimiento.md` para `overdue` y `scheduledMaintenance`).
+- [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`), y verificar `INVALID_DATE_RANGE` (`plan-consultar-informacion-mantenimientos.md`, T001) y `RESERVATION_CONFLICT` (`plan-consultar-reservas.md`, T028).
 - [ ] T005 Verificar que la ingesta de la lista diaria publique `DailyReservationListIngestedEvent` (regla 10 del plan base).
 
 ---
@@ -312,19 +315,19 @@ frontend/src/
 - [ ] T008 [P] [US1] Unit test: rechazo `RESERVATION_CONFLICT` si *Consultar reservas* devuelve al menos una reserva, con sus referencias y fechas en `details.reservations`; una lista vacía no bloquea (esc. 2; FR-005; caso límite 1; SC-002).
 - [ ] T009 [P] [US1] Unit test: rechazo `MAINTENANCE_CONFLICT` con `details.conflicts` si *Consultar Información de Mantenimientos* responde `available = false` (esc. 3; FR-004, FR-005; SC-002).
 - [ ] T010 [P] [US1] Unit test: justificación vacía, solo espacios o de más de 500 caracteres se rechaza sin consultar (esc. 4; FR-006; caso límite 3; SC-004).
-- [ ] T011 [P] [US1] Unit test con `Clock` fijo: fechas inexistentes, inicio pasado, fin anterior al inicio, rango > 90 días y antelación > 365 días se rechazan sin consultar, con la regla en `details`; fin igual al inicio es válido (esc. 5; FR-012 a FR-016; casos límite 7 y 8; SC-005).
+- [ ] T011 [P] [US1] Unit test con `Clock` fijo: inicio pasado, fin anterior al inicio, rango > 90 días y antelación > 365 días se rechazan sin consultar, con la regla en `details`; fin igual al inicio es válido; una fecha inexistente en el cuerpo responde `VALIDATION_ERROR` (esc. 5; FR-012 a FR-016; casos límite 7 y 8; SC-005).
 - [ ] T012 [P] [US1] Unit test: rechazo `ROOM_INVALID_STATE`, sin consultar, si la habitación está `Inactive` o si el bloqueo inicia hoy y la habitación no está `Available` (esc. 10; FR-001, FR-007; SC-002).
 - [ ] T013 [US1] Integration test: si la consulta a Módulo 2 o la de mantenimientos falla, no se crea el informe y la habitación no cambia (casos límite 4 y 5).
 - [ ] T014 [US1] Integration test con Testcontainers: dos programaciones simultáneas con rangos solapados; solo una se registra (caso límite 2).
 - [ ] T015 [P] [US1] Unit test en `ApplyScheduledTechnicalBlocksServiceTest` con `Clock` fijo: aplica informes cuyo rango contiene hoy con la habitación `Available` (esc. 7); no toca habitaciones en otro estado y las reintenta el día siguiente; marca `Expired` si hoy supera la fecha estimada de fin sin aplicarse o si la habitación está `Inactive` (esc. 8; FR-018); el periodo se registra con actor nulo (FR-020).
 - [ ] T016 [US1] Integration test: tras la ingesta de las 00:00, una habitación apartada como `Reserved` no recibe el bloqueo programado para ese día (regla 10 del plan base).
-- [ ] T017 [P] [US1] Unit test en `TechnicalBlockQueryServiceTest`: "Ver informe" devuelve justificación, responsable, rango y fecha de programación del informe `Applied` o, si no hay, del `Scheduled` de inicio más temprano (FR-011, FR-011.1).
+- [ ] T017 [P] [US1] Unit test en `TechnicalBlockQueryServiceTest`: "Ver informe" devuelve justificación, responsable (`responsibleName`: `full_name` de la cuenta o, si no existe, su `username`), rango y fecha de programación del informe `Applied` o, si no hay, del `Scheduled` de inicio más temprano (FR-011, FR-011.1).
 - [ ] T018 [P] [US1] Component test en `ScheduleTechnicalBlockDialog`: campos obligatorios, fechas DD-MM-YYYY, validación previa y mensaje de la regla incumplida, alerta de conflicto con reservas o mantenimientos (FR-006, FR-012 a FR-016).
 
 ### Implementation for User Story 1
 
 - [ ] T019 [US1] Implementar `ScheduleTechnicalBlockService` (`@Transactional`) (FR-001 a FR-007, FR-009, FR-012 a FR-017, FR-020):
-  - Validar la justificación y las fechas con `MaintenanceDateRangeValidator` en modo `SCHEDULING` (`plan-consultar-informacion-mantenimientos.md`), que aplica los límites de `MaintenanceProperties`.
+  - Validar la justificación y las fechas con `MaintenanceDateRangeValidator` en modo `SCHEDULING` (`plan-consultar-informacion-mantenimientos.md`), que aplica los límites de `MaintenanceLimits`.
   - Bloquear la fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de validar el estado y de consultar, para que dos programaciones simultáneas no registren rangos cruzados (caso límite 2).
   - Validar que la habitación exista, que no esté `Inactive` y, si `startDate` es hoy, que esté `Available` (después de las validaciones de fechas, porque la regla depende de `startDate`; FR-007).
   - Consultar reservas con `checkMaintenanceConflict` (rechazar si devuelve alguna reserva) y mantenimientos con `ConsultMaintenanceAvailabilityUseCase` (rechazar si `available = false`, pasando sus `conflicts` al error).
@@ -332,7 +335,7 @@ frontend/src/
   - Si `startDate` es hoy: `TransitionRoomStateUseCase.transition(roomId, TechnicalBlock, miembro, TECHNICAL_BLOCK, null)` (registra el periodo) e informe `Applied`.
 - [ ] T020 [US1] Implementar `ApplyScheduledTechnicalBlocksService` (`@Transactional` por informe, idempotente por `operationalDate`): recorrer los informes `Scheduled`; por cada uno, bloquear la fila de `room` (`SELECT … FOR UPDATE`, regla 13 del plan base) antes de leer su estado; aplicar los que contienen hoy si la habitación está `Available` (con `TransitionRoomStateUseCase`, `sourceFlow = TECHNICAL_BLOCK` y actor nulo); marcar `Expired` los vencidos y los de habitaciones `Inactive`; dejar el resto para el día siguiente (FR-002, FR-018, FR-020).
 - [ ] T021 [US1] Implementar `TechnicalBlockScheduler`: escuchar `DailyReservationListIngestedEvent` y ejecutar `ApplyScheduledTechnicalBlocksUseCase`; como respaldo, ejecutarlo a las 01:00 si ese día todavía no se aplicó; un segundo evento del mismo `operationalDate` no repite el trabajo (FR-002, FR-018; regla 10 del plan base).
-- [ ] T022 [US1] Implementar `TechnicalBlockQueryService` y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (FR-003, FR-011).
+- [ ] T022 [US1] Implementar `TechnicalBlockQueryService`, que obtiene `responsibleName` con `StaffAccountRepositoryPort.findByUsername(maintenanceStaffMemberId)` (el `username` si la cuenta no existe), y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (FR-003, FR-011).
 - [ ] T023 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida y de conflictos, éxito con el estado resultante) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-006, FR-011.1, FR-016).
 
 **Checkpoint**: Los mantenimientos preventivos se programan, se aplican en su fecha y caducan si no pueden aplicarse; el panel de mantenimiento muestra su rango y su informe.
@@ -348,7 +351,7 @@ frontend/src/
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `technical_block_report` (T018), `SourceFlow` y `MaintenanceProperties` (T020), el evento de la regla 10, la carpeta `scheduling/` y `ClockConfig`.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), la tabla `technical_block_report` (T018), `SourceFlow`, `MaintenanceProperties` y `MaintenanceLimits` (T020), el evento de la regla 10, la carpeta `scheduling/` y `ClockConfig`.
 - **Planes de los que depende**:
   - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase` (T026), `ExternalModule2UnavailableException` y `ReservationConflictException` (T028).
   - `plan-consultar-informacion-mantenimientos.md`: `ConsultMaintenanceAvailabilityUseCase` y el validador de rangos. Debe implementarse antes de la Phase 3 de este plan.

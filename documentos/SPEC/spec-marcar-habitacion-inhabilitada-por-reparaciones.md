@@ -86,5 +86,5 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 
 - **SC-001**: El miembro del personal puede ejecutar el flujo de inhabilitación, incluyendo la redacción de la justificación, en un tiempo máximo de 45 segundos.
 - **SC-002**: El 100% de las inhabilitaciones transicionan el estado de la habitación y simultáneamente generan el registro íntegro `DamageReport` dentro de la misma transacción de base de datos.
-- **SC-003**: La habitación afectada deja de listarse en el panel de limpieza y aparece como inhabilitada en el panel de mantenimiento en un máximo de 3 segundos.
+- **SC-003**: La inhabilitación queda persistida en menos de 3 segundos; el panel de limpieza del autor deja de listar la habitación al volver de la acción, y el panel de mantenimiento la muestra como inhabilitada en menos de 60 segundos (*Consultar Panel de Mantenimiento* SC-004).
 - **SC-004**: El 100% de las inhabilitaciones quedan registradas en `RoomStateHistory` con el mismo timestamp de servidor que `ReportDateTime`.
