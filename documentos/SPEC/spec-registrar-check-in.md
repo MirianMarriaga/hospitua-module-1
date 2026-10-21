@@ -82,7 +82,7 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 - **Stay previo para la misma habitación**: Si ya existe un `Stay` para el par (`reservationRef`, `roomId`), el sistema rechaza el Check-In como operación ya realizada.
 - **Regla de conteo de huéspedes y alojamiento del titular**: El titular de la reserva NO cuenta como ocupante predeterminado. Solo se cuenta si también se aloja físicamente en la habitación. El conteo de huéspedes parte desde cero y se incrementa por cada huésped que realmente ingresa, incluyendo al titular si se aloja.
 - **Estado de la habitación para Check-In**: El Check-In solo se formaliza si la habitación está en `Reserved` y apartada para esa reserva (`reservedByReservationRef`). Módulo 1 la aparta antes de la llegada: con la lista de las 00:00, con un `ADDED` del día o al terminar su limpieza (máquina de estados de la habitación). Una habitación en `Available` con llegada hoy no admite Check-In; el panel de recepción muestra su estado.
-- **`updatedAt` ausente en mensajes de Módulo 2**: Si falta, ordenar por `sequenceNumber`.
+- **Orden de los mensajes de Módulo 2**: Los cambios de una reserva en la copia local se ordenan por `sequenceNumber` (*Consultar reservas* FR-003); `updatedAt` no decide el orden.
 
 ---
 

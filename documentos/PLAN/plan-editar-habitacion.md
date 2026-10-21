@@ -30,6 +30,7 @@ Editar no cambia el estado de la habitación, así que no escribe en `room_state
   - El número conservado no se considera duplicado de la propia habitación; cambiar solo el piso nunca genera conflicto de duplicidad (casos borde 1 y 6).
   - La fecha y el usuario de la edición se guardan en la bitácora, pero no se muestran en la confirmación (FR-007).
   - *Decisión aplazada en el spec*: no se consultan las reservas de la habitación al editar.
+  - Channex (plan base, "Consideraciones de Channex"): las categorías son las 4 fijas del enum y no se renombran. Bajar `maxCapacity` puede requerir que un administrador de Módulo 2 ajuste el mapeo de la categoría en Channex; mientras tanto, una reserva de Booking con más personas llega en conflicto. Este plan no cambia el flujo por ello: el Administrador debe avisar a Módulo 2 antes de bajar la capacidad.
 
 ---
 

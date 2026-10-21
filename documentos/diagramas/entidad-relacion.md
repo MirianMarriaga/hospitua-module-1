@@ -243,6 +243,7 @@ erDiagram
     bigint    sequence_number
     date      operational_date
     string    message_type
+    string    reservation_ref
     timestamp received_at
   }
 

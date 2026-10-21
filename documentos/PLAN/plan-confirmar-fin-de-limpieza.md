@@ -340,11 +340,11 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T005 [P] [US1] Unit test: rechazo si la habitación no está en `InCleaning` (HU-1 esc. 2; FR-005).
 - [ ] T006 [P] [US1] Unit test: rechazo con `TASK_NOT_OWNED` si la tarea es de otro miembro (HU-1 esc. 3; FR-002, FR-005).
 - [ ] T007 [P] [US1] Unit test: con una llegada pendiente hoy, la habitación termina en `Reserved` vía `MarkRoomReservedUseCase`; si la reserva del día ya tiene `Stay` para esa habitación, no hay llegada pendiente y termina en `Available` (HU-1 esc. 4; FR-011).
-- [ ] T008 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la copia local tenga una reserva de hoy asignada a la habitación, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 5 y 7; caso límite 2; FR-012, FR-015, FR-019).
+- [ ] T008 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la habitación tenga una llegada pendiente hoy, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 5 y 7; caso límite 2; FR-012, FR-015, FR-019).
 - [ ] T009 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: cierra con `outcome = Released`, invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK`, no verifica llegadas ni daño y rechaza tareas de otros miembros (HU-1 esc. 6; FR-014).
 - [ ] T010 [P] [US1] Unit test con `Clock` fijo: `endDateTime` es la marca de la primera transición del flujo (igual al inicio del periodo `Available` o `PendingCleaning`); si fuera anterior a `startDateTime` se rechaza sin cambios (FR-008, FR-009; caso límite 3; SC-002).
 - [ ] T011 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-006, FR-016).
-- [ ] T012 [US1] Integration test: un fallo forzado en `ReportDamageUseCase` revierte todo y deja la habitación en `InCleaning` con la tarea activa (FR-012, FR-017).
+- [ ] T012 [US1] Integration test: un fallo forzado en `ReportDamageUseCase` revierte todo y deja la habitación en `InCleaning` con la tarea activa, sin ningún aviso de mantenimiento en `outbox_notification` (FR-012, FR-017; *Marcar Habitación Inhabilitada por Reparaciones* FR-013).
 - [ ] T013 [US1] Integration test: los periodos en `room_state_history` quedan registrados en cada camino, sin duplicados (FR-013; FR-011 de *Marcar Habitación Inhabilitada por Reparaciones*):
 
   | Camino | Periodo 1 | Periodo 2 |
@@ -380,7 +380,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T020 Integration test: tras confirmar el fin, `GET /api/rooms/inventory?status=Available` (o `Reserved`) refleja la habitación en menos de 2 segundos (SC-003).
 - [ ] T021 Integration test: ninguna `CleaningTask` cerrada tiene `end_date_time` anterior a `start_date_time` ni posterior a la hora del servidor (SC-004).
-- [ ] T022 Integration test: con una llegada pendiente hoy para la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref`, y `GET /api/reception/arrivals` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
+- [ ] T022 Integration test: con una llegada pendiente hoy para la habitación en la copia local, el fin con daño la deja en `DisabledForRepairs` sin `reserved_by_reservation_ref` y con un aviso de mantenimiento `SCHEDULED` de hoy en `outbox_notification` (lo publica `ReportDamageUseCase`), y `GET /api/reception/arrivals` devuelve esa llegada con el estado `DisabledForRepairs`, que es la alerta del panel (HU-1 esc. 7; FR-019; SC-005).
 
 ---
 

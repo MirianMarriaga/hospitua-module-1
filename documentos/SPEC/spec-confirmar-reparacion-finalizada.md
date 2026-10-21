@@ -113,6 +113,10 @@ Como miembro del personal de mantenimiento quiero poder indicar que voy a interv
 - **FR-018**: El sistema DEBE asignar `Outcome` = `Completed` a la `ReparationTask` al confirmar el fin de reparación.
 - **FR-019**: El sistema DEBE evitar que dos solicitudes simultáneas de confirmación de fin y/o liberación sobre la misma tarea se procesen con éxito; solo la primera transacción es válida y la segunda recibe un error con el estado actual de la tarea.
 - **FR-020**: Si el inicio de reparaciones se rechaza (FR-012), el sistema DEBE informar el motivo y devolver al miembro al panel de mantenimiento recargado (*Consultar Panel de Mantenimiento*, FR-010).
+- **FR-021**: Al confirmar el fin de reparación (FR-004), el sistema DEBE avisar a Módulo 2, dentro de la misma transacción, que la habitación vuelve a estar disponible para sus canales externos:
+  - Habitación en `TechnicalBlock`: si la fecha de cierre es distinta de la fecha estimada de finalización del `TechnicalBlockReport`, aviso de cambio del mantenimiento con el rango real (inicio del informe a fecha de cierre) y el rango original; si coincide, no se envía aviso.
+  - Habitación en `DisabledForRepairs`: aviso de cancelación del mantenimiento del `DamageReport` que la inhabilitó, con la fecha de cierre como inicio y fin.
+  - Iniciar reparaciones (FR-011) y liberar la tarea (FR-017) no envían avisos, porque no cambian la habitación. Si la transacción se revierte, el aviso no se envía.
 
 ### Entidades Clave
 

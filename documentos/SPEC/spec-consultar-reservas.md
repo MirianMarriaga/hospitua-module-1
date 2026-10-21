@@ -44,7 +44,8 @@ Como **Sistema autónomo de Módulo 1**, quiero recibir la lista diaria de reser
    - **Dado** que la copia local del día ya fue inicializada
    - **Cuando** se recibe una actualización del día con `sequenceNumber` creciente:
      - Si es `ADDED`: agrega la reserva y sus habitaciones a la copia local.
-     - Si es `UPDATED`: actualiza los datos de la reserva y habitaciones solo si el `updatedAt` del mensaje es estrictamente más reciente que el registrado localmente.
+     - Si es `UPDATED`: actualiza los datos de la reserva y sus habitaciones.
+     - Cualquiera de las tres acciones se aplica solo si su `sequenceNumber` es mayor que el de la última actualización aplicada de esa misma reserva en el día; si no, se descarta.
      - Si es `REMOVED` (por motivo `CANCELLED`, `DATE_CHANGED` o `NO_SHOW`): elimina la reserva y sus habitaciones de la copia local.
    - **Entonces** el sistema aplica los cambios en la copia local y persiste el `messageId` en el log de mensajes.
 
@@ -121,10 +122,10 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 ### Casos Borde
 
-- **Mensaje con estampa desactualizada (`updatedAt`)**: Si llega un mensaje `UPDATED` cuyo `updatedAt` no es más reciente que el registrado en la copia local, se descarta para evitar sobrescrituras.
+- **Cambio desactualizado de una reserva**: Si llega un `ADDED`, `UPDATED` o `REMOVED` de una reserva con un `sequenceNumber` menor o igual que el de la última actualización ya aplicada de esa reserva en el mismo día operativo, se descarta (se registra en el log) para no sobrescribir un cambio más reciente. Ante varios cambios de la misma reserva, siempre queda el de mayor secuencia.
 - **Reserva multi-habitación (1 a 10 habitaciones)**: La copia local modela y almacena cada habitación de la reserva en `daily_reservation_room`, permitiendo su gestión individual por habitación en llegadas.
 - **Campo `source`**: El valor de `source` se persiste y muestra exactamente como se recibe (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
-- **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día y `updatedAt`.
+- **Ausencia de campo `version`**: El orden y la coherencia se garantizan exclusivamente mediante `sequenceNumber` dentro del día operativo. `updatedAt` se conserva como dato informativo y no decide el orden.
 - **Contrato REST de Módulo 2**: lo define *Consultar reservas* FR-023 de Módulo 2: `GET /api/reservations?dateFrom={d1}&dateTo={d2}&roomId={id}`. Sin coincidencias responde una lista vacía (no hay 404).
 
 ---
@@ -142,22 +143,23 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
   - Los mensajes DEBEN aplicarse en estricto orden de `sequenceNumber` dentro del mismo `operationalDate` (día operativo que Módulo 2 indica en cada mensaje). Un mensaje cuyo `operationalDate` sea anterior al día de la copia local (por ejemplo, un `REMOVED` por no-show del día anterior que llega atrasado después de la lista de las 00:00) DEBE descartarse sin aplicarse, registrando su `messageId`; las habitaciones de esas reservas ya se liberan a las 00:00 al no figurar en la nueva lista (FR-009).
   - Si llega un `sequenceNumber` mayor que el siguiente esperado (falta un mensaje intermedio), el sistema DEBE aplicarlo igual y registrar el hueco en el log (`SEQUENCE_GAP`, con el número esperado y el recibido), sin detener la ingesta. Es el mismo criterio de Módulo 2, que publica en orden y solo deja un hueco si agotó sus reintentos (y entonces genera una alerta de su lado).
   - Un mensaje ilegible o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` (en las actualizaciones) DEBE enviarse a la cola de mensajes fallidos sin aplicarse. Un fallo temporal al procesar (por ejemplo, base de datos caída) DEBE reintentarse con espera creciente y, agotados los reintentos, enviarse también a la cola de mensajes fallidos.
-  - Un mensaje `UPDATED` solo DEBE aplicarse si su `updatedAt` es más reciente que el almacenado localmente.
+  - Ante varios cambios de la misma reserva, el sistema DEBE quedarse con el de mayor `sequenceNumber`: un `ADDED`, `UPDATED` o `REMOVED` cuya secuencia sea menor o igual que la de la última actualización aplicada de esa `reservationRef` en el mismo `operationalDate` DEBE descartarse sin aplicarse, registrando su `messageId`. `updatedAt` no decide el orden.
   - Al recibir la lista de las 00:00, el sistema DEBE reiniciar el contador de `sequenceNumber` y purgar la copia local del día anterior.
 - **FR-004**: Estructura de la copia local:
   - `daily_reservation`: `reservation_ref` (PK), `guest_first_name`, `guest_last_name`, `guest_document_type`, `guest_document_number`, `guest_nationality`, `source`, `start_date`, `end_date`, `guest_count`, `updated_at`.
   - `daily_reservation_room`: `reservation_ref` + `room_id` (PK compuesta), `room_number`, `category_room`, `guest_count` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación; respaldo: `maxCapacity` de `Room`).
-  - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `message_type`, `received_at`.
+  - `daily_reservation_message_log`: `message_id` (PK), `sequence_number`, `operational_date`, `message_type`, `reservation_ref` (de las actualizaciones; nulo en la lista del día), `received_at`.
   - El sistema NO DEBE persistir `status` en la copia local (se asume `ACTIVE`; un `REMOVED` elimina la reserva de la copia), ni `notes`, `createdAt`, `guestRef`, `externalConfirmationCode`, `contactPhone`, `contactEmail`, `nights` ni `lateArrivalNotice`. Las noches se calculan en tiempo de ejecución. No existe campo `version` en los mensajes de reserva.
 - **FR-005**: El valor de `source` DEBE almacenarse y mostrarse tal como llega (`DIRECTA` o el nombre de la OTA: `BOOKING`, `EXPEDIA`, etc.).
 - **FR-006**: Consultas para Recepción: Las consultas y búsquedas de llegadas en mostrador y Panel de Recepción DEBEN ejecutarse exclusivamente contra la copia local, sin realizar peticiones HTTP/REST hacia el Módulo 2.
 - **FR-007**: Consulta REST de Mantenimiento y Baja:
+  - Toda petición a Módulo 2 DEBE identificar a Módulo 1 con la cabecera `X-Client: MODULE1`; sin ella Módulo 2 la rechaza.
   - El sistema DEBE consultar al Módulo 2 con `GET /api/reservations` (*Consultar reservas* FR-023 de Módulo 2), únicamente desde *Programar Bloqueo Técnico para Habitación* (Personal de mantenimiento) y *Dar de baja habitación* (Administrador).
   - La petición DEBE enviar `dateFrom` y `dateTo` (obligatorios, formato `AAAA-MM-DD`, ambos inclusivos) y siempre el `roomId` de la habitación; solo se consulta una habitación por petición.
   - Para programar bloqueo técnico: `dateFrom` es el inicio del mantenimiento y `dateTo` su fecha estimada de finalización.
   - Para dar de baja una habitación: `dateFrom` es la fecha actual y `dateTo` es la fecha actual + 365 días: 366 días contando hoy, el rango máximo que acepta Módulo 2 (`DATE_RANGE_TOO_LARGE` si se supera). Las reservas que empiezan después no se consultan.
   - Módulo 2 devuelve en `items` solo las reservas vigentes (`PENDING`, `ACTIVE` o `IN_PROGRESS`) cuya estadía se cruza con el rango (`startDate` ≤ `dateTo` y `endDate` > `dateFrom`: el día de salida no se considera ocupado), con `reservationRef`, `status`, `startDate`, `endDate` y sus habitaciones. El sistema DEBE tratar cada reserva devuelta como un conflicto, sin volver a evaluar estados ni fechas; una lista vacía significa que no hay conflictos.
-- **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad, timeout o una respuesta de error de Módulo 2 (por ejemplo, 400 con `INVALID_DATE`, `INCOMPLETE_DATE_RANGE` o `INVALID_ROOM_ID`) en la consulta de mantenimiento o baja, el sistema DEBE cancelar la operación sin cambiar la habitación, capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
+- **FR-008**: Manejo de fallos en consulta REST: Ante indisponibilidad, timeout o una respuesta de error de Módulo 2 (siempre `400`, con cuerpo `{ errorCode, message, timestamp, path }` y `errorCode` `INCOMPLETE_DATE_RANGE`, `INVALID_DATE`, `INVALID_DATE_RANGE`, `DATE_RANGE_TOO_LARGE`, `INVALID_ROOM_ID`, `UNSUPPORTED_PARAMETER` o `INVALID_CLIENT`) en la consulta de mantenimiento o baja, el sistema DEBE cancelar la operación sin cambiar la habitación, capturar la contingencia de manera controlada e informar al usuario sin provocar errores no manejados.
 - **FR-009**: Efecto de la ingesta sobre el estado de las habitaciones: al persistir en la copia local la lista diaria de las 00:00 o una actualización `ADDED` con `startDate` = hoy, el sistema DEBE invocar el caso de uso *Marcar habitación como reservada* por cada habitación de la reserva. Al procesar un `REMOVED`, o al no figurar en la nueva lista de las 00:00 una reserva que mantenía una habitación en `Reserved`, el sistema DEBE liberar esa habitación a `Available` mediante el caso de uso *Marcar habitación como disponible*. En la ingesta de las 00:00 las liberaciones DEBEN ejecutarse antes de apartar las habitaciones de la nueva lista. Un `UPDATED` que cambia la habitación asignada DEBE tratarse como la liberación de la habitación anterior y el apartado de la nueva.
 
 ---

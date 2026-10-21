@@ -12,6 +12,8 @@ Implementar el caso de uso **Confirmar Fin de Reparación de Habitación** para 
 1. **Iniciar reparaciones** (HU-2; FR-011 a FR-013, FR-020): desde la acción del panel de mantenimiento, que implementa `plan-consultar-panel-mantenimiento.md`, crea la `ReparationTask` del miembro con `StartDateTime` del servidor, sin cambiar el estado de la habitación.
 2. **Vista de tarea activa** (HU-1; FR-001 a FR-010, FR-014 a FR-019): "Confirmar fin" cierra la tarea con `outcome = Completed`, pasa la habitación a `PendingCleaning` mediante *Marcar Pendiente a Limpieza* y, si estaba en `TechnicalBlock`, marca su `TechnicalBlockReport` como `Completed`. "Liberar tarea" la cierra con `outcome = Released` sin tocar la habitación.
 
+Al confirmar el fin publica el aviso de mantenimiento a Módulo 2 (FR-021; cola `m2.habitacion.mantenimiento.queue`, pieza compartida del plan base T025): `UPDATED` si un `TechnicalBlock` termina en una fecha distinta de la estimada y `CANCELLED` si termina un `DisabledForRepairs`. Iniciar y liberar no publican avisos.
+
 Usa la tabla `reparation_task` del plan base (T018).
 
 ---
@@ -384,7 +386,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T018) (FR-012); que exista `MarkPendingCleaningUseCase`, con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003); y que `TechnicalBlockReport` tenga la transición `Applied` → `Completed` y `TechnicalBlockReportRepositoryPort` la consulta del informe `Applied` de la habitación (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) (FR-004, FR-014).
+- [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T018) (FR-012); que exista `MarkPendingCleaningUseCase`, con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003); y que `TechnicalBlockReport` tenga la transición `Applied` → `Completed` y `TechnicalBlockReportRepositoryPort` la consulta del informe `Applied` de la habitación (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003); que `DamageReportRepositoryPort` tenga la consulta del último reporte de la habitación (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T002); y que exista `MaintenanceNoticePublisher` (plan base, T025) (FR-004, FR-014, FR-021).
 - [ ] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA, con el cierre que falla si la tarea ya está cerrada y las consultas `findOpenByMember(String memberId)`, `existsOpenByRoom(UUID roomId)` y `findRoomIdsWithOpenTask()`; las dos últimas las usan `StartRepairService` y `plan-consultar-panel-mantenimiento.md` (etiqueta "En reparación") (FR-010, FR-012, FR-019).
 - [ ] T003 [P] Verificar en `GlobalExceptionHandler` los códigos comunes `ROOM_TASK_EXISTS` y `ACTIVE_TASK_EXISTS` (catálogo del plan base, T020) y mapear los índices únicos de `reparation_task`: el de la habitación a `ROOM_TASK_EXISTS` y el del miembro a `ACTIVE_TASK_EXISTS`.
 - [ ] T004 [P] Crear `MaintenanceController` (`@RestController`, `@RequestMapping("/api/maintenance")`) sin endpoints, para que `plan-consultar-panel-mantenimiento.md` le agregue el suyo aunque este plan termine después.
@@ -429,23 +431,24 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor (HU-1 esc. 1; FR-004, FR-005, FR-008, FR-018).
-- [ ] T014 [P] [US1] Unit test: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed` (FR-014).
+- [ ] T013 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor, y publica el aviso `CANCELLED` con `maintenanceId` = id del último `DamageReport` de la habitación y `startDate` = `endDate` = fecha de cierre (HU-1 esc. 1; FR-004, FR-005, FR-008, FR-018, FR-021).
+- [ ] T014 [P] [US1] Unit test con `Clock` fijo: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed`; si la fecha de cierre es anterior o posterior a la estimada publica el aviso `UPDATED` (`endDate` = fecha de cierre, `previousStartDate` y `previousEndDate` = rango original), y si coincide no publica ningún aviso (FR-014, FR-021).
 - [ ] T015 [P] [US1] Unit test: rechazo si la habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-1 esc. 2; FR-003, FR-006).
 - [ ] T016 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro (HU-1 esc. 3; FR-003, FR-015).
-- [ ] T017 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial y deja el informe en `Applied` (HU-1 esc. 4; FR-017).
+- [ ] T017 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial, deja el informe en `Applied` y no publica avisos de mantenimiento (HU-1 esc. 4; FR-017, FR-021).
 - [ ] T018 [P] [US1] Unit test con `Clock` fijo: al confirmar, `endDateTime` es la marca del periodo `PendingCleaning` que devuelve `MarkPendingCleaningUseCase`; al liberar, la hora de `Clock`; si fuera anterior a `startDateTime` se rechaza sin cambios (FR-008, FR-009; caso límite 4).
 - [ ] T019 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito (FR-019).
-- [ ] T020 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe (caso límite 3).
+- [ ] T020 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe, y no deja ningún aviso de mantenimiento en `outbox_notification` (caso límite 3; FR-021).
 - [ ] T021 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel (FR-001, FR-002, FR-007, FR-017).
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-003 a FR-010, FR-014, FR-016, FR-018):
+- [ ] T022 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-003 a FR-010, FR-014, FR-016, FR-018, FR-021):
   - Validar la tarea, su titular y el estado de la habitación.
   - Si la habitación está en `TechnicalBlock`, marcar su informe `Applied` como `Completed`.
   - Invocar `MarkPendingCleaningUseCase` con `sourceFlow = CONFIRM_REPAIR_END` y el miembro como actor (registra el historial).
   - Cerrar la tarea con `outcome = Completed` y `MarkPendingCleaningResult.transitionDateTime` como `EndDateTime`, de modo que coincide con el inicio del periodo `PendingCleaning`, después de validar que no sea anterior a `StartDateTime` (FR-008, FR-009).
+  - Publicar el aviso con `MaintenanceNoticePublisher` (plan base, T025), con la fecha de cierre (fecha de `MarkPendingCleaningResult.transitionDateTime`): en `TechnicalBlock`, `publishUpdated(informe, habitación, inicio del informe, fecha de cierre, inicio del informe, fecha estimada de fin)` solo si la fecha de cierre es distinta de la estimada; en `DisabledForRepairs`, `publishCancelled(último DamageReport de la habitación, habitación, fecha de cierre, fecha de cierre)` (FR-021).
 - [ ] T023 [US1] Implementar `ReleaseRepairTaskService` (`@Transactional`): validar la tarea y su titular y cerrarla con `outcome = Released` y la hora de `Clock` como `EndDateTime` (no hay transición de estado) (FR-015, FR-017).
 - [ ] T024 [US1] Implementar `ActiveRepairTaskQueryService` (`GetActiveRepairTaskUseCase`, `@Transactional(readOnly = true)`) y agregar a `MaintenanceController` `GET /api/maintenance/tasks/active`, `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release` (FR-001).
 - [ ] T025 [US1] Construir `ActiveRepairTaskPage.tsx` (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-002, FR-006, FR-007, FR-017).
@@ -463,10 +466,10 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020) y el layout de mantenimiento (T016).
+- **Foundational**: Requiere del plan base las tablas `reparation_task` y `technical_block_report` (T018), las excepciones de tareas y `SourceFlow` (T020), `MaintenanceNoticePublisher` (T025) y el layout de mantenimiento (T016).
 - **Planes de los que depende**:
   - `plan-consultar-panel-mantenimiento.md`: el panel desde el que se inician las reparaciones. Ese plan necesita la Phase 2 de este (T002 y T004); su Phase 3 va antes de la Phase 3 de este plan.
   - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase`.
-  - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: los registros de `damage_report`, creados al reportar un daño sobre la tabla de V3 (plan base, T018), que dejan en `DisabledForRepairs` las habitaciones que se reparan.
+  - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: los registros de `damage_report`, creados al reportar un daño sobre la tabla de V3 (plan base, T018), y `DamageReportRepositoryPort` con la consulta del último reporte (para el aviso `CANCELLED`); los reportes dejan en `DisabledForRepairs` las habitaciones que se reparan.
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: `TechnicalBlockReport` (este plan lo marca como `Completed` sobre la tabla del plan base).
 - **Orden**: Phase 2 → (`plan-consultar-panel-mantenimiento.md`) → Phase 3 (HU-2) → Phase 4 (HU-1) → Phase 5.

@@ -9,14 +9,14 @@
 
 Implementar el caso de uso de solo lectura **Consultar Información de Mantenimientos**, que responde si una habitación está disponible frente a los mantenimientos en un rango de fechas y, si no lo está, las fechas de cada mantenimiento que se cruza (FR-002, FR-003). La disponibilidad se refiere solo a mantenimientos: no evalúa reservas, ocupación ni bajas. Lo consumen:
 
-1. **Módulo 2**, por REST, antes de asignar una habitación a una reserva (`GET /api/rooms/{roomId}/maintenance-availability`, ya listado en el plan base). Es el único consumidor REST (FR-001), con el formato de respuesta acordado con Módulo 2.
+1. **Módulo 2**, por REST (`GET /api/rooms/{roomId}/maintenances`, ruta acordada con Módulo 2 y listada en el plan base): antes de asignar una habitación a una reserva directa y para calcular la disponibilidad que publica en Booking a través de Channex, después de cada aviso de mantenimiento y a las 03:00, con el rango de hoy a 90 días (modo `AVAILABILITY`, sin límites). Es el único consumidor REST (FR-001), con el formato de respuesta acordado con Módulo 2.
 2. **Programar Bloqueo Técnico para Habitación**, de forma interna mediante el puerto `ConsultMaintenanceAvailabilityUseCase` (FR-004 de ese spec).
 
 Reglas principales:
 
 - **Días evaluados (FR-003):** el puerto recibe días inclusivos. Para Módulo 2, el controlador convierte llegada y salida en los días de la llegada al día anterior a la salida (el día de salida no se considera ocupado); *Programar Bloqueo Técnico* consulta con el último día del mantenimiento incluido.
 - **Validación (FR-005 a FR-009):** fechas reales y fin no anterior al inicio; un rango que termina antes de hoy se rechaza y uno que empieza antes de hoy se evalúa desde hoy. No se aplican los límites de 90 y 365 días (FR-008).
-- **Cruces (FR-010):** informes `Scheduled` o `Applied` cuyo rango `[inicio, fin estimado]` se solapa con los días evaluados, incluidos los extremos; un informe `Applied` vencido no bloquea fechas futuras.
+- **Cruces (FR-010):** informes `Scheduled` o `Applied` cuyo rango `[inicio, fin estimado]` se solapa con los días evaluados, incluidos los extremos; un informe `Applied` vencido no bloquea fechas futuras y un informe `Expired` (estado definitivo, solo de registro) nunca bloquea.
 - **Hoy (FR-014):** si la habitación está hoy en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, y los días evaluados incluyen hoy, se responde un cruce con inicio y fin en la fecha actual.
 - **Errores:** `roomId` inválido (FR-013) y habitación inexistente (FR-012) se distinguen de la respuesta negativa. La consulta no modifica datos (FR-004, FR-011).
 
@@ -42,7 +42,7 @@ Reglas principales:
 
 ---
 
-## GET /api/rooms/{roomId}/maintenance-availability
+## GET /api/rooms/{roomId}/maintenances
 
 **Descripción:** Indica si la habitación está disponible frente a los mantenimientos para una estadía y, si no lo está, devuelve el inicio y el fin estimado de cada mantenimiento que se cruza (FR-001 a FR-014).
 
@@ -126,7 +126,7 @@ Los valores entre llaves salen de `MaintenanceLimits`, configurado por `Maintena
   "errorCode": "INVALID_DATE_RANGE",
   "message": "La fecha de fin no puede ser anterior a la fecha de inicio.",
   "timestamp": "2026-10-08T15:30:00-05:00",
-  "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/maintenance-availability",
+  "path": "/api/rooms/1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/maintenances",
   "details": { "rule": "END_BEFORE_START" }
 }
 ```
@@ -210,7 +210,7 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` y `Maintena
 ### Implementation for User Story 1
 
 - [ ] T011 [US1] Implementar `MaintenanceAvailabilityService` (`@Transactional(readOnly = true)`): validar los días con `MaintenanceDateRangeValidator` en modo `AVAILABILITY`, verificar que la habitación exista, consultar los cruces y, si la habitación está hoy en `DisabledForRepairs` o en `TechnicalBlock` con el informe `Applied` vencido (`TechnicalBlockReport.isOverdue(today)`, `plan-programar-bloqueo-tecnico-para-habitacion.md` T003) y los días incluyen hoy, agregar el cruce de la fecha actual; devolver `available` y `conflicts` sin la justificación (FR-002 a FR-014).
-- [ ] T012 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenance-availability`: validar el formato UUID de `roomId`, convertir llegada y salida en `firstDay = startDate` y `lastDay = max(startDate, endDate − 1)` y mapear los errores de la tabla (FR-001, FR-003, FR-009, FR-013).
+- [ ] T012 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenances`: validar el formato UUID de `roomId`, convertir llegada y salida en `firstDay = startDate` y `lastDay = max(startDate, endDate − 1)` y mapear los errores de la tabla (FR-001, FR-003, FR-009, FR-013).
 
 **Checkpoint**: Módulo 2 y *Programar Bloqueo Técnico para Habitación* pueden verificar la disponibilidad frente a mantenimientos y conocer las fechas de cada cruce.
 
