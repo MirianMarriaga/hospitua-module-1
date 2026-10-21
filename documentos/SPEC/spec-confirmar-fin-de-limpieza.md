@@ -49,6 +49,11 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
    - **Cuando** El personal de limpieza confirma la finalización de labores de limpieza diligenciando la descripción de un daño encontrado
    - **Entonces** El sistema transiciona la habitación a `Available` y, en la misma transacción, la inhabilita a `DisabledForRepairs` sin apartarla a `Reserved`; la reserva "RES-101" queda sin habitación apartada y Recepción ve la alerta operativa de esa llegada en su panel (FR-019)
 
+8. **Escenario**: Fin de limpieza con un mantenimiento programado que inicia o está en curso hoy
+   - **Dado que** La habitación "101" está en `InCleaning` asignada al miembro del personal de limpieza, sin llegada pendiente hoy, y tiene un `TechnicalBlockReport` en `Scheduled` cuyo rango contiene la fecha actual (por ejemplo, porque a las 00:00 seguía ocupada por un huésped que salió ese día)
+   - **Cuando** El personal de limpieza confirma la finalización de labores de limpieza sin describir un daño
+   - **Entonces** El sistema transiciona la habitación a `Available` y, en la misma transacción, le aplica el bloqueo técnico: la habitación pasa a `TechnicalBlock` y el informe a `Applied`, de modo que el Personal de mantenimiento puede iniciar las reparaciones ese mismo día (FR-020)
+
 ---
 
 ### Casos Límite
@@ -90,12 +95,14 @@ Como miembro del personal de limpieza quiero poder confirmar que he completado l
 - **FR-017**: El sistema DEBE ejecutar la confirmación de fin o la liberación de la tarea (cierre de la `CleaningTask`, transiciones y registros en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo (`InCleaning`) con la tarea activa, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.
 - **FR-018**: El sistema DEBE requerir confirmación explícita antes de procesar el fin de limpieza *(modal superpuesto indicando "¿Está seguro que desea finalizar la limpieza de la habitación X?", con un campo de texto opcional "Describir daño encontrado" de máximo 500 caracteres)*. Si el campo se deja vacío, el sistema DEBE procesar el fin de limpieza sin reporte de daño (FR-003, FR-011); si se diligencia, DEBE aplicar FR-012 y advertir en el mismo modal que la habitación quedará inhabilitada por reparaciones. Cancelar el modal NO DEBE modificar la tarea ni la habitación.
 - **FR-019**: Cuando se reporta un daño (FR-012) y la copia local de la lista del día (`daily_reservation_room`) contiene una llegada pendiente hoy para la habitación (FR-011), el sistema NO DEBE apartarla a `Reserved`: la habitación queda en `DisabledForRepairs` y la reserva queda sin habitación apartada. Recepción lo ve con la alerta operativa de su panel ("No disponible: Inhabilitada por reparaciones"), que el panel calcula a partir del estado de la habitación (*Consultar panel de recepción* FR-005); este caso de uso no envía mensajes a Recepción ni a Módulo 2 (regla 3 de la máquina de estados).
+- **FR-020**: Tras la transición a `Available`, solo si no se reportó un daño (FR-012) y la habitación no tiene una llegada pendiente hoy (FR-011), el sistema DEBE verificar si la habitación tiene un `TechnicalBlockReport` en `Scheduled` cuyo rango contiene la fecha actual; si es así, DEBE aplicarlo dentro de la misma transacción mediante el caso de uso *Programar Bloqueo Técnico para Habitación* (FR-002), que transiciona la habitación a `TechnicalBlock` y marca el informe como `Applied`. La prioridad cuando varias transiciones compiten en esta confirmación es: daño, luego llegada pendiente y luego mantenimiento programado (regla 6 de la máquina de estados). Esta transición es autónoma y no es seleccionable por el usuario.
 
 ### Entidades Clave
 
 - **Room**: Entidad que representa una habitación del hotel. En este caso de uso transita de `InCleaning` a `Available`, completando el ciclo de limpieza, o de `InCleaning` a `PendingCleaning` cuando se libera la tarea.
 - **CleaningTask**: Entidad definida en el caso de uso *Marcar Habitación en Limpieza* (`RoomId`, `CleaningStaffMemberId`, `StartDateTime`, `EndDateTime`, `Outcome`). En este caso de uso se completan los campos `EndDateTime` y `Outcome`.
 - **DamageReport**: Entidad definida en el caso de uso *Marcar Habitación Inhabilitada por Reparaciones*. Se crea solo cuando se diligencia la descripción opcional del daño (FR-012).
+- **TechnicalBlockReport**: Entidad definida en el caso de uso *Programar Bloqueo Técnico para Habitación*. Se consulta tras la transición a `Available` y, si un informe `Scheduled` contiene la fecha actual, pasa a `Applied` (FR-020).
 - **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se cierra el periodo `InCleaning` y se abren los periodos de las transiciones ejecutadas.
 
 ---

@@ -41,7 +41,7 @@ Estas son las transiciones confirmadas contra el diagrama de casos de uso y la a
 | InCleaning | PendingCleaning | Liberar tarea de limpieza (la habitación vuelve a la cola de limpieza) | Personal de limpieza |
 | Available | DisabledForRepairs | Marcar inhabilitada por reparaciones (directamente o al confirmar el fin de limpieza con un daño reportado, después de `InCleaning → Available` en la misma transacción) | Personal de limpieza / Personal de mantenimiento |
 | DisabledForRepairs | PendingCleaning | Confirmar fin de reparación de habitación | Personal de mantenimiento |
-| Available | TechnicalBlock | Programar bloqueo técnico: lo aplica el trabajo autónomo de las 00:00 (después de la ingesta de la lista diaria de reservas) al llegar su fecha de inicio, o de inmediato al programarlo si inicia hoy. Si la habitación no está en `Available`, no se aplica y se reevalúa cada 00:00 hasta su fecha estimada de finalización | Módulo 1 (Autónomo, trabajo de las 00:00) / Personal de mantenimiento (aplicación inmediata) |
+| Available | TechnicalBlock | Programar bloqueo técnico: lo aplica el trabajo autónomo de las 00:00 (después de la ingesta de la lista diaria de reservas) al llegar su fecha de inicio, o de inmediato al programarlo si inicia hoy, o al confirmar el fin de limpieza de una habitación con un mantenimiento programado cuyo rango contiene hoy, sin daño ni llegada pendiente (después de `InCleaning → Available`, en la misma transacción). Si la habitación no está en `Available`, no se aplica y se reevalúa cada 00:00 hasta su fecha estimada de finalización | Módulo 1 (Autónomo: trabajo de las 00:00 o fin de limpieza) / Personal de mantenimiento (aplicación inmediata) |
 | TechnicalBlock | PendingCleaning | Confirmar fin de reparación de habitación | Personal de mantenimiento |
 | Available | Inactive | Dar de baja habitación | Administrador |
 | Inactive | Available | Marcar disponible / reactivar | Administrador |
@@ -65,6 +65,12 @@ Estas son las transiciones confirmadas contra el diagrama de casos de uso y la a
 5. **Registro de las transiciones autónomas en el historial de estados** (`SourceFlow`):
    - Apartado automático (`Available → Reserved`): `MARK_RESERVED`.
    - Liberación automática (`Reserved → Available`): `MARK_AVAILABLE`.
+
+6. **Prioridad entre transiciones que compiten por una habitación**:
+   - **No se desplaza un estado**: las transiciones autónomas (apartar por reserva, aplicar un mantenimiento programado) y el reporte de daño solo actúan sobre una habitación `Available`. Si la encuentran en otro estado no la cambian: el apartado queda como conflicto con la alerta operativa de la regla 1, y el mantenimiento programado se reevalúa más tarde (en el siguiente fin de limpieza o a las 00:00).
+   - **Gana quien la toma primero**: a las 00:00, primero la ingesta de la lista diaria de reservas y después la aplicación de mantenimientos programados (regla 10 del plan base); durante el día, la primera operación que bloquea la fila de la habitación (regla 13 del plan base).
+   - **Cuando compiten en una misma operación** (al confirmar el fin de limpieza, después de `InCleaning → Available`): daño reportado (`DisabledForRepairs`) > llegada pendiente hoy (`Reserved`) > mantenimiento programado que contiene hoy (`TechnicalBlock`). El daño es un impedimento físico; la reserva se respeta frente al mantenimiento porque no se puede rechazar. Una llegada y un mantenimiento del mismo día no deberían coexistir, porque cada uno verifica al otro antes de registrarse.
+   - Ejemplo: una habitación se inhabilita por daño antes de la ingesta de la lista de las 00:00 que contiene su reserva de hoy. La ingesta no la aparta (regla 1): queda `RESERVATION_STATE_CONFLICT` y Recepción ve "No disponible: Inhabilitada por reparaciones". Si ese mismo día se repara y se limpia, al confirmar el fin de limpieza se aparta a `Reserved`, porque la llegada sigue pendiente (regla 2); si no, la reserva queda sin habitación apartada y Módulo 2, que ya la ve no disponible hoy en *Consultar información de mantenimientos*, debe reasignarla.
 
 ## Cómo referenciar este documento desde un SPEC
 
