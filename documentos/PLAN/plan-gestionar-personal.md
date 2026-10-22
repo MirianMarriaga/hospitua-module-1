@@ -12,7 +12,7 @@ Implementar el caso de uso **Gestionar Personal** para el Administrador, desde l
 1. **Registrar** (FR-002 a FR-006): usuario, contraseña, nombre completo y área. El sistema normaliza y valida el usuario, cifra la contraseña con BCrypt y crea la cuenta activa.
 2. **Consultar** (FR-007): lista paginada del personal con filtros por área y estado y búsqueda por usuario o nombre.
 3. **Editar** (FR-006, FR-008): nombre, área y, de forma opcional, contraseña de una cuenta activa. El usuario no cambia.
-4. **Desactivar** (FR-009, FR-010): previa confirmación, la cuenta queda desactivada sin borrarse. No se permite desactivar la propia cuenta ni la última cuenta activa del área Administración.
+4. **Desactivar** (FR-009, FR-010): previa confirmación, la cuenta queda desactivada sin borrarse. No se permite desactivar la propia cuenta ni la última cuenta activa del área Administración. Al desactivar, libera las tareas abiertas de la cuenta mediante los puertos internos de limpieza y reparación (FR-010a).
 5. **Cuenta inicial** (FR-011): si al arrancar no hay ninguna cuenta activa de Administración, un componente de arranque crea la de la configuración llamando al mismo puerto de registro.
 
 El núcleo de las cuentas (modelo, repositorio, cifrado, puerto de registro y cuenta inicial) lo implementa el plan base en T023, porque lo necesitan el inicio de sesión y todo endpoint con `X-User`. Este plan lo verifica y agrega los endpoints, la consulta, la edición, la desactivación y las vistas.
@@ -463,7 +463,7 @@ frontend/src/
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-012).
+- [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-012). Desactivar con una tarea de limpieza abierta deja la habitación en `PendingCleaning` (esc. 11; FR-010a).
 - [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010; SC-004).
 - [ ] T031 [US4] Integration test con Testcontainers: dos desactivaciones simultáneas de las dos únicas cuentas activas de Administración; solo una tiene éxito y la otra recibe `LAST_ADMINISTRATOR` (FR-010).
 - [ ] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
@@ -471,7 +471,7 @@ frontend/src/
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar (FR-009, FR-010, FR-012).
+- [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y, cuando exista, el puerto equivalente de reparación `releaseOpenTaskOf(String memberId)` (pendiente, a definir en `plan-confirmar-reparacion-finalizada.md`). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) (FR-009, FR-010, FR-010a, FR-012).
 - [ ] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
 
 **Checkpoint**: La gestión del personal queda completa.
@@ -492,5 +492,8 @@ frontend/src/
   - Plan base, T021 y T023: `LoginService` usa `PasswordEncoderPort` (T023) y rechaza las cuentas desactivadas.
   - `plan-consultar-historial-de-estados.md`: muestra `full_name` de `user_account` como responsable, también de las cuentas desactivadas.
   - `plan-consultar-inventario-habitaciones.md`: `Pagination.tsx` y el menú de la vista del Administrador.
+  - `plan-confirmar-fin-de-limpieza.md`: `ReleaseCleaningTaskOnDeactivationUseCase`, puerto que libera la tarea de limpieza abierta al desactivar (FR-010a).
+  - `plan-confirmar-reparacion-finalizada.md`: puerto equivalente que libera la tarea de reparación abierta al desactivar (pendiente; FR-010a).
+- **Riesgo aceptado**: si la persona inicia una tarea en el mismo instante en que se desactiva su cuenta, ambas operaciones pueden confirmarse porque ninguna bloquea a la otra; es poco probable y se documenta.
 - **Alcance provisional**: el manejo de contraseñas de este plan es provisional (regla 14 y punto abierto 1 del plan base). Si se adopta un inicio de sesión compartido, se retiran la contraseña y `PasswordEncoderPort`, y se conservan el registro, la consulta, la edición y la desactivación de las cuentas como perfil local.
 - **Orden**: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. La cuenta inicial ya existe desde el plan base (T023).

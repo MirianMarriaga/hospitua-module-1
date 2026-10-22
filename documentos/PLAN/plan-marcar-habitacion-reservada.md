@@ -49,6 +49,7 @@ public interface MarkRoomReservedUseCase {
 
 // trigger: DAILY_LIST (lista de las 00:00) | ADDED_UPDATE (actualización ADDED con startDate = hoy)
 //          | CLEANING_END (transición encadenada desde Confirmar fin de limpieza)
+// trigger identifica al invocador para la bitácora; el historial usa siempre MARK_RESERVED
 public record MarkRoomReservedCommand(UUID roomId, String reservationRef, ReservationTrigger trigger) {}
 
 // outcome: RESERVED | ALREADY_RESERVED | CONFLICT | ROOM_NOT_FOUND

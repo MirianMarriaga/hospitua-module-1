@@ -35,9 +35,9 @@ Estas son las transiciones confirmadas contra el diagrama de casos de uso y la a
 | Reserved | Available | Actualización `REMOVED` de esa reserva (incluye el no-show, que decide Módulo 2), habitación quitada de la reserva (`UPDATED`) o ausencia de la reserva en la lista diaria de las 00:00, solo si `reservedByReservationRef` coincide (limpia `reservedByReservationRef`) | Módulo 1 (Autónomo) |
 | Reserved | Occupied | Check-in confirmado | Recepcionista |
 | Occupied | PendingCleaning | Check-out confirmado | Recepcionista |
-| Available | InCleaning | Marcar en limpieza (aseo preventivo) | Personal de limpieza |
+| Available | InCleaning | Marcar en limpieza (limpieza de una habitación disponible) | Personal de limpieza |
 | PendingCleaning | InCleaning | Marcar en limpieza | Personal de limpieza |
-| InCleaning | Available | Confirmar fin de limpieza; si la habitación tiene una llegada pendiente hoy y no se reportó un daño, en la misma transacción continúa a `Reserved` | Personal de limpieza |
+| InCleaning | Available | Confirmar fin de limpieza; en la misma transacción continúa a `DisabledForRepairs`, `Reserved` o `TechnicalBlock` según la prioridad de la regla 6 (daño reportado, llegada pendiente hoy, mantenimiento programado que contiene hoy) | Personal de limpieza |
 | InCleaning | PendingCleaning | Liberar tarea de limpieza (la habitación vuelve a la cola de limpieza) | Personal de limpieza |
 | Available | DisabledForRepairs | Marcar inhabilitada por reparaciones (directamente o al confirmar el fin de limpieza con un daño reportado, después de `InCleaning → Available` en la misma transacción) | Personal de limpieza / Personal de mantenimiento |
 | DisabledForRepairs | PendingCleaning | Confirmar fin de reparación de habitación | Personal de mantenimiento |

@@ -102,6 +102,11 @@ Como Administrador, quiero desactivar la cuenta de una persona que ya no trabaja
     - **Cuando** confirma la desactivación
     - **Entonces** el sistema la rechaza e indica el motivo, para que el sistema no quede sin nadie que pueda gestionar al personal
 
+11. **Escenario**: Desactivar una cuenta con una tarea abierta
+    - **Dado** la persona tiene abierta una tarea de limpieza o de reparación
+    - **Cuando** el Administrador confirma la desactivación
+    - **Entonces** el sistema libera la tarea, y la habitación queda disponible para que otra persona la atienda (una de limpieza vuelve a `PendingCleaning`)
+
 ---
 
 ### Casos Borde
@@ -127,6 +132,7 @@ Como Administrador, quiero desactivar la cuenta de una persona que ya no trabaja
 - **FR-008**: El sistema DEBE permitir editar el nombre, el área y la contraseña de una cuenta activa. El usuario no se puede cambiar, porque identifica a la persona en el historial. Si el campo de contraseña se deja vacío, la contraseña actual se conserva.
 - **FR-009**: El sistema DEBE pedir confirmación antes de desactivar una cuenta, mostrando el usuario, el nombre y el área y advirtiendo que la persona no podrá iniciar sesión. Al confirmar, la cuenta queda desactivada: no se borra y no puede iniciar sesión.
 - **FR-010**: El sistema NO DEBE permitir que el Administrador desactive su propia cuenta ni la última cuenta activa del área Administración.
+- **FR-010a**: Al desactivar una cuenta, el sistema DEBE liberar las tareas abiertas de la cuenta (limpieza y reparación). La liberación de limpieza registra al Administrador como actor en el historial de estados; la de reparación no registra actor.
 - **FR-011**: Si al arrancar no existe ninguna cuenta activa del área Administración, el sistema DEBE crear una cuenta inicial de Administrador con el usuario, la contraseña y el nombre de su configuración, aplicando las mismas reglas de FR-002 a FR-005.
 - **FR-012**: El sistema DEBE registrar la fecha y hora y el Administrador responsable del registro, de la última edición y de la desactivación de cada cuenta; la cuenta inicial de FR-011 queda registrada por el sistema.
 
@@ -141,5 +147,5 @@ Como Administrador, quiero desactivar la cuenta de una persona que ya no trabaja
 
 - **SC-001**: El Administrador puede registrar una cuenta del personal en menos de 2 minutos.
 - **SC-002**: El 100% de las contraseñas quedan guardadas cifradas; ninguna aparece en texto plano en la base de datos, en las respuestas ni en los registros del sistema.
-- **SC-003**: El 100% de las cuentas desactivadas no pueden iniciar sesión, y el historial de estados sigue mostrando su nombre.
+- **SC-003**: El 100% de las cuentas desactivadas no pueden iniciar sesión, y el historial de estados sigue mostrando su nombre, y el 100% de las tareas abiertas de una cuenta desactivada quedan liberadas (una habitación en limpieza vuelve a `PendingCleaning`).
 - **SC-004**: El sistema rechaza el 100% de los intentos de registrar un usuario repetido o de desactivar la propia cuenta o al último Administrador.

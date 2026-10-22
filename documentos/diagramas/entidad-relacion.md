@@ -1,7 +1,7 @@
 # Diagrama Entidad-Relación — Módulo 1
 
 **Fuente canónica**: `documentos/PLAN/base/plan.md` (Modelo de Datos Relacional).
-**Última actualización**: 2026-10-21.
+**Última actualización**: 2026-10-22.
 
 > Tipos simplificados: `uuid`, `date`, `decimal`, `json`, `boolean`, `int`, `string`.  
 > **Línea continua** = FK real en BD · **Línea punteada** = relación lógica (campo cadena, sin FK declarada).  
@@ -141,7 +141,6 @@ erDiagram
     timestamp start_date_time
     timestamp end_date_time
     string    outcome
-    int       version
   }
 
   DAMAGE_REPORT {
@@ -159,6 +158,10 @@ erDiagram
     boolean active
   }
 ```
+
+> `cleaning_task`: `CHECK (end_date_time IS NULL OR end_date_time >= start_date_time)` y `CHECK ((outcome IS NULL) = (end_date_time IS NULL))`.
+>
+> Índices únicos parciales de tarea abierta por miembro y por habitación (`end_date_time IS NULL`) e índice parcial de última limpieza `(room_id, end_date_time DESC) WHERE outcome IN ('Completed','DamageReported')`.
 
 ---
 

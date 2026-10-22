@@ -23,7 +23,7 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
   - Solo lectura: no modifica datos ni ejecuta transiciones (FR-005).
   - Snapshot consistente sin bloquear las transiciones de otras habitaciones: transacción `readOnly` con aislamiento `REPEATABLE_READ`, que en PostgreSQL lee una instantánea sin bloquear escrituras (caso borde "Concurrente"; SC-004).
   - Rango de fechas: incluye los periodos que se cruzan con el rango, es decir, que empiezan antes del fin de "Hasta" y terminan después del inicio de "Desde" o siguen abiertos.
-  - Orden cronológico por inicio del periodo; a igual inicio, por número de habitación (SC-002).
+  - Orden por `start_date_time`, `room_number`, `end_date_time ASC NULLS LAST` e `id`; `id` solo garantiza un orden total para la paginación (SC-002).
   - El tipo que se muestra y se filtra es el tipo actual de la habitación (`room.category_room`); el historial no guarda el tipo de cada periodo.
   - Toda habitación tiene al menos un periodo, el abierto por *Registrar habitación* (FR-013 de ese spec); una habitación sin cambios muestra una fila "En curso" (caso borde "Historial vacío").
 
@@ -195,7 +195,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Crear la migración `V5__room_state_history_indexes.sql` con índices sobre `room_state_history(room_id, start_date_time)` y `room_state_history(status, start_date_time)` (SC-001).
-- [ ] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
+- [ ] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico (`start_date_time, room_number, end_date_time ASC NULLS LAST, id`) y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
 
 ---
 

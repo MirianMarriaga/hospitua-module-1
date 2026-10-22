@@ -320,7 +320,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 - [ ] T008 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
 - [ ] T009 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`).
 - [ ] T010 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
-- [ ] T011 [P] [US1] Integration test verificando que la habitación liberada aparece de inmediato en `GET /api/cleaning/panel` en estado `PendingCleaning` (`plan-consultar-panel-limpieza.md`).
+- [ ] T011 [P] [US1] Integration test verificando que tras el check-out la habitación queda en `PendingCleaning` (su aparición en el panel de limpieza la prueba `plan-consultar-panel-limpieza.md`, T014).
 
 ### Implementation for User Story 1
 
@@ -328,7 +328,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 - [ ] T013 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
-  - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
+  - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT` y el recepcionista (usuario actual) como `actorId`.
   - Actualizar `Stay` asignando `checkOutDate = LocalDate.now(clock)` (regla 6 del plan base).
   - Construir el payload plano para outbox:
 
@@ -405,5 +405,5 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: la notificación queda en 
 - **Sub-planes Requeridos**:
   - `plan-consultar-panel-recepcion.md`: Suministra la estancia seleccionada desde el buscador de Salidas.
   - `plan-consultar-liquidacion.md`: Provee el contrato y servicio reactivo hacia Módulo 3 (`GET /api/settlements`) y el Endpoint 2 que consume el frontend.
-  - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT`.
+  - `plan-marcar-pendiente-a-limpieza.md`: `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT` y el recepcionista como `actorId`; verificar que el historial registra ese actor.
 - **Flujo de Ejecución**: Paso 1 (Consultar reserva local) → Paso 2 (Liquidación M3) → Paso 3 (Pago informativo) → Paso 4 (Confirmación con checkbox) → Paso 5 (Liberar habitación a `PendingCleaning`).

@@ -58,7 +58,7 @@ Accept: application/json
 | `categoryRoom` | query | string | No | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` | `DOBLE` |
 | `floor` | query | integer | No | Piso | `2` |
 | `status` | query | string | No | Uno de los 8 estados; sin este filtro se incluyen todos, también `Inactive` (FR-003) | `Available` |
-| `sort` | query | string | No | `roomNumber` (por defecto), `floor`, `categoryRoom`, `maxCapacity`, `baseRate` o `status` (FR-005, esc. 3) | `baseRate` |
+| `sort` | query | string | No | `roomNumber` (por defecto; orden natural de T008 del plan base), `floor`, `categoryRoom`, `maxCapacity`, `baseRate` o `status` (FR-005, esc. 3) | `baseRate` |
 | `direction` | query | string | No | `asc` (por defecto) o `desc` | `asc` |
 | `page` | query | integer | No | Página, desde 1 (por defecto 1) (FR-009) | `1` |
 | `size` | query | integer | No | Tamaño de página; las vistas usan 10 (FR-009); máximo 100 | `10` |

@@ -10,7 +10,7 @@
 Implementar el caso de uso **Marcar Habitación como Disponible**, que centraliza toda transición de una habitación hacia `Available` (FR-001). Detalla el puerto transversal `MarkRoomAvailableUseCase` del plan base (T019), que atiende tres flujos:
 
 1. **Reactivación directa del Administrador** (FR-002, FR-009, FR-010): desde la acción "Marcar como disponible" de una habitación `Inactive` en el inventario, el Administrador confirma la reactivación viendo la fecha, el motivo y el detalle de la baja; la habitación pasa de `Inactive` a `Available`. Es el único flujo con endpoints propios.
-2. **Fin de limpieza** (FR-003): *Confirmar fin de limpieza* invoca el puerto para pasar de `InCleaning` a `Available`. En la misma transacción, ese flujo continúa a `Reserved` (*Marcar habitación como reservada*) o a `DisabledForRepairs` (si se reportó un daño); este plan no decide esa continuación (FR-004).
+2. **Fin de limpieza** (FR-003): *Confirmar fin de limpieza* invoca el puerto para pasar de `InCleaning` a `Available`. En la misma transacción, ese flujo continúa según la prioridad de la regla 6 de la máquina de estados; este plan no decide esa continuación (FR-004).
 3. **Liberación de una reserva** (FR-004): la ingesta de reservas (*Consultar reservas*, FR-009) invoca el puerto para pasar de `Reserved` a `Available` cuando la reserva se retira (`REMOVED`, que incluye el no-show que decide Módulo 2), cuando un `UPDATED` quita la habitación o cuando la reserva no figura en la lista de las 00:00. `reserved_by_reservation_ref` lo limpia `Room.transitionTo()` al salir de `Reserved` (regla 2 del plan base).
 
 La trazabilidad de los tres flujos es el periodo en `room_state_history` (FR-008, FR-011), que registra `TransitionRoomStateUseCase` una sola vez con el `sourceFlow` del invocador. No se registra en `room_audit_log`: esa tabla es para eventos que no son transiciones o que necesitan datos que `room_state_history` no guarda, y el periodo ya guarda el actor, el flujo y la hora que pide FR-008.
@@ -50,7 +50,7 @@ public record MarkRoomAvailableCommand(UUID roomId, SourceFlow sourceFlow, Strin
 public record MarkRoomAvailableResult(UUID roomId, RoomStatus previousStatus, OffsetDateTime transitionDateTime) {}
 ```
 
-Ante un origen no válido lanza `InvalidRoomTransitionException` (plan base) con el estado actual. El endpoint del invocador la traduce a `409`; la ingesta de reservas la registra como advertencia y continúa con la siguiente habitación.
+Ante un origen no válido lanza `InvalidRoomTransitionException` (plan base) con el estado actual. El endpoint del invocador la traduce a `409`. El invocador debe comprobar el origen antes de llamar; la ingesta solo invoca el puerto sobre una habitación `Reserved` por esa reserva (*Consultar reservas*).
 
 ---
 
@@ -308,7 +308,7 @@ No aplica: usa la infraestructura del plan base.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
 - [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
-La continuación a `Reserved` (esc. 5) o a `DisabledForRepairs` (esc. 6) la decide *Confirmar fin de limpieza* después de este puerto; sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
+La continuación tras la limpieza, según la prioridad de la regla 6 de la máquina de estados, la decide *Confirmar fin de limpieza* después de este puerto (esc. 5 y 6); sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
 
 **Checkpoint**: Las tres vías hacia `Available` usan una sola implementación.
 

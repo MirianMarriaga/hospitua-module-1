@@ -47,7 +47,7 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 7. **Escenario**: Habitación tomada por otro miembro mientras se consulta el panel
    - **Dado que** El panel del "Usuario A" lista la habitación "101" en `PendingCleaning`
    - **Cuando** El "Usuario B" inicia la limpieza de la habitación "101" y luego el "Usuario A" pulsa **Iniciar limpieza** sobre ella
-   - **Entonces** El sistema rechaza la acción del "Usuario A" informando el estado actual de la habitación (*Marcar Habitación en Limpieza*, FR-006) y recarga el panel, en el que la habitación "101" ya no aparece
+   - **Entonces** El sistema rechaza la acción del "Usuario A" informando el estado actual de la habitación (*Marcar Habitación en Limpieza*, FR-005) y recarga el panel, en el que la habitación "101" ya no aparece
 
 ---
 
@@ -75,7 +75,9 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 - **FR-008**: El sistema DEBE informar "No se encontró la habitación X" cuando la búsqueda no retorne resultados, y "No hay habitaciones pendientes de limpieza ni disponibles" cuando el panel no tenga habitaciones para listar.
 - **FR-009**: El sistema DEBE actualizar el panel automáticamente cada 60 segundos y al volver a él después de ejecutar una acción. Si una acción falla porque la habitación cambió de estado, el sistema DEBE informar el estado actual y recargar el panel.
 - **FR-010**: El sistema DEBE mostrar sobre el listado la cantidad de habitaciones pendientes de limpieza y la cantidad de habitaciones disponibles.
-- **FR-011**: La consulta del panel DEBE ser de solo lectura: no cambia el estado de ninguna habitación ni crea o modifica tareas.
+- **FR-011**: (pasado a nota: ver la nota de esta sección)
+
+**Nota**: la consulta del panel es de solo lectura: no cambia el estado de ninguna habitación ni crea o modifica tareas.
 
 ### Entidades Clave
 
@@ -91,4 +93,4 @@ Como miembro del personal de limpieza quiero ver en un solo panel las habitacion
 - **SC-001**: El panel carga en menos de 2 segundos.
 - **SC-002**: El 100% de las habitaciones listadas están en `PendingCleaning` o `Available` al momento de la consulta, y ninguna habitación en otro estado aparece en el panel.
 - **SC-003**: Un miembro con una tarea activa nunca ve el panel: el 100% de sus accesos lo llevan a la vista de tarea activa.
-- **SC-004**: Una habitación que pasa a `PendingCleaning` aparece en el panel en menos de 60 segundos sin que el miembro recargue la página.
+- **SC-004**: (eliminado: ver FR-009)

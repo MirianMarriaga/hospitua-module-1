@@ -103,7 +103,7 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 - **FR-010**: Al confirmar en el paso 4, el sistema DEBE ejecutar de forma síncrona y atómica:
   1. Transición `Occupied → PendingCleaning` (vía `<<includes>>` a "Marcar pendiente a limpieza").
   2. Cierre de `Stay` registrando `checkOutDate` (solo fecha, UTC-5).
-- **FR-011**: La habitación en `PendingCleaning` DEBE aparecer de inmediato en la bandeja del Personal de limpieza.
+- **FR-011**: La habitación en `PendingCleaning` DEBE aparecer en la siguiente actualización del panel de limpieza.
 - **FR-012**: Al confirmar la salida, el sistema DEBE generar una notificación asíncrona de movimiento de salida dirigida a Módulo 2 que consolide a la totalidad de los huéspedes alojados (nacionales y extranjeros) en un único aviso, sin canales separados para extranjeros. La notificación DEBE incluir:
   - Identificador único para control de duplicados e idempotencia.
   - Referencia de reserva e identificador de habitación.
