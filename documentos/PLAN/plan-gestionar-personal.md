@@ -371,7 +371,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar en `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name` (plan base, T023), leídas de variables de entorno, sin valores por defecto en el repositorio.
+- [ ] T001 Verificar en `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name` (plan base, T023), leídas de variables de entorno: en los perfiles `dev` y `test` tienen los valores de desarrollo `admin` / `admin123` (README); en `prod` no tienen valores por defecto y llegan solo por `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD` y `BOOTSTRAP_ADMIN_FULL_NAME`.
 
 ---
 

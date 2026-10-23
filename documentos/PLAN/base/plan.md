@@ -148,7 +148,7 @@ Módulo 2 publica en Booking, a través de Channex, la disponibilidad de cada ca
 
 ## Contratos REST
 
-**Convención de respuestas**: una creación responde `201` con el id del recurso creado y solo lo que la interfaz consume; una acción sobre un recurso existente responde `204` sin cuerpo.
+**Convención de respuestas**: una creación responde `201` con el id del recurso creado y solo lo que la interfaz consume; una acción sobre un recurso existente responde `204` sin cuerpo, salvo cuando la interfaz muestra el resultado de la acción, que responde `200` con solo esos datos: dar de baja (`plan-dar-de-baja-habitacion.md`), editar habitación (`plan-editar-habitacion.md`), reactivar (`plan-marcar-habitacion-como-disponible.md`) y editar y desactivar una cuenta (`plan-gestionar-personal.md`).
 
 ### 1. Endpoints que Módulo 1 EXPONE (servicios propios)
 
