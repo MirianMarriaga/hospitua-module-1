@@ -187,7 +187,6 @@ erDiagram
     timestamp start_date_time
     timestamp end_date_time
     string    outcome
-    int       version
   }
 
   TECHNICAL_BLOCK_REPORT {
@@ -199,7 +198,6 @@ erDiagram
     date      estimated_technical_block_end_date
     timestamp report_date_time
     string    status
-    int       version
   }
 
   USER_ACCOUNT {
@@ -209,6 +207,12 @@ erDiagram
     boolean active
   }
 ```
+
+> `reparation_task`: `CHECK (end_date_time IS NULL OR end_date_time >= start_date_time)` y `CHECK ((outcome IS NULL) = (end_date_time IS NULL))`; índices únicos parciales de tarea abierta por miembro y por habitación (`end_date_time IS NULL`).
+>
+> `technical_block_report`: `CHECK (estimated_technical_block_end_date >= technical_block_start_date)` y `CHECK (status IN ('Scheduled','Applied','Completed','Expired'))`; índice por `(room_id, status)`, índice único parcial `(room_id) WHERE status = 'Applied'` (un solo bloqueo aplicado por habitación) e índice parcial `(technical_block_start_date) WHERE status = 'Scheduled'` para el trabajo diario de bloqueos.
+>
+> Ninguna de las dos tiene columna `version`: el bloqueo de la fila de la habitación serializa sus escrituras (regla 13 del plan base).
 
 ---
 

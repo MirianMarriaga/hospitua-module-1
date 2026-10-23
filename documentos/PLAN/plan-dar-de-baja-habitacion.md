@@ -181,7 +181,8 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   │   └── out/
 │   │       └── RoomDecommissionRepositoryPort.java
 │   ├── service/
-│   │   └── DecommissionRoomService.java
+│   │   ├── DecommissionRoomService.java
+│   │   └── RoomDecommissionRegistration.java   # Transacción con bloqueo, invocada tras la consulta a Módulo 2 (T015)
 │   └── dto/
 │       ├── DecommissionRoomCommand.java
 │       └── RoomDecommissionDto.java
@@ -255,7 +256,7 @@ En los dos últimos casos la habitación sigue `Available`.
 - [ ] T015 [US1] Implementar `DecommissionRoomService` (FR-001 a FR-011):
   - Validar el motivo y que la habitación exista y esté `Available`.
   - Fuera de transacción, invocar `checkDecommissionConflict(roomId)`; si devuelve alguna reserva, lanzar `ReservationConflictException` con la lista.
-  - En una transacción (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` y volver a validar `Available` (regla 13 del plan base); invocar `TransitionRoomStateUseCase.transition(roomId, Inactive, administratorId, DECOMMISSION_ROOM, null)`; crear `RoomDecommission`.
+  - En una transacción (`@Transactional`) que abre un bean de aplicación aparte, `RoomDecommissionRegistration`, invocado por el servicio después de la consulta a Módulo 2 (no un método `@Transactional` del mismo servicio: la autoinvocación no pasa por el proxy de Spring y no abriría la transacción): bloquear la fila de `room` con `SELECT … FOR UPDATE` y volver a validar `Available` (regla 13 del plan base); invocar `TransitionRoomStateUseCase.transition(roomId, Inactive, administratorId, DECOMMISSION_ROOM, null)`; crear `RoomDecommission`.
 - [ ] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission` (FR-001).
 - [ ] T017 [US1] Construir en el frontend `DecommissionRoomPage.tsx` con los cuatro pasos y `ReservationConflictList.tsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
 

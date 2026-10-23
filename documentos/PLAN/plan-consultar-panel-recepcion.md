@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar la pantalla central de inicio de turno **Panel de Recepción** para el actor Recepcionista en Módulo 1 (FR-001 a FR-010). Esta vista provee la visión global operativa del día y actúa como despachador directo hacia los flujos transaccionales de Check-In (`plan-registrar-check-in.md`) y Check-Out (`plan-registrar-check-out.md`), operando con **100% de autonomía local sin llamadas REST a Módulo 2**.
+Implementar la pantalla central de inicio de turno **Panel de Recepción** para el actor Recepcionista en Módulo 1 (FR-001 a FR-011). Esta vista provee la visión global operativa del día y actúa como despachador directo hacia los flujos transaccionales de Check-In (`plan-registrar-check-in.md`) y Check-Out (`plan-registrar-check-out.md`), operando con **100% de autonomía local sin llamadas REST a Módulo 2**.
 
 Componentes y lógica operativa:
 
@@ -16,15 +16,15 @@ Componentes y lógica operativa:
    - *Salidas de hoy*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutDate` igual a hoy.
    - *Salidas vencidas*: Conteo de estancias físicas activas locales (`Stay`) con `expectedCheckoutDate` anterior a hoy (destacado visualmente con color de alerta).
    - *Habitaciones ocupadas*: Total de habitaciones con `Room.status = Occupied` en el inventario local de Módulo 1.
-2. **Pestaña Llegadas (FR-003, FR-005, FR-005a, FR-007, FR-010)**: Listado obtenido **100% de la copia local** (`daily_reservation` y `daily_reservation_room`), organizado a razón de **una fila por cada habitación**, con el estado físico de la habitación:
+2. **Pestaña Llegadas (FR-003, FR-005, FR-006, FR-008, FR-011)**: Listado obtenido **100% de la copia local** (`daily_reservation` y `daily_reservation_room`), organizado a razón de **una fila por cada habitación**, con el estado físico de la habitación:
    - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]".
    - Indicador informativo cuando la habitación está ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), indicando "[Estado]: se apartará al terminar la limpieza".
    - Buscador en tiempo real por nombre, documento o código de reserva contra la copia local (sin REST a Módulo 2).
    - Botón individual "Check-in" que transfiere `reservationRef` y `roomId` directamente al Paso 1 del flujo de admisión.
-3. **Pestaña Salidas (FR-004, FR-006, FR-008)**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida" destacada). Incluye buscador local (nombre, documento, código o número de habitación) y botón "Check-out" que transfiere la estancia directamente al Paso 1 del flujo de salida.
-4. **Resiliencia Total (FR-010)**: Cero llamadas REST a Módulo 2. Si la lista de las 00:00 no ha llegado, Llegadas muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." mientras Salidas y los KPIs de estancias siguen operando.
+3. **Pestaña Salidas (FR-004, FR-007, FR-009)**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida" destacada). Incluye buscador local (nombre, documento, código o número de habitación) y botón "Check-out" que transfiere la estancia directamente al Paso 1 del flujo de salida.
+4. **Resiliencia Total (FR-011)**: Cero llamadas REST a Módulo 2. Si la lista de las 00:00 no ha llegado, Llegadas muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." mientras Salidas y los KPIs de estancias siguen operando.
 5. **Pantalla de inicio de jornada (FR-001)**: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, las cuatro tarjetas y las pestañas.
-6. **Actualización (FR-005a)**: las llegadas y los KPIs se vuelven a consultar cada 60 segundos y al volver de un Check-In o Check-Out.
+6. **Actualización (FR-006)**: las llegadas y los KPIs se vuelven a consultar cada 60 segundos y al volver de un Check-In o Check-Out.
 
 ---
 
@@ -52,13 +52,13 @@ Componentes y lógica operativa:
 - **Fechas**: de calendario (`YYYY-MM-DD`), sin horas; la interfaz las muestra como DD-MM-YYYY.
 - **Errores**: esquema `ApiError` del plan base.
 - **Estados y tipos en la interfaz**: nombre en español del estado y etiqueta del tipo (regla 12 del plan base).
-- **Actualización (FR-005a)**: el frontend vuelve a consultar `arrivals` y `panel/kpis` cada 60 segundos y al volver de un Check-In o Check-Out. El backend ya refleja los `ADDED`, `UPDATED` y `REMOVED` porque el consumidor de la cola actualiza la copia local (`plan-consultar-reservas.md`); no hay notificaciones en tiempo real.
+- **Actualización (FR-006)**: el frontend vuelve a consultar `arrivals` y `panel/kpis` cada 60 segundos y al volver de un Check-In o Check-Out. El backend ya refleja los `ADDED`, `UPDATED` y `REMOVED` porque el consumidor de la cola actualiza la copia local (`plan-consultar-reservas.md`); no hay notificaciones en tiempo real.
 
 ---
 
 ## GET /api/reception/arrivals
 
-**Descripción:** Pestaña Llegadas: habitaciones de las reservas del día pendientes de Check-In, desde la copia local, agrupadas por reserva, con el estado físico de cada habitación (FR-003, FR-005, FR-005a, FR-007, FR-009, FR-010).
+**Descripción:** Pestaña Llegadas: habitaciones de las reservas del día pendientes de Check-In, desde la copia local, agrupadas por reserva, con el estado físico de cada habitación (FR-003, FR-005, FR-006, FR-008, FR-010, FR-011).
 
 ### Petición (Request)
 
@@ -84,7 +84,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `listAvailable` | boolean | `false` si hoy no se ha recibido la lista de las 00:00 (no hay mensaje `reserva.lista-del-dia` con el `operationalDate` de hoy en `daily_reservation_message_log`); el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." y `groups` llega vacío (FR-010) | `true` |
+| `listAvailable` | boolean | `false` si hoy no se ha recibido la lista de las 00:00 (no hay mensaje `reserva.lista-del-dia` con el `operationalDate` de hoy en `daily_reservation_message_log`); el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." y `groups` llega vacío (FR-011) | `true` |
 | `groups` | array | Una entrada por reserva con habitaciones pendientes de Check-In | |
 | `groups[].reservationRef` | string | Referencia de la reserva | `"RES-10482"` |
 | `groups[].pendingRooms` | entero | Habitaciones de la reserva sin `Stay` | `1` |
@@ -153,7 +153,7 @@ Accept: application/json
 }
 ```
 
-Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` vacío y el frontend muestra "No hay reservas que mostrar." (FR-009). "Check-in" navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-007).
+Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` vacío y el frontend muestra "No hay reservas que mostrar." (FR-010). "Check-in" navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-008).
 
 ### Respuestas de error
 
@@ -163,7 +163,7 @@ No tiene errores propios; un fallo inesperado se responde con el formato `ApiErr
 
 ## GET /api/reception/departures
 
-**Descripción:** Pestaña Salidas: estancias activas locales con salida hoy o vencida (FR-004, FR-006, FR-008, FR-009).
+**Descripción:** Pestaña Salidas: estancias activas locales con salida hoy o vencida (FR-004, FR-007, FR-009, FR-010).
 
 ### Petición (Request)
 
@@ -200,7 +200,7 @@ Accept: application/json
 | `stays[].titularDocumentNumber` | string | Documento del titular | `"79123456"` |
 | `stays[].checkInDate` | string | Entrada real | `"2026-10-07"` |
 | `stays[].expectedCheckoutDate` | string | Salida esperada (fecha) | `"2026-10-09"` |
-| `stays[].overdue` | boolean | `expectedCheckoutDate` anterior a hoy (etiqueta "Vencida", FR-006) | `true` |
+| `stays[].overdue` | boolean | `expectedCheckoutDate` anterior a hoy (etiqueta "Vencida", FR-007) | `true` |
 | `stays[].guestCount` | entero | Registros `RoomGuest` de la estancia | `2` |
 | `stays[].source` | string | `source` de `Stay` | `"DIRECTA"` |
 
@@ -228,7 +228,7 @@ Accept: application/json
 }
 ```
 
-Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "No hay reservas que mostrar." (FR-009). "Check-out" navega a `/check-out?reservationRef={ref}&roomId={roomId}` (FR-008).
+Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "No hay reservas que mostrar." (FR-010). "Check-out" navega a `/check-out?reservationRef={ref}&roomId={roomId}` (FR-009).
 
 ### Respuestas de error
 
@@ -238,7 +238,7 @@ No tiene errores propios; un fallo inesperado se responde con el formato `ApiErr
 
 ## GET /api/reception/panel/kpis
 
-**Descripción:** Los cuatro indicadores del turno, calculados con datos locales (FR-002, FR-010).
+**Descripción:** Los cuatro indicadores del turno, calculados con datos locales (FR-002, FR-011).
 
 ### Petición (Request)
 
@@ -260,7 +260,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `arrivalsToday` | entero \| null | Habitaciones de la copia local sin `Stay`; nulo si la lista de las 00:00 no ha llegado (el frontend muestra "—", FR-010) | `12` |
+| `arrivalsToday` | entero \| null | Habitaciones de la copia local sin `Stay`; nulo si la lista de las 00:00 no ha llegado (el frontend muestra "—", FR-011) | `12` |
 | `departuresToday` | entero | Estancias activas con `expectedCheckoutDate` = hoy | `8` |
 | `overdueDepartures` | entero | Estancias activas con `expectedCheckoutDate` anterior a hoy (tarjeta de alerta) | `1` |
 | `occupiedRooms` | entero | Habitaciones en `Occupied` | `34` |
@@ -376,7 +376,7 @@ frontend/src/
 - [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
   - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T019).
-  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-010).
+  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
 
 ---
 
@@ -390,13 +390,13 @@ frontend/src/
 
 - [ ] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
 - [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
-- [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-007; SC-004).
+- [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-008; SC-004).
 
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T018 y T019) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
-- [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-010).
-- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-007).
+- [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-011).
+- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-008).
 
 ---
 
@@ -409,14 +409,14 @@ frontend/src/
 ### Tests for User Story 2
 
 - [ ] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
-- [ ] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-006).
-- [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-006, FR-008; SC-005).
+- [ ] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
+- [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
 
 ### Implementation for User Story 2
 
 - [ ] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
 - [ ] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
-- [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-006, FR-008).
+- [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-007, FR-009).
 
 ---
 
@@ -428,8 +428,8 @@ frontend/src/
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-010).
-- [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-010).
+- [ ] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
+- [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-011).
 
 ### Implementation for User Story 3
 
@@ -441,11 +441,11 @@ frontend/src/
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-009).
+- [ ] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-010).
 - [ ] T026 Garantizar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración desacopladas de red, midiendo que el panel completo carga en menos de 2 segundos y cada búsqueda responde en menos de 0,5 segundos (SC-001 a SC-003).
 - [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
-- [ ] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-010; SC-006).
-- [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-005a).
+- [ ] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
+- [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
 - [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---

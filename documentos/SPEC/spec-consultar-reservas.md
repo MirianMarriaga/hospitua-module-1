@@ -66,22 +66,22 @@ Como **Recepcionista**, quiero consultar el listado de llegadas del día y busca
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Listado completo de llegadas del día desde la copia local
+4. **Escenario**: Listado completo de llegadas del día desde la copia local
    - **Dado** que la copia local contiene reservas para el día de hoy
    - **Cuando** la Recepcionista consulta las llegadas en el Panel de Recepción
    - **Entonces** el sistema retorna las reservas agrupadas, presentando cada habitación asignada (1 a 10 habitaciones por reserva), titular, fechas de estadía, noches calculadas, cantidad de huéspedes y la fuente (`source`: `DIRECTA` o nombre de la OTA).
 
-2. **Escenario**: Búsqueda por código de reserva, documento o nombre del titular
+5. **Escenario**: Búsqueda por código de reserva, documento o nombre del titular
    - **Dado** una reserva almacenada en la copia local
    - **Cuando** la Recepcionista busca por `reservationRef`, número de documento o nombre del titular
    - **Entonces** el sistema localiza y muestra los datos de la reserva y sus habitaciones de forma inmediata sin peticiones de red externas.
 
-3. **Escenario**: Búsqueda con múltiples coincidencias
+6. **Escenario**: Búsqueda con múltiples coincidencias
    - **Dado** un criterio de búsqueda que coincide con dos o más reservas en la copia local
    - **Cuando** la Recepcionista ejecuta la búsqueda
    - **Entonces** el sistema presenta el listado de reservas coincidentes con su titular, habitaciones y fechas, requiriendo la selección puntual de una reserva para avanzar.
 
-4. **Escenario**: Búsqueda sin coincidencias
+7. **Escenario**: Búsqueda sin coincidencias
    - **Dado** un término de búsqueda inexistente en la copia local del día
    - **Cuando** la Recepcionista realiza la consulta
    - **Entonces** el sistema informa que no se encontraron llegadas para el criterio ingresado.
@@ -98,22 +98,22 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Consulta para programar bloqueo técnico sin cruce de reservas
+8. **Escenario**: Consulta para programar bloqueo técnico sin cruce de reservas
    - **Dado** una habitación para la que se proyecta mantenimiento desde una fecha de inicio hasta una fecha estimada de finalización
    - **Cuando** el Personal de mantenimiento consulta al Módulo 2 enviando `roomId`, `dateFrom` (inicio) y `dateTo` (fin)
    - **Entonces** Módulo 2 responde indicando que no existen reservas que se crucen en ese rango, permitiendo proceder con la programación del bloqueo.
 
-2. **Escenario**: Consulta para dar de baja habitación (366 días)
+9. **Escenario**: Consulta para dar de baja habitación (366 días)
    - **Dado** una habitación que el Administrador requiere dar de baja
    - **Cuando** se ejecuta la consulta al Módulo 2 enviando `roomId`, `dateFrom = hoy` y `dateTo = hoy + 365 días`
    - **Entonces** el sistema obtiene las reservas vigentes de la habitación en esos 366 días para que *Dar de baja habitación* rechace la operación si existe al menos una.
 
-3. **Escenario**: Detección de cruce con reservas futuras
+10. **Escenario**: Detección de cruce con reservas futuras
     - **Dado** que la habitación posee al menos una reserva que se solapa con el rango (`startDate` a `endDate`) consultado
     - **Cuando** se ejecuta la consulta REST
     - **Entonces** el sistema recibe la indicación de cruce para que el flujo consumidor aplique la regla correspondiente (impedir la baja o advertir al usuario).
 
-4. **Escenario**: Indisponibilidad o falla controlada de Módulo 2
+11. **Escenario**: Indisponibilidad o falla controlada de Módulo 2
     - **Dado** una falla de conexión o tiempo de espera agotado al consultar a Módulo 2
     - **Cuando** se intenta verificar la existencia de reservas para la habitación
     - **Entonces** el sistema maneja la contingencia de forma controlada sin fallos no capturados, informando al usuario la imposibilidad de verificar reservas en ese momento.

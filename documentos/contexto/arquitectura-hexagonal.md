@@ -33,9 +33,9 @@ Para entenderlo en acción, este es el recorrido de una petición típica (ej. r
 
 1.  **Entrada (Adaptador de Entrada):** El cliente web hace una petición HTTP `POST /api/rooms/{roomId}/damage-reports`. El **Controlador REST** (Adaptador de Entrada) recibe el JSON en un DTO de request y valida su formato con Bean Validation (`@Valid`).
 2.  **Llamada al Contrato (Puerto de Entrada):** El Controlador convierte el DTO en un comando de aplicación y invoca el método definido en la interfaz del **Puerto de Entrada** (`ReportDamageUseCase`).
-3.  **Procesamiento (Caso de Uso y Dominio):** La clase del **Caso de Uso** (`ReportDamageService`, dentro del hexágono) toma el control. Llama al dominio para validar la regla de negocio: `Room.transitionTo(DisabledForRepairs)` verifica que la transición sea válida en la máquina de estados.
-4.  **Petición de Persistencia (Puerto de Salida):** Una vez que el dominio acepta el cambio, el Caso de Uso llama a la interfaz del **Puerto de Salida** (`RoomRepositoryPort`, `DamageReportRepositoryPort`) para pedir que se guarde el nuevo estado, sin saber cómo se hará.
-5.  **Salida (Adaptador de Salida):** El adaptador de persistencia de PostgreSQL (`RoomRepositoryAdapter`), que implementa ese puerto, convierte la entidad del dominio en su entidad JPA y la guarda en la base de datos real.
+3.  **Procesamiento (Caso de Uso y Dominio):** La clase del **Caso de Uso** (`ReportDamageService`, dentro del hexágono) toma el control. Invoca `TransitionRoomStateUseCase`, que aplica `Room.transitionTo(DisabledForRepairs)` (el dominio verifica que la transición sea válida en la máquina de estados) y registra el historial (plan base, regla 8).
+4.  **Petición de Persistencia (Puerto de Salida):** Una vez que el dominio acepta el cambio, el Caso de Uso llama a la interfaz del **Puerto de Salida** (`DamageReportRepositoryPort`) para pedir que se guarde el reporte de daño, sin saber cómo se hará.
+5.  **Salida (Adaptador de Salida):** El adaptador de persistencia de PostgreSQL (`DamageReportRepositoryAdapter`), que implementa ese puerto, convierte la entidad del dominio en su entidad JPA y la guarda en la base de datos real.
 
 ---
 

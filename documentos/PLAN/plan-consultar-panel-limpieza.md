@@ -198,7 +198,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T013 Prueba de rendimiento (suite fuera de CI): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
+- [ ] T013 Prueba de rendimiento, etiquetada según la convención de pruebas de rendimiento de la estrategia de testing del plan base (fuera del CI por defecto): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
 - [ ] T014 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
 
 ---

@@ -194,7 +194,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Verificación de los invocadores
 
-- [ ] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T015) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
+- [ ] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T017) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
 - [ ] T015 [US2] Verificar que existan las pruebas de los flujos que usan este puerto, que viven en los planes de esos flujos: `plan-registrar-check-in.md` (T014: check-in desde `Reserved`, esc. 2, FR-010), `plan-consultar-reservas.md` (T010: apartados y liberaciones de la ingesta, FR-009) y `plan-consultar-panel-recepcion.md` (T009: alerta operativa sin mensajes a Módulo 2, esc. 7 y 8, FR-012, SC-006).
 
 **Checkpoint**: El caso de uso es idempotente y no sobrescribe estados físicos.

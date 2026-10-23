@@ -306,7 +306,7 @@ No aplica: usa la infraestructura del plan base.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
   - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
-- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T015) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
+- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T017) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
 La continuación tras la limpieza, según la prioridad de la regla 6 de la máquina de estados, la decide *Confirmar fin de limpieza* después de este puerto (esc. 5 y 6); sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
 

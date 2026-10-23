@@ -6,7 +6,7 @@
 
 ### Historia de Usuario 1 - Reporte de daño en habitación (Prioridad: P1)
 
-Como miembro del personal de limpieza o mantenimiento quiero poder reportar daños físicos o estructurales en una habitación, para así poder formalizar la labor de reporte de anomalías sobre unidades habitacionales, agilizando la intervención del personal calificado en la resolución de los conflictos descritos en el informe generado por el reporte.
+Como miembro del personal de limpieza o mantenimiento quiero poder reportar daños físicos o estructurales en una habitación, para así poder formalizar la labor de reporte de anomalías sobre unidades habitacionales, agilizando la intervención del personal calificado en la resolución de los conflictos descritos en el reporte de daño.
 
 **Por qué esta prioridad**: Es una funcionalidad crítica para mantener los estándares de calidad del hotel. Las habitaciones con daños deben ser reportadas y retiradas temporalmente de la operación (no pueden asignarse para el día actual ni recibir huéspedes) para evitar asignaciones, mitigar malas experiencias con los huéspedes y prevenir el deterioro prolongado de la infraestructura.
 
@@ -34,7 +34,7 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 ### Casos Límite
 
 1. **¿Qué ocurre si dos actores intentan inhabilitar la misma habitación concurrentemente?**
-   El sistema aplicará un mecanismo de control de concurrencia (ej. bloqueo optimista). La primera transacción en llegar realizará el cambio a `DisabledForRepairs`. La segunda fallará al validar el estado previo, retornando una alerta al usuario indicando un mensaje de error y el estado actual de la habitación.
+   El sistema aplicará un mecanismo de control de concurrencia (bloqueo de la fila de la habitación). La primera transacción en llegar realizará el cambio a `DisabledForRepairs`. La segunda fallará al validar el estado previo, retornando una alerta al usuario indicando un mensaje de error y el estado actual de la habitación.
 
 2. **¿Qué ocurre si se excede la longitud del campo de justificación?**
    El sistema debe ejecutar una validación de longitud máxima de 500 caracteres, bloqueando la opción de confirmación del reporte y entregando retroalimentación visual de la causa del bloqueo.
@@ -53,28 +53,26 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 
 - **FR-001**: El sistema DEBE proveer al personal (actores: limpieza, mantenimiento) la interfaz de captura de datos para el reporte *(despliegue de un formulario modal superpuesto que exija un input de texto plano para la descripción del daño)*.
 - **FR-002**: El sistema DEBE validar de manera estricta que la ejecución de la inhabilitación proceda única y exclusivamente cuando la habitación objetivo se encuentre en estado `Available`; en caso contrario, arrojará un error *(ofreciendo retroalimentación visual a través de un modal superpuesto indicando el estado de la habitación y la causa del error, en este caso, una operación no válida)*.
-- **FR-003**: El sistema DEBE exigir la presencia de la descripción del daño, evaluando que la cadena de texto no sea nula, vacía, ni exceda el límite de caracteres preestablecido *(validación ejecutada previamente al envío del reporte)*.
+- **FR-003**: El sistema DEBE exigir la presencia de la descripción del daño, evaluando que la cadena de texto no sea nula, vacía, ni exceda 500 caracteres *(validación ejecutada previamente al envío del reporte)*.
 - **FR-004**: El sistema DEBE transicionar el estado de la entidad habitación a `DisabledForRepairs` al procesar el reporte *(confirmación visual de éxito de la acción realizada)*. Desde ese momento la habitación deja de listarse en el panel de limpieza, figura como inhabilitada en el panel de mantenimiento y no puede asignarse para el día actual (*Consultar Información de Mantenimientos* FR-014).
-- **FR-005**: El sistema DEBE generar el registro de auditoría y trazabilidad extrayendo los metadatos de forma autónoma *(usuario actual, habitación, fecha y hora proporcionados por el sistema)* sin depender de inserciones manuales del cliente para ser asociadas al reporte de manera automática.
+- **FR-005**: (fusionado en FR-010)
 - **FR-006**: El sistema DEBE garantizar la integridad referencial y de estado frente a peticiones simultáneas, rechazando solicitudes sobre habitaciones que hayan abandonado el estado `Available` milisegundos antes de procesar la petición actual.
 - **FR-007**: El sistema DEBE ofrecer, mientras la habitación esté en `DisabledForRepairs`, la acción **Ver informe**, que muestra el `DamageReport` que originó ese estado.
-  - **FR-007.1**: El recurso **Ver informe** DEBE mostrar la descripción del daño, el autor del reporte y la fecha y hora del reporte en formato DD-MM-YYYY HH:MM.
-  - **FR-007.2**: El sistema DEBE ofrecer las siguientes acciones operativas sobre las habitaciones inhabilitadas (`DisabledForRepairs`) según el actor:
-    - **Personal de mantenimiento**: el sistema expondrá en el panel de mantenimiento (*Consultar Panel de Mantenimiento*) la acción de consulta (**Ver informe**) y la acción **Iniciar reparaciones**, que define el caso de uso *Confirmar Fin de Reparación de Habitación*.
-    - **Personal de limpieza**: el sistema no expondrá acciones sobre habitaciones en `DisabledForRepairs`, ya que estas no se listan en el panel de limpieza.
-- **FR-008**: El sistema DEBE generar `ReportDateTime` exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
-- **FR-009**: El sistema DEBE asignar `ReportDateTime` en el mismo momento en que se procesa la transición a `DisabledForRepairs`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
-- **FR-010**: El sistema DEBE impedir la modificación o eliminación de un `DamageReport` una vez creado.
-- **FR-011**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `DisabledForRepairs`, `PreviousStatus` = `Available`, `StartDateTime` = `ReportDateTime`, `ActorId` = autor del reporte y `SourceFlow` = *Marcar Habitación Inhabilitada por Reparaciones* (o *Confirmar Fin de Limpieza de Habitación* cuando se invoca desde ese flujo). El `DamageReport` complementa ese registro y no lo reemplaza.
-- **FR-012**: El sistema DEBE ejecutar la inhabilitación (transición, `DamageReport` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo (`Available`), conservar la descripción diligenciada en el formulario, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación. Cuando se invoca desde *Confirmar Fin de Limpieza de Habitación*, el rollback DEBE abarcar también la transacción de ese flujo.
-- **FR-013**: Al registrar el `DamageReport`, el sistema DEBE avisar a Módulo 2, dentro de la misma transacción, que la habitación tiene un mantenimiento en la fecha actual (inicio y fin = fecha del reporte), con su categoría, para que Módulo 2 deje de vender esa noche en sus canales externos; también cuando el reporte se invoca desde *Confirmar Fin de Limpieza de Habitación*. Si la transacción se revierte, el aviso no se envía. Los días siguientes los cubre la consulta de mantenimientos (*Consultar Información de Mantenimientos* FR-014) en el recálculo diario de Módulo 2.
+- **FR-008**: El recurso **Ver informe** (FR-007) DEBE mostrar la descripción del daño, el autor del reporte y la fecha y hora del reporte en formato DD-MM-YYYY HH:MM.
+- **FR-009**: (eliminado: ver *Consultar Panel de Mantenimiento* FR-005)
+- **FR-010**: El sistema DEBE generar el registro de auditoría y trazabilidad extrayendo sus metadatos de forma autónoma (usuario actual como autor, habitación y `ReportDateTime`), sin depender de inserciones manuales del cliente; `ReportDateTime` se genera exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente.
+- **FR-011**: El sistema DEBE asignar `ReportDateTime` en el mismo momento en que se procesa la transición a `DisabledForRepairs`, de modo que coincida con el inicio del periodo registrado en `RoomStateHistory`.
+- **FR-012**: El sistema DEBE impedir la modificación o eliminación de un `DamageReport` una vez creado.
+- **FR-013**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `DisabledForRepairs`, `PreviousStatus` = `Available`, `StartDateTime` = `ReportDateTime`, `ActorId` = autor del reporte y `SourceFlow` = *Marcar Habitación Inhabilitada por Reparaciones* (o *Confirmar Fin de Limpieza de Habitación* cuando se invoca desde ese flujo). El `DamageReport` complementa ese registro y no lo reemplaza.
+- **FR-014**: El sistema DEBE ejecutar la inhabilitación (transición, `DamageReport` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo (`Available`), conservar la descripción diligenciada en el formulario, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación. Cuando se invoca desde *Confirmar Fin de Limpieza de Habitación*, el rollback DEBE abarcar también la transacción de ese flujo.
+- **FR-015**: Al registrar el `DamageReport`, el sistema DEBE avisar a Módulo 2, dentro de la misma transacción, que la habitación tiene un mantenimiento en la fecha actual (inicio y fin = fecha del reporte), con su categoría, para que Módulo 2 deje de vender esa noche en sus canales externos; también cuando el reporte se invoca desde *Confirmar Fin de Limpieza de Habitación*. Si la transacción se revierte, el aviso no se envía. Mientras la habitación siga en `DisabledForRepairs`, los días siguientes los avisa el aviso diario de las 00:00 (*Programar Bloqueo Técnico para Habitación*, FR-024).
 
 ### Entidades Clave
 
 - **Room**: Entidad principal que representa la unidad habitacional del hotel. Su máquina de estados para este caso de uso transita estrictamente de `Available` a `DisabledForRepairs`.
 - **DamageReport**: Entidad diseñada para el registro histórico (log) de anomalías, esta almacena:
   - **DamageDescription**: Cadena de texto descriptiva del daño reportado
-  - **UserId**: Identificador del usuario (de limpieza o mantenimiento) vinculado al reporte
+  - **AuthorId**: Identificador del usuario (de limpieza o mantenimiento) autor del reporte
   - **RoomId**: Identificador de la habitación vinculada al reporte
   - **ReportDateTime**: TimeStamp de realización del reporte - Formato DD-MM-YYYY HH:MM
 - **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se abre el periodo `DisabledForRepairs`.
@@ -85,7 +83,7 @@ Como miembro del personal de limpieza o mantenimiento quiero poder reportar dañ
 
 ### Resultados Medibles
 
-- **SC-001**: El miembro del personal puede ejecutar el flujo de inhabilitación, incluyendo la redacción de la justificación, en un tiempo máximo de 45 segundos.
+- **SC-001**: El miembro del personal puede ejecutar el flujo de inhabilitación, incluyendo la redacción de la justificación, en un tiempo máximo de 45 segundos (verificación manual, UAT).
 - **SC-002**: El 100% de las inhabilitaciones transicionan el estado de la habitación y simultáneamente generan el registro íntegro `DamageReport` dentro de la misma transacción de base de datos.
-- **SC-003**: La inhabilitación queda persistida en menos de 3 segundos; el panel de limpieza del autor deja de listar la habitación al volver de la acción, y el panel de mantenimiento la muestra como inhabilitada en menos de 60 segundos (*Consultar Panel de Mantenimiento* SC-004).
+- **SC-003**: (eliminado: ver *Consultar Panel de Mantenimiento* FR-002)
 - **SC-004**: El 100% de las inhabilitaciones quedan registradas en `RoomStateHistory` con el mismo timestamp de servidor que `ReportDateTime`.

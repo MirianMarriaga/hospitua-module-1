@@ -23,7 +23,7 @@ Usa la tabla `cleaning_task` del plan base (T018), que también usan *Confirmar 
 - **Constraints**:
   - Una sola tarea abierta por miembro y por habitación (FR-006, FR-013; regla 9 del plan base), garantizado con el bloqueo de la fila de `room` (`RoomRepositoryPort.lockById`, regla 13 del plan base) y la validación del miembro; los índices únicos parciales quedan como respaldo de integridad.
   - `StartDateTime` lo genera el servidor con `Clock` y coincide con el inicio del periodo en `room_state_history` (FR-010, FR-011, SC-004).
-  - La reasignación o liberación de tareas de otros miembros se rige por *Confirmar Fin de Limpieza de Habitación* (FR-014a y caso límite 4, antes FR-015 y caso límite 4 de esta spec); la liberación se implementa en `plan-confirmar-fin-de-limpieza.md`.
+  - La reasignación o liberación de tareas de otros miembros se rige por *Confirmar Fin de Limpieza de Habitación* (FR-015 y caso límite 4, antes FR-015 y caso límite 4 de esta spec); la liberación se implementa en `plan-confirmar-fin-de-limpieza.md`.
   - Sin restricción de tiempo desde que la habitación quedó pendiente (caso límite 2).
 
 ---

@@ -45,17 +45,17 @@ Como Recepcionista, quiero formalizar la salida física del huésped recorriendo
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Rechazo por habitación no ocupada
+5. **Escenario**: Rechazo por habitación no ocupada
    - **Dado** una habitación en estado distinto a `Occupied`
    - **Cuando** se intenta el Check-Out
    - **Entonces** el sistema rechaza informando el estado real
 
-2. **Escenario**: Resiliencia ante caída de Módulo 3
+6. **Escenario**: Resiliencia ante caída de Módulo 3
    - **Dado** que Módulo 3 no responde o devuelve error (timeout > 3 s)
    - **Cuando** el Recepcionista gestiona la salida
    - **Entonces** Módulo 1 presenta el informe de indisponibilidad temporal y ofrece al Recepcionista la opción de liberar la habitación a `PendingCleaning` sin bloquear al huésped
 
-3. **Escenario**: Resiliencia ante falla de comunicación con Módulo 2
+7. **Escenario**: Resiliencia ante falla de comunicación con Módulo 2
    - **Dado** que el Check-Out fue confirmado y la habitación pasó a `PendingCleaning`
    - **Cuando** la comunicación con Módulo 2 experimenta interrupción temporal
    - **Entonces** la liberación física se mantiene firme y la notificación queda registrada para entrega garantizada en segundo plano

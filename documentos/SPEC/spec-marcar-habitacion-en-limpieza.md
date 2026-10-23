@@ -48,7 +48,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
    El sistema ignora cualquier fecha enviada por el cliente y utiliza exclusivamente el timestamp del servidor, evitando registros con fechas sin sentido.
 
 4. **¿Qué ocurre si el miembro del personal de limpieza no puede terminar una tarea activa?**
-   (movido a *Confirmar Fin de Limpieza de Habitación*, FR-014a y caso límite 4)
+   (movido a *Confirmar Fin de Limpieza de Habitación*, FR-015 y caso límite 4)
 
 ---
 
@@ -70,7 +70,7 @@ Como miembro del personal de limpieza quiero poder indicar que voy a limpiar una
 - **FR-012**: (eliminado: ver *Consultar Panel de Limpieza* FR-004)
 - **FR-013**: El sistema DEBE rechazar la marcación si el miembro del personal de limpieza que realiza la acción ya tiene una `CleaningTask` sin `EndDateTime`, aunque la solicitud no provenga del panel de limpieza, informando que ya tiene una tarea activa.
 - **FR-014**: El sistema DEBE cambiar el estado de la habitación a `InCleaning` y registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación y abrir uno nuevo con `Status` = `InCleaning`, `PreviousStatus` = `PendingCleaning` o `Available`, `StartDateTime` = `StartDateTime` de la tarea (que se asigna en el mismo momento en que se procesa la transición, de modo que ambos coinciden), `ActorId` = miembro del personal de limpieza y `SourceFlow` = *Marcar Habitación en Limpieza*.
-- **FR-015**: (movido a *Confirmar Fin de Limpieza de Habitación*, FR-014a)
+- **FR-015**: (movido a *Confirmar Fin de Limpieza de Habitación*, FR-015)
 - **FR-016**: El sistema DEBE ejecutar la marcación (transición, `CleaningTask` y registro en `RoomStateHistory`) dentro de una única transacción; si falla la persistencia o la conexión durante el procesamiento, el sistema DEBE ejecutar rollback completo, mantener la habitación en su estado previo, no crear ni modificar registros y mostrar retroalimentación visual del error con la sugerencia de reintentar la operación.
 - **FR-017**: Si el inicio de la limpieza se rechaza (FR-005, FR-006 o FR-013), el sistema DEBE informar el motivo y devolver al miembro al panel de limpieza recargado (*Consultar Panel de Limpieza*, FR-009 y HU-1 esc. 7).
 

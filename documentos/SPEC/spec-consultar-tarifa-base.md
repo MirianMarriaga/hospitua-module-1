@@ -46,7 +46,7 @@ Como sistema del Módulo 3 (Facturación), quiero recibir una respuesta clara y 
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Intento de consultar tarifa de habitación inexistente
+4. **Escenario**: Intento de consultar tarifa de habitación inexistente
    - **Dado** no existe ninguna habitación con número "999" en el sistema
    - **Cuando** el Módulo 3 consulta la tarifa base de la habitación "999"
    - **Entonces** el sistema retorna un error controlado indicando que la habitación no fue encontrada

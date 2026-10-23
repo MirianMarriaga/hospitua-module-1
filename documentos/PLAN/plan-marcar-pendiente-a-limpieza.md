@@ -25,7 +25,7 @@ El servicio valida su restricción propia, `InCleaning` solo con `RELEASE_CLEANI
   - Se ejecuta solo dentro de la transacción del flujo invocador; si falla, el invocador hace rollback completo (caso límite 2).
   - La marca de la transición la genera `TransitionRoomStateUseCase` con `Clock` (regla 8 del plan base); no se acepta del cliente ni del invocador y el puerto la devuelve en su resultado (FR-006).
   - `InCleaning` solo es un origen válido cuando el invocador es la liberación de una tarea de limpieza (FR-001); los demás orígenes los valida la matriz de la máquina de estados (`Room.transitionTo()`).
-  - Ante invocaciones concurrentes rige el control optimista de `room.version` (regla 13 del plan base, caso límite 1); con `RELEASE_CLEANING_TASK` el invocador ya bloqueó la fila.
+  - Ante invocaciones concurrentes, solo el check-out sigue con control optimista (`room.version`, regla 13 del plan base, caso límite 1); con `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK` el invocador ya bloqueó la fila.
   - No hay caché de estados: el panel de limpieza y las consultas de disponibilidad leen el estado persistido, así que el cambio aparece en la siguiente actualización del panel (FR-003).
 
 ---
@@ -126,7 +126,7 @@ No aplica: usa la infraestructura del plan base.
 - [ ] T008 [eliminada: la marca de la transición la genera y la prueba `TransitionRoomStateUseCase` (plan base, regla 8); el resultado lo cubre T004]
 - [ ] T009 [eliminada: el registro en el historial lo prueba el plan base (regla 8, T017)]
 - [ ] T010 [US1] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el servicio, el rollback deja la habitación en su estado de origen y sin registro nuevo en `room_state_history` (caso límite 2).
-- [ ] T011 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación desde el check-out (`CHECK_OUT`); la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1). Con `RELEASE_CLEANING_TASK` no aplica: el invocador ya bloqueó la fila (regla 13 del plan base).
+- [ ] T011 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación desde el check-out (`CHECK_OUT`); la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1). Solo el check-out sigue con control optimista; con `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK` no aplica: el invocador ya bloqueó la fila (regla 13 del plan base).
 
 ### Implementation for User Story 1
 

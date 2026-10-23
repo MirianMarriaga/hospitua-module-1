@@ -68,22 +68,22 @@ Como Recepcionista, quiero ver el listado de estancias con salida programada par
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Visualización del listado de salidas del día (Happy Path)
+8. **Escenario**: Visualización del listado de salidas del día (Happy Path)
    - **Dado** que el Recepcionista cambia a la pestaña Salidas del panel
    - **Cuando** la pestaña se activa
    - **Entonces** el sistema consulta localmente en Módulo 1 las estancias activas (`Stay` con habitación en estado `Occupied`) y muestra la tabla en columnas: Hab. · Huésped (`firstName` y `lastName`, con documento debajo obtenidos de `Stay` y `RoomGuest` con `isReservationGuest = true`) · Fecha entrada (`checkInDate`) · Fecha salida (`expectedCheckoutDate`) · Personas (total de ocupantes de la estancia) · Tipo habitación · Fuente (`source` de `Stay`: `DIRECTA` o nombre de la OTA) · botón de acción "Check-out". Las estancias cuya fecha de salida ya expiró se resaltan visualmente con la etiqueta "Vencida" junto a la fecha de salida.
 
-2. **Escenario**: Búsqueda de estancia para Check-Out por nombre, documento, código o habitación
+9. **Escenario**: Búsqueda de estancia para Check-Out por nombre, documento, código o habitación
    - **Dado** que el Recepcionista se encuentra en la pestaña Salidas
    - **Cuando** ingresa cualquier criterio en el buscador de Salidas (nombre o apellido del titular, documento, código de reserva o número de habitación)
    - **Entonces** el sistema filtra en tiempo real la tabla consultando únicamente los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), sin realizar ninguna petición a Módulo 2, mostrando las estancias coincidentes con sus columnas completas.
 
-3. **Escenario**: Inicio del proceso de Check-Out desde el listado
+10. **Escenario**: Inicio del proceso de Check-Out desde el listado
    - **Dado** que el Recepcionista ha localizado la estancia deseada en la pestaña Salidas
    - **Cuando** pulsa el botón "Check-out" de la fila correspondiente
    - **Entonces** el sistema navega al flujo de Registrar Check-Out transfiriendo la referencia de la estancia ya seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar ningún criterio de búsqueda adicional.
 
-4. **Escenario**: Visualización de salidas vencidas
+11. **Escenario**: Visualización de salidas vencidas
    - **Dado** que existen estancias activas locales cuya fecha de salida esperada (`expectedCheckoutDate`) es anterior a la fecha actual del sistema
    - **Cuando** el Recepcionista visualiza la pestaña Salidas
    - **Entonces** dichas estancias aparecen en la tabla con la etiqueta "Vencida" destacada visualmente junto a la fecha de salida, para que el Recepcionista las identifique de forma prioritaria.
@@ -100,7 +100,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Cálculo y visualización de los 4 KPIs al cargar la pantalla
+12. **Escenario**: Cálculo y visualización de los 4 KPIs al cargar la pantalla
    - **Dado** que el Recepcionista accede al panel de inicio
    - **Cuando** la vista se carga
    - **Entonces** el sistema muestra en orden: (1) "Llegadas de hoy" con el conteo de habitaciones pendientes de llegada en la copia local de la lista del día; (2) "Salidas de hoy" con el conteo de estancias locales activas cuya fecha de salida esperada es hoy; (3) "Salidas vencidas" con el conteo de estancias locales activas con fecha de salida ya expirada, resaltadas en color de alerta; (4) "Habitaciones ocupadas" con el total de habitaciones en estado `Occupied` en el inventario de Módulo 1.
@@ -148,16 +148,16 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Cantidad de personas de la habitación (`guestCount` por habitación, confirmado por Módulo 2 en `rooms[]` de la lista del día).
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
-  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-019).
+  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-020).
   - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), con el texto "[Estado]: se apartará al terminar la limpieza" (escenario 7).
   - Botón individual de acción "Check-in" por cada habitación.
 
-- **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas desde Módulo 2:
+- **FR-006**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas desde Módulo 2:
   - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
   - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
   - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
 
-- **FR-006**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
+- **FR-007**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
   - Número de habitación.
   - Nombre del huésped titular (`titularFirstName`, `titularLastName` con número de documento `titularDocumentNumber` debajo), visible en todas las habitaciones gracias a la copia persistida en `Stay`.
   - Fecha de entrada real (`checkInDate`).
@@ -167,13 +167,13 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Fuente (`source` de `Stay`: `DIRECTA` o nombre de la OTA).
   - Botón de acción "Check-out".
 
-- **FR-007**: Al pulsar el botón "Check-in" en una fila de Llegadas, el sistema DEBE navegar al flujo de Registrar Check-In transfiriendo la referencia de la reserva y la habitación seleccionada, de modo que el proceso de admisión inicie directamente en el paso 1 (Validar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
+- **FR-008**: Al pulsar el botón "Check-in" en una fila de Llegadas, el sistema DEBE navegar al flujo de Registrar Check-In transfiriendo la referencia de la reserva y la habitación seleccionada, de modo que el proceso de admisión inicie directamente en el paso 1 (Validar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
 
-- **FR-008**: Al pulsar el botón "Check-out" en una fila de Salidas, el sistema DEBE navegar al flujo de Registrar Check-Out transfiriendo la referencia de la estancia seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
+- **FR-009**: Al pulsar el botón "Check-out" en una fila de Salidas, el sistema DEBE navegar al flujo de Registrar Check-Out transfiriendo la referencia de la estancia seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
 
-- **FR-009**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
+- **FR-010**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
 
-- **FR-010**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
+- **FR-011**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
 
 ---
 

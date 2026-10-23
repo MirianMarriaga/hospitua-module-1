@@ -47,27 +47,27 @@ Como Recepcionista, quiero que el sistema rechace Check-Ins inválidos con alert
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Rechazo por discrepancia con `guestCount` de la habitación
+5. **Escenario**: Rechazo por discrepancia con `guestCount` de la habitación
    - **Dado** `guestCount = 2` para la habitación
    - **Cuando** se intenta confirmar con 1 o 3 ocupantes
    - **Entonces** el sistema bloquea el avance e informa la discrepancia
 
-2. **Escenario**: Rechazo por habitación en estado operativo no apto
+6. **Escenario**: Rechazo por habitación en estado operativo no apto
    - **Dado** habitación en `Available`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive`
    - **Cuando** se intenta el Check-In
    - **Entonces** el sistema bloquea en el paso 1 informando el estado real (solo una habitación en `Reserved` apartada para esa reserva es apta para Check-In)
 
-3. **Escenario**: Rechazo por reserva no presente en la copia local del día
+7. **Escenario**: Rechazo por reserva no presente en la copia local del día
    - **Dado** reserva no encontrada en `daily_reservation` (cancelada, vencida o con `REMOVED`)
    - **Cuando** se intenta validar en el paso 1
    - **Entonces** el sistema rechaza indicando que la reserva no figura en la lista del día
 
-4. **Escenario**: Rechazo por superar la capacidad máxima (`maxCapacity`)
+8. **Escenario**: Rechazo por superar la capacidad máxima (`maxCapacity`)
    - **Dado** `maxCapacity = 2`
    - **Cuando** se intentan registrar 3 o más ocupantes
    - **Entonces** el sistema deshabilita el botón de agregar huéspedes e informa que se alcanzó la capacidad máxima
 
-5. **Escenario**: Rechazo por datos migratorios incompletos o `birthDate` no válida
+9. **Escenario**: Rechazo por datos migratorios incompletos o `birthDate` no válida
    - **Dado** un ocupante (nacional o extranjero) sin `birthDate` o con `birthDate` futura/hoy, o un ocupante extranjero con el panel migratorio incompleto
    - **Cuando** se intenta avanzar al paso 3
    - **Entonces** el sistema bloquea el avance, resalta los campos faltantes o inválidos

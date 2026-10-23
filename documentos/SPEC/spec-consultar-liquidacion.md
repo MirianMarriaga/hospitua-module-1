@@ -49,19 +49,19 @@ Como Recepcionista, quiero que si Módulo 3 no responde o devuelve error, el sis
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Timeout (sin respuesta en 3 s)
+5. **Escenario**: Timeout (sin respuesta en 3 s)
    - **Dado** que M3 no responde dentro del tiempo límite
    - **Entonces** el caso de uso entrega a "Registrar Check-Out" un resultado `UNAVAILABLE` con causa `TIMEOUT`
 
-2. **Escenario**: Error 404 devuelto por M3 (`RESERVATION_NOT_FOUND` o `QUOTE_NOT_FOUND`)
+6. **Escenario**: Error 404 devuelto por M3 (`RESERVATION_NOT_FOUND` o `QUOTE_NOT_FOUND`)
    - **Dado** que M3 responde con HTTP 404 y `errorCode` conocido
    - **Entonces** el sistema mapea a `UNAVAILABLE` con la causa del `errorCode` específico de M3
 
-3. **Escenario**: Error `MODULE2_UNAVAILABLE` devuelto por M3
+7. **Escenario**: Error `MODULE2_UNAVAILABLE` devuelto por M3
    - **Dado** que M3 responde con `errorCode = MODULE2_UNAVAILABLE`
    - **Entonces** el sistema mapea a `UNAVAILABLE` con esa causa; no se trata como error 503 (M3 no emite 503)
 
-4. **Escenario**: Delegación de contingencia en "Registrar Check-Out"
+8. **Escenario**: Delegación de contingencia en "Registrar Check-Out"
    - **Dado** un resultado `UNAVAILABLE`
    - **Entonces** "Consultar liquidación" no libera la habitación ni persiste saldos; la decisión es de "Registrar Check-Out"
 

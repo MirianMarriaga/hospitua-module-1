@@ -110,7 +110,7 @@ Content-Type: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.fields` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.field` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0." |
