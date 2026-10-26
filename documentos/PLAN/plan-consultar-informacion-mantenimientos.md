@@ -15,7 +15,7 @@ Implementar el caso de uso de solo lectura **Consultar Información de Mantenimi
 Reglas principales:
 
 - **Días evaluados (FR-003):** el puerto recibe días inclusivos. Para Módulo 2, el controlador convierte llegada y salida en los días de la llegada al día anterior a la salida (el día de salida no se considera ocupado); *Programar Bloqueo Técnico* consulta con el último día del mantenimiento incluido.
-- **Validación (FR-005 a FR-009):** fechas reales y fin no anterior al inicio; un rango que termina antes de hoy se rechaza y uno que empieza antes de hoy se evalúa desde hoy. No se aplican los límites de duración y antelación de *Programar Bloqueo Técnico* (FR-008).
+- **Validación (FR-005 a FR-009):** fechas reales y fin no anterior al inicio; un rango que termina antes de hoy se rechaza y uno que empieza antes de hoy se evalúa desde hoy. No se aplican los límites de duración y antelación de *Programar Bloqueo Técnico* (FR-007).
 - **Cruces (FR-010):** informes `Scheduled` o `Applied` cuyo rango `[inicio, fin estimado]` se solapa con los días evaluados, incluidos los extremos; un informe `Applied` vencido no bloquea fechas futuras y un informe `Expired` (estado definitivo, solo de registro) nunca bloquea.
 - **Hoy (FR-014):** si la habitación está hoy en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, y los días evaluados incluyen hoy, se responde un cruce con inicio y fin en la fecha actual.
 - **Errores:** `roomId` inválido (FR-013) y habitación inexistente (FR-012) se distinguen de la respuesta negativa. La consulta no modifica datos (FR-004, FR-011).
@@ -24,7 +24,7 @@ Reglas principales:
 
 ## Technical Context
 
-- **Storage**: PostgreSQL 16+. Solo lectura de `room` y `technical_block_report` (plan base, T018).
+- **Storage**: PostgreSQL 16+. Solo lectura de `room` y `technical_block_report` (plan base, T017).
 - **Performance Goals**: respuesta en menos de 200 ms (SC-001), con el índice `(room_id, status)` de `technical_block_report`. Cubre el requisito de Módulo 2 de menos de 1 segundo por consulta, con hasta 10 consultas por reserva.
 - **Constraints**:
   - Las validaciones de fechas se ejecutan antes de leer la tabla de mantenimientos (FR-009, SC-002).
@@ -119,7 +119,7 @@ Accept: application/json
 | `START_TOO_FAR` | *Programar Bloqueo Técnico para Habitación* | "Solo se puede programar con hasta {max-advance-days} días de anticipación." |
 | `FROM_AFTER_TO` | *Consultar historial de estados* | "La fecha \"Desde\" no puede ser posterior a \"Hasta\"." |
 
-Los valores entre llaves salen de `MaintenanceLimits`, configurado por `MaintenanceProperties` (valores en el plan base, T020).
+Los valores entre llaves salen de `MaintenanceLimits`, configurado por `MaintenanceProperties` (valores en el plan base, T019).
 
 ```json
 {
@@ -176,7 +176,7 @@ backend/src/main/java/com/hospitua/habitaciones/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/model` y `MaintenanceProperties` de T020, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/model` y `MaintenanceProperties` de T019, `ClockConfig`).
 
 ---
 
@@ -185,7 +185,7 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 **Requisito previo**: la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003: `TechnicalBlockReport` con `isOverdue(today)` y `TechnicalBlockReportRepositoryPort`), que usan T003 y T011 de este plan.
 
 - [ ] T001 Implementar `MaintenanceDateRange`, `MaintenanceConflict` e `InvalidDateRangeException` (con `rule`: `END_BEFORE_START`, `RANGE_IN_PAST`, `START_IN_PAST`, `RANGE_TOO_LONG`, `START_TOO_FAR`, `FROM_AFTER_TO`); las fábricas reciben `LocalDate today` (FR-005 a FR-008). `FROM_AFTER_TO` la usa *Consultar historial de estados*.
-- [ ] T002 Implementar las dos fábricas de `MaintenanceDateRange`: `forAvailability(today, firstDay, lastDay)` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `forScheduling(today, limits, startDate, endDate)` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceLimits`; plan base T020) (FR-007, FR-008).
+- [ ] T002 Implementar las dos fábricas de `MaintenanceDateRange`: `forAvailability(today, firstDay, lastDay)` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `forScheduling(today, limits, startDate, endDate)` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceLimits`; plan base T019) (FR-007, FR-008).
 - [ ] T003 [P] Verificar que `TechnicalBlockReportRepositoryPort` tenga `findActiveOverlapping(UUID roomId, LocalDate from, LocalDate to)` (informes `Scheduled` o `Applied` de la habitación que se cruzan con los días, ordenados por inicio) y `findAppliedByRoomIds(Collection<UUID>)`, que se llama con un solo id para el informe `Applied` vigente (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) (FR-010, FR-014).
 
 ---
@@ -222,13 +222,13 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 - [ ] T015 Integration test: un mantenimiento que termina el día anterior a la llegada no es cruce y la respuesta es `available = true` (esc. 5; FR-010).
 - [ ] T016 Integration test: un mantenimiento que empieza el día de la salida no es cruce para la estadía, y el mismo rango consultado desde *Programar Bloqueo Técnico* (con su último día incluido) sí lo es (esc. 7; FR-003).
 - [ ] T017 Integration test con `Clock` fijo: una habitación en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, con llegada hoy, responde `available = false` con un cruce de inicio y fin en la fecha actual; con llegada mañana responde `available = true` (esc. 8; FR-014).
-- [ ] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-008 de `spec-programar-bloqueo-tecnico-para-habitacion.md`). Proviene de T026 de `plan-programar-bloqueo-tecnico-para-habitacion.md`.
+- [ ] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-007 de `spec-programar-bloqueo-tecnico-para-habitacion.md`).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `technical_block_report` (T018), `MaintenanceLimits` (`domain/model`) y `MaintenanceProperties` (T020), `GlobalExceptionHandler` y `ClockConfig`, y la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003).
+- **Foundational**: Requiere del plan base la tabla `technical_block_report` (T017), `MaintenanceLimits` (`domain/model`) y `MaintenanceProperties` (T019), `GlobalExceptionHandler` y `ClockConfig`, y la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003).
 - **Planes relacionados**:
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: consume `ConsultMaintenanceAvailabilityUseCase` (días inclusivos) y `MaintenanceDateRange.forScheduling`.
   - `plan-consultar-panel-mantenimiento.md`: marca en el panel de mantenimiento los bloqueos `Applied` vencidos, que esta consulta ya no reporta como cruce para fechas futuras.

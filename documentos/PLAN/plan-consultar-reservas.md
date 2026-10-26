@@ -77,11 +77,11 @@ backend/src/
 │   │   │   ├── DailyReservationMessageLog.java
 │   │   │   ├── ReservationConflictQuery.java         # Value Object (roomId, startDate, endDate)
 │   │   │   ├── ReservationConflictResult.java        # Resultado de cruce (hasConflict, conflicts)
-│   │   │   ├── ArrivalGroup.java                     # Reserva del día con pendingRooms, totalRooms y rooms (ArrivalItemSummary) (T019)
+│   │   │   ├── ArrivalGroup.java                     # Reserva del día con pendingRooms, totalRooms y rooms (ArrivalItemSummary) (T020)
 │   │   │   └── EnrichedReservationSummary.java   # Sin uso asignado
 │   │   └── exception/
 │   │       ├── ReservationNotFoundException.java
-│   │       ├── ReservationConflictException.java   # 409 RESERVATION_CONFLICT (T028)
+│   │       ├── ReservationConflictException.java   # 409 RESERVATION_CONFLICT (T029)
 │   │       ├── ExternalModule2UnavailableException.java
 │   │       └── InvalidReservationQueryException.java
 │   ├── application/
@@ -115,7 +115,7 @@ backend/src/
 │       │       │   │   ├── DailyReservationRoomJpaEntity.java
 │       │       │   │   └── DailyReservationMessageLogJpaEntity.java
 │       │       │   ├── repository/
-│       │       │   │   └── DailyReservationRepository.java # Búsquedas por referencia, documento y nombre (T017)
+│       │       │   │   └── DailyReservationRepository.java # Búsquedas por referencia, documento y nombre (T018)
 │       │       │   └── adapter/
 │       │       │       └── DailyReservationRepositoryAdapter.java
 │       │       └── rest/
@@ -293,7 +293,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   ```
 
 - [ ] T002 Verificar en `RabbitConfig.java` (plan base, T011) la cola durable `m1.reservas.diarias.queue`, el exchange topic `hospitua.events`, los bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` y la cola de mensajes fallidos `m1.reservas.diarias.dlq`.
-- [ ] T003 Crear el `RestClient` hacia Módulo 2 con los timeouts de `RestClientConfig` (plan base, T013: 1 s conexión, 2 s lectura) y el mapeo de errores HTTP 4xx/5xx que usa `Module2ReservationConflictRestAdapter.java` (T025).
+- [ ] T003 Crear el `RestClient` hacia Módulo 2 con los timeouts de `RestClientConfig` (plan base, T013: 1 s conexión, 2 s lectura) y el mapeo de errores HTTP 4xx/5xx que usa `Module2ReservationConflictRestAdapter.java` (T026).
 
 ---
 
@@ -305,7 +305,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `operational_date` DATE NOT NULL, `message_type` VARCHAR(50), `reservation_ref` VARCHAR(50) nullable (la reserva de cada actualización), `received_at` TIMESTAMP, con índice `(operational_date, reservation_ref, sequence_number)` para la última secuencia aplicada de cada reserva y con índice `(operational_date, message_type)`.
 - [ ] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
 - [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery`, `ReservationConflictResult` y `ArrivalGroup` (sus `rooms` son `ArrivalItemSummary`, `plan-consultar-panel-recepcion.md`).
-- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T019); la usa `plan-confirmar-fin-de-limpieza.md`.
+- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T020); la usa `plan-confirmar-fin-de-limpieza.md`.
 - [ ] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
 
 ---
@@ -338,9 +338,10 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 ### Implementation for User Story 1
 
 - [ ] T011 [P] [US1] Implementar `DailyReservationRepositoryAdapter` para operaciones CRUD y purga atómica de la copia local, incluida `findPendingArrivalReservationRef` (`daily_reservation_room` de una `daily_reservation` con `start_date = operationalDate` sin una fila de `stay` con la misma `reservation_ref` y `room_id`).
-- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación y control de `sequenceNumber`. Aparta las habitaciones con `MarkRoomReservedUseCase` y las libera con `MarkRoomAvailableUseCase` (puertos de T019 del plan base), ejecutando primero las liberaciones a las 00:00; no transiciona las habitaciones por su cuenta (FR-009). Las liberaciones pasan por una guarda compartida `releaseIfReservedBy(room, reservationRef)`, usada por `REMOVED`, `UPDATED` y la lista de las 00:00: invoca `MarkRoomAvailableUseCase` solo si la habitación está `Reserved` y su `reserved_by_reservation_ref` coincide; si no, solo actualiza la copia local. Por cada habitación, bloquea su fila de `room` con `RoomRepositoryPort.lockById` (plan base T008, regla 13) antes de invocar el puerto; el conflicto lo registra *Marcar habitación como reservada*. Guarda el `operationalDate` de cada mensaje en `daily_reservation_message_log.operational_date`; el día de la copia local es el `operationalDate` de la última lista `reserva.lista-del-dia` aplicada. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Guarda la `reservationRef` de cada actualización en `daily_reservation_message_log.reservation_ref` y descarta un `ADDED`, `UPDATED` o `REMOVED` cuya secuencia sea menor o igual que la última aplicada para esa reserva en el día (se conserva aunque un `REMOVED` haya borrado la reserva de la copia local); `updatedAt` no decide el orden (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` dentro de la transacción de la ingesta; lo consume mantenimiento después del commit (regla 10 del plan base).
+- [ ] T012 [P] [US1] Implementar `DailyReservationIngestionService` con la lógica de negocio de ingesta, deduplicación y control de `sequenceNumber`. Aparta las habitaciones con `MarkRoomReservedUseCase` y las libera con `MarkRoomAvailableUseCase` (puertos de T018 del plan base), ejecutando primero las liberaciones a las 00:00; no transiciona las habitaciones por su cuenta (FR-009). Las liberaciones pasan por una guarda compartida `releaseIfReservedBy(room, reservationRef)`, usada por `REMOVED`, `UPDATED` y la lista de las 00:00: invoca `MarkRoomAvailableUseCase` solo si la habitación está `Reserved` y su `reserved_by_reservation_ref` coincide; si no, solo actualiza la copia local. Por cada habitación, bloquea su fila de `room` con `RoomRepositoryPort.lockById` (plan base T008, regla 13) antes de invocar el puerto; el conflicto lo registra *Marcar habitación como reservada*. Guarda el `operationalDate` de cada mensaje en `daily_reservation_message_log.operational_date`; el día de la copia local es el `operationalDate` de la última lista `reserva.lista-del-dia` aplicada. Descarta, registrando su `messageId`, los mensajes cuyo `operationalDate` sea anterior al día de la copia local, y controla el orden de `sequenceNumber` solo dentro del mismo `operationalDate` (FR-003). Si llega un `sequenceNumber` mayor que el siguiente esperado, aplica el mensaje y registra `SEQUENCE_GAP` en el log con el número esperado y el recibido, sin detener la ingesta (FR-003). Guarda la `reservationRef` de cada actualización en `daily_reservation_message_log.reservation_ref` y descarta un `ADDED`, `UPDATED` o `REMOVED` cuya secuencia sea menor o igual que la última aplicada para esa reserva en el día (se conserva aunque un `REMOVED` haya borrado la reserva de la copia local); `updatedAt` no decide el orden (FR-003). Al terminar la ingesta de las 00:00 (liberaciones y apartados), publica `DailyReservationListIngestedEvent(operationalDate)` dentro de la transacción de la ingesta; lo consume mantenimiento después del commit (regla 10 del plan base).
 - [ ] T013 [P] [US1] Implementar en la ingesta de las 00:00 la liberación a `Available` (mediante `MarkRoomAvailableUseCase`) de cada habitación en `Reserved` cuya reserva no figura en la nueva lista, con la guarda `releaseIfReservedBy` de T012. No se implementa un corte local de las 23:59: el no-show lo decide Módulo 2 y llega como `REMOVED`.
 - [ ] T014 [P] [US1] Implementar `DailyReservationRabbitListener` consumiendo de `m1.reservas.diarias.queue` con las routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`. Los mensajes ilegibles o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` van, sin aplicarse, a la cola de mensajes fallidos `m1.reservas.diarias.dlq` (Dead-Letter Exchange del plan base, T011). Un fallo temporal se reintenta con espera creciente (3 intentos) y luego va a la misma cola (FR-003).
+- [ ] T015 [P] [US4] Unit test en `DailyReservationIngestionServiceTest` e integration test de `DailyReservationRabbitListener` con Testcontainers RabbitMQ: un mensaje con `operationalDate` anterior al día de la copia local se descarta registrando su `messageId` sin cambiar la copia local ni las habitaciones; un `sequenceNumber` mayor que el siguiente esperado se aplica y registra `SEQUENCE_GAP` con el número esperado y el recibido; un mensaje ilegible o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` llega a `m1.reservas.diarias.dlq` sin aplicarse (FR-003).
 
 ---
 
@@ -352,21 +353,21 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ### Tests for User Story 2
 
-- [ ] T015 [P] [US2] Unit test en `DailyReservationSearchServiceTest`:
+- [ ] T016 [P] [US2] Unit test en `DailyReservationSearchServiceTest`:
   - Búsqueda por `reservationRef` exacto.
   - Búsqueda por documento del titular.
   - Búsqueda por coincidencia de nombre/apellido (case-insensitive, trim).
   - Enriquecimiento con estado físico de `Room` local (`Room.status`).
   - Cálculo dinámico de noches (`endDate - startDate`) sin campo persistido `nights`.
   - Retorno de múltiples coincidencias cuando aplique.
-- [ ] T016 [P] [US2] Integration test de `SearchDailyReservationsUseCase`: con varias coincidencias devuelve todas (la Recepcionista elige una en la tabla de Llegadas del panel) y sin coincidencias devuelve una lista vacía (HU-2, escenarios 6 y 7).
+- [ ] T017 [P] [US2] Integration test de `SearchDailyReservationsUseCase`: con varias coincidencias devuelve todas (la Recepcionista elige una en la tabla de Llegadas del panel) y sin coincidencias devuelve una lista vacía (HU-2, escenarios 6 y 7).
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
-- [ ] T018 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
-- [ ] T019 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `List<ArrivalGroup> searchPendingArrivals(String query)`: cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
-- [ ] T020 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
+- [ ] T018 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
+- [ ] T019 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
+- [ ] T020 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `List<ArrivalGroup> searchPendingArrivals(String query)`: cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
+- [ ] T021 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
 
 ---
 
@@ -447,39 +448,39 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ### Tests for User Story 3
 
-- [ ] T021 [P] [US3] Unit test en `RoomReservationConflictServiceTest`:
+- [ ] T022 [P] [US3] Unit test en `RoomReservationConflictServiceTest`:
   - Consulta de "Dar de baja" con `startDate = hoy` y `endDate = hoy + 365 días`.
   - Validación de consulta para Bloqueo Técnico con `startDate` y `endDate` válidos (`startDate <= endDate`).
   - Mapeo de `items` vacío (`hasConflict = false`) y de `items` con reservas (`hasConflict = true`, con cada reserva devuelta).
   - Lanzamiento de `ExternalModule2UnavailableException` ante fallo o timeout del cliente REST.
-- [ ] T022 [P] [US3] Integration test con `MockRestServiceServer` para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con la cabecera `X-Client: MODULE1`, respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout, `5xx` o cualquiera de los `400` de Módulo 2 (incluido `INVALID_CLIENT`).
-- [ ] T023 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
+- [ ] T023 [P] [US3] Integration test con `MockRestServiceServer` para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con la cabecera `X-Client: MODULE1`, respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout, `5xx` o cualquiera de los `400` de Módulo 2 (incluido `INVALID_CLIENT`).
+- [ ] T024 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [P] [US3] Implementar puerto de salida `Module2ReservationConflictClientPort` con el método:
+- [ ] T025 [P] [US3] Implementar puerto de salida `Module2ReservationConflictClientPort` con el método:
   `ReservationConflictResult checkConflicts(UUID roomId, LocalDate startDate, LocalDate endDate)`.
-- [ ] T025 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` mediante `RestClient` con la cabecera `X-Client: MODULE1` en cada petición y timeouts estrictos. Ante un `400`, registra el `errorCode` de Módulo 2 como alerta de configuración en el log de errores (patrón de `OUTBOX_PUBLISH_FAILED` del plan base) y lanza `ExternalModule2UnavailableException`; la respuesta al usuario sigue siendo `503 MODULE_2_UNAVAILABLE`.
-- [ ] T026 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
+- [ ] T026 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` mediante `RestClient` con la cabecera `X-Client: MODULE1` en cada petición y timeouts estrictos. Ante un `400`, registra el `errorCode` de Módulo 2 como alerta de configuración en el log de errores (patrón de `OUTBOX_PUBLISH_FAILED` del plan base) y lanza `ExternalModule2UnavailableException`; la respuesta al usuario sigue siendo `503 MODULE_2_UNAVAILABLE`.
+- [ ] T027 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
   - Método `checkMaintenanceConflict(UUID roomId, LocalDate startDate, LocalDate endDate)`
   - Método `checkDecommissionConflict(UUID roomId)` (calcula automáticamente `startDate = LocalDate.now(clock)` y `endDate = startDate.plusDays(365)`).
-- [ ] T027 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
-- [ ] T028 [P] [US3] Implementar y registrar en `GlobalExceptionHandler` `ReservationConflictException` (409 `RESERVATION_CONFLICT`; este plan es su único dueño, catálogo del plan base) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
+- [ ] T028 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
+- [ ] T029 [P] [US3] Implementar y registrar en `GlobalExceptionHandler` `ReservationConflictException` (409 `RESERVATION_CONFLICT`; este plan es su único dueño, catálogo del plan base) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T029 Sanitización de entradas de texto en búsquedas locales: trim de espacios accidentales e insensibilidad a mayúsculas/minúsculas.
-- [ ] T030 Validar que no se muestren banners residuales tipo "Reserva encontrada" en la UI.
-- [ ] T031 Auditoría y observabilidad: Métricas de latencia en la llamada REST a Módulo 2 y log transaccional de ingesta de cola en `daily_reservation_message_log`.
+- [ ] T030 Sanitización de entradas de texto en búsquedas locales: trim de espacios accidentales e insensibilidad a mayúsculas/minúsculas.
+- [ ] T031 Validar que no se muestren banners residuales tipo "Reserva encontrada" en la UI.
+- [ ] T032 Auditoría y observabilidad: Métricas de latencia en la llamada REST a Módulo 2 y log transaccional de ingesta de cola en `daily_reservation_message_log`.
 
 ---
 
 ## Dependencies & Execution Order
 
 - **Foundational**: Requiere `Room` y `RoomRepositoryPort` de [PLAN/base/plan.md](base/plan.md), más la creación de las tablas de `daily_reservation`.
-- **Puertos de transición**: la ingesta usa `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`) y `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`), ambos de T019 del plan base; esos planes se implementan antes que la Phase 3 de este.
+- **Puertos de transición**: la ingesta usa `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`) y `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`), ambos de T018 del plan base; esos planes se implementan antes que la Phase 3 de este.
 - **Consumidores**:
   - `plan-consultar-panel-recepcion.md`: Invoca la búsqueda local de llegadas (`SearchDailyReservationsUseCase`).
   - `plan-registrar-check-in.md`: Invoca la validación local de reserva en el Paso 1.

@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar el caso de uso **Marcar Habitación como Disponible**, que centraliza toda transición de una habitación hacia `Available` (FR-001). Detalla el puerto transversal `MarkRoomAvailableUseCase` del plan base (T019), que atiende tres flujos:
+Implementar el caso de uso **Marcar Habitación como Disponible**, que centraliza toda transición de una habitación hacia `Available` (FR-001). Detalla el puerto transversal `MarkRoomAvailableUseCase` del plan base (T018), que atiende tres flujos:
 
 1. **Reactivación directa del Administrador** (FR-002, FR-009, FR-010): desde la acción "Marcar como disponible" de una habitación `Inactive` en el inventario, el Administrador confirma la reactivación viendo la fecha, el motivo y el detalle de la baja; la habitación pasa de `Inactive` a `Available`. Es el único flujo con endpoints propios.
 2. **Fin de limpieza** (FR-003): *Confirmar fin de limpieza* invoca el puerto para pasar de `InCleaning` a `Available`. En la misma transacción, ese flujo continúa según la prioridad de la regla 6 de la máquina de estados; este plan no decide esa continuación (FR-004).
@@ -25,7 +25,7 @@ La trazabilidad de los tres flujos es el periodo en `room_state_history` (FR-008
   - Estado de origen según el flujo (FR-004, FR-006; SC-002): reactivación → `Inactive`; fin de limpieza → `InCleaning`; liberación → `Reserved` vinculada a la misma `reservationRef`. Cualquier otro origen se rechaza sin cambios.
   - Los endpoints de reactivación los usa el Administrador (FR-002). Los otros dos flujos son internos y no tienen endpoint.
   - El puerto se ejecuta dentro de la transacción del invocador; si algo falla, el invocador hace rollback y la habitación queda en su estado de origen (casos borde 3 y 4).
-  - Un solo periodo en el historial por transición: cuando invoca *Confirmar fin de limpieza*, el periodo queda con `source_flow = CONFIRM_CLEANING_END` (su FR-013) y este caso de uso no agrega otro (FR-011).
+  - Un solo periodo en el historial por transición: cuando invoca *Confirmar fin de limpieza*, el periodo queda con `source_flow = CONFIRM_CLEANING_END` (su FR-012) y este caso de uso no agrega otro (FR-011).
   - Reactivación idempotente: la petición envía el `decommissionId` que se mostró en la confirmación; si esa baja ya fue revertida, responde sin cambios y sin un segundo periodo en el historial (FR-010, caso borde 2).
   - La habitación queda visible en `Available` apenas se confirma la transacción, porque las consultas leen el estado persistido (FR-007; SC-003).
 
@@ -243,7 +243,7 @@ documentos/
 backend/src/main/java/com/hospitua/habitaciones/
 ├── application/
 │   ├── ports/in/
-│   │   ├── MarkRoomAvailableUseCase.java          # Puerto transversal (plan base, T019)
+│   │   ├── MarkRoomAvailableUseCase.java          # Puerto transversal (plan base, T018)
 │   │   ├── ReactivateRoomUseCase.java
 │   │   └── GetRoomDecommissionUseCase.java         # Datos de la baja vigente para la confirmación
 │   ├── service/
@@ -277,7 +277,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Inactive`, `InCleaning` y `Reserved` → `Available`, y que `SourceFlow` (T020) incluya `MARK_AVAILABLE` y `CONFIRM_CLEANING_END`.
+- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Inactive`, `InCleaning` y `Reserved` → `Available`, y que `SourceFlow` (plan base, T019) incluya `MARK_AVAILABLE` y `CONFIRM_CLEANING_END`.
 - [ ] T002 [P] Crear `MarkRoomAvailableCommand`, `MarkRoomAvailableResult` y el puerto `MarkRoomAvailableUseCase` con el contrato de este plan.
 
 ---
@@ -306,9 +306,9 @@ No aplica: usa la infraestructura del plan base.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
   - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
-- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T017) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
+- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T016) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
-La continuación tras la limpieza, según la prioridad de la regla 6 de la máquina de estados, la decide *Confirmar fin de limpieza* después de este puerto (esc. 5 y 6); sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T007, T008) y en `plan-marcar-habitacion-reservada.md`.
+La continuación tras la limpieza, según la prioridad de la regla 6 de la máquina de estados, la decide *Confirmar fin de limpieza* después de este puerto (esc. 4 y 5); sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T006, T007) y en `plan-marcar-habitacion-reservada.md`.
 
 **Checkpoint**: Las tres vías hacia `Available` usan una sola implementación.
 
@@ -356,7 +356,7 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T017), `SourceFlow` (T020) y `ClockConfig`. Detalla el puerto `MarkRoomAvailableUseCase` de T019.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T016), `SourceFlow` (T019) y `ClockConfig`. Detalla el puerto `MarkRoomAvailableUseCase` de T018.
 - **Planes de los que depende**:
   - `plan-dar-de-baja-habitacion.md`: `RoomDecommissionRepositoryPort` y las bajas que se revierten (solo la Phase 4).
   - `plan-consultar-inventario-habitaciones.md`: acción "Marcar como disponible".

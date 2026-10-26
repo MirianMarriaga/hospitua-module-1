@@ -57,7 +57,7 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
    El panel se actualiza automáticamente cada 60 segundos y cada vez que el miembro vuelve a él después de una acción (FR-010). No se usan notificaciones en tiempo real.
 
 2. **¿Qué ocurre si dos miembros pulsan Iniciar reparaciones sobre la misma habitación?**
-   Solo el primero inicia la reparación (*Confirmar Fin de Reparación de Habitación*, FR-014); el segundo recibe el motivo del rechazo y el panel se recarga mostrando la habitación como "En reparación".
+   Solo el primero inicia la reparación (*Confirmar Fin de Reparación de Habitación*, FR-012); el segundo recibe el motivo del rechazo y el panel se recarga mostrando la habitación como "En reparación".
 
 3. **¿Por qué se lista una habitación ocupada o en limpieza?**
    Porque sobre ella se puede programar un mantenimiento con fecha de inicio futura (*Programar Bloqueo Técnico para Habitación*, FR-001). Las habitaciones `Inactive` no se listan porque no admiten mantenimiento.
@@ -75,8 +75,8 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 - **FR-005**: El sistema DEBE ofrecer en cada habitación las acciones de su estado:
   - Todas las habitaciones listadas: **Programar mantenimiento** (*Programar Bloqueo Técnico para Habitación*).
   - `Available`: además **Reportar daño** (*Marcar Habitación Inhabilitada por Reparaciones*).
-  - `DisabledForRepairs` y `TechnicalBlock`: además **Iniciar reparaciones** (*Confirmar Fin de Reparación de Habitación*, FR-013).
-  - **Ver informe**, con una sola regla: en `DisabledForRepairs`, el reporte de daño (*Marcar Habitación Inhabilitada por Reparaciones* FR-007); en cualquier otra habitación con mantenimiento (FR-004), incluida `TechnicalBlock`, el informe del bloqueo (*Programar Bloqueo Técnico para Habitación* FR-011).
+  - `DisabledForRepairs` y `TechnicalBlock`: además **Iniciar reparaciones** (*Confirmar Fin de Reparación de Habitación*, FR-011).
+  - **Ver informe**, con una sola regla: en `DisabledForRepairs`, el reporte de daño (*Marcar Habitación Inhabilitada por Reparaciones* FR-006); en cualquier otra habitación con mantenimiento (FR-004), incluida `TechnicalBlock`, el informe del bloqueo (*Programar Bloqueo Técnico para Habitación* FR-009).
   - **Iniciar reparaciones** solo aparece si la habitación no tiene una `ReparationTask` abierta; si la tiene, el sistema DEBE mostrar la etiqueta "En reparación".
   - Este caso de uso no reimplementa las reglas de las acciones que ejecuta.
 - **FR-006**: El sistema DEBE ordenar el listado en tres grupos: primero las habitaciones en `TechnicalBlock` con el bloqueo vencido, después el resto de las que requieren intervención (`DisabledForRepairs` y `TechnicalBlock`) y al final las demás, cada grupo por número de habitación ascendente.
@@ -100,6 +100,4 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 ### Resultados Medibles
 
 - **SC-001**: El panel carga en menos de 2 segundos.
-- **SC-002**: (eliminado: ver FR-002)
-- **SC-003**: (eliminado: ver FR-005 y FR-006)
-- **SC-004**: Una habitación que pasa a `DisabledForRepairs` aparece en el panel en menos de 60 segundos sin que el miembro recargue la página.
+- **SC-002**: Una habitación que pasa a `DisabledForRepairs` aparece en el panel en menos de 60 segundos sin que el miembro recargue la página.

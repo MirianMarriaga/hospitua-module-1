@@ -109,6 +109,28 @@ Como Administrador, quiero desactivar la cuenta de una persona que ya no trabaja
 
 ---
 
+### Historia de Usuario 5 - Crear la cuenta inicial de Administrador en la puesta en marcha (Prioridad: P1)
+
+Como Sistema, quiero crear al arrancar una cuenta inicial de Administrador cuando no existe ninguna cuenta activa del área Administración, para que alguien pueda iniciar sesión por primera vez y registrar al resto del personal.
+
+**Por qué esta prioridad**: Las cuentas solo se crean desde la sección de Personal, que exige una sesión de Administrador; sin una cuenta inicial nadie podría entrar al sistema.
+
+**Prueba Independiente**: Arrancar el sistema con la base de datos sin cuentas activas de Administración y verificar que se puede iniciar sesión con la cuenta de la configuración; arrancarlo de nuevo y verificar que no se crea otra.
+
+**Escenarios de Aceptación**:
+
+12. **Escenario**: Creación de la cuenta inicial al arrancar
+   - **Dado** no existe ninguna cuenta activa del área "Administración"
+   - **Cuando** el sistema arranca
+   - **Entonces** crea una cuenta activa del área "Administración" con el usuario, la contraseña y el nombre de su configuración (en desarrollo y pruebas, `admin` / `admin123`; en producción, los de las variables de entorno), por el mismo proceso de registro y registrada por el sistema (FR-012, FR-013)
+
+13. **Escenario**: Ya existe un Administrador activo
+   - **Dado** existe al menos una cuenta activa del área "Administración"
+   - **Cuando** el sistema arranca
+   - **Entonces** no crea ninguna cuenta nueva (FR-012)
+
+---
+
 ### Casos Borde
 
 - Primera puesta en marcha: si no existe ninguna cuenta activa del área "Administración", el sistema crea al arrancar una cuenta inicial de Administrador con los datos de su configuración, por el mismo proceso de registro, para que alguien pueda iniciar sesión por primera vez (FR-012).

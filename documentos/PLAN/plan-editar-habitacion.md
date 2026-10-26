@@ -122,7 +122,7 @@ Con `changed: false` el frontend muestra "No se modificó ningún dato" y no hay
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa menor o igual a 0 (esc. 11) | "La tarifa base debe ser mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa menor o igual a 0, o con más de dos decimales (esc. 11) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad menor o igual a 0 (esc. 12) | "La capacidad máxima debe ser un número entero mayor a 0." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 3) | "No se encontró ninguna habitación con ese identificador." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9) | "La habitación no está disponible para edición (estado actual: {estado})." |
@@ -195,7 +195,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T017) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
+- [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T016) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
 - [ ] T002 [P] Mover a `Room` las validaciones de piso, tipo, capacidad y tarifa, si `plan-registrar-habitacion.md` las dejó en el servicio, e implementar `Room.applyChanges(...)` con `RoomAttributeChange`.
 - [ ] T003 [P] Verificar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE` (catálogo del plan base, T009).
 
@@ -280,7 +280,7 @@ No aplica: usa la infraestructura del plan base.
 
 - **Foundational**: Requiere del plan base la tabla `room` con `version` (T007) y `ClockConfig`.
 - **Planes de los que depende**:
-  - Plan base: `room_audit_log` (T007) y `RoomAuditLogRepositoryPort` (T017).
+  - Plan base: `room_audit_log` (T007) y `RoomAuditLogRepositoryPort` (T016).
   - `plan-registrar-habitacion.md`: `RoomCategory` y `RoomNumberAlreadyExistsException`.
   - `plan-consultar-inventario-habitaciones.md`: acción "Editar" y `GET /api/rooms/inventory/{roomId}` para cargar el formulario.
 - **Orden**: Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6.

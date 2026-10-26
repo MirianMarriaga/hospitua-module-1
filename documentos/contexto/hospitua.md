@@ -34,7 +34,7 @@ español entre paréntesis es de referencia para los diagramas del equipo:
 #### 1.3. Check-In y Check-Out
 El Recepcionista opera ambos eventos directamente en Módulo 1:
 *   **Check-In:** Transiciona la habitación de `Reserved` a `Occupied`, de forma interna y síncrona. No dispara ninguna llamada de liquidación. Notifica de forma asíncrona a Módulo 2 el check-in de la habitación (Módulo 2 actualiza el estado de la habitación en la reserva y el de la reserva).
-*   **Check-Out:** Transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Envía los datos de la estancia (fechas reservadas y reales, categoría de habitación) para obtener la liquidación final, y notifica de forma asíncrona a Módulo 2 el check-out de la habitación (Módulo 2 actualiza el estado de la habitación en la reserva y el de la reserva).
+*   **Check-Out:** Transiciona la habitación de `Occupied` a `PendingCleaning`, de forma interna y síncrona. Consulta a Módulo 3 la liquidación de la estancia por referencia de reserva y habitación (durante el check-out es informativa y coincide con la final, porque se liquida por lo cotizado), publica el evento de facturación para que Módulo 3 genere la liquidación final y la factura a nombre del titular, y notifica de forma asíncrona a Módulo 2 el check-out de la habitación (Módulo 2 actualiza el estado de la habitación en la reserva y el de la reserva).
 *   Ningún fallo de integración con Módulo 2 o Módulo 3 bloquea el cierre físico de ninguno de los dos eventos: la notificación queda en el Outbox y se reintenta en segundo plano.
 
 ---
@@ -60,16 +60,14 @@ Este módulo traduce la estancia en datos financieros, consolidando el hospedaje
 
 #### 3.1. Reglas de Negocio para el Cobro
 *   **Tarifas Dinámicas:** Aplicación automática de precios según el calendario de "Temporada Alta".
-*   **Salida anticipada:** Cuando el Check-Out ocurre antes del `endDate` originalmente reservado, se cobran únicamente las noches efectivamente hospedadas, más una penalización asociada. El cálculo exacto de esa penalización es responsabilidad interna de Módulo 3.
-*   **Liquidación única al Check-Out:** La liquidación se genera una sola vez, disparada exclusivamente por el evento de Check-Out de Módulo 1. No hay etapa previa ni estados intermedios; el IVA aplicado es el vigente en ese momento.
+*   **Salida anticipada:** Cuando el Check-Out ocurre antes del `endDate` originalmente reservado, se cobra el valor cotizado de la reserva, sin reducción.
+*   **Liquidación al Check-Out:** Durante el Check-Out, Módulo 1 muestra la liquidación informativa, calculada al vuelo con la cotización guardada; la liquidación final y la factura se generan una sola vez, disparadas por el evento de Check-Out de Módulo 1, y coinciden con la informativa. El IVA aplicado es el vigente en ese momento.
 
 #### 3.2. Matriz de Liquidación Final (Ingreso Neto)
 | Concepto de Cobro | Cálculo Aplicado | Observación |
 | :--- | :--- | :--- |
-| **Hospedaje Base** | Tarifa (según temporada) x Noches efectivamente hospedadas | Ingreso principal. Si hay salida anticipada, se calcula sobre noches reales, no las reservadas. |
+| **Hospedaje Base** | Tarifa (según temporada) x Noches cotizadas | Ingreso principal. Una salida anticipada no reduce el cobro. |
 | **Comisión OTA** | - (Valor Hospedaje * % Comisión) | Se descuenta si proviene de un intermediario. |
-| **Penalización por salida anticipada** | Según política interna de Módulo 3 | Aplica solo cuando el Check-Out ocurre antes del `endDate` reservado. |
 | **Impuestos (IVA)** | % Según legislación local | Aplicado al total de servicios prestados. |
-```
 
 ***

@@ -15,9 +15,9 @@ Implementar el caso de uso **Gestionar Personal** para el Administrador, desde l
 4. **Desactivar** (FR-009, FR-010): previa confirmación, la cuenta queda desactivada sin borrarse. No se permite desactivar la propia cuenta ni la última cuenta activa del área Administración. Al desactivar, libera las tareas abiertas de la cuenta mediante los puertos internos de limpieza y reparación (FR-011).
 5. **Cuenta inicial** (FR-012): si al arrancar no hay ninguna cuenta activa de Administración, un componente de arranque crea la de la configuración llamando al mismo puerto de registro.
 
-El núcleo de las cuentas (modelo, repositorio, cifrado, puerto de registro y cuenta inicial) lo implementa el plan base en T023, porque lo necesitan el inicio de sesión y todo endpoint con `X-User`. Este plan lo verifica y agrega los endpoints, la consulta, la edición, la desactivación y las vistas.
+El núcleo de las cuentas (modelo, repositorio, cifrado, puerto de registro y cuenta inicial) lo implementa el plan base en T022, porque lo necesitan el inicio de sesión y todo endpoint con `X-User`. Este plan lo verifica y agrega los endpoints, la consulta, la edición, la desactivación y las vistas.
 
-Cada operación registra la fecha, la hora y el Administrador responsable (FR-013), que es el usuario actual del encabezado `X-User` (regla 14 del plan base). Las cuentas son las que usa `POST /api/auth/login` del plan base (T021).
+Cada operación registra la fecha, la hora y el Administrador responsable (FR-013), que es el usuario actual del encabezado `X-User` (regla 14 del plan base). Las cuentas son las que usa `POST /api/auth/login` del plan base (T020).
 
 ---
 
@@ -313,10 +313,10 @@ backend/src/main/
 ├── java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   ├── model/
-│   │   │   ├── StaffAccount.java                  # Plan base (T023); aquí se verifica
-│   │   │   └── StaffArea.java                     # Plan base (T023): RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO
+│   │   │   ├── StaffAccount.java                  # Plan base (T022); aquí se verifica
+│   │   │   └── StaffArea.java                     # Plan base (T022): RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO
 │   │   └── exception/
-│   │       ├── UsernameAlreadyExistsException.java    # 409; plan base (T023)
+│   │       ├── UsernameAlreadyExistsException.java    # 409; plan base (T022)
 │   │       ├── StaffAccountNotFoundException.java     # 404
 │   │       ├── AccountInactiveException.java          # 409
 │   │       ├── CannotDeactivateSelfException.java     # 409
@@ -324,16 +324,16 @@ backend/src/main/
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
-│   │   │   │   ├── RegisterStaffAccountUseCase.java   # Plan base (T023)
+│   │   │   │   ├── RegisterStaffAccountUseCase.java   # Plan base (T022)
 │   │   │   │   ├── ListStaffAccountsUseCase.java
 │   │   │   │   ├── GetStaffAccountUseCase.java
 │   │   │   │   ├── EditStaffAccountUseCase.java
 │   │   │   │   └── DeactivateStaffAccountUseCase.java
 │   │   │   └── out/
-│   │   │       ├── StaffAccountRepositoryPort.java   # Plan base (T023); aquí se agregan las consultas de la lista
-│   │   │       └── PasswordEncoderPort.java       # Plan base (T023); lo usan LoginService y el registro
+│   │   │       ├── StaffAccountRepositoryPort.java   # Plan base (T022); aquí se agregan las consultas de la lista
+│   │   │       └── PasswordEncoderPort.java       # Plan base (T022); lo usan LoginService y el registro
 │   │   ├── service/
-│   │   │   ├── RegisterStaffAccountService.java   # Plan base (T023)
+│   │   │   ├── RegisterStaffAccountService.java   # Plan base (T022)
 │   │   │   ├── StaffAccountQueryService.java      # Listar y obtener
 │   │   │   ├── EditStaffAccountService.java
 │   │   │   └── DeactivateStaffAccountService.java
@@ -345,13 +345,13 @@ backend/src/main/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   ├── web/StaffController.java       # /api/staff
-│       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T023)
+│       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T022)
 │       │   └── out/
-│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Plan base (T023)
-│       │       ├── persistence/adapter/StaffAccountRepositoryAdapter.java   # Plan base (T023)
-│       │       └── security/BCryptPasswordEncoderAdapter.java   # Plan base (T023)
+│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Plan base (T022)
+│       │       ├── persistence/adapter/StaffAccountRepositoryAdapter.java   # Plan base (T022)
+│       │       └── security/BCryptPasswordEncoderAdapter.java   # Plan base (T022)
 │       └── config/
-│           └── StaffBootstrapProperties.java      # Plan base (T023): hospitua.bootstrap.admin.username, password y full-name
+│           └── StaffBootstrapProperties.java      # Plan base (T022): hospitua.bootstrap.admin.username, password y full-name
 frontend/src/
 ├── components/
 │   └── staffAreaLabels.ts                         # RECEPCION → "Recepción", …
@@ -365,23 +365,23 @@ frontend/src/
     └── staffService.ts
 ```
 
-**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y sin responsable: `created_by` queda nulo, como el `actor_id` de las acciones autónomas, y la interfaz lo muestra como "Sistema" (FR-012, FR-013). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T021), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
+**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y sin responsable: `created_by` queda nulo, como el `actor_id` de las acciones autónomas, y la interfaz lo muestra como "Sistema" (FR-012, FR-013). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T020), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar en `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name` (plan base, T023), leídas de variables de entorno: en los perfiles `dev` y `test` tienen los valores de desarrollo `admin` / `admin123` (README); en `prod` no tienen valores por defecto y llegan solo por `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD` y `BOOTSTRAP_ADMIN_FULL_NAME`.
+- [ ] T001 Verificar en `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name` (plan base, T022), leídas de variables de entorno: en los perfiles `dev` y `test` tienen los valores de desarrollo `admin` / `admin123` (README); en `prod` no tienen valores por defecto y llegan solo por `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD` y `BOOTSTRAP_ADMIN_FULL_NAME`.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T021) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
-- [ ] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T023).
-- [ ] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T023) y que `LoginService` (plan base, T021) use el mismo puerto.
-- [ ] T005 [P] Verificar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T023), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
-- [ ] T006 [P] Registrar en `GlobalExceptionHandler` `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y verificar que `USERNAME_ALREADY_EXISTS` y la violación de la clave primaria de `user_account` ya están mapeados (plan base, T023).
+- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T020) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
+- [ ] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T022).
+- [ ] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T022) y que `LoginService` (plan base, T020) use el mismo puerto.
+- [ ] T005 [P] Verificar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
+- [ ] T006 [P] Registrar en `GlobalExceptionHandler` `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y verificar que `USERNAME_ALREADY_EXISTS` y la violación de la clave primaria de `user_account` ya están mapeados (plan base, T022).
 
 ---
 
@@ -403,8 +403,8 @@ frontend/src/
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Verificar `RegisterStaffAccountService` (plan base, T023): normaliza y valida el usuario, valida la unicidad, cifra la contraseña con `PasswordEncoderPort`, crea la cuenta activa y registra el responsable y la hora (FR-002 a FR-005, FR-013).
-- [ ] T015 [US1] Verificar `StaffAccountBootstrapper` y `StaffBootstrapProperties` (plan base, T023); la cuenta inicial queda con `created_by` nulo (FR-012, FR-013). Si no hay ninguna cuenta activa de Administración y faltan las propiedades o no cumplen FR-002 a FR-004, la aplicación no arranca y registra el motivo en el log, sin la contraseña.
+- [ ] T014 [US1] Verificar `RegisterStaffAccountService` (plan base, T022): normaliza y valida el usuario, valida la unicidad, cifra la contraseña con `PasswordEncoderPort`, crea la cuenta activa y registra el responsable y la hora (FR-002 a FR-005, FR-013).
+- [ ] T015 [US1] Verificar `StaffAccountBootstrapper` y `StaffBootstrapProperties` (plan base, T022); la cuenta inicial queda con `created_by` nulo (FR-012, FR-013). Si no hay ninguna cuenta activa de Administración y faltan las propiedades o no cumplen FR-002 a FR-004, la aplicación no arranca y registra el motivo en el log, sin la contraseña.
 - [ ] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
 - [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
 
@@ -487,13 +487,13 @@ frontend/src/
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `user_account` (T007), el núcleo de las cuentas y la cuenta inicial (T023), el inicio de sesión y `CurrentUserResolver` (regla 14, T021 y T022), `ClockConfig` y `GlobalExceptionHandler`.
+- **Foundational**: Requiere del plan base la tabla `user_account` (T007), el núcleo de las cuentas y la cuenta inicial (T022), el inicio de sesión y `CurrentUserResolver` (regla 14, T020 y T021), `ClockConfig` y `GlobalExceptionHandler`.
 - **Planes relacionados**:
-  - Plan base, T021 y T023: `LoginService` usa `PasswordEncoderPort` (T023) y rechaza las cuentas desactivadas.
+  - Plan base, T020 y T022: `LoginService` usa `PasswordEncoderPort` (T022) y rechaza las cuentas desactivadas.
   - `plan-consultar-historial-de-estados.md`: muestra `full_name` de `user_account` como responsable, también de las cuentas desactivadas.
   - `plan-consultar-inventario-habitaciones.md`: `Pagination.tsx` y el menú de la vista del Administrador.
   - `plan-confirmar-fin-de-limpieza.md`: `ReleaseCleaningTaskOnDeactivationUseCase`, puerto que libera la tarea de limpieza abierta al desactivar (FR-011).
   - `plan-confirmar-reparacion-finalizada.md`: `ReleaseRepairTaskOnDeactivationUseCase`, puerto que libera la tarea de reparación abierta al desactivar, sin actor (FR-011).
 - **Riesgo aceptado**: si la persona inicia una tarea en el mismo instante en que se desactiva su cuenta, ambas operaciones pueden confirmarse porque ninguna bloquea a la otra; es poco probable y se documenta.
 - **Alcance provisional**: el manejo de contraseñas de este plan es provisional (regla 14 y punto abierto 1 del plan base). Si se adopta un inicio de sesión compartido, se retiran la contraseña y `PasswordEncoderPort`, y se conservan el registro, la consulta, la edición y la desactivación de las cuentas como perfil local.
-- **Orden**: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. La cuenta inicial ya existe desde el plan base (T023).
+- **Orden**: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. La cuenta inicial ya existe desde el plan base (T022).

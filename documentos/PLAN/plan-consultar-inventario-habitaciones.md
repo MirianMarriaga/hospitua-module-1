@@ -304,7 +304,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [ ] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
 - [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter` con `RoomInventorySpecifications` (filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`, y orden por las columnas permitidas). El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
-- [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T016).
+- [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T015).
 
 ---
 
@@ -350,7 +350,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `room` (T007) y los layouts por área del frontend (T016).
+- **Foundational**: Requiere del plan base la tabla `room` (T007) y los layouts por área del frontend (T015).
 - **Planes relacionados**:
   - `plan-registrar-habitacion.md`: `RoomDto` y la página de registro a la que lleva el botón.
   - `plan-editar-habitacion.md` y `plan-dar-de-baja-habitacion.md`: usan `GET /api/rooms/inventory/{roomId}`.

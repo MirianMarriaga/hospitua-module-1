@@ -20,8 +20,8 @@ Las reglas de las acciones no se implementan aquí: **Iniciar limpieza** usa `PO
 
 ## Technical Context
 
-- **Storage**: PostgreSQL 16+. Solo lectura de `room` y `cleaning_task` del plan base (T007 y T018).
-- **Performance Goals**: el panel responde en menos de 2 segundos (SC-001), medido con historial realista de `cleaning_task` (T013).
+- **Storage**: PostgreSQL 16+. Solo lectura de `room` y `cleaning_task` del plan base (T007 y T017).
+- **Performance Goals**: el panel responde en menos de 2 segundos (SC-001), medido con historial realista de `cleaning_task` (T011).
 - **Constraints**:
   - Solo lectura (nota de FR-011): no transiciona habitaciones ni crea o cierra tareas.
   - La última limpieza ignora las tareas con `outcome = Released` (FR-004) y se obtiene con una sola consulta por lotes para todas las habitaciones del panel.
@@ -156,7 +156,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `ClockConfig`).
 
 ---
 
@@ -178,18 +178,16 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 - [ ] T003 [P] [US1] Unit test en `CleaningPanelQueryServiceTest`: lista solo `PendingCleaning` y `Available`, primero las pendientes y cada grupo en el orden del puerto (orden natural del plan base, T008) (HU-1 esc. 1; FR-002, FR-006).
 - [ ] T004 [P] [US1] Unit test: `lastCleaningDateTime` toma la última tarea `Completed` o `DamageReported` de la consulta por lotes, ignora las `Released` y es nulo sin registro (HU-1 esc. 3; FR-004).
 - [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId`, `startDateTime` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 6; FR-001; SC-003).
-- [ ] T006 (eliminada: ver T008)
-- [ ] T007 (eliminada: la garantiza `@Transactional(readOnly = true)`, nota de FR-011)
-- [ ] T008 [P] [US1] Component test en `CleaningPanelPage` con la API simulada: botones por estado, "Sin registro", conteo por estado calculado sobre la lista, búsqueda por número exacto y al vaciarla vuelve el listado completo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTask` y nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito, si se rechaza muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel, y ante un fallo de red sugiere reintentar (HU-1 esc. 2, 4, 5 y 7; FR-003, FR-005, FR-007, FR-008, FR-009, FR-010; *Marcar Habitación en Limpieza* FR-001, FR-009, FR-016, FR-017).
+- [ ] T006 [P] [US1] Component test en `CleaningPanelPage` con la API simulada: botones por estado, "Sin registro", conteo por estado calculado sobre la lista, búsqueda por número exacto y al vaciarla vuelve el listado completo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTask` y nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito, si se rechaza muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel, y ante un fallo de red sugiere reintentar (HU-1 esc. 2, 4, 5 y 7; FR-003, FR-005, FR-007, FR-008, FR-009, FR-010; *Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa con su fila, filtro de estados, agrupación (primero `PendingCleaning`) sobre el orden del puerto y última limpieza con una sola llamada a `findLastCleaningEndByRoomIds` para todas las habitaciones (FR-001 a FR-006, FR-011).
-- [ ] T010 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
-- [ ] T011 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
-- [ ] T012 [US1] Conectar las acciones y la actualización:
-  - "Iniciar limpieza": este plan es dueño de toda su interfaz. Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-009, FR-016, FR-017).
-  - "Reportar daño": abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T015).
+- [ ] T007 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa con su fila, filtro de estados, agrupación (primero `PendingCleaning`) sobre el orden del puerto y última limpieza con una sola llamada a `findLastCleaningEndByRoomIds` para todas las habitaciones (FR-001 a FR-006, FR-011).
+- [ ] T008 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
+- [ ] T009 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
+- [ ] T010 [US1] Conectar las acciones y la actualización:
+  - "Iniciar limpieza": este plan es dueño de toda su interfaz. Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
+  - "Reportar daño": abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T014).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
 
 **Checkpoint**: El Personal de limpieza ve su panel, busca habitaciones y entra a sus acciones; el panel se mantiene actualizado sin recargar la página.
@@ -198,14 +196,14 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T016, `Cl
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T013 Prueba de rendimiento, etiquetada según la convención de pruebas de rendimiento de la estrategia de testing del plan base (fuera del CI por defecto): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
-- [ ] T014 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
+- [ ] T011 Prueba de rendimiento, etiquetada según la convención de pruebas de rendimiento de la estrategia de testing del plan base (fuera del CI por defecto): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
+- [ ] T012 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base el layout de limpieza (T016), la tabla `cleaning_task` (T018) y la regla 12.
+- **Foundational**: Requiere del plan base el layout de limpieza (T015), la tabla `cleaning_task` (T017) y la regla 12.
 - **Planes relacionados**:
   - `plan-marcar-habitacion-en-limpieza.md`: `CleaningController`, `CleaningTaskRepositoryPort`, el endpoint `POST /api/cleaning/tasks` y la tabla de errores cuyos textos muestra la interfaz de "Iniciar limpieza".
   - `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`: el diálogo "Reportar daño".

@@ -36,6 +36,23 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 
 ---
 
+### Historia de Usuario 2 - Devolución a PendingCleaning al desactivar la cuenta de un miembro de limpieza con tarea abierta (Prioridad: P2)
+
+Como Administrador, quiero que al desactivar la cuenta de un miembro del personal de limpieza con una tarea abierta su habitación vuelva de `InCleaning` a `PendingCleaning`, para que otro miembro pueda retomarla y la habitación no quede bloqueada a nombre de quien ya no trabaja en el hotel.
+
+**Por qué esta prioridad**: Es un caso menos frecuente que el check-out o el fin de reparación, pero sin él la habitación quedaría en `InCleaning` sin nadie que pueda terminar su limpieza (*Gestionar personal*, FR-011).
+
+**Prueba independiente**: Puede ser probada desactivando en *Gestionar personal* la cuenta de un miembro con una tarea de limpieza abierta sobre una habitación en `InCleaning`, verificando que la habitación queda en `PendingCleaning` y que `RoomStateHistory` registra al Administrador como actor y `RELEASE_CLEANING_TASK` como flujo.
+
+**Escenarios de aceptación**:
+
+5. **Escenario**: Transición `InCleaning` a `PendingCleaning` por desactivación de la cuenta del miembro
+   - **Dado que** Existe una habitación "101" en estado `InCleaning` cuya tarea de limpieza pertenece al miembro "Usuario A"
+   - **Cuando** El Administrador desactiva la cuenta del "Usuario A" en *Gestionar personal* y la tarea se libera mediante *Confirmar Fin de Limpieza de Habitación* (`RELEASE_CLEANING_TASK`)
+   - **Entonces** El sistema cambia el estado de la habitación de `InCleaning` a `PendingCleaning` dentro de la misma transacción de la desactivación (FR-001) y registra la transición en `RoomStateHistory` con el Administrador como actor (FR-004)
+
+---
+
 ### Casos Límite
 
 1. **¿Qué ocurre si hay invocaciones concurrentes sobre la misma habitación (condición de carrera)?**
@@ -43,10 +60,6 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 
 2. **¿Qué ocurre si el cambio de estado falla a nivel de base de datos o se pierde la conexión al confirmar el flujo invocador?**
    El caso de uso se ejecuta dentro del mismo contexto transaccional (ACID) del flujo que lo invoca. Si "Marcar Pendiente a Limpieza" falla (ej. caída de base de datos o error de red), el flujo padre (ej. check-out, finalización de reparaciones o liberación de una tarea de limpieza) DEBE ejecutar un *rollback* completo: la habitación permanece en su estado de origen (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning`) y el invocador ofrece retroalimentación visual del error y la sugerencia de reintentar la operación.
-
-3. (eliminado: ver FR-003)
-
-4. (fusionado en el caso límite 2)
 
 
 ---
@@ -58,7 +71,7 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 - **FR-001**: El sistema DEBE aceptar `InCleaning` como estado de origen únicamente cuando el flujo invocador sea la liberación de una tarea de limpieza (*Confirmar Fin de Limpieza de Habitación*, `RELEASE_CLEANING_TASK`). Los demás orígenes (`Occupied`, `DisabledForRepairs`, `TechnicalBlock`) los valida la máquina de estados.
 - **FR-002**: El sistema DEBE sobrescribir el estado de la entidad a `PendingCleaning` ejecutando la mutación dentro de un contexto transaccional seguro, sin requerir pasos intermedios ni aprobaciones humanas.
 - **FR-003**: El sistema DEBE garantizar que, tras la transición exitosa, la habitación figure en el panel de limpieza en la siguiente actualización del panel (sin pasos manuales intermedios). Mientras esté en `PendingCleaning` no puede recibir un check-in, que exige el estado `Reserved`.
-- **FR-004**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `PendingCleaning`, `PreviousStatus` = estado de origen, `StartDateTime` = marca de la transición, `ActorId` = usuario del flujo invocador y `SourceFlow` = nombre del flujo invocador (*Registrar check-out*, *Confirmar Fin de Reparación de Habitación* o *Confirmar fin de limpieza (liberar tarea)*).
+- **FR-004**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `PendingCleaning`, `PreviousStatus` = estado de origen, `StartDateTime` = marca de la transición, `ActorId` = usuario del flujo invocador y `SourceFlow` = nombre del flujo invocador (*Registrar check-out*, *Confirmar Fin de Reparación de Habitación* o *Confirmar fin de limpieza (liberar tarea)*, también cuando la liberación la dispara la desactivación de la cuenta del miembro en *Gestionar personal*, con el Administrador como actor).
 - **FR-005**: El sistema DEBE registrar la transición a `PendingCleaning` como una acción documentada centralmente, evitando duplicación de lógica entre los flujos invocadores (check-out, *Confirmar Fin de Reparación de Habitación* y la liberación de tareas de limpieza de *Confirmar Fin de Limpieza de Habitación*), los cuales DEBEN invocar este caso de uso en lugar de reimplementarlo.
 - **FR-006**: El sistema DEBE generar la marca de la transición exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente o por el flujo invocador, y registrar el 100% de las transiciones a `PendingCleaning` en `RoomStateHistory` con esa marca.
 - **FR-007**: El sistema DEBE devolver al flujo invocador un error con el estado actual de la habitación cuando rechace la invocación (FR-001 o la máquina de estados), sin modificar el estado ni la consistencia de los datos del inventario; este caso de uso no posee interfaz propia.
@@ -76,7 +89,3 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 ### Resultados Medibles
 
 - **SC-001**: El 100% de las invocaciones provenientes de un check-out, de un cierre de reparación o de la liberación de una tarea de limpieza transicionan la habitación a `PendingCleaning` de manera totalmente automatizada (Zero-Touch).
-- **SC-002**: (eliminado: no medible; su tiempo está dentro del de su flujo invocador)
-- **SC-003**: (fusionado en FR-007)
-- **SC-004**: (eliminado: ver FR-003)
-- **SC-005**: (fusionado en FR-006)

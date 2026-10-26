@@ -61,7 +61,7 @@ Content-Type: application/json
 | `floor` | integer | Entero mayor a 0 (FR-011) | `4` |
 | `categoryRoom` | string | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (FR-005); la interfaz los muestra como Sencilla, Doble, Suite y Boutique | `"DOBLE"` |
 | `maxCapacity` | integer | Entero mayor a 0 (FR-006) | `2` |
-| `baseRate` | number | Mayor a 0 (FR-007) | `250000` |
+| `baseRate` | number | Mayor a 0, con máximo dos decimales (`@Digits(integer = 10, fraction = 2)`) (FR-007) | `250000` |
 
 ```json
 {
@@ -113,7 +113,7 @@ Content-Type: application/json
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.field` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa, o con más de dos decimales (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (FR-005, caso borde 4) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
 | 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Ya existe una habitación con ese número, en cualquier estado o piso, incluida una registrada al mismo tiempo (FR-004, esc. 2, caso borde 3) | "Ya existe una habitación con el número {número}." |
 
@@ -191,7 +191,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` (regla 8 del plan base, T010 y T017): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
+- [ ] T001 Verificar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` (regla 8 del plan base, T010 y T016): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
 - [ ] T002 [P] Implementar `RoomCategory` y registrar en `GlobalExceptionHandler` `RoomNumberAlreadyExistsException` (`409 ROOM_NUMBER_ALREADY_EXISTS`), mapeando también la violación del índice único de `room.room_number`.
 
 ---
@@ -237,7 +237,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `room` con su índice único de `room_number` (T007), `TransitionRoomStateUseCase` con el registro en el historial (regla 8, T010 y T017), `SourceFlow` con `REGISTER_ROOM` (T020) y `ClockConfig`.
+- **Foundational**: Requiere del plan base la tabla `room` con su índice único de `room_number` (T007), `TransitionRoomStateUseCase` con el registro en el historial (regla 8, T010 y T016), `SourceFlow` con `REGISTER_ROOM` (T019) y `ClockConfig`.
 - **Planes que dependen de este**:
   - `plan-consultar-inventario-habitaciones.md`: botón "Registrar habitación" y listado al que se vuelve.
 - **Nota**: las habitaciones que carga la semilla `V2__seed_rooms.sql` ya tienen su periodo inicial en `room_state_history` (plan base, T007), así que *Consultar historial de estados* también las muestra.

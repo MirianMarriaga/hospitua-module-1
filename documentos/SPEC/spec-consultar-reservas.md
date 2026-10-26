@@ -120,6 +120,32 @@ Como **Personal de mantenimiento o Administrador**, quiero consultar al Módulo 
 
 ---
 
+### Historia de Usuario 4 - Apartar y liberar habitaciones al procesar la lista diaria y sus cambios (Prioridad: P1)
+
+Como **Sistema autónomo de Módulo 1**, quiero apartar y liberar las habitaciones al procesar la lista diaria y sus cambios (`ADDED`, `UPDATED`, `REMOVED`), descartando los mensajes que no deben aplicarse, para que el estado de cada habitación coincida con las llegadas del día sin intervención humana.
+
+**Por qué esta prioridad**: El Check-In exige una habitación `Reserved` apartada para su reserva; si la ingesta no apartara ni liberara habitaciones, las llegadas del día no podrían admitirse y las habitaciones de reservas canceladas quedarían bloqueadas.
+
+**Prueba Independiente**: Procesar una lista de las 00:00 y luego un `ADDED`, un `UPDATED` que cambia la habitación y un `REMOVED`, verificando que las habitaciones se apartan y liberan mediante *Marcar habitación como reservada* y *Marcar habitación como disponible*, con las liberaciones antes de los apartados; y enviar un mensaje de un día operativo anterior, uno con un hueco de secuencia y uno inválido, verificando su descarte, su registro `SEQUENCE_GAP` y su envío a la cola de mensajes fallidos.
+
+**Escenarios de Aceptación**:
+
+12. **Escenario**: Apartado y liberación de habitaciones al procesar la lista y sus cambios
+   - **Dado** que la copia local recibe la lista de las 00:00 o una actualización del día
+   - **Cuando** el sistema la procesa:
+     - Con la lista de las 00:00, primero libera las habitaciones `Reserved` de reservas que ya no figuran y después aparta las de la nueva lista.
+     - Con un `ADDED` con `startDate` = hoy, aparta cada habitación de la reserva.
+     - Con un `UPDATED` que cambia la habitación asignada, libera la anterior y aparta la nueva.
+     - Con un `REMOVED`, libera cada habitación de la reserva.
+   - **Entonces** el sistema aparta mediante *Marcar habitación como reservada* y libera mediante *Marcar habitación como disponible* solo las habitaciones `Reserved` por esa reserva; en otro estado solo actualiza la copia local (FR-009).
+
+13. **Escenario**: Mensajes de un día anterior, huecos de secuencia y mensajes inválidos
+   - **Dado** que la copia local del día ya fue inicializada
+   - **Cuando** llega un mensaje cuyo `operationalDate` es anterior al día de la copia local, un mensaje con un `sequenceNumber` mayor que el siguiente esperado, o un mensaje ilegible o sin `messageId`, `sequenceNumber`, `operationalDate` o `reservationRef` (en las actualizaciones)
+   - **Entonces** el sistema descarta sin aplicar el del día anterior registrando su `messageId`, aplica el del hueco registrando `SEQUENCE_GAP` con el número esperado y el recibido sin detener la ingesta, y envía el inválido a la cola de mensajes fallidos sin aplicarlo (FR-003).
+
+---
+
 ### Casos Borde
 
 - **Cambio desactualizado de una reserva**: Si llega un `ADDED`, `UPDATED` o `REMOVED` de una reserva con un `sequenceNumber` menor o igual que el de la última actualización ya aplicada de esa reserva en el mismo día operativo, se descarta (se registra en el log) para no sobrescribir un cambio más reciente. Ante varios cambios de la misma reserva, siempre queda el de mayor secuencia.

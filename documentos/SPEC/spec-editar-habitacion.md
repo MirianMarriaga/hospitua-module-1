@@ -126,7 +126,7 @@ Como Administrador, quiero recibir retroalimentación clara cuando ingreso valor
 - **FR-002**: El sistema DEBE verificar que la habitación se encuentre en estado "Available"  antes de permitir cualquier edición.
 - **FR-003**: El sistema DEBE rechazar la edición si la habitación se encuentra en cualquier estado distinto de "Available" ("Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock" o "Inactive"), informando el estado actual.
 - **FR-004**: El sistema DEBE informar al Administrador el estado actual de la habitación cuando la edición sea rechazada por disponibilidad.
-- **FR-005**: El sistema DEBE validar que los nuevos valores cumplan las mismas reglas de negocio que el registro inicial (piso entero > 0, tipo válido, capacidad > 0, tarifa > 0).
+- **FR-005**: El sistema DEBE validar que los nuevos valores cumplan las mismas reglas de negocio que el registro inicial (piso entero > 0, tipo válido, capacidad > 0, tarifa > 0 con máximo dos decimales).
 - **FR-006**: El sistema DEBE persistir únicamente los campos que el Administrador modificó, sin alterar los demás atributos.
 - **FR-007**: El sistema DEBE confirmar al Administrador la actualización exitosa mostrando cada dato modificado con su valor anterior y su valor nuevo, junto con los datos actualizados de la habitación. El usuario y la fecha de la edición se guardan (FR-008), pero no se muestran en la confirmación.
 - **FR-008**: El sistema DEBE registrar en la bitácora de auditoría cada edición exitosa, incluyendo el ID de la habitación, cada campo modificado con su valor anterior y su valor nuevo, el Administrador responsable y la fecha/hora de la modificación.

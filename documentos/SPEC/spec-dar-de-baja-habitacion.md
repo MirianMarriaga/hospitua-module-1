@@ -41,6 +41,11 @@ Como Administrador, quiero dar de baja una habitación existente en el inventari
    - **Cuando** inicia la acción de dar de baja
    - **Entonces** el sistema solicita una confirmación explícita antes de aplicar el cambio, dado el impacto de la operación sobre el inventario
 
+6. **Escenario**: Reintentar la verificación de reservas tras una falla de Módulo 2
+   - **Dado** el Administrador confirmó la baja de una habitación en estado "Available" y la verificación de reservas falló porque Módulo 2 no respondió, por lo que la habitación sigue en "Available" y el sistema ofrece la opción "Reintentar"
+   - **Cuando** el Administrador elige "Reintentar"
+   - **Entonces** el sistema vuelve a ejecutar "Consultar reservas" con el mismo motivo ya registrado, sin volver a solicitar el motivo ni la confirmación, y continúa la baja según el resultado de la nueva verificación (FR-009)
+
 ---
 
 ### Casos Borde

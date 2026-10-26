@@ -310,7 +310,7 @@ backend/src/
 │   ├── domain/
 │   │   └── model/
 │   │       ├── ReceptionDashboardKpis.java
-│   │       ├── ArrivalGroup.java                         # Definido en plan-consultar-reservas.md (T019); groups[]
+│   │       ├── ArrivalGroup.java                         # Definido en plan-consultar-reservas.md (T020); groups[]
 │   │       ├── ArrivalItemSummary.java                   # groups[].rooms[]
 │   │       └── DepartureSummary.java
 │   ├── application/
@@ -375,7 +375,7 @@ frontend/src/
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
 - [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
-  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T019).
+  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T020).
   - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
 
 ---
@@ -394,7 +394,7 @@ frontend/src/
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T018 y T019) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
+- [ ] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T019 y T020) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
 - [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-011).
 - [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-008).
 

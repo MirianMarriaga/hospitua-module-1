@@ -54,6 +54,11 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
    - **Cuando** Se consulta la habitación "101" para una estadía con llegada el "21-10-2026" y salida el "23-10-2026"
    - **Entonces** El sistema retorna que la habitación no está disponible e incluye un cruce con inicio y fin "21-10-2026", porque no puede asignarse hoy
 
+9. **Escenario**: Consulta del módulo de reservas para calcular su disponibilidad publicada
+   - **Dado que** El sistema del módulo de reservas recalcula la disponibilidad que publica en sus canales externos (después de un aviso de mantenimiento o en su recálculo diario)
+   - **Cuando** El sistema consulta los mantenimientos de la habitación "101" desde la fecha actual hasta 90 días después
+   - **Entonces** El sistema evalúa el rango sin aplicar los límites de *Programar Bloqueo Técnico para Habitación* y retorna si la habitación está disponible y, si no lo está, cada cruce con su inicio y su fin estimado, para que Módulo 2 deje de vender esas noches (FR-001, FR-002, FR-008)
+
 ---
 
 ### Casos Límite

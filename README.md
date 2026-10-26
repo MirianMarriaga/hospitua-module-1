@@ -4,7 +4,7 @@ HOSPITUA es una plataforma de gestión hotelera (SaaS) dividida en tres módulos
 contiene el **Módulo 1**, la fuente de verdad del inventario de habitaciones, de su ciclo de vida
 (8 estados) y de las ocupaciones físicas (Check-In y Check-Out). Se integra con el Módulo 2
 (Reservas y cumplimiento migratorio) por RabbitMQ y REST, y con el Módulo 3 (Facturación y
-liquidación) por REST.
+liquidación) por REST y RabbitMQ.
 
 El contexto funcional completo está en [`documentos/contexto/hospitua.md`](documentos/contexto/hospitua.md).
 

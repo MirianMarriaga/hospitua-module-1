@@ -79,7 +79,7 @@ Accept: application/json
 | `items[].startDateTime` | string | Inicio del periodo | `"2026-01-14T09:15:00-05:00"` |
 | `items[].endDateTime` | string \| null | Fin del periodo; nulo si sigue abierto (el frontend muestra "En curso", FR-004) | `"2026-01-14T10:05:00-05:00"` |
 | `items[].actorName` | string \| null | Nombre del usuario que provocó la transición (`user_account.full_name` de `actor_id`); nulo si fue autónoma (el frontend muestra "Sistema", FR-003) | `"Ana Gómez"` |
-| `items[].sourceFlow` | string | Flujo de origen (valor de `SourceFlow`, plan base T020) | `"START_CLEANING"` |
+| `items[].sourceFlow` | string | Flujo de origen (valor de `SourceFlow`, plan base T019) | `"START_CLEANING"` |
 | `items[].sourceFlowName` | string | Nombre legible del caso de uso que provocó la transición (FR-003) | `"Marcar habitación en limpieza"` |
 | `page` | integer | Página actual | `1` |
 | `size` | integer | Siempre 15 | `15` |
@@ -159,7 +159,7 @@ backend/src/main/
 │   │   ├── ports/in/
 │   │   │   └── ConsultRoomStateHistoryUseCase.java
 │   │   ├── ports/out/
-│   │   │   └── RoomStateHistoryRepositoryPort.java  # Plan base (T017); se agrega search(RoomStateHistoryFilter, page)
+│   │   │   └── RoomStateHistoryRepositoryPort.java  # Plan base (T016); se agrega search(RoomStateHistoryFilter, page)
 │   │   ├── service/
 │   │   │   └── RoomStateHistoryQueryService.java
 │   │   └── dto/
@@ -170,7 +170,7 @@ backend/src/main/
 │       ├── in/web/
 │       │   └── RoomStateHistoryController.java
 │       └── out/persistence/
-│           ├── adapter/RoomStateHistoryRepositoryAdapter.java     # Plan base (T017); se agrega search(...)
+│           ├── adapter/RoomStateHistoryRepositoryAdapter.java     # Plan base (T016); se agrega search(...)
 │           └── repository/RoomStateHistoryQueryRepository.java   # Consulta con join a room y a user_account
 └── resources/db/migration/
     └── V5__room_state_history_indexes.sql
@@ -182,7 +182,7 @@ frontend/src/
     └── roomStateHistoryService.ts
 ```
 
-**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T020). Reutiliza `Pagination.tsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
+**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T019). Reutiliza `Pagination.tsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
 
 ---
 
@@ -241,7 +241,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T017).
+- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T016).
 - **Planes de los que depende**:
   - `plan-registrar-habitacion.md`: periodo inicial de cada habitación.
   - `plan-consultar-inventario-habitaciones.md`: "Ver historial", `Pagination.tsx` y `PagedResultDto`.

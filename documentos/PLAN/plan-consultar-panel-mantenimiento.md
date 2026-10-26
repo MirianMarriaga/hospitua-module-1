@@ -24,8 +24,8 @@ Las acciones no se implementan aquí:
 
 ## Technical Context
 
-- **Storage**: PostgreSQL 16+. Solo lectura de `room`, `reparation_task` y `technical_block_report` del plan base (T007 y T018).
-- **Performance Goals**: el panel responde en menos de 2 segundos (SC-001; prueba de rendimiento fuera de CI, T012); una habitación que pasa a `DisabledForRepairs` aparece en menos de 60 segundos (SC-004).
+- **Storage**: PostgreSQL 16+. Solo lectura de `room`, `reparation_task` y `technical_block_report` del plan base (T007 y T017).
+- **Performance Goals**: el panel responde en menos de 2 segundos (SC-001; prueba de rendimiento fuera de CI, T012); una habitación que pasa a `DisabledForRepairs` aparece en menos de 60 segundos (SC-002).
 - **Constraints**:
   - Solo lectura (FR-011).
   - "Vencido" usa `TechnicalBlockReport.isOverdue(today)` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) con la fecha de `Clock`.
@@ -164,7 +164,7 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016, `ClockConfig`).
+No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015, `ClockConfig`).
 
 ---
 
@@ -190,7 +190,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 - [ ] T004 [P] [US1] Unit test con `Clock` fijo: `overdue` según `isOverdue(today)`; `maintenance` toma el `Applied` o, si no hay, el `Scheduled` de inicio más temprano, e ignora los `Expired`; `hasOpenTask` con una tarea abierta de otro miembro (HU-1 esc. 3, 4 y 5; FR-003, FR-004, FR-005).
 - [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 7; FR-001).
 - [ ] T006 [US1] Integration test: la consulta no modifica `room`, `reparation_task` ni `technical_block_report` (FR-011).
-- [ ] T007 [P] [US1] Component test en `MaintenancePanelPage` con la API simulada: conteos calculados sobre la lista ("con mantenimiento programado" solo cuenta los `Scheduled`); botones por estado (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Iniciar reparaciones solo si `hasOpenTask` es `false`; Ver informe del daño en `DFR` y del bloqueo en cualquier otra con `maintenance`); etiquetas "En reparación" y "Bloqueo técnico (vencido)"; "Sin programar"; búsqueda por número exacto sobre la lista, que al vaciarse vuelve al listado completo; mensajes de FR-008; redirección cuando hay `activeTask`; nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar reparaciones": redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el texto de la tabla de errores de `plan-confirmar-reparacion-finalizada.md` según el `errorCode` y recarga el panel (HU-1 esc. 2 a 6; FR-003 a FR-005, FR-007 a FR-010; *Confirmar Fin de Reparación de Habitación* FR-013, FR-014).
+- [ ] T007 [P] [US1] Component test en `MaintenancePanelPage` con la API simulada: conteos calculados sobre la lista ("con mantenimiento programado" solo cuenta los `Scheduled`); botones por estado (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Iniciar reparaciones solo si `hasOpenTask` es `false`; Ver informe del daño en `DFR` y del bloqueo en cualquier otra con `maintenance`); etiquetas "En reparación" y "Bloqueo técnico (vencido)"; "Sin programar"; búsqueda por número exacto sobre la lista, que al vaciarse vuelve al listado completo; mensajes de FR-008; redirección cuando hay `activeTask`; nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar reparaciones": redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el texto de la tabla de errores de `plan-confirmar-reparacion-finalizada.md` según el `errorCode` y recarga el panel (HU-1 esc. 2 a 6; FR-003 a FR-005, FR-007 a FR-010; *Confirmar Fin de Reparación de Habitación* FR-011, FR-012).
 
 ### Implementation for User Story 1
 
@@ -211,13 +211,13 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T016
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T012 Prueba de rendimiento (etiquetada según la estrategia de testing del plan base): con 500 habitaciones, `GET /api/maintenance/panel` responde en menos de 2 segundos (SC-001).
-- [ ] T013 Integration test sin tiempos: una habitación que pasa a `DisabledForRepairs` aparece en la siguiente consulta del panel antes que las habitaciones sin intervención, en el orden natural real de SQL, y ninguna `Inactive` aparece; el número de consultas no crece con el número de habitaciones (FR-002, FR-006; SC-004).
+- [ ] T013 Integration test sin tiempos: una habitación que pasa a `DisabledForRepairs` aparece en la siguiente consulta del panel antes que las habitaciones sin intervención, en el orden natural real de SQL, y ninguna `Inactive` aparece; el número de consultas no crece con el número de habitaciones (FR-002, FR-006; SC-002).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base el layout de mantenimiento (T016), las tablas `reparation_task` y `technical_block_report` (T018) y la regla 12.
+- **Foundational**: Requiere del plan base el layout de mantenimiento (T015), las tablas `reparation_task` y `technical_block_report` (T017) y la regla 12.
 - **Planes relacionados**:
   - `plan-confirmar-reparacion-finalizada.md`: `MaintenanceController`, `ReparationTaskRepositoryPort`, el endpoint de "Iniciar reparaciones" con su tabla de errores y la vista de tarea activa a la que se redirige, que toma sus datos de `activeTask`.
   - `plan-programar-bloqueo-tecnico-para-habitacion.md`: `isOverdue(today)` y los diálogos de programar y ver bloqueo.

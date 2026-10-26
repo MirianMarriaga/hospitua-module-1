@@ -107,6 +107,28 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 ---
 
+### Historia de Usuario 4 - Llegadas al día con los cambios de reservas y aviso de lista no recibida (Prioridad: P2)
+
+Como Recepcionista, quiero que el listado de llegadas y los indicadores reflejen los cambios de reservas recibidos durante el día y que se me informe cuando la lista del día aún no ha llegado, para no atender llegadas canceladas ni confundir una lista pendiente con un día sin llegadas.
+
+**Por qué esta prioridad**: Las reservas cambian durante el día (nuevas, modificadas o canceladas); si el panel no lo reflejara, el Recepcionista intentaría admitir reservas que ya no existen o no vería las nuevas. Depende de la copia local que mantiene *Consultar reservas*.
+
+**Prueba Independiente**: Se prueba procesando un `ADDED`, un `UPDATED` y un `REMOVED` en la copia local y verificando que la siguiente consulta del panel muestra los cambios en la pestaña Llegadas y en el KPI "Llegadas de hoy"; y abriendo el panel sin la lista del día recibida, verificando el aviso en Llegadas mientras Salidas y los demás KPIs siguen operando.
+
+**Escenarios de Aceptación**:
+
+13. **Escenario**: Cambios de reservas reflejados en la siguiente consulta
+   - **Dado** que la copia local recibió un `ADDED`, un `UPDATED` o un `REMOVED` de una reserva del día
+   - **Cuando** el panel vuelve a consultar las llegadas y los indicadores
+   - **Entonces** el sistema muestra la nueva reserva con sus habitaciones, refresca los datos modificados o retira la reserva eliminada, y actualiza el KPI "Llegadas de hoy" en consecuencia (FR-006).
+
+14. **Escenario**: Lista del día no recibida
+   - **Dado** que no se ha recibido la lista del día de las 00:00 o la copia local no está disponible
+   - **Cuando** el Recepcionista visualiza la pestaña Llegadas
+   - **Entonces** el sistema muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." sin errores técnicos, mientras la pestaña Salidas y los KPIs de estancias y habitaciones siguen operando (FR-011).
+
+---
+
 ### Casos Borde
 
 - **Sin reservas de llegada para el día**: Cuando no existen habitaciones pendientes de llegada en la copia local de la lista del día, la tabla de Llegadas muestra el mensaje "No hay reservas que mostrar." y el KPI "Llegadas de hoy" indica 0.
@@ -148,7 +170,7 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Cantidad de personas de la habitación (`guestCount` por habitación, confirmado por Módulo 2 en `rooms[]` de la lista del día).
   - Tipo de habitación.
   - Fuente (`source`: `DIRECTA` o nombre de la OTA tal cual se recibe).
-  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-020).
+  - Alerta visual en la fila cuando la habitación no se pudo apartar por estar en mantenimiento o fuera de servicio (`DisabledForRepairs`, `TechnicalBlock` o `Inactive`), con el texto "No disponible: [Estado]" (escenario 6). Es la alerta operativa a Recepción de *Marcar habitación como reservada* (FR-012) y de *Confirmar fin de limpieza* (FR-019).
   - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), con el texto "[Estado]: se apartará al terminar la limpieza" (escenario 7).
   - Botón individual de acción "Check-in" por cada habitación.
 

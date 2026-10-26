@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar el caso de uso interno **Marcar Habitación como Reservada**, que aparta una habitación de `Available` a `Reserved` para una reserva con `startDate` = hoy. No tiene interfaz ni endpoint y ningún actor humano lo invoca (FR-001, FR-009). Detalla el puerto transversal `MarkRoomReservedUseCase` del plan base (T019), que invocan, dentro de su propia transacción, dos flujos:
+Implementar el caso de uso interno **Marcar Habitación como Reservada**, que aparta una habitación de `Available` a `Reserved` para una reserva con `startDate` = hoy. No tiene interfaz ni endpoint y ningún actor humano lo invoca (FR-001, FR-009). Detalla el puerto transversal `MarkRoomReservedUseCase` del plan base (T018), que invocan, dentro de su propia transacción, dos flujos:
 
 1. **Ingesta de reservas** (*Consultar reservas*, FR-009): por cada habitación de una reserva de hoy, (a) al ingerir la lista diaria de las 00:00 y (b) al recibir una actualización `ADDED` con `startDate` = hoy.
 2. **Confirmar fin de limpieza** (literal c del Disparador): cuando la habitación acaba de pasar de `InCleaning` a `Available` sin daño reportado y su reserva del día sigue en la copia local (transición encadenada).
@@ -118,7 +118,7 @@ backend/src/
 │   │       └── MarkRoomReservedOutcome.java       # Enum: RESERVED, ALREADY_RESERVED, CONFLICT, ROOM_NOT_FOUND
 │   └── application/
 │       ├── ports/in/
-│       │   └── MarkRoomReservedUseCase.java       # Puerto transversal (plan base, T019)
+│       │   └── MarkRoomReservedUseCase.java       # Puerto transversal (plan base, T018)
 │       ├── service/
 │       │   └── MarkRoomReservedService.java
 │       └── dto/
@@ -143,8 +143,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) permita `Available` → `Reserved` y ninguna otra transición hacia `Reserved`, y que `SourceFlow` (T020) incluya `MARK_RESERVED`.
-- [ ] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` (plan base, T007 y T017), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
+- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) permita `Available` → `Reserved` y ninguna otra transición hacia `Reserved`, y que `SourceFlow` (T019) incluya `MARK_RESERVED`.
+- [ ] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` (plan base, T007 y T016), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
 - [ ] T003 [P] Crear `ReservationTrigger`, `MarkRoomReservedOutcome`, `MarkRoomReservedCommand`, `MarkRoomReservedResult` y el puerto `MarkRoomReservedUseCase` con el contrato de este plan.
 
 ---
@@ -194,7 +194,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Verificación de los invocadores
 
-- [ ] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T017) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
+- [ ] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T016) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
 - [ ] T015 [US2] Verificar que existan las pruebas de los flujos que usan este puerto, que viven en los planes de esos flujos: `plan-registrar-check-in.md` (T014: check-in desde `Reserved`, esc. 2, FR-010), `plan-consultar-reservas.md` (T010: apartados y liberaciones de la ingesta, FR-009) y `plan-consultar-panel-recepcion.md` (T009: alerta operativa sin mensajes a Módulo 2, esc. 7 y 8, FR-012, SC-006).
 
 **Checkpoint**: El caso de uso es idempotente y no sobrescribe estados físicos.
@@ -211,7 +211,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T017), `SourceFlow` con `MARK_RESERVED` (T020) y `ClockConfig`. Detalla el puerto `MarkRoomReservedUseCase` de T019.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8, T010 y T016), `SourceFlow` con `MARK_RESERVED` (T019) y `ClockConfig`. Detalla el puerto `MarkRoomReservedUseCase` de T018.
 - **Planes de los que depende**:
   - `plan-marcar-habitacion-como-disponible.md`: `MarkRoomAvailableUseCase` para el primer paso de la transición encadenada.
 - **Planes que invocan el puerto**:

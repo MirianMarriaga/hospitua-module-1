@@ -173,7 +173,7 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   │   ├── RoomDecommission.java
 │   │   └── DecommissionReason.java                # Enum: PERMANENT_REMODELING, FLOOR_CLOSURE, ADMINISTRATIVE_DECISION, OTHER
 │   └── exception/
-│       └── ReservationConflictException.java      # 409 RESERVATION_CONFLICT; definida en plan-consultar-reservas.md (T028)
+│       └── ReservationConflictException.java      # 409 RESERVATION_CONFLICT; definida en plan-consultar-reservas.md (T029)
 ├── application/
 │   ├── ports/
 │   │   ├── in/
@@ -201,7 +201,7 @@ frontend/src/
     └── roomService.ts                             # Se agrega decommissionRoom()
 ```
 
-**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T026), que consulta desde hoy hasta hoy + 365 días (`dateTo` = hoy + 365, el máximo de 366 días que acepta Módulo 2; *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (usuario actual).
+**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T027), que consulta desde hoy hasta hoy + 365 días (`dateTo` = hoy + 365, el máximo de 366 días que acepta Módulo 2; *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (usuario actual).
 
 ---
 
@@ -214,9 +214,9 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar la tabla `room_decommission` en la migración inicial (plan base, T007).
-- [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T026), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
+- [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T027), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
 - [ ] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `RoomDecommissionRepositoryAdapter` sobre la tabla `room_decommission` del plan base.
-- [ ] T004 [P] Verificar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations` (`ReservationConflictException` de `plan-consultar-reservas.md`, T028).
+- [ ] T004 [P] Verificar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations` (`ReservationConflictException` de `plan-consultar-reservas.md`, T029).
 
 ---
 
@@ -273,7 +273,7 @@ En los dos últimos casos la habitación sigue `Available`.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), `SourceFlow` con `DECOMMISSION_ROOM` (T020), el cliente REST de Módulo 2 con timeouts (regla 5, T013), la tabla `room_decommission` (T007) y `ClockConfig`.
+- **Foundational**: Requiere del plan base `TransitionRoomStateUseCase` (regla 8), `SourceFlow` con `DECOMMISSION_ROOM` (T019), el cliente REST de Módulo 2 con timeouts (regla 5, T013), la tabla `room_decommission` (T007) y `ClockConfig`.
 - **Planes de los que depende**:
   - `plan-consultar-reservas.md`: `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (Phase 5 de ese plan).
   - `plan-consultar-inventario-habitaciones.md`: acción "Dar de baja" y `GET /api/rooms/inventory/{roomId}`.

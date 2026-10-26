@@ -87,7 +87,7 @@ backend/src/
 │   │   │   │   ├── ValidateCheckInReservationUseCase.java
 │   │   │   │   └── TransitionRoomStateUseCase.java   # Definido en el plan base (T010); aquí se invoca
 │   │   │   └── out/
-│   │   │       ├── RoomAuditLogRepositoryPort.java    # Definido en el plan base (T017)
+│   │   │       ├── RoomAuditLogRepositoryPort.java    # Definido en el plan base (T016)
 │   │   │       ├── RoomRepositoryPort.java
 │   │   │       ├── StayRepositoryPort.java
 │   │   │       ├── RoomGuestRepositoryPort.java
@@ -108,7 +108,7 @@ backend/src/
 │       │   ├── in/
 │       │   │   └── web/
 │       │   │       ├── CheckInController.java
-│       │   │       └── CurrentUserResolver.java   # Definido en el plan base (T021); recepcionista del check-in
+│       │   │       └── CurrentUserResolver.java   # Definido en el plan base (T020); recepcionista del check-in
 │       │   └── out/
 │       │       ├── persistence/
 │       │       │   └── adapter/
@@ -419,15 +419,16 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 - [ ] T024 [P] [US2] Verificar con el worker del outbox del plan base (T012) que un Check-In no publicado se reintenta con el mismo `messageId` y `sequenceNumber`, sin frenar otros mensajes, y que agotados los reintentos queda en `FAILED` con alerta.
 - [ ] T025 [US2] Implementar manejo de contingencia en frontend: mensajes controlados sin jerga técnica cuando no se pueda registrar el Check-In.
+- [ ] T026 [P] [US2] Unit test: Rechazar Check-In si el `startDate` de la reserva es distinto de la fecha actual en hora Colombia (`InvalidCheckInDateException`), usando un `Clock` fijo (FR-005; caso borde "Día operativo fijo").
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T026 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
-- [ ] T027 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
-- [ ] T028 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
-- [ ] T029 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.
+- [ ] T027 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
+- [ ] T028 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
+- [ ] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
+- [ ] T030 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.
 
 ---
 
