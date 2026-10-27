@@ -91,6 +91,9 @@ hospitua:
     base-url: ${MODULE2_BASE_URL:http://localhost:8082}
   module3:
     base-url: ${MODULE3_BASE_URL:http://localhost:8083}
+  outbox:
+    worker:
+      enabled: false
   bootstrap:
     admin:
       username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
