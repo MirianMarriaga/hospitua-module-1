@@ -17,6 +17,7 @@ spring:
     publisher-returns: true
   jackson:
     time-zone: America/Bogota
+    default-property-inclusion: non_null
 
 server:
   port: ${SERVER_PORT:8080}

@@ -139,6 +139,63 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("TaskNotOwnedException traduce a TASK_NOT_OWNED (403)")
+    void shouldHandleTaskNotOwnedException() throws Exception {
+        mockMvc.perform(get("/test/task-not-owned"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode", is("TASK_NOT_OWNED")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")))
+                .andExpect(jsonPath("$.path", is("/test/task-not-owned")));
+    }
+
+    @Test
+    @DisplayName("TaskNotFoundException traduce a TASK_NOT_FOUND (404)")
+    void shouldHandleTaskNotFoundException() throws Exception {
+        mockMvc.perform(get("/test/task-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode", is("TASK_NOT_FOUND")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
+    @DisplayName("TaskAlreadyClosedException traduce a TASK_ALREADY_CLOSED (409)")
+    void shouldHandleTaskAlreadyClosedException() throws Exception {
+        mockMvc.perform(get("/test/task-already-closed"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("TASK_ALREADY_CLOSED")))
+                .andExpect(jsonPath("$.message", is("Esta tarea ya fue cerrada.")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
+    @DisplayName("ActiveTaskExistsException traduce a ACTIVE_TASK_EXISTS (409)")
+    void shouldHandleActiveTaskExistsException() throws Exception {
+        mockMvc.perform(get("/test/active-task-exists"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("ACTIVE_TASK_EXISTS")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
+    @DisplayName("RoomTaskExistsException traduce a ROOM_TASK_EXISTS (409)")
+    void shouldHandleRoomTaskExistsException() throws Exception {
+        mockMvc.perform(get("/test/room-task-exists"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("ROOM_TASK_EXISTS")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
+    @DisplayName("UsernameAlreadyExistsException traduce a USERNAME_ALREADY_EXISTS (409)")
+    void shouldHandleUsernameAlreadyExistsException() throws Exception {
+        mockMvc.perform(get("/test/username-already-exists"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("USERNAME_ALREADY_EXISTS")))
+                .andExpect(jsonPath("$.message", is("Ya existe una cuenta con el usuario jramirez.")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
     @DisplayName("Excepción general traduce a INTERNAL_ERROR (500) con cuerpo ApiError y sin exponer detalles")
     void shouldHandleGeneralException() throws Exception {
         mockMvc.perform(get("/test/internal-error"))
@@ -226,6 +283,36 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/concurrent-update")
         void testConcurrentUpdate() {
             throw new ObjectOptimisticLockingFailureException("Room", "room-123");
+        }
+
+        @GetMapping("/test/task-not-owned")
+        void testTaskNotOwned() {
+            throw new com.hospitua.habitaciones.domain.exception.TaskNotOwnedException();
+        }
+
+        @GetMapping("/test/task-not-found")
+        void testTaskNotFound() {
+            throw new com.hospitua.habitaciones.domain.exception.TaskNotFoundException();
+        }
+
+        @GetMapping("/test/task-already-closed")
+        void testTaskAlreadyClosed() {
+            throw new com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException();
+        }
+
+        @GetMapping("/test/active-task-exists")
+        void testActiveTaskExists() {
+            throw new com.hospitua.habitaciones.domain.exception.ActiveTaskExistsException();
+        }
+
+        @GetMapping("/test/room-task-exists")
+        void testRoomTaskExists() {
+            throw new com.hospitua.habitaciones.domain.exception.RoomTaskExistsException();
+        }
+
+        @GetMapping("/test/username-already-exists")
+        void testUsernameAlreadyExists() {
+            throw new com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException("jramirez");
         }
 
         @GetMapping("/test/internal-error")

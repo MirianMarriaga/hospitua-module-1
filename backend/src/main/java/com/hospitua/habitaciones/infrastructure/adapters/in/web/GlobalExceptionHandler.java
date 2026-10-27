@@ -124,6 +124,62 @@ public class GlobalExceptionHandler {
                         "CONCURRENT_UPDATE", "La habitación acaba de cambiar. Vuelve a intentarlo.", request, null));
     }
 
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskNotOwnedException.class)
+    public ResponseEntity<ApiError> handleTaskNotOwned(
+            com.hospitua.habitaciones.domain.exception.TaskNotOwnedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(buildError("TASK_NOT_OWNED", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskNotFoundException.class)
+    public ResponseEntity<ApiError> handleTaskNotFound(
+            com.hospitua.habitaciones.domain.exception.TaskNotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(buildError("TASK_NOT_FOUND", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException.class)
+    public ResponseEntity<ApiError> handleTaskAlreadyClosed(
+            com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(buildError("TASK_ALREADY_CLOSED", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.ActiveTaskExistsException.class)
+    public ResponseEntity<ApiError> handleActiveTaskExists(
+            com.hospitua.habitaciones.domain.exception.ActiveTaskExistsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(buildError("ACTIVE_TASK_EXISTS", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.RoomTaskExistsException.class)
+    public ResponseEntity<ApiError> handleRoomTaskExists(
+            com.hospitua.habitaciones.domain.exception.RoomTaskExistsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(buildError("ROOM_TASK_EXISTS", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handleUsernameAlreadyExists(
+            com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(buildError("USERNAME_ALREADY_EXISTS", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(
+            com.hospitua.habitaciones.domain.exception.InvalidCredentialsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(buildError("INVALID_CREDENTIALS", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException.class)
+    public ResponseEntity<ApiError> handleCurrentUserRequired(
+            com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(buildError("CURRENT_USER_REQUIRED", ex.getMessage(), request, null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneralException(Exception ex, HttpServletRequest request) {
         String correlationId = UUID.randomUUID().toString();

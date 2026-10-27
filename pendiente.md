@@ -100,14 +100,52 @@
 - `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/RestClientConfig.java`: Configuración de los beans `module2RestClient` y `module3RestClient` con `JdkClientHttpRequestFactory`.
 - `backend/src/test/java/com/hospitua/habitaciones/infrastructure/config/RestClientTimeoutWireMockTest.java`: Pruebas con WireMock validando respuestas rápidas exitosas y corte exacto de `read-timeout` para Módulo 2 (2s) y Módulo 3 (3s).
 
+### Tarea 7 (T019 - Componentes compartidos de limpieza y mantenimiento):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/SourceFlow.java`: Enum con los 12 flujos de origen y método `displayName()` con el nombre legible en español.
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/MaintenanceLimits.java`: Record de dominio (`maxRangeDays`, `maxAdvanceDays`) desacoplado de infraestructura.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/MaintenanceProperties.java`: Propiedades `hospitua.maintenance.*` exponiendo el bean de dominio `MaintenanceLimits`.
+- Excepciones de tareas en `domain/exception/`: `TaskNotOwnedException` (403), `TaskNotFoundException` (404), `TaskAlreadyClosedException` (409), `ActiveTaskExistsException` (409), `RoomTaskExistsException` (409).
+- Registro de excepciones en `GlobalExceptionHandler`.
+- `backend/src/test/java/com/hospitua/habitaciones/domain/model/SourceFlowTest.java`, `MaintenancePropertiesTest.java`.
+
+### Tarea 8 (T022 - Núcleo de cuentas del personal y bootstrap):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/StaffArea.java`: Enum de áreas (`RECEPCION`, `LIMPIEZA`, `MANTENIMIENTO`, `ADMINISTRACION`, `GERENCIA`).
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/StaffAccount.java`: Entidad de dominio con normalización de username, auditoría, estado activo y versión para control concurrente.
+- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/UsernameAlreadyExistsException.java`: Excepción 409 `USERNAME_ALREADY_EXISTS`.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/StaffAccountRepositoryPort.java`: Puerto de persistencia con `save`, `findByUsername`, `countActiveAdminAccounts`, `findActiveAdminAccountsWithLock`.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/PasswordEncoderPort.java`: Puerto para hashing y verificación de contraseñas.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/security/BCryptPasswordEncoderAdapter.java`: Adaptador con `BCryptPasswordEncoder` de `spring-security-crypto`.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/RegisterStaffAccountUseCase.java` y `RegisterStaffAccountService.java`: Servicio de registro con validación de unicidad.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/StaffBootstrapProperties.java`: Configuración de cuenta inicial de Administración.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/startup/StaffAccountBootstrapper.java`: `ApplicationRunner` que inicializa la cuenta de administración si no existe ninguna activa.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/UserAccountJpaEntity.java`, `SpringDataUserAccountJpaRepository.java`, `StaffAccountMapper.java`, `StaffAccountRepositoryAdapter.java`.
+- Pruebas unitarias e integración en `StaffAccountTest.java`, `RegisterStaffAccountServiceTest.java`, `StaffAccountIntegrationTest.java`.
+
+### Tarea 9 (T020 - Inicio de sesión y usuario actual):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/InvalidCredentialsException.java`: 401 `INVALID_CREDENTIALS`.
+- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/CurrentUserRequiredException.java`: 400 `CURRENT_USER_REQUIRED`.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/LoginUseCase.java` y `LoginService.java`: Validación de credenciales y estado activo sin revelar causa de error.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/dto/LoginRequest.java` y `LoginResponse.java`: DTOs de inicio de sesión sin exponer hash ni contraseñas.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/AuthController.java`: Endpoint `POST /api/auth/login`.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/CurrentUserResolver.java`: Componente inyectable para resolver usuario actual del encabezado `X-User`.
+- Registro de excepciones en `GlobalExceptionHandler`.
+- Pruebas unitarias en `LoginServiceTest.java`, `CurrentUserResolverTest.java`, y MockMvc en `AuthControllerTest.java`.
+
+### Tarea 10 (T024 - Publicador de avisos de mantenimiento):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/MaintenanceNoticeAction.java`: Enum de acciones (`SCHEDULED`, `UPDATED`, `CANCELLED`).
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MaintenanceNoticePayload.java`: Record DTO para formato plano con fechas ISO AAAA-MM-DD y omisión de nulos.
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/MaintenanceNoticePublisher.java`: Servicio `@Transactional(propagation = Propagation.MANDATORY)` con métodos `publishScheduled`, `publishUpdated` y `publishCancelled` hacia `habitacion.mantenimiento` con eventType `MAINTENANCE_NOTICE`.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/AbstractModule2FlatMessageSerializer.java`: Adaptador plano con inclusión de `messageId`, `sequenceNumber` y omisión de campos nulos.
+- Pruebas unitarias en `MaintenanceNoticePublisherTest.java` e integración completa con Testcontainers en `MaintenanceNoticeIntegrationTest.java` (persistencia jsonb, omisión de campos nulos en BD y mensaje, y rollback atómico).
+
 ### Planes y Documentación:
-- `documentos/PLAN/base/plan.md`: Marcadas con `[x]` las tareas T010, T011, T012, T013, T014 y T016.
+- `documentos/PLAN/base/plan.md`: Marcadas con `[x]` las tareas T010, T011, T012, T013, T014, T016, T019, T020, T022, T023 y T024.
 - `pendiente.md`: Actualizado con el registro detallado de las tareas ejecutadas.
 
 ## Resultado de `mvnw.cmd verify`
 - **Docker / Testcontainers**: Contenedores PostgreSQL 16 y RabbitMQ 3.13 activos y conectados de forma dinámica.
 - **Modo Hibernate**: Esquema completamente validado en modo `validate` contra Flyway V1.
-- **Spotless**: 85 archivos Java limpios y formateados según el estándar del proyecto (`BUILD SUCCESS`).
-- **Pruebas Automatizadas**: **74 pruebas ejecutadas, 0 fallos, 0 errores, 0 omitidos**.
+- **Spotless**: 127 archivos Java limpios y formateados según el estándar del proyecto (`BUILD SUCCESS`).
+- **Pruebas Automatizadas**: **132 pruebas ejecutadas, 0 fallos, 0 errores, 0 omitidos**.
 - **Empaquetado JAR**: Generación exitosa de `target/habitaciones-0.0.1-SNAPSHOT.jar`.
 - **Resultado General**: `BUILD SUCCESS`.

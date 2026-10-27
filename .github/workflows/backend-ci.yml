@@ -1,0 +1,40 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  verify:
+    name: Maven Verify (Spotless, Unit & Integration Tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Make Maven wrapper executable
+        run: chmod +x backend/mvnw
+
+      - name: Run Maven Verify
+        working-directory: backend
+        run: ./mvnw verify -DexcludedGroups=performance

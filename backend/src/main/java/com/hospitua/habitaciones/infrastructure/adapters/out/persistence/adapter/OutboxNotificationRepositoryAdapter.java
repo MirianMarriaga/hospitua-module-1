@@ -56,11 +56,16 @@ public class OutboxNotificationRepositoryAdapter implements OutboxEventPublisher
         UUID messageId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(clock);
 
+        Object entityPayload = payload;
+        if (payload instanceof com.hospitua.habitaciones.application.dto.MaintenanceNoticePayload notice) {
+            entityPayload = notice.toMap();
+        }
+
         OutboxNotificationJpaEntity entity = new OutboxNotificationJpaEntity(
                 UUID.randomUUID(),
                 eventType,
                 routingKey,
-                payload,
+                entityPayload,
                 messageId,
                 sequenceNumber,
                 OutboxStatus.PENDING,

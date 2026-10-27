@@ -65,4 +65,17 @@ class ApplicationConfigurationProfilesTest {
                     .isNotNull();
         }
     }
+
+    @Test
+    @DisplayName("application.yml debe configurar hospitua.maintenance con max-range-days y max-advance-days")
+    void shouldConfigureMaintenanceProperties() throws IOException {
+        List<PropertySource<?>> propertySources =
+                loader.load("application.yml", new ClassPathResource("application.yml"));
+
+        PropertySource<?> defaultSource = propertySources.get(0);
+        assertThat(defaultSource.getProperty("hospitua.maintenance.max-range-days"))
+                .isEqualTo(90);
+        assertThat(defaultSource.getProperty("hospitua.maintenance.max-advance-days"))
+                .isEqualTo(365);
+    }
 }
