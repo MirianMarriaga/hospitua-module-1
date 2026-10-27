@@ -1,0 +1,51 @@
+-- ============================================================================
+-- HOSPITUA - Módulo 1 (Habitaciones, Inventario, Check-In y Check-Out)
+-- Migración V2: Semilla SINTÉTICA de habitaciones para pruebas y desarrollo
+-- ATENCIÓN: Estos datos son exclusivamente sintéticos / de prueba para inicializar
+-- el inventario físico base en pisos 1, 2 y 3.
+-- ============================================================================
+
+-- 1. Inserción de 14 habitaciones sintéticas en estados Available e Inactive
+INSERT INTO room (id, room_number, floor, category_room, max_capacity, base_rate, status, reserved_by_reservation_ref, version) VALUES
+    ('a0000000-0000-0000-0000-000000000101', '101', 1, 'SENCILLA', 1, 120000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000102', '102', 1, 'SENCILLA', 2, 140000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000103', '103', 1, 'DOBLE',    2, 180000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000104', '104', 1, 'DOBLE',    3, 200000.00, 'Inactive',  NULL, 0),
+    ('a0000000-0000-0000-0000-000000000105', '105', 1, 'SUITE',    4, 320000.00, 'Available', NULL, 0),
+
+    ('a0000000-0000-0000-0000-000000000201', '201', 2, 'SENCILLA', 2, 130000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000202', '202', 2, 'DOBLE',    2, 190000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000203', '203', 2, 'DOBLE',    3, 210000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000204', '204', 2, 'SUITE',    4, 350000.00, 'Inactive',  NULL, 0),
+    ('a0000000-0000-0000-0000-000000000205', '205', 2, 'BOUTIQUE', 2, 420000.00, 'Available', NULL, 0),
+
+    ('a0000000-0000-0000-0000-000000000301', '301', 3, 'SENCILLA', 2, 140000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000302', '302', 3, 'DOBLE',    2, 200000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000303', '303', 3, 'SUITE',    4, 360000.00, 'Available', NULL, 0),
+    ('a0000000-0000-0000-0000-000000000304', '304', 3, 'BOUTIQUE', 3, 460000.00, 'Available', NULL, 0);
+
+-- 2. Periodo inicial abierto en room_state_history para cada habitación
+-- source_flow = 'REGISTER_ROOM', actor_id = NULL, previous_status = NULL, end_date_time = NULL
+INSERT INTO room_state_history (id, room_id, status, previous_status, start_date_time, end_date_time, actor_id, source_flow, reservation_ref) VALUES
+    ('b0000000-0000-0000-0000-000000000101', 'a0000000-0000-0000-0000-000000000101', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000102', 'a0000000-0000-0000-0000-000000000102', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000103', 'a0000000-0000-0000-0000-000000000103', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000104', 'a0000000-0000-0000-0000-000000000104', 'Inactive',  NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000105', 'a0000000-0000-0000-0000-000000000105', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+
+    ('b0000000-0000-0000-0000-000000000201', 'a0000000-0000-0000-0000-000000000201', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000202', 'a0000000-0000-0000-0000-000000000202', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000203', 'a0000000-0000-0000-0000-000000000203', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000204', 'a0000000-0000-0000-0000-000000000204', 'Inactive',  NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000205', 'a0000000-0000-0000-0000-000000000205', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+
+    ('b0000000-0000-0000-0000-000000000301', 'a0000000-0000-0000-0000-000000000301', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000302', 'a0000000-0000-0000-0000-000000000302', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000303', 'a0000000-0000-0000-0000-000000000303', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL),
+    ('b0000000-0000-0000-0000-000000000304', 'a0000000-0000-0000-0000-000000000304', 'Available', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL, 'REGISTER_ROOM', NULL);
+
+-- 3. Bajas vigentes en room_decommission para las habitaciones Inactive (104 y 204)
+-- decommissioned_by = NULL, reactivated_by = NULL, reactivation_date_time = NULL
+INSERT INTO room_decommission (id, room_id, reason_category, reason_detail, decommissioned_by, decommission_date_time, reactivated_by, reactivation_date_time) VALUES
+    ('c0000000-0000-0000-0000-000000000104', 'a0000000-0000-0000-0000-000000000104', 'ADMINISTRATIVE_DECISION', 'Baja preventiva administrativa inicial de prueba', NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL),
+    ('c0000000-0000-0000-0000-000000000204', 'a0000000-0000-0000-0000-000000000204', 'FLOOR_CLOSURE',           'Cierre preventivo de piso inicial de prueba',            NULL, TIMESTAMP WITH TIME ZONE '2026-10-01 00:00:00-05', NULL, NULL);
