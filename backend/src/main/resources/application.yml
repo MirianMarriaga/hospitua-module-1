@@ -34,8 +34,6 @@ hospitua:
   maintenance:
     max-range-days: 90
     max-advance-days: 365
-    # Respaldo del trabajo de bloqueos técnicos si la lista de las 00:00 no llega (plan base, regla 10)
-    fallback-apply-time: "01:00"
 
 ---
 # Desarrollo local contra docker-compose.yml (raíz del repositorio).
@@ -43,6 +41,8 @@ spring:
   config:
     activate:
       on-profile: dev
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev-data
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/hospitua_m1}
     username: ${DB_USERNAME:hospitua}
@@ -70,23 +70,32 @@ logging:
     com.hospitua.habitaciones: DEBUG
 
 ---
-# PostgreSQL y RabbitMQ los inyecta Testcontainers con @ServiceConnection.
+# PostgreSQL y RabbitMQ los inyecta Testcontainers con @ServiceConnection o variables de entorno.
 # Las pruebas de clientes REST usan MockRestServiceServer y WireMock.
 spring:
   config:
     activate:
       on-profile: test
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hospitua_m1_test}
+    username: ${DB_USERNAME:hospitua}
+    password: ${DB_PASSWORD:hospitua}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:hospitua}
+    password: ${RABBITMQ_PASSWORD:hospitua}
 
 hospitua:
   module2:
-    base-url: http://localhost:8082
+    base-url: ${MODULE2_BASE_URL:http://localhost:8082}
   module3:
-    base-url: http://localhost:8083
+    base-url: ${MODULE3_BASE_URL:http://localhost:8083}
   bootstrap:
     admin:
-      username: admin
-      password: admin123
-      full-name: Administrador
+      username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:admin123}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:Administrador}
 
 ---
 # Sin valores por defecto: toda la configuración llega por variables de entorno.
