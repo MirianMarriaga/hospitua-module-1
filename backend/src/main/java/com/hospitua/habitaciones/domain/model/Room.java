@@ -1,13 +1,40 @@
 package com.hospitua.habitaciones.domain.model;
 
+import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Entidad de dominio que representa una unidad habitacional física.
+ * Entidad de dominio que representa una unidad habitacional física y gobierna
+ * su ciclo de vida mediante la máquina de estados canónica de HOSPITUA.
  */
 public class Room {
+
+    private static final Map<RoomStatus, Set<RoomStatus>> ALLOWED_TRANSITIONS = Map.of(
+            RoomStatus.Available,
+            Set.of(
+                    RoomStatus.Reserved,
+                    RoomStatus.InCleaning,
+                    RoomStatus.DisabledForRepairs,
+                    RoomStatus.TechnicalBlock,
+                    RoomStatus.Inactive),
+            RoomStatus.Reserved,
+            Set.of(RoomStatus.Available, RoomStatus.Occupied),
+            RoomStatus.Occupied,
+            Set.of(RoomStatus.PendingCleaning),
+            RoomStatus.PendingCleaning,
+            Set.of(RoomStatus.InCleaning),
+            RoomStatus.InCleaning,
+            Set.of(RoomStatus.Available, RoomStatus.PendingCleaning),
+            RoomStatus.DisabledForRepairs,
+            Set.of(RoomStatus.PendingCleaning),
+            RoomStatus.TechnicalBlock,
+            Set.of(RoomStatus.PendingCleaning),
+            RoomStatus.Inactive,
+            Set.of(RoomStatus.Available));
 
     private final UUID id;
     private final String roomNumber;
@@ -15,8 +42,8 @@ public class Room {
     private final RoomCategory categoryRoom;
     private final int maxCapacity;
     private final BigDecimal baseRate;
-    private final RoomStatus status;
-    private final String reservedByReservationRef;
+    private RoomStatus status;
+    private String reservedByReservationRef;
     private final int version;
 
     public Room(
@@ -38,6 +65,34 @@ public class Room {
         this.status = Objects.requireNonNull(status, "El estado no puede ser nulo");
         this.reservedByReservationRef = reservedByReservationRef;
         this.version = version;
+    }
+
+    /**
+     * Valida y ejecuta la transición hacia el estado objetivo conforme a la máquina de estados canónica.
+     * Si el destino es distinto de Reserved, limpia automáticamente reservedByReservationRef.
+     */
+    public void transitionTo(RoomStatus target) {
+        Objects.requireNonNull(target, "El estado destino no puede ser nulo");
+        Set<RoomStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(this.status, Set.of());
+        if (!allowed.contains(target)) {
+            throw new InvalidRoomTransitionException(this.status);
+        }
+        this.status = target;
+        if (target != RoomStatus.Reserved) {
+            this.reservedByReservationRef = null;
+        }
+    }
+
+    /**
+     * Transiciona la habitación al estado Reserved y asigna la referencia de reserva.
+     * Es el único camino que asigna la referencia de reserva en el dominio.
+     */
+    public void reserveFor(String reservationRef) {
+        if (reservationRef == null || reservationRef.isBlank()) {
+            throw new IllegalArgumentException("La referencia de reserva es obligatoria para apartar la habitación.");
+        }
+        transitionTo(RoomStatus.Reserved);
+        this.reservedByReservationRef = reservationRef;
     }
 
     public UUID getId() {

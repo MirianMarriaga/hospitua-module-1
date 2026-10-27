@@ -1,55 +1,62 @@
 # Reporte de Pendientes y Decisiones Técnicas
 
 ## Lista de `TODO(pendiente)` dejados en el código
-Actualmente **no se dejaron comentarios `// TODO(pendiente)`** en el código fuente. Todas las tareas de este lote (T007 y T008) fueron implementadas en su totalidad conforme a las especificaciones y lineamientos arquitectónicos.
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java`:
+  `// TODO(pendiente): Se utilizó IllegalArgumentException para rechazar el destino Reserved sin reservationRef válido; evaluar si se requiere una excepción de dominio específica en T018.`
 
 ## Decisiones Técnicas Tomadas
-1. **YAGNI en Entidades JPA (T008)**: Se crearon únicamente las entidades JPA requeridas por este lote (`RoomJpaEntity`, `StayJpaEntity`, `RoomGuestJpaEntity`). Las entidades JPA para las demás tablas creadas en V1 (`daily_reservation`, `outbox_notification`, `user_account`, etc.) se crearán en los lotes específicos que implementen sus puertos y servicios (T011, T012, T020, T022), respetando estrictamente el principio YAGNI y evitando código muerto.
-2. **Ordenamiento Natural de Habitaciones (`RoomRepositoryAdapter`)**: Para garantizar el orden natural requerido por el plan (`101, 101A, 102, 1001`), se implementó un comparador robusto que descompone el número de habitación extrayendo primero la parte numérica entera y luego el sufijo alfanumérico.
-3. **Desacoplamiento Relacional (V1 Flyway)**: Conforme a las reglas de integración y arquitectura, `daily_reservation_room.room_id` no tiene restricción de clave foránea hacia `room` para evitar que una habitación inexistente enviada por Módulo 2 aborte la ingesta diaria. Del mismo modo, los campos de usuario (`actor_id`, `created_by`, etc.) no tienen FK a `user_account`, manejándose como cadenas de texto simples con el `username`.
-4. **Inmutabilidad de Ocupantes Físicos (`RoomGuest`)**: La clase de dominio `RoomGuest` no posee métodos setter y `RoomGuestRepositoryPort` únicamente expone `saveAll` y `findByStayId` (sin métodos de modificación ni borrado), asegurando el cumplimiento de la Regla Transversal 4.
-5. **Contexto Transaccional en `lockById`**: Se anotó `lockById` en `RoomRepositoryAdapter` con `@Transactional` para satisfacer el requisito de JPA/Hibernate de una transacción activa al ejecutar `@Lock(LockModeType.PESSIMISTIC_WRITE)` (`SELECT ... FOR UPDATE`), permitiendo su uso tanto dentro de transacciones de casos de uso (vía propagación `REQUIRED`) como en invocaciones atómicas aisladas.
+1. **Matriz de Transiciones Canónicas como Dato (T010 - OCP)**:
+   - En `Room.java` se definió la matriz de transiciones estrictas de la máquina de estados según `maquina-estados-habitacion.md` como una estructura inmutable de datos (`Map<RoomStatus, Set<RoomStatus>>`), permitiendo exactamente las 14 transiciones canónicas válidas entre los 8 estados del sistema.
+   - Cualquier intento de transición no permitida arroja `InvalidRoomTransitionException` con el estado actual y el intentado.
+2. **Encapsulamiento del Ciclo de Vida de `reservedByReservationRef` (T010)**:
+   - `Room.reserveFor(reservationRef)` es el único método y camino habilitado para asignar la referencia de reserva y transicionar a `Reserved`.
+   - En `Room.transitionTo(target)`, si el estado destino es diferente de `Reserved`, la referencia de reserva se limpia a `null` de forma automática.
+3. **Inmutabilidad y Cierre Único de Periodos de Historial (T016 - Regla 8)**:
+   - `RoomStateHistory` modela los periodos como inmutables: una vez creados solo admiten el cierre de periodo (`close(OffsetDateTime)`), el cual lanza `IllegalStateException` si ya se encontraba cerrado.
+   - `RoomStateHistoryRecorder` localiza el periodo actualmente abierto para la habitación (si existe), lo cierra con la marca de tiempo de `Clock`, y abre el nuevo periodo con el estado y `sourceFlow` correspondiente.
+4. **Mapeo de Bitácora y Columna JSONB (T016)**:
+   - En `RoomAuditLogJpaEntity`, el mapa `details` (`Map<String, Object>`) se mapea utilizando `@JdbcTypeCode(SqlTypes.JSON)` de Hibernate 6, integrándose de forma limpia con la columna nativa `jsonb` de PostgreSQL creada en `V1__init_schema.sql` y validada en `ddl-auto: validate`.
+   - La bitácora soporta `actorId` nulo para eventos autónomos del sistema y toma el timestamp del servidor a través de `Clock` (Regla 6).
+5. **Transaccionalidad Atómica (T010 + T016 - Regla 8 y 13)**:
+   - `RoomStateTransitionService` utiliza `@Transactional(propagation = Propagation.REQUIRED)` para unirse a la transacción del caso de uso invocador. Dentro de la misma transacción se actualiza la entidad `Room` y se registran los cambios en `room_state_history`. Si ocurre una falla en cualquier punto del flujo, la transacción revierte tanto el estado de la habitación como el historial.
 
 ## Archivos Creados y Modificados
-### Migraciones de Base de Datos (Flyway - T007):
-- `backend/src/main/resources/db/migration/V1__init_schema.sql`: Creación de las 11 tablas base (`room`, `room_state_history`, `room_audit_log`, `room_decommission`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`), índices, restricciones (`floor > 0`, `room_number` único) y las 4 secuencias de PostgreSQL para el Outbox (`outbox_seq_habitacion_checkin`, `outbox_seq_habitacion_checkout`, `outbox_seq_facturacion_checkout`, `outbox_seq_habitacion_mantenimiento`).
-- `backend/src/main/resources/db/migration/V2__seed_rooms.sql`: Semilla sintética de prueba con 14 habitaciones en 3 pisos (categorías SENCILLA, DOBLE, SUITE y BOUTIQUE), estados `Available` e `Inactive`, con sus periodos iniciales abiertos en `room_state_history` (`REGISTER_ROOM`) y las bajas vigentes en `room_decommission` para las habitaciones inactivas.
+### Tarea 1 (Pieza mínima T019):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/SourceFlow.java`: Enum con los 12 flujos de origen y método `displayName()` con el nombre legible en español.
+- `backend/src/test/java/com/hospitua/habitaciones/domain/model/SourceFlowTest.java`: Pruebas unitarias que validan la existencia de los 12 valores y sus nombres legibles.
 
-### Dominio y Puertos de Salida (T008):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomCategory.java`: Enum canónico de categorías (`SENCILLA`, `DOBLE`, `SUITE`, `BOUTIQUE`).
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/Room.java`: Entidad de dominio pura de habitación física con control de concurrencia optimista (`version`).
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/Stay.java`: Entidad de dominio de estancia física formalizada en Check-In.
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomGuest.java`: Entidad inmutable de ocupante físico con campos migratorios opcionales.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomRepositoryPort.java`: Contrato de persistencia y consulta con bloqueo pesimista y orden natural.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/StayRepositoryPort.java`: Contrato de persistencia de estancias.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomGuestRepositoryPort.java`: Contrato de persistencia inmutable de huéspedes.
+### Tarea 2 (T016 - Historial de estados y bitácora):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomStateHistory.java`: Entidad de dominio inmutable para periodos de historial.
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomAuditEventType.java`: Enum de tipos de eventos de auditoría (`RESERVATION_STATE_CONFLICT`, `ROOM_EDITED`, `CHECK_IN`, `CHECK_OUT`).
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomAuditEntry.java`: Modelo de dominio puro para entradas de bitácora.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomStateHistoryRepositoryPort.java`: Puerto de persistencia y consulta de periodo abierto.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomAuditLogRepositoryPort.java`: Puerto de registro de bitácora.
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateHistoryRecorder.java`: Servicio de aplicación que coordina el cierre y apertura de periodos con `Clock`.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomStateHistoryJpaEntity.java`: Entidad JPA para `room_state_history`.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomAuditLogJpaEntity.java`: Entidad JPA para `room_audit_log` con `details jsonb`.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomStateHistoryJpaRepository.java`: Interfaz Spring Data JPA para historial.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomAuditLogJpaRepository.java`: Interfaz Spring Data JPA para bitácora.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomStateHistoryMapper.java`: Mapper dominio <-> JPA para historial.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomAuditLogMapper.java`: Mapper dominio <-> JPA para bitácora.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomStateHistoryRepositoryAdapter.java`: Adaptador JPA de historial.
+- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomAuditLogRepositoryAdapter.java`: Adaptador JPA de bitácora.
 
-### Adaptadores de Persistencia e Infraestructura JPA (T008):
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomJpaEntity.java`: Entidad JPA para `room` con `@Version`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/StayJpaEntity.java`: Entidad JPA para `stay` con `@Version`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomGuestJpaEntity.java`: Entidad JPA para `room_guest`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomJpaRepository.java`: Interfaz Spring Data con `@Lock(PESSIMISTIC_WRITE)`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataStayJpaRepository.java`: Interfaz Spring Data para estancias.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomGuestJpaRepository.java`: Interfaz Spring Data para huéspedes.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomMapper.java`: Mapper dominio <-> JPA para Room.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/StayMapper.java`: Mapper dominio <-> JPA para Stay.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomGuestMapper.java`: Mapper dominio <-> JPA para RoomGuest.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomRepositoryAdapter.java`: Adaptador que implementa `RoomRepositoryPort`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/StayRepositoryAdapter.java`: Adaptador que implementa `StayRepositoryPort`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomGuestRepositoryAdapter.java`: Adaptador que implementa `RoomGuestRepositoryPort`.
+### Tarea 3 (T010 - Máquina de estados):
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/Room.java`: Actualizado con matriz de transiciones canónicas (`ALLOWED_TRANSITIONS`), `transitionTo(target)` y `reserveFor(ref)`.
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/TransitionRoomStateUseCase.java`: Puerto de entrada para transiciones habitacionales y registro de estado inicial.
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java`: Servicio `@Transactional(propagation = Propagation.REQUIRED)` que orquesta validación, transición, guardado y registro en historial.
+- `backend/src/test/java/com/hospitua/habitaciones/domain/model/RoomTest.java`: Pruebas exhaustivas de las 64 combinaciones origen-destino entre los 8 estados canónicos, asignación de reserva y limpieza de referencias.
+- `backend/src/test/java/com/hospitua/habitaciones/application/service/RoomStateTransitionServiceTest.java`: Pruebas unitarias de Mockito para el servicio de transición.
+- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/RoomStateTransitionIntegrationTest.java`: Pruebas de integración con Testcontainers PostgreSQL que validan atomicidad, reversión ante errores, persistencia de historial y bitácora con y sin actor.
 
-### Configuración y Plan Modificados:
-- `backend/src/test/java/com/hospitua/habitaciones/TestcontainersConfiguration.java`: Ajustada visibilidad a `public` para reutilización en pruebas de persistencia.
-- `documentos/PLAN/base/plan.md`: Marcadas como completadas `[x]` las tareas T007 y T008.
-
-### Pruebas Automatizadas (Testcontainers PostgreSQL):
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/FlywayMigrationAndSchemaTest.java`: Verifica la aplicación de V1 y V2, el conteo de 14 habitaciones (12 Available, 2 Inactive), los periodos iniciales abiertos en `room_state_history`, las bajas activas en `room_decommission`, el cumplimiento de restricciones (`floor > 0` y `room_number` único), y la existencia de las secuencias del Outbox.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/RoomRepositoryAdapterTest.java`: Verifica guardado y lectura, orden natural estricto (`101, 101A, 102, 1001`), exclusión de estados con `findByStatusNot`, bloqueo pesimista concurrente con `lockById`, y detección de conflictos con `ObjectOptimisticLockingFailureException`.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/StayAndGuestRepositoryAdapterTest.java`: Verifica guardado y lectura de `Stay` y `RoomGuest` (con campos migratorios nulos y no nulos), y valida por introspección la inmutabilidad de `RoomGuest`.
+### Planes y Documentación:
+- `documentos/PLAN/base/plan.md`: Marcadas con `[x]` las tareas T010 y T016 (T019 se mantiene en `[ ]`).
+- `pendiente.md`: Actualizado con el registro detallado de las tareas ejecutadas.
 
 ## Resultado de `mvnw.cmd verify`
-- **Docker / Testcontainers**: Contenedor PostgreSQL 16 y RabbitMQ 3.13 inicializados correctamente con `@ServiceConnection`.
-- **Modo Hibernate**: Validado en modo `validate` contra el esquema creado por Flyway (cero discrepancias de esquema).
-- **Formateo Spotless**: 36 archivos analizados y 100% limpios (`BUILD SUCCESS`).
-- **Pruebas Totales**: **27 tests ejecutados, 0 fallos, 0 errores, 0 omitidos**.
-- **Resultado final**: `BUILD SUCCESS` en `mvnw.cmd verify`.
+- **Docker / Testcontainers**: Contenedores PostgreSQL 16 y RabbitMQ 3.13 activos con `@ServiceConnection`.
+- **Modo Hibernate**: Esquema completamente validado en modo `validate` contra Flyway V1.
+- **Spotless**: 57 archivos formateados y 100% limpios (`BUILD SUCCESS`).
+- **Pruebas Automatizadas**: **56 pruebas ejecutadas, 0 fallos, 0 errores, 0 omitidos**.
+- **Empaquetado JAR**: Generación exitosa de `target/habitaciones-0.0.1-SNAPSHOT.jar`.
+- **Resultado General**: `BUILD SUCCESS`.
