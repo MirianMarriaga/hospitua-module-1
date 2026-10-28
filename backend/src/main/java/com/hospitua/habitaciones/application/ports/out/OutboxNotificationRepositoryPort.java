@@ -11,9 +11,9 @@ public interface OutboxNotificationRepositoryPort {
 
     /**
      * Consulta las notificaciones en estado PENDING cuyo nextAttemptAt sea menor o igual a now,
-     * ordenadas por fecha de creación ascendente.
+     * ordenadas por fecha de creación ascendente, como máximo {@code limit} por consulta.
      */
-    List<OutboxNotification> findPendingNotifications(OffsetDateTime now);
+    List<OutboxNotification> findPendingNotifications(OffsetDateTime now, int limit);
 
     /**
      * Marca una notificación como exitosamente publicada.

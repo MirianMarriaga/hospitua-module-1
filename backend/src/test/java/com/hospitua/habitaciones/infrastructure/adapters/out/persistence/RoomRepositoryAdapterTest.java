@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -99,9 +100,17 @@ class RoomRepositoryAdapterTest {
     }
 
     @Test
+    @DisplayName("lockById exige una transacción en curso (regla 13): fuera de ella falla en lugar de no bloquear")
+    void lockByIdShouldRequireActiveTransaction() {
+        assertThatThrownBy(() -> roomRepositoryPort.lockById(UUID.randomUUID()))
+                .isInstanceOf(IllegalTransactionStateException.class);
+    }
+
+    @Test
     @DisplayName("lockById devuelve vacío si no existe y bloquea la fila ante transacciones concurrentes")
     void shouldLockByIdAndBlockConcurrentTransactions() throws Exception {
-        Optional<Room> nonExistent = roomRepositoryPort.lockById(UUID.randomUUID());
+        Optional<Room> nonExistent = new TransactionTemplate(transactionManager)
+                .execute(status -> roomRepositoryPort.lockById(UUID.randomUUID()));
         assertThat(nonExistent).isEmpty();
 
         UUID roomId = UUID.randomUUID();

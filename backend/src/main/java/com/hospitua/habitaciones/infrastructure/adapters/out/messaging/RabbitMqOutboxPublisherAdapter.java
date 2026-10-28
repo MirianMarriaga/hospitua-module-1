@@ -1,60 +1,49 @@
 package com.hospitua.habitaciones.infrastructure.adapters.out.messaging;
 
 import com.hospitua.habitaciones.infrastructure.config.RabbitConfig;
+import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Adaptador para publicar mensajes en RabbitMQ garantizando Publisher Confirms y mandatory = true.
- * Considera como fallo cualquier NACK, timeout o mensaje devuelto por ausencia de cola receptora.
+ * Publica en {@code hospitua.events} con Publisher Confirms y {@code mandatory = true}. Un nack, un mensaje devuelto
+ * por falta de cola receptora o la falta de confirmación lanzan {@link OutboxPublishException}.
+ *
+ * <p>Spring AMQP registra el mensaje devuelto en {@link CorrelationData} antes de completar la confirmación, así que
+ * basta con revisarlo después del ack.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RabbitMqOutboxPublisherAdapter {
 
+    private static final Duration CONFIRM_TIMEOUT = Duration.ofSeconds(5);
+
     private final RabbitTemplate rabbitTemplate;
 
     public void publish(String routingKey, Object message, UUID messageId) {
-        CorrelationData correlationData = new CorrelationData(messageId.toString());
-
-        rabbitTemplate.convertAndSend(RabbitConfig.EVENTS_EXCHANGE, routingKey, message, correlationData);
-
+        CorrelationData correlation = new CorrelationData(messageId.toString());
+        rabbitTemplate.convertAndSend(RabbitConfig.EVENTS_EXCHANGE, routingKey, message, correlation);
         try {
-            CorrelationData.Confirm confirm = correlationData.getFuture().get(5, TimeUnit.SECONDS);
-            if (confirm == null || !confirm.ack()) {
-                String reason = confirm != null ? confirm.reason() : "Sin confirmación del broker";
-                throw new IllegalStateException("Fallo en Publisher Confirm para mensaje " + messageId + ": " + reason);
+            CorrelationData.Confirm confirm =
+                    correlation.getFuture().get(CONFIRM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            if (!confirm.ack()) {
+                throw new OutboxPublishException("El broker rechazó el mensaje " + messageId + ": " + confirm.reason());
             }
-
-            // Esperar brevemente por si el retorno por mandatory llega junto con o justo antes del ACK
-            for (int i = 0; i < 10; i++) {
-                if (correlationData.getReturned() != null) {
-                    break;
-                }
-                Thread.sleep(20);
-            }
-
-            ReturnedMessage returned = correlationData.getReturned();
-            if (returned != null) {
-                throw new IllegalStateException(
-                        "Mensaje devuelto por el broker (sin cola receptora) para routingKey: " + routingKey);
+            if (correlation.getReturned() != null) {
+                throw new OutboxPublishException(
+                        "Mensaje devuelto por el broker (sin cola receptora) para " + routingKey);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Publicación interrumpida para mensaje " + messageId, e);
-        } catch (Exception e) {
-            if (e instanceof IllegalStateException ise) {
-                throw ise;
-            }
-            throw new IllegalStateException(
-                    "Error al publicar mensaje " + messageId + " en RabbitMQ: " + e.getMessage(), e);
+            throw new OutboxPublishException("Publicación interrumpida del mensaje " + messageId, e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new OutboxPublishException("Sin confirmación del broker para el mensaje " + messageId, e);
         }
     }
 }

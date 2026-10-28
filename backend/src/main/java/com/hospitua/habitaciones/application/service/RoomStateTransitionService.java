@@ -28,12 +28,6 @@ public class RoomStateTransitionService implements TransitionRoomStateUseCase {
     @Transactional(propagation = Propagation.REQUIRED)
     public OffsetDateTime transition(
             UUID roomId, RoomStatus target, String actorId, SourceFlow sourceFlow, String reservationRef) {
-        if (target == RoomStatus.Reserved && (reservationRef == null || reservationRef.isBlank())) {
-            // TODO(pendiente): verificar si se requiere una excepción de dominio dedicada para reservationRef nulo en
-            // lugar de IllegalArgumentException
-            throw new IllegalArgumentException("La referencia de reserva es obligatoria para apartar la habitación.");
-        }
-
         Room room = roomRepositoryPort.findById(roomId).orElseThrow(RoomNotFoundException::new);
         RoomStatus previousStatus = room.getStatus();
 

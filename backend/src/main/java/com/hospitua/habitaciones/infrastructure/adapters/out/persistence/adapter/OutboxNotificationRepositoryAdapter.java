@@ -11,9 +11,10 @@ import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.reposit
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -28,11 +29,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OutboxNotificationRepositoryAdapter implements OutboxEventPublisherPort, OutboxNotificationRepositoryPort {
 
-    private static final Set<String> ALLOWED_SEQUENCES = Set.of(
-            "outbox_seq_habitacion_checkin",
-            "outbox_seq_habitacion_checkout",
-            "outbox_seq_facturacion_checkout",
-            "outbox_seq_habitacion_mantenimiento");
+    /** Secuencia de PostgreSQL de cada cola (V1): el sequenceNumber nunca se reinicia por routing key. */
+    private static final Map<String, String> SEQUENCE_BY_ROUTING_KEY = Map.of(
+            "habitacion.checkin", "outbox_seq_habitacion_checkin",
+            "habitacion.checkout", "outbox_seq_habitacion_checkout",
+            "facturacion.checkout", "outbox_seq_facturacion_checkout",
+            "habitacion.mantenimiento", "outbox_seq_habitacion_mantenimiento");
 
     private final SpringDataOutboxNotificationJpaRepository repository;
     private final OutboxNotificationMapper mapper;
@@ -42,30 +44,19 @@ public class OutboxNotificationRepositoryAdapter implements OutboxEventPublisher
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public OutboxMessage enqueue(String routingKey, String eventType, Object payload) {
-        String sequenceName = "outbox_seq_" + routingKey.replace('.', '_');
-        if (!ALLOWED_SEQUENCES.contains(sequenceName)) {
-            throw new IllegalArgumentException(
-                    "No existe secuencia de Outbox configurada para la routingKey: " + routingKey);
+        String sequenceName = SEQUENCE_BY_ROUTING_KEY.get(routingKey);
+        if (sequenceName == null) {
+            throw new IllegalArgumentException("No hay secuencia de Outbox para la routing key: " + routingKey);
         }
-
-        Long sequenceNumber = jdbcTemplate.queryForObject("SELECT nextval('" + sequenceName + "')", Long.class);
-        if (sequenceNumber == null) {
-            throw new IllegalStateException("Error al obtener el siguiente número de secuencia para: " + sequenceName);
-        }
-
+        long sequenceNumber = jdbcTemplate.queryForObject("SELECT nextval('" + sequenceName + "')", Long.class);
         UUID messageId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(clock);
-
-        Object entityPayload = payload;
-        if (payload instanceof com.hospitua.habitaciones.application.dto.MaintenanceNoticePayload notice) {
-            entityPayload = notice.toMap();
-        }
 
         OutboxNotificationJpaEntity entity = new OutboxNotificationJpaEntity(
                 UUID.randomUUID(),
                 eventType,
                 routingKey,
-                entityPayload,
+                payload,
                 messageId,
                 sequenceNumber,
                 OutboxStatus.PENDING,
@@ -82,9 +73,10 @@ public class OutboxNotificationRepositoryAdapter implements OutboxEventPublisher
 
     @Override
     @Transactional(readOnly = true)
-    public List<OutboxNotification> findPendingNotifications(OffsetDateTime now) {
+    public List<OutboxNotification> findPendingNotifications(OffsetDateTime now, int limit) {
         return repository
-                .findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(OutboxStatus.PENDING, now)
+                .findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
+                        OutboxStatus.PENDING, now, Limit.of(limit))
                 .stream()
                 .map(mapper::toDomain)
                 .toList();

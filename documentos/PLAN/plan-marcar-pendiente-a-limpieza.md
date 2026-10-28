@@ -105,9 +105,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Occupied`, `DisabledForRepairs`, `TechnicalBlock` e `InCleaning` → `PendingCleaning`, según `maquina-estados-habitacion.md`.
-- [ ] T002 Verificar que `TransitionRoomStateUseCase` registre el periodo en `room_state_history` (plan base, regla 8 y T016) y que el enum `SourceFlow` (plan base, T019) incluya `CHECK_OUT`, `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK`.
-- [ ] T003 [P] Crear el comando `MarkPendingCleaningCommand`, el resultado `MarkPendingCleaningResult` y el puerto `MarkPendingCleaningUseCase`.
+- [x] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Occupied`, `DisabledForRepairs`, `TechnicalBlock` e `InCleaning` → `PendingCleaning`, según `maquina-estados-habitacion.md`.
+- [x] T002 Verificar que `TransitionRoomStateUseCase` registre el periodo en `room_state_history` (plan base, regla 8 y T016) y que el enum `SourceFlow` (plan base, T019) incluya `CHECK_OUT`, `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK`.
+- [x] T003 [P] Crear el comando `MarkPendingCleaningCommand`, el resultado `MarkPendingCleaningResult` y el puerto `MarkPendingCleaningUseCase`.
 
 ---
 
@@ -119,13 +119,13 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test parametrizado en `MarkPendingCleaningServiceTest` (estado de origen × `sourceFlow`): `Occupied`, `DisabledForRepairs` y `TechnicalBlock` pasan a `PendingCleaning`; `InCleaning` pasa solo con `RELEASE_CLEANING_TASK` y con otro `sourceFlow` se rechaza; `Available` y los demás estados no permitidos se rechazan sin modificar la habitación y con el estado actual en la excepción; en las transiciones válidas, el resultado devuelve la marca que devuelve `TransitionRoomStateUseCase` (HU-1 esc. 1 a 4; FR-001, FR-006, FR-007; SC-001).
-- [ ] T005 [US1] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el servicio, el rollback deja la habitación en su estado de origen y sin registro nuevo en `room_state_history` (caso límite 2).
-- [ ] T006 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación desde el check-out (`CHECK_OUT`); la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1). Solo el check-out sigue con control optimista; con `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK` no aplica: el invocador ya bloqueó la fila (regla 13 del plan base).
+- [x] T004 [P] [US1] Unit test parametrizado en `MarkPendingCleaningServiceTest` (estado de origen × `sourceFlow`): `Occupied`, `DisabledForRepairs` y `TechnicalBlock` pasan a `PendingCleaning`; `InCleaning` pasa solo con `RELEASE_CLEANING_TASK` y con otro `sourceFlow` se rechaza; `Available` y los demás estados no permitidos se rechazan sin modificar la habitación y con el estado actual en la excepción; en las transiciones válidas, el resultado devuelve la marca que devuelve `TransitionRoomStateUseCase` (HU-1 esc. 1 a 4; FR-001, FR-006, FR-007; SC-001).
+- [x] T005 [US1] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el servicio, el rollback deja la habitación en su estado de origen y sin registro nuevo en `room_state_history` (caso límite 2).
+- [x] T006 [US1] Integration test: dos invocaciones concurrentes sobre la misma habitación desde el check-out (`CHECK_OUT`); la segunda falla por bloqueo optimista (`room.version`) y el error llega al invocador (caso límite 1). Solo el check-out sigue con control optimista; con `CONFIRM_REPAIR_END` y `RELEASE_CLEANING_TASK` no aplica: el invocador ya bloqueó la fila (regla 13 del plan base).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implementar `MarkPendingCleaningService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-002, caso límite 2):
+- [x] T007 [US1] Implementar `MarkPendingCleaningService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-002, caso límite 2):
   - Si la habitación está en `InCleaning` y `sourceFlow` no es `RELEASE_CLEANING_TASK`, rechazar con `InvalidRoomTransitionException` (FR-001); los demás orígenes los valida la matriz de la máquina de estados en la transición.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, PendingCleaning, actorId, sourceFlow, null)`, que aplica la transición y registra el periodo en `room_state_history` (FR-002, FR-004), y devolver `MarkPendingCleaningResult` con la marca de tiempo que devuelve la transición (FR-006).
   - Ante un rechazo, lanzar `InvalidRoomTransitionException` con el estado actual (FR-007).

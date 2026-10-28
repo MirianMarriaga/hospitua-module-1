@@ -1,20 +1,17 @@
 package com.hospitua.habitaciones.infrastructure.config;
 
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.annotation.Validated;
 
 /**
- * Propiedades de configuración para la cuenta inicial de Administrador (T022).
+ * Cuenta inicial de Administración {@code hospitua.bootstrap.admin.*} (T022), leída de variables de entorno. Si falta
+ * un dato o no es válido, la aplicación no arranca.
  */
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties(prefix = "hospitua.bootstrap.admin")
-public class StaffBootstrapProperties {
-
-    private String username;
-    private String password;
-    private String fullName;
-}
+@Validated
+@ConfigurationProperties("hospitua.bootstrap.admin")
+public record StaffBootstrapProperties(
+        @NotBlank String username,
+        @NotBlank @Size(min = 8) String password,
+        @NotBlank String fullName) {}

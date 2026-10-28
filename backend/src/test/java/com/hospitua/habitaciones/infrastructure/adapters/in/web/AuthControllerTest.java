@@ -38,7 +38,7 @@ class AuthControllerTest {
         loginUseCase = Mockito.mock(LoginUseCase.class);
         fixedClock = Clock.fixed(Instant.parse("2026-10-15T15:00:00Z"), ZoneId.of("America/Bogota"));
         AuthController controller = new AuthController(loginUseCase);
-        GlobalExceptionHandler handler = new GlobalExceptionHandler(fixedClock);
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(new ApiErrorFactory(fixedClock));
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(handler)

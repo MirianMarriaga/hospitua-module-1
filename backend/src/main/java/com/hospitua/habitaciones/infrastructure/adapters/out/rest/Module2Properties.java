@@ -1,21 +1,18 @@
 package com.hospitua.habitaciones.infrastructure.adapters.out.rest;
 
+import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 /**
- * Propiedades de configuración para la integración REST con el Módulo 2 (Reservas).
- * Mapeadas desde hospitua.module2 con timeouts estrictos según la regla 5.
+ * Propiedades {@code hospitua.module2.*} hacia Módulo 2 (Reservas), con los timeouts de la regla 5. Sin URL la
+ * aplicación no arranca.
  */
-@ConfigurationProperties(prefix = "hospitua.module2")
-public record Module2Properties(String baseUrl, Duration connectTimeout, Duration readTimeout) {
-
-    public Module2Properties {
-        if (connectTimeout == null) {
-            connectTimeout = Duration.ofSeconds(1);
-        }
-        if (readTimeout == null) {
-            readTimeout = Duration.ofSeconds(2);
-        }
-    }
-}
+@Validated
+@ConfigurationProperties("hospitua.module2")
+public record Module2Properties(
+        @NotBlank String baseUrl,
+        @DefaultValue("1s") Duration connectTimeout,
+        @DefaultValue("2s") Duration readTimeout) {}

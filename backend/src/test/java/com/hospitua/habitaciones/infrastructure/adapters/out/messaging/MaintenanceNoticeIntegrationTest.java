@@ -10,7 +10,6 @@ import com.hospitua.habitaciones.application.service.MaintenanceNoticePublisher;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
-import com.hospitua.habitaciones.infrastructure.adapters.out.messaging.serializer.MaintenanceNoticeMessageSerializer;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -41,7 +40,7 @@ class MaintenanceNoticeIntegrationTest {
     private OutboxNotificationRepositoryPort notificationRepositoryPort;
 
     @Autowired
-    private MaintenanceNoticeMessageSerializer serializer;
+    private OutboxSerializerRegistry serializers;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -104,14 +103,15 @@ class MaintenanceNoticeIntegrationTest {
 
         // Verificar que el serializador produce el mensaje plano para RabbitMQ sin campos nulos
         List<OutboxNotification> pending = notificationRepositoryPort.findPendingNotifications(
-                OffsetDateTime.now(clock).plusDays(1));
+                OffsetDateTime.now(clock).plusDays(1), 100);
         OutboxNotification notification = pending.stream()
                 .filter(n -> n.eventType().equals("MAINTENANCE_NOTICE"))
                 .findFirst()
                 .orElseThrow();
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> serialized = (Map<String, Object>) serializer.serialize(notification);
+        Map<String, Object> serialized = (Map<String, Object>)
+                serializers.forType("MAINTENANCE_NOTICE").orElseThrow().serialize(notification);
         assertThat(serialized).containsEntry("action", "SCHEDULED");
         assertThat(serialized).containsEntry("categoryRoom", "BOUTIQUE");
         assertThat(serialized).containsKey("messageId");

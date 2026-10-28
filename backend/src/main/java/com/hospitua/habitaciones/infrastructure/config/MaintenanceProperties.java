@@ -1,27 +1,21 @@
 package com.hospitua.habitaciones.infrastructure.config;
 
 import com.hospitua.habitaciones.domain.model.MaintenanceLimits;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.Positive;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 /**
- * Propiedades de configuración para los límites de mantenimiento (T019).
- * Expone un bean MaintenanceLimits para desacoplar el dominio de la infraestructura.
+ * Propiedades {@code hospitua.maintenance.*} (T019): duración máxima y antelación máxima de un mantenimiento, en días.
  */
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties(prefix = "hospitua.maintenance")
-public class MaintenanceProperties {
+@Validated
+@ConfigurationProperties("hospitua.maintenance")
+public record MaintenanceProperties(
+        @DefaultValue("90") @Positive int maxRangeDays,
+        @DefaultValue("365") @Positive int maxAdvanceDays) {
 
-    private int maxRangeDays = 90;
-    private int maxAdvanceDays = 365;
-
-    @Bean
-    public MaintenanceLimits maintenanceLimits() {
+    public MaintenanceLimits toLimits() {
         return new MaintenanceLimits(maxRangeDays, maxAdvanceDays);
     }
 }

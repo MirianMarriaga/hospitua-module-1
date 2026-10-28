@@ -1,12 +1,8 @@
 package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
-import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
-import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
+import com.hospitua.habitaciones.domain.exception.DomainException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
-import java.time.Clock;
-import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -22,210 +18,51 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
- * Manejador global de excepciones para traducir errores a la estructura uniforme ApiError.
+ * Traduce toda excepción al esquema {@link ApiError} (regla 7): nunca responde HTTP 500.
  */
 @Slf4j
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    private final Clock clock;
+    private final ApiErrorFactory errors;
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-        String field = null;
-        String message = "Error de validación.";
-        if (ex.getBindingResult().getFieldError() != null) {
-            var fieldError = ex.getBindingResult().getFieldError();
-            field = fieldError.getField();
-            if (fieldError.getDefaultMessage() != null) {
-                message = fieldError.getDefaultMessage();
-            }
-        }
-        Map<String, Object> details = field != null ? Map.of("field", field) : null;
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("VALIDATION_ERROR", message, request, details));
+    @ExceptionHandler(DomainException.class)
+    ResponseEntity<ApiError> handleDomain(DomainException ex, HttpServletRequest request) {
+        return ResponseEntity.status(ErrorCategoryStatus.of(ex.error().category()))
+                .body(errors.create(ex.error().name(), ex.getMessage(), request, ex.details()));
     }
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiError> handleConstraintViolation(
-            ConstraintViolationException ex, HttpServletRequest request) {
-        String field = null;
-        String message = "Error de validación.";
-        var violationOpt = ex.getConstraintViolations().stream().findFirst();
-        if (violationOpt.isPresent()) {
-            var violation = violationOpt.get();
-            if (violation.getMessage() != null) {
-                message = violation.getMessage();
-            }
-            if (violation.getPropertyPath() != null) {
-                for (var node : violation.getPropertyPath()) {
-                    field = node.getName();
-                }
-            }
-        }
-        Map<String, Object> details = field != null ? Map.of("field", field) : null;
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("VALIDATION_ERROR", message, request, details));
-    }
-
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiError> handleMissingServletRequestParameter(
-            MissingServletRequestParameterException ex, HttpServletRequest request) {
-        String field = ex.getParameterName();
-        String message = "El parámetro obligatorio '" + field + "' no fue proporcionado.";
-        Map<String, Object> details = field != null ? Map.of("field", field) : null;
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("VALIDATION_ERROR", message, request, details));
-    }
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiError> handleMethodArgumentTypeMismatch(
-            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        String field = ex.getName();
-        String message = "Tipo de dato inválido para el campo: " + field;
-        Map<String, Object> details = field != null ? Map.of("field", field) : null;
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("VALIDATION_ERROR", message, request, details));
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiError> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex, HttpServletRequest request) {
-        String field = extractJsonMappingField(ex);
-        String message = "Cuerpo de la petición inválido o mal formado.";
-        Map<String, Object> details = field != null ? Map.of("field", field) : null;
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("VALIDATION_ERROR", message, request, details));
-    }
-
-    @ExceptionHandler(RoomNotFoundException.class)
-    public ResponseEntity<ApiError> handleRoomNotFound(RoomNotFoundException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(buildError("ROOM_NOT_FOUND", "No se encontró la habitación.", request, null));
-    }
-
-    @ExceptionHandler(InvalidRoomTransitionException.class)
-    public ResponseEntity<ApiError> handleInvalidRoomTransition(
-            InvalidRoomTransitionException ex, HttpServletRequest request) {
-        Map<String, Object> details = ex.getCurrentStatus() != null
-                ? Map.of("currentStatus", ex.getCurrentStatus().name())
-                : null;
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError("ROOM_INVALID_STATE", ex.getMessage(), request, details));
+    @ExceptionHandler({
+        MethodArgumentNotValidException.class,
+        ConstraintViolationException.class,
+        MissingServletRequestParameterException.class,
+        MethodArgumentTypeMismatchException.class,
+        HttpMessageNotReadableException.class
+    })
+    ResponseEntity<ApiError> handleValidation(Exception ex, HttpServletRequest request) {
+        ValidationFailure failure = ValidationFailure.from(ex);
+        Map<String, Object> details = failure.field() != null ? Map.of("field", failure.field()) : Map.of();
+        return ResponseEntity.badRequest().body(errors.create("VALIDATION_ERROR", failure.message(), request, details));
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ApiError> handleOptimisticLocking(
-            ObjectOptimisticLockingFailureException ex, HttpServletRequest request) {
+    ResponseEntity<ApiError> handleConcurrentUpdate(HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError(
-                        "CONCURRENT_UPDATE", "La habitación acaba de cambiar. Vuelve a intentarlo.", request, null));
+                .body(errors.create(
+                        "CONCURRENT_UPDATE",
+                        "La habitación acaba de cambiar. Vuelve a intentarlo.",
+                        request,
+                        Map.of()));
     }
 
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskNotOwnedException.class)
-    public ResponseEntity<ApiError> handleTaskNotOwned(
-            com.hospitua.habitaciones.domain.exception.TaskNotOwnedException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(buildError("TASK_NOT_OWNED", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskNotFoundException.class)
-    public ResponseEntity<ApiError> handleTaskNotFound(
-            com.hospitua.habitaciones.domain.exception.TaskNotFoundException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(buildError("TASK_NOT_FOUND", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException.class)
-    public ResponseEntity<ApiError> handleTaskAlreadyClosed(
-            com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError("TASK_ALREADY_CLOSED", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.ActiveTaskExistsException.class)
-    public ResponseEntity<ApiError> handleActiveTaskExists(
-            com.hospitua.habitaciones.domain.exception.ActiveTaskExistsException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError("ACTIVE_TASK_EXISTS", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.RoomTaskExistsException.class)
-    public ResponseEntity<ApiError> handleRoomTaskExists(
-            com.hospitua.habitaciones.domain.exception.RoomTaskExistsException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError("ROOM_TASK_EXISTS", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleUsernameAlreadyExists(
-            com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(buildError("USERNAME_ALREADY_EXISTS", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.InvalidCredentialsException.class)
-    public ResponseEntity<ApiError> handleInvalidCredentials(
-            com.hospitua.habitaciones.domain.exception.InvalidCredentialsException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(buildError("INVALID_CREDENTIALS", ex.getMessage(), request, null));
-    }
-
-    @ExceptionHandler(com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException.class)
-    public ResponseEntity<ApiError> handleCurrentUserRequired(
-            com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException ex, HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildError("CURRENT_USER_REQUIRED", ex.getMessage(), request, null));
-    }
-
+    /** Cualquier otra falla: 422 UNEXPECTED_ERROR, con el identificador de correlación solo en el log y el mensaje. */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleGeneralException(Exception ex, HttpServletRequest request) {
+    ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
         String correlationId = UUID.randomUUID().toString();
-        log.error("Error interno no controlado [correlationId={}]: {}", correlationId, ex.getMessage(), ex);
-        String message = "Ha ocurrido un error inesperado. Identificador de correlación: " + correlationId;
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(buildError("INTERNAL_ERROR", message, request, null));
-    }
-
-    /**
-     * Extrae el último campo de la ruta de mapeo JSON si la causa proviene de Jackson.
-     * Compatible dinámicamente con JsonMappingException (Jackson 2) y JacksonException (Jackson 3).
-     */
-    private String extractJsonMappingField(HttpMessageNotReadableException ex) {
-        Throwable cause = ex.getCause();
-        while (cause != null) {
-            try {
-                var getPathMethod = cause.getClass().getMethod("getPath");
-                Object pathObj = getPathMethod.invoke(cause);
-                if (pathObj instanceof List<?> list && !list.isEmpty()) {
-                    Object lastRef = list.get(list.size() - 1);
-                    for (String methodName : List.of("getFieldName", "getPropertyName")) {
-                        try {
-                            var method = lastRef.getClass().getMethod(methodName);
-                            Object name = method.invoke(lastRef);
-                            if (name != null) {
-                                return name.toString();
-                            }
-                        } catch (NoSuchMethodException ignored) {
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            cause = cause.getCause();
-        }
-        return null;
-    }
-
-    private ApiError buildError(
-            String errorCode, String message, HttpServletRequest request, Map<String, Object> details) {
-        return new ApiError(
-                errorCode,
-                message,
-                OffsetDateTime.now(clock),
-                request != null ? request.getRequestURI() : "",
-                (details != null && !details.isEmpty()) ? details : null);
+        log.error("Error no controlado [correlationId={}]", correlationId, ex);
+        String message = "Ocurrió un error inesperado. Referencia: " + correlationId;
+        return ResponseEntity.unprocessableContent()
+                .body(errors.create("UNEXPECTED_ERROR", message, request, Map.of()));
     }
 }

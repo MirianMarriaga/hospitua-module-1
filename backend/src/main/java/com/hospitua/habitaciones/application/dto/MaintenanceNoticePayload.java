@@ -1,12 +1,15 @@
 package com.hospitua.habitaciones.application.dto;
 
 import com.hospitua.habitaciones.domain.model.MaintenanceNoticeAction;
+import com.hospitua.habitaciones.domain.model.Room;
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Payload plano para los avisos de mantenimiento emitidos hacia Módulo 2 (T024, regla 1).
- * Representa los datos del hecho notificado; messageId y sequenceNumber son agregados por el Outbox.
+ * Contenido del aviso de mantenimiento hacia Módulo 2 (T024, "Convenciones de Mensajería"). {@code previousStartDate}
+ * y {@code previousEndDate} solo existen en {@code UPDATED}; {@code messageId} y {@code sequenceNumber} los agrega
+ * el Outbox (T012).
  */
 public record MaintenanceNoticePayload(
         UUID maintenanceId,
@@ -18,25 +21,35 @@ public record MaintenanceNoticePayload(
         LocalDate previousStartDate,
         LocalDate previousEndDate) {
 
+    public MaintenanceNoticePayload {
+        Objects.requireNonNull(maintenanceId, "El maintenanceId no puede ser nulo");
+        Objects.requireNonNull(action, "La acción no puede ser nula");
+        Objects.requireNonNull(roomId, "La habitación no puede ser nula");
+        Objects.requireNonNull(categoryRoom, "La categoría no puede ser nula");
+        Objects.requireNonNull(startDate, "La fecha de inicio no puede ser nula");
+        Objects.requireNonNull(endDate, "La fecha de fin no puede ser nula");
+        if (action == MaintenanceNoticeAction.UPDATED) {
+            Objects.requireNonNull(previousStartDate, "La fecha previa de inicio no puede ser nula");
+            Objects.requireNonNull(previousEndDate, "La fecha previa de fin no puede ser nula");
+        }
+    }
+
     public static MaintenanceNoticePayload scheduled(
-            UUID maintenanceId, UUID roomId, String categoryRoom, LocalDate startDate, LocalDate endDate) {
-        return new MaintenanceNoticePayload(
-                maintenanceId, MaintenanceNoticeAction.SCHEDULED, roomId, categoryRoom, startDate, endDate, null, null);
+            UUID maintenanceId, Room room, LocalDate startDate, LocalDate endDate) {
+        return of(MaintenanceNoticeAction.SCHEDULED, maintenanceId, room, startDate, endDate, null, null);
     }
 
     public static MaintenanceNoticePayload updated(
             UUID maintenanceId,
-            UUID roomId,
-            String categoryRoom,
+            Room room,
             LocalDate startDate,
             LocalDate endDate,
             LocalDate previousStartDate,
             LocalDate previousEndDate) {
-        return new MaintenanceNoticePayload(
-                maintenanceId,
+        return of(
                 MaintenanceNoticeAction.UPDATED,
-                roomId,
-                categoryRoom,
+                maintenanceId,
+                room,
                 startDate,
                 endDate,
                 previousStartDate,
@@ -44,25 +57,27 @@ public record MaintenanceNoticePayload(
     }
 
     public static MaintenanceNoticePayload cancelled(
-            UUID maintenanceId, UUID roomId, String categoryRoom, LocalDate startDate, LocalDate endDate) {
-        return new MaintenanceNoticePayload(
-                maintenanceId, MaintenanceNoticeAction.CANCELLED, roomId, categoryRoom, startDate, endDate, null, null);
+            UUID maintenanceId, Room room, LocalDate startDate, LocalDate endDate) {
+        return of(MaintenanceNoticeAction.CANCELLED, maintenanceId, room, startDate, endDate, null, null);
     }
 
-    public java.util.Map<String, Object> toMap() {
-        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
-        map.put("maintenanceId", maintenanceId);
-        map.put("action", action.name());
-        map.put("roomId", roomId);
-        map.put("categoryRoom", categoryRoom);
-        map.put("startDate", startDate.toString());
-        map.put("endDate", endDate.toString());
-        if (previousStartDate != null) {
-            map.put("previousStartDate", previousStartDate.toString());
-        }
-        if (previousEndDate != null) {
-            map.put("previousEndDate", previousEndDate.toString());
-        }
-        return map;
+    private static MaintenanceNoticePayload of(
+            MaintenanceNoticeAction action,
+            UUID maintenanceId,
+            Room room,
+            LocalDate startDate,
+            LocalDate endDate,
+            LocalDate previousStartDate,
+            LocalDate previousEndDate) {
+        Objects.requireNonNull(room, "La habitación no puede ser nula");
+        return new MaintenanceNoticePayload(
+                maintenanceId,
+                action,
+                room.getId(),
+                room.getCategoryRoom().name(),
+                startDate,
+                endDate,
+                previousStartDate,
+                previousEndDate);
     }
 }

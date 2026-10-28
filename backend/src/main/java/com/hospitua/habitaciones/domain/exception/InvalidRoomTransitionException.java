@@ -1,26 +1,21 @@
 package com.hospitua.habitaciones.domain.exception;
 
 import com.hospitua.habitaciones.domain.model.RoomStatus;
+import java.util.Map;
 
 /**
- * Excepción lanzada al intentar una transición no permitida según la máquina de estados de Room.
+ * El estado actual de la habitación no admite la operación (409 ROOM_INVALID_STATE, con details.currentStatus).
  */
-public class InvalidRoomTransitionException extends DomainException {
+public final class InvalidRoomTransitionException extends DomainException {
 
     private final RoomStatus currentStatus;
 
     public InvalidRoomTransitionException(RoomStatus currentStatus) {
-        super("Transición de estado inválida para la habitación en estado: " + currentStatus);
-        this.currentStatus = currentStatus;
+        this(currentStatus, "Transición de estado inválida para la habitación en estado: " + currentStatus);
     }
 
     public InvalidRoomTransitionException(RoomStatus currentStatus, String message) {
-        super(message);
-        this.currentStatus = currentStatus;
-    }
-
-    public InvalidRoomTransitionException(RoomStatus currentStatus, String message, Throwable cause) {
-        super(message, cause);
+        super(DomainError.ROOM_INVALID_STATE, message, Map.of("currentStatus", currentStatus.name()));
         this.currentStatus = currentStatus;
     }
 

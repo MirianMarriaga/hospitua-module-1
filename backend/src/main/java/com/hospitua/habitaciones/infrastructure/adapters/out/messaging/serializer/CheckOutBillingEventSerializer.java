@@ -23,8 +23,8 @@ public class CheckOutBillingEventSerializer implements OutboxMessageSerializer {
             UUID eventId, String eventType, String occurredAt, String sourceModule, Object payload) {}
 
     @Override
-    public boolean supports(String eventType) {
-        return EVENT_TYPE.equalsIgnoreCase(eventType);
+    public String eventType() {
+        return EVENT_TYPE;
     }
 
     @Override

@@ -2,9 +2,7 @@ package com.hospitua.habitaciones.domain.model;
 
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -12,29 +10,6 @@ import java.util.UUID;
  * su ciclo de vida mediante la máquina de estados canónica de HOSPITUA.
  */
 public class Room {
-
-    private static final Map<RoomStatus, Set<RoomStatus>> ALLOWED_TRANSITIONS = Map.of(
-            RoomStatus.Available,
-            Set.of(
-                    RoomStatus.Reserved,
-                    RoomStatus.InCleaning,
-                    RoomStatus.DisabledForRepairs,
-                    RoomStatus.TechnicalBlock,
-                    RoomStatus.Inactive),
-            RoomStatus.Reserved,
-            Set.of(RoomStatus.Available, RoomStatus.Occupied),
-            RoomStatus.Occupied,
-            Set.of(RoomStatus.PendingCleaning),
-            RoomStatus.PendingCleaning,
-            Set.of(RoomStatus.InCleaning),
-            RoomStatus.InCleaning,
-            Set.of(RoomStatus.Available, RoomStatus.PendingCleaning),
-            RoomStatus.DisabledForRepairs,
-            Set.of(RoomStatus.PendingCleaning),
-            RoomStatus.TechnicalBlock,
-            Set.of(RoomStatus.PendingCleaning),
-            RoomStatus.Inactive,
-            Set.of(RoomStatus.Available));
 
     private final UUID id;
     private final String roomNumber;
@@ -73,8 +48,7 @@ public class Room {
      */
     public void transitionTo(RoomStatus target) {
         Objects.requireNonNull(target, "El estado destino no puede ser nulo");
-        Set<RoomStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(this.status, Set.of());
-        if (!allowed.contains(target)) {
+        if (!RoomTransitions.allows(this.status, target)) {
             throw new InvalidRoomTransitionException(this.status);
         }
         this.status = target;

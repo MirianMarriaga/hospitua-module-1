@@ -2,9 +2,12 @@ package com.hospitua.habitaciones.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
@@ -93,9 +96,12 @@ class RoomStateTransitionServiceTest {
     }
 
     @Test
-    @DisplayName("Destino Reserved sin referencia debe ser rechazado con IllegalArgumentException")
+    @DisplayName("Destino Reserved sin referencia: lo rechaza Room.reserveFor y no se guarda nada")
     void transitionToReservedWithoutReferenceShouldBeRejected() {
         UUID roomId = UUID.randomUUID();
+        Room room = new Room(
+                roomId, "101", 1, RoomCategory.SENCILLA, 2, new BigDecimal("100.00"), RoomStatus.Available, null, 0);
+        when(roomRepositoryPort.findById(roomId)).thenReturn(Optional.of(room));
 
         assertThatThrownBy(() -> transitionService.transition(
                         roomId, RoomStatus.Reserved, "user1", SourceFlow.MARK_RESERVED, null))
@@ -104,6 +110,9 @@ class RoomStateTransitionServiceTest {
         assertThatThrownBy(() -> transitionService.transition(
                         roomId, RoomStatus.Reserved, "user1", SourceFlow.MARK_RESERVED, "   "))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        verify(roomRepositoryPort, never()).save(any());
+        verifyNoInteractions(historyRecorder);
     }
 
     @Test

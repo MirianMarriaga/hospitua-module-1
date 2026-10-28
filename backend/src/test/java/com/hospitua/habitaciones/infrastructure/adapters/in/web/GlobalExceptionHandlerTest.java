@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -45,7 +45,7 @@ class GlobalExceptionHandlerTest {
     @BeforeEach
     void setUp() {
         fixedClock = Clock.fixed(Instant.parse("2026-10-27T15:30:00Z"), ZoneId.of("America/Bogota"));
-        GlobalExceptionHandler handler = new GlobalExceptionHandler(fixedClock);
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(new ApiErrorFactory(fixedClock));
 
         mockMvc = MockMvcBuilders.standaloneSetup(new TestController())
                 .setControllerAdvice(handler)
@@ -98,7 +98,9 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("HttpMessageNotReadableException traduce a VALIDATION_ERROR (400) con details.field de Jackson")
     void shouldHandleHttpMessageNotReadableException() throws Exception {
-        mockMvc.perform(get("/test/not-readable"))
+        mockMvc.perform(post("/test/not-readable")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"birthDate\":\"2026-02-31\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode", is("VALIDATION_ERROR")))
                 .andExpect(jsonPath("$.details.field", is("birthDate")))
@@ -196,42 +198,37 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Excepción general traduce a INTERNAL_ERROR (500) con cuerpo ApiError y sin exponer detalles")
+    @DisplayName("Excepción general traduce a UNEXPECTED_ERROR (422), nunca 500 (regla 7)")
     void shouldHandleGeneralException() throws Exception {
         mockMvc.perform(get("/test/internal-error"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.errorCode", is("INTERNAL_ERROR")))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.errorCode", is("UNEXPECTED_ERROR")))
                 .andExpect(jsonPath("$.message", notNullValue()))
+                .andExpect(jsonPath("$.details").doesNotExist())
                 .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
+    @Test
+    @DisplayName("CurrentUserRequiredException traduce a CURRENT_USER_REQUIRED (400)")
+    void shouldHandleCurrentUserRequiredException() throws Exception {
+        mockMvc.perform(get("/test/current-user-required"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode", is("CURRENT_USER_REQUIRED")));
+    }
+
+    @Test
+    @DisplayName("InvalidCredentialsException traduce a INVALID_CREDENTIALS (401)")
+    void shouldHandleInvalidCredentialsException() throws Exception {
+        mockMvc.perform(get("/test/invalid-credentials"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode", is("INVALID_CREDENTIALS")));
     }
 
     record SampleDto(
             @NotBlank(message = "El nombre no puede estar vacío")
             String name) {}
 
-    public static class FakeJacksonReference {
-        private final String fieldName;
-
-        public FakeJacksonReference(String fieldName) {
-            this.fieldName = fieldName;
-        }
-
-        public String getFieldName() {
-            return fieldName;
-        }
-    }
-
-    public static class FakeJacksonException extends RuntimeException {
-        private final List<FakeJacksonReference> path;
-
-        public FakeJacksonException(List<FakeJacksonReference> path) {
-            this.path = path;
-        }
-
-        public List<FakeJacksonReference> getPath() {
-            return path;
-        }
-    }
+    record SampleDateDto(LocalDate birthDate) {}
 
     @RestController
     static class TestController {
@@ -263,11 +260,8 @@ class GlobalExceptionHandlerTest {
             throw new MethodArgumentTypeMismatchException("abc", Integer.class, "floor", null, null);
         }
 
-        @GetMapping("/test/not-readable")
-        void testNotReadable() {
-            FakeJacksonException fakeEx = new FakeJacksonException(List.of(new FakeJacksonReference("birthDate")));
-            throw new HttpMessageNotReadableException("JSON parse error", fakeEx, null);
-        }
+        @PostMapping("/test/not-readable")
+        void testNotReadable(@RequestBody SampleDateDto dto) {}
 
         @GetMapping("/test/room-not-found")
         void testRoomNotFound() {
@@ -313,6 +307,16 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/username-already-exists")
         void testUsernameAlreadyExists() {
             throw new com.hospitua.habitaciones.domain.exception.UsernameAlreadyExistsException("jramirez");
+        }
+
+        @GetMapping("/test/current-user-required")
+        void testCurrentUserRequired() {
+            throw new com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException();
+        }
+
+        @GetMapping("/test/invalid-credentials")
+        void testInvalidCredentials() {
+            throw new com.hospitua.habitaciones.domain.exception.InvalidCredentialsException();
         }
 
         @GetMapping("/test/internal-error")

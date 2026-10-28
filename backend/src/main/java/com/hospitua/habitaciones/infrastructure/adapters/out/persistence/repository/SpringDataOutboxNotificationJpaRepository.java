@@ -5,6 +5,7 @@ import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,5 +16,5 @@ import org.springframework.stereotype.Repository;
 public interface SpringDataOutboxNotificationJpaRepository extends JpaRepository<OutboxNotificationJpaEntity, UUID> {
 
     List<OutboxNotificationJpaEntity> findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
-            OutboxStatus status, OffsetDateTime nextAttemptAt);
+            OutboxStatus status, OffsetDateTime nextAttemptAt, Limit limit);
 }

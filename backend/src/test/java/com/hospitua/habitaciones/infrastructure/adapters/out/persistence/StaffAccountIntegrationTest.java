@@ -91,12 +91,10 @@ class StaffAccountIntegrationTest {
     }
 
     @Test
-    @DisplayName("El bootstrapper rechaza arranque si faltan propiedades o son inválidas")
-    void bootstrapperShouldFailWithInvalidProperties() {
-        StaffBootstrapProperties invalidProps = new StaffBootstrapProperties();
-        invalidProps.setUsername("ad"); // muy corto (< 3)
-        invalidProps.setPassword("123"); // muy corta (< 8)
-        invalidProps.setFullName("");
+    @DisplayName("El bootstrapper rechaza el arranque si el usuario configurado no cumple el formato")
+    void bootstrapperShouldFailWithInvalidUsername() {
+        // Presencia y longitud de cada propiedad las valida StaffBootstrapProperties (ver StaffBootstrapPropertiesTest)
+        StaffBootstrapProperties invalidProps = new StaffBootstrapProperties("ad", "Admin2026!", "Administrador");
 
         StaffAccountBootstrapper failingBootstrapper = new StaffAccountBootstrapper(
                 new StaffAccountRepositoryPort() {

@@ -1,15 +1,15 @@
 package com.hospitua.habitaciones.domain.exception;
 
 /**
- * Excepción lanzada cuando una tarea operativa ya fue confirmada o liberada (HTTP 409 TASK_ALREADY_CLOSED).
+ * La tarea ya fue confirmada o liberada (409 TASK_ALREADY_CLOSED).
  */
-public class TaskAlreadyClosedException extends DomainException {
-
-    public TaskAlreadyClosedException(String message) {
-        super(message);
-    }
+public final class TaskAlreadyClosedException extends DomainException {
 
     public TaskAlreadyClosedException() {
-        super("Esta tarea ya fue cerrada.");
+        this("Esta tarea ya fue cerrada.");
+    }
+
+    public TaskAlreadyClosedException(String message) {
+        super(DomainError.TASK_ALREADY_CLOSED, message);
     }
 }

@@ -3,12 +3,12 @@ package com.hospitua.habitaciones.infrastructure.adapters.out.messaging.serializ
 import com.hospitua.habitaciones.application.ports.out.OutboxNotification;
 
 /**
- * Estrategia de serialización para los mensajes del Outbox según su event_type.
- * Permite cumplir el principio Abierto/Cerrado (OCP) al agregar nuevos tipos de evento.
+ * Estrategia que arma el mensaje publicado para un {@code event_type} del Outbox (T012). Un tipo nuevo agrega su
+ * serializador sin tocar los existentes.
  */
 public interface OutboxMessageSerializer {
 
-    boolean supports(String eventType);
+    String eventType();
 
     Object serialize(OutboxNotification notification);
 }

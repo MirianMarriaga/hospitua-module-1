@@ -39,45 +39,25 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
         }
 
         log.info("No existen cuentas activas de Administración. Creando cuenta inicial desde la configuración...");
-        validateBootstrapProperties();
+        String username = validUsername();
 
         RegisterStaffAccountCommand command = new RegisterStaffAccountCommand(
-                bootstrapProperties.getUsername(),
-                bootstrapProperties.getPassword(),
-                bootstrapProperties.getFullName(),
-                StaffArea.ADMINISTRACION);
+                username, bootstrapProperties.password(), bootstrapProperties.fullName(), StaffArea.ADMINISTRACION);
 
         registerStaffAccountUseCase.register(command, null);
-        log.info(
-                "Cuenta inicial de Administrador creada exitosamente con el usuario '{}'.",
-                StaffAccount.normalizeUsername(bootstrapProperties.getUsername()));
+        log.info("Cuenta inicial de Administrador creada exitosamente con el usuario '{}'.", username);
     }
 
-    private void validateBootstrapProperties() {
-        String username = bootstrapProperties.getUsername();
-        String password = bootstrapProperties.getPassword();
-        String fullName = bootstrapProperties.getFullName();
-
-        if (username == null || username.isBlank()) {
-            throw new IllegalStateException(
-                    "Falta la propiedad 'hospitua.bootstrap.admin.username' requerida para la puesta en marcha.");
-        }
-
+    /**
+     * Presencia y longitudes las valida {@link StaffBootstrapProperties} al arrancar; aquí solo el formato del
+     * usuario, que define {@link StaffAccount}.
+     */
+    private String validUsername() {
         try {
-            StaffAccount.validateAndNormalizeUsername(username);
+            return StaffAccount.validateAndNormalizeUsername(bootstrapProperties.username());
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException(
                     "El usuario de bootstrap no cumple las reglas de formato: " + ex.getMessage(), ex);
-        }
-
-        if (password == null || password.length() < 8) {
-            throw new IllegalStateException(
-                    "La contraseña de bootstrap debe tener al menos 8 caracteres (propiedad 'hospitua.bootstrap.admin.password').");
-        }
-
-        if (fullName == null || fullName.isBlank()) {
-            throw new IllegalStateException(
-                    "Falta el nombre completo del administrador inicial (propiedad 'hospitua.bootstrap.admin.full-name').");
         }
     }
 }

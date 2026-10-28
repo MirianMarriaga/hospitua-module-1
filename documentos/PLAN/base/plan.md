@@ -24,7 +24,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 - **Storage**: PostgreSQL 16+
 - **Build Tool**: Maven 3.9+
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, colas durables, Dead-Letter Exchange)
-- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer, WireMock (contratos con Módulo 2 y Módulo 3)
+- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer, WireMock (contratos con Módulo 2 y Módulo 3), ArchUnit (reglas 1 y 8)
 - **Target Platform**: Servidor Linux/Windows + Navegador Web moderno
 - **Project Type**: Web Application monorepo estructurado (`backend/` + `frontend/`)
 - **API**: REST JSON, con errores en el formato `ApiError` (sección "Formato Estándar de Error")
@@ -222,7 +222,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 - **HTTP 404**: Recurso inexistente (ej. habitación no encontrada).
 - **HTTP 409**: Conflicto de concurrencia optimista o violación del ciclo de vida de la máquina de estados habitacional.
 - **HTTP 503**: Un módulo externo no responde y la operación no puede verificarse (por ejemplo, `MODULE_2_UNAVAILABLE`).
-- **HTTP 500 no controlado PROHIBIDO**: Todo error inesperado es capturado por `@RestControllerAdvice`, registrado con identificador de correlación en logs y devuelto al cliente con código de error controlado.
+- **HTTP 500 no controlado PROHIBIDO**: Todo error inesperado es capturado por `@RestControllerAdvice`, registrado con identificador de correlación en logs y devuelto al cliente como `422 UNEXPECTED_ERROR` (catálogo siguiente).
 
 #### Catálogo de errores comunes
 
@@ -244,6 +244,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `INVALID_DATE_RANGE` | 400 | `InvalidDateRangeException`, con `details.rule` | `plan-consultar-informacion-mantenimientos.md` (T001); la reutilizan *Programar bloqueo técnico* y *Consultar historial de estados* | El de la regla, en la tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md` |
 | `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T029); la reutilizan *Programar bloqueo técnico* y *Dar de baja* | Lo define el plan del endpoint |
 | `MODULE_2_UNAVAILABLE` | 503 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
+| `UNEXPECTED_ERROR` | 422 | Cualquier excepción no controlada (`GlobalExceptionHandler`, regla 7) | Plan base | "Ocurrió un error inesperado. Referencia: {correlationId}" |
 
 ---
 
@@ -336,7 +337,9 @@ backend/
     │   │   │   │   ├── StaffAccount.java                     # Cuenta del personal y sus reglas (T022)
     │   │   │   │   └── StaffArea.java                        # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO (T022)
     │   │   │   └── exception/                                # Excepciones de reglas de negocio
-    │   │   │       ├── DomainException.java
+    │   │   │       ├── DomainException.java                  # Compone un DomainError y sus details (T009)
+    │   │   │       ├── DomainError.java                      # Enum: errorCode del catálogo y su ErrorCategory (T009)
+    │   │   │       ├── ErrorCategory.java                    # Enum: NOT_FOUND, CONFLICT, FORBIDDEN, INVALID_REQUEST, UNAUTHORIZED (T009)
     │   │   │       ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
     │   │   │       ├── RoomNotFoundException.java            # Habitación inexistente (404 ROOM_NOT_FOUND)
     │   │   │       ├── RoomNumberAlreadyExistsException.java # Número de habitación repetido (409) (plan-registrar-habitacion.md)
@@ -563,6 +566,9 @@ backend/
     │   │       │   │   │   ├── TechnicalBlockController.java # /api/rooms/{roomId}/technical-blocks
     │   │       │   │   │   ├── dto/                          # DTOs de request con Bean Validation; el controlador los convierte en comandos (regla 1)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
+    │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
+    │   │       │   │   │   ├── ErrorCategoryStatus.java      # ErrorCategory → código HTTP (T009)
+    │   │       │   │   │   ├── ValidationFailure.java        # Campo y mensaje de un 400 VALIDATION_ERROR (T009)
     │   │       │   │   │   └── GlobalExceptionHandler.java   # Mapeo a ApiError
     │   │       │   │   ├── amqp/                             # Consumidores de RabbitMQ
     │   │       │   │   │   └── DailyReservationRabbitListener.java # Listener de m1.reservas.diarias.queue
@@ -633,10 +639,13 @@ backend/
     │   │       │       └── security/                         # Solo cifrado de contraseñas; no es una capa de seguridad (regla 14)
     │   │       │           └── BCryptPasswordEncoderAdapter.java # Implementa PasswordEncoderPort con spring-security-crypto (T022)
     │   │       └── config/                                   # Configuración Spring (AMQP, RestClient, Clock)
+    │   │           ├── OutboxConfig.java                     # Un serializador del formato plano de Módulo 2 por event_type (T012)
     │   │           ├── RabbitConfig.java
     │   │           ├── RestClientConfig.java
     │   │           ├── ClockConfig.java                      # Bean Clock en America/Bogota (regla 6, T023)
-    │   │           ├── MaintenanceProperties.java            # hospitua.maintenance.*; expone el bean MaintenanceLimits del dominio (90 / 365 días) (T019)
+    │   │           ├── JsonPersistenceConfig.java            # Columnas JSONB con el JsonMapper de la aplicación (fechas AAAA-MM-DD, sin nulos) (T012)
+    │   │           ├── MaintenanceConfig.java                # Expone el bean MaintenanceLimits del dominio desde MaintenanceProperties (T019)
+    │   │           ├── MaintenanceProperties.java            # Record validado de hospitua.maintenance.* (90 / 365 días) (T019)
     │   │           └── StaffBootstrapProperties.java         # hospitua.bootstrap.admin.* (cuenta inicial) (T022)
     │   └── resources/
     │       ├── application.yml
@@ -648,6 +657,7 @@ backend/
     │       │   └── V5__room_state_history_indexes.sql        # plan-consultar-historial-de-estados.md
     │       └── db/dev-data/                                  # Datos sintéticos de limpieza y mantenimiento; solo perfil dev (T017)
     └── test/java/com/hospitua/habitaciones/
+        ├── architecture/                                     # ArchUnit: reglas 1 (capas y nombres) y 8
         ├── domain/                                           # Pruebas unitarias de modelo y reglas de negocio
         ├── application/                                      # Pruebas unitarias de servicios de aplicación (Mocks)
         └── infrastructure/                                   # Pruebas de integración con Testcontainers
@@ -1067,20 +1077,20 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 
 - [x] T007 Diseñar el script de migración inicial Flyway `V1__init_schema.sql` con las tablas base (`room`, `room_state_history`, `room_audit_log`, `room_decommission`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `outbox_notification`, `user_account`), y la semilla `V2__seed_rooms.sql` con habitaciones solo en `Available` e `Inactive` y el periodo inicial de cada una en `room_state_history` (`REGISTER_ROOM`, actor nulo); toda habitación que la semilla cargue en `Inactive` lleva además su fila en `room_decommission` (con `decommissioned_by` nulo, como acción del sistema), para que *Marcar habitación como disponible* siempre tenga una baja vigente que reactivar, y el periodo inicial sirve para que *Consultar historial de estados* las muestre desde el inicio. `V1__init_schema.sql` crea también las secuencias de PostgreSQL del Outbox, una por routing key: `habitacion.checkin`, `habitacion.checkout`, `facturacion.checkout` y `habitacion.mantenimiento` (T012)
 - [x] T008 [P] Implementar modelos de dominio puros (`Room`, `Stay`, `RoomGuest`), puertos de persistencia (`RoomRepositoryPort`, `StayRepositoryPort`, `RoomGuestRepositoryPort`), sus adaptadores JPA en `infrastructure/adapters/out/persistence/adapter/` y sus mappers en `mapper/`. `RoomRepositoryPort` incluye `Optional<Room> lockById(UUID roomId)` (`SELECT … FOR UPDATE`, regla 13; vacío si no existe), `findByStatusIn(Set<RoomStatus>)` (panel de limpieza y aviso diario) y `findByStatusNot(RoomStatus)` (panel de mantenimiento, sin las `Inactive`), ordenadas en orden natural por `room_number` (primero la parte numérica y después el sufijo, p. ej. 101, 101A, 102, 1001). `DailyReservationRepositoryPort` y su adaptador los implementa `plan-consultar-reservas.md` (T005, T007 y T011) sobre las tablas de T007
-- [x] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`. En un cuerpo JSON con un valor que no se puede convertir, como una fecha inexistente (`HttpMessageNotReadableException`), `details.field` sale de la ruta de Jackson (el último campo de la ruta de la `JsonMappingException`)
+- [x] T009 [P] Implementar la infraestructura de manejo de errores: `ApiError`, excepciones de dominio (`domain/exception/`) y `GlobalExceptionHandler`. En un cuerpo JSON con un valor que no se puede convertir, como una fecha inexistente (`HttpMessageNotReadableException`), `details.field` sale de la ruta de Jackson (el último campo de la ruta de la `JacksonException`). Cada excepción de dominio compone un `DomainError` (el `errorCode` del catálogo y su `ErrorCategory`); `GlobalExceptionHandler` traduce la categoría a HTTP y cualquier otra excepción a `422 UNEXPECTED_ERROR`
 - [x] T010 Implementar el servicio de validación de máquina de estados habitacional (`RoomStateTransitionService` implementando `TransitionRoomStateUseCase`) garantizando el cumplimiento estricto de los 8 estados canónicos, con la operación `registerInitialStatus` para el primer periodo de una habitación nueva (Regla 8)
 - [x] T011 Configurar RabbitMQ: Exchange `hospitua.events`, colas de salida planas (`m2.habitacion.checkin.queue` y `m2.habitacion.checkout.queue` con `guests[]`, y `m2.habitacion.mantenimiento.queue` con binding `habitacion.mantenimiento` para el aviso de mantenimiento; el evento de facturación se publica con la routing key `facturacion.checkout` y M1 no declara la cola de Módulo 3, `modulo3.checkout`), cola de entrada `m1.reservas.diarias.queue` con bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`, sin colas separadas de extranjeros, Dead-Letter Exchange (DLX) con la cola de mensajes fallidos `m1.reservas.diarias.dlq` para los mensajes ilegibles o que agotan sus reintentos (`spec-consultar-reservas.md`, FR-003), y serializador JSON en `config/RabbitConfig`
 - [x] T012 Implementar el mecanismo transaccional Outbox (regla 4 de resiliencia; contrato de Módulo 2, FR-023 de su *update-reservation*):
   - Puerto `OutboxEventPublisherPort`, implementado por `OutboxNotificationRepositoryAdapter`: `OutboxMessage enqueue(String routingKey, String eventType, Object payload)`. Se invoca dentro de la transacción del flujo (Check-In, Check-Out o los flujos que publican el aviso de mantenimiento, T024), genera `messageId` (UUIDv4) y el siguiente `sequenceNumber` de la cola y guarda el registro en `PENDING`. El contenido publicado lo arma un `OutboxMessageSerializer` por `event_type`: el formato plano de Módulo 2 agrega `messageId` y `sequenceNumber` al mensaje; `CHECK_OUT_BILLING` arma el sobre `EventEnvelope` de Módulo 3 (`eventId` = `messageId`, `eventType = CHECK_OUT`, `occurredAt` = `created_at` con desfase `-05:00`, `sourceModule = MODULE_1`, `payload`) sin `messageId` ni `sequenceNumber`. Un tipo nuevo agrega su serializador sin tocar los existentes. `OutboxMessage` devuelve `messageId` y `sequenceNumber`.
   - `OutboxScheduledWorker` toma los `PENDING` con `next_attempt_at` vencido, los publica con `RabbitMqOutboxPublisherAdapter` (Publisher Confirms y `mandatory = true`) y los marca `PUBLISHED`. Un mensaje devuelto por el broker porque ninguna cola lo recibe (por ejemplo, si Módulo 3 aún no enlazó `modulo3.checkout`) cuenta como publicación fallida. Si la publicación falla, aumenta `retry_count` y programa `next_attempt_at` con espera creciente (1 s, 2 s, 4 s… hasta 5 min), sin frenar los demás mensajes de la cola.
-  - Agotados los reintentos (`hospitua.outbox.max-retries`, por defecto 10), el mensaje pasa a `FAILED` con `last_error` y se registra una alerta `OUTBOX_PUBLISH_FAILED` en el log de errores para revisión humana.
+  - El worker toma como máximo `hospitua.outbox.batch-size` mensajes por ciclo (por defecto 100). Agotados los reintentos (`hospitua.outbox.max-retries`, por defecto 10), el mensaje pasa a `FAILED` con `last_error` y se registra una alerta `OUTBOX_PUBLISH_FAILED` en el log de errores para revisión humana.
 - [x] T013 [P] Configurar `RestClientConfig` con los timeouts de la regla 5 y las propiedades `Module2Properties` (`hospitua.module2.base-url`, `connect-timeout` = `1s`, `read-timeout` = `2s`) y `Module3Properties` (`hospitua.module3.base-url`, `connect-timeout` = `1s`, `read-timeout` = `3s`), con los timeouts como `Duration`, tal como ya están en `application.yml`. Los adaptadores los implementan sus planes, porque dependen de modelos que esos planes definen: `Module2ReservationConflictRestAdapter` en `plan-consultar-reservas.md` (T026) y `SettlementRestAdapter` en `plan-consultar-liquidacion.md` (T010)
 - [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
   - [x] Agregar WireMock a la infraestructura de pruebas (dependencia de test `org.wiremock:wiremock-standalone` 3.13.2) para los contratos con Módulo 2 y Módulo 3
 - [ ] T015 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [x] T016 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryRepositoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogRepositoryPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [ ] T017 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9); en `cleaning_task`, los dos `CHECK` y el índice parcial de última limpieza del modelo de datos (el predicado repite los outcomes de `CleaningTaskOutcome.countsAsCleaning()`, lo que se anota en un comentario de la migración); en `reparation_task` y `technical_block_report`, sin columna `version`, los `CHECK` y los índices parciales del modelo de datos. La migración no carga datos: los datos sintéticos de limpieza y mantenimiento, incluidas las habitaciones en `DisabledForRepairs` o `TechnicalBlock` junto con su `damage_report` o su informe `Applied`, van en `classpath:db/dev-data`, que `application.yml` solo añade en el perfil `dev` (las pruebas con Testcontainers no los cargan). Esos datos respetan las invariantes: cada `DisabledForRepairs` tiene su `DamageReport`, cada `TechnicalBlock` tiene exactamente un informe `Applied` y las tareas abiertas solo existen sobre `InCleaning`, `DisabledForRepairs` o `TechnicalBlock`. En operación, sus registros solo los crean los casos de uso: `cleaning_task`, *Marcar habitación en limpieza*; `damage_report`, *Marcar habitación inhabilitada por reparaciones*; `reparation_task`, *Confirmar fin de reparación* (al iniciar reparaciones); y `technical_block_report`, *Programar bloqueo técnico*. Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
-- [ ] T018 Puertos transversales de transición, sobre `TransitionRoomStateUseCase`. Se implementan en sus planes, que van primero en el orden de implementación (ver "Orden de implementación de los planes"), antes que los planes que los invocan:
+- [x] T018 Puertos transversales de transición, sobre `TransitionRoomStateUseCase`. Se implementan en sus planes, que van primero en el orden de implementación (ver "Orden de implementación de los planes"), antes que los planes que los invocan:
   - `MarkRoomAvailableUseCase` (`Inactive`, `Reserved` o `InCleaning` → `Available`): `plan-marcar-habitacion-como-disponible.md` (T002 y T008). Lo usan la ingesta de reservas, la reactivación y *Confirmar fin de limpieza*.
   - `MarkRoomReservedUseCase` (`Available` → `Reserved`, asignando `reserved_by_reservation_ref`): `plan-marcar-habitacion-reservada.md` (T003 y T007). Lo usan la ingesta de reservas y *Confirmar fin de limpieza*.
   - `MarkPendingCleaningUseCase` (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning` → `PendingCleaning`): `plan-marcar-pendiente-a-limpieza.md` (T003 y T007). Lo usan *Registrar check-out*, *Confirmar fin de reparación* y la liberación de la tarea de limpieza.

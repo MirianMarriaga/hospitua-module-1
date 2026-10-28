@@ -1,17 +1,15 @@
 package com.hospitua.habitaciones.domain.exception;
 
 /**
- * Excepción lanzada cuando una habitación solicitada no existe o no se encuentra disponible.
+ * La habitación solicitada no existe (404 ROOM_NOT_FOUND).
  */
-public class RoomNotFoundException extends DomainException {
-
-    private static final String DEFAULT_MESSAGE = "No se encontró la habitación.";
+public final class RoomNotFoundException extends DomainException {
 
     public RoomNotFoundException() {
-        super(DEFAULT_MESSAGE);
+        this("No se encontró la habitación.");
     }
 
     public RoomNotFoundException(String message) {
-        super(message);
+        super(DomainError.ROOM_NOT_FOUND, message);
     }
 }

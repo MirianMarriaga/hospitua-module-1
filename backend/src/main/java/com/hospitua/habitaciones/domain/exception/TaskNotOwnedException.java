@@ -1,15 +1,15 @@
 package com.hospitua.habitaciones.domain.exception;
 
 /**
- * Excepción lanzada cuando una tarea operativa pertenece a otro miembro del personal (HTTP 403 TASK_NOT_OWNED).
+ * La tarea pertenece a otro miembro del personal (403 TASK_NOT_OWNED).
  */
-public class TaskNotOwnedException extends DomainException {
-
-    public TaskNotOwnedException(String message) {
-        super(message);
-    }
+public final class TaskNotOwnedException extends DomainException {
 
     public TaskNotOwnedException() {
-        super("La tarea pertenece a otro miembro del personal.");
+        this("La tarea pertenece a otro miembro del personal.");
+    }
+
+    public TaskNotOwnedException(String message) {
+        super(DomainError.TASK_NOT_OWNED, message);
     }
 }

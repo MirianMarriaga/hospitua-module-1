@@ -277,8 +277,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Inactive`, `InCleaning` y `Reserved` → `Available`, y que `SourceFlow` (plan base, T019) incluya `MARK_AVAILABLE` y `CONFIRM_CLEANING_END`.
-- [ ] T002 [P] Crear `MarkRoomAvailableCommand`, `MarkRoomAvailableResult` y el puerto `MarkRoomAvailableUseCase` con el contrato de este plan.
+- [x] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) incluya `Inactive`, `InCleaning` y `Reserved` → `Available`, y que `SourceFlow` (plan base, T019) incluya `MARK_AVAILABLE` y `CONFIRM_CLEANING_END`.
+- [x] T002 [P] Crear `MarkRoomAvailableCommand`, `MarkRoomAvailableResult` y el puerto `MarkRoomAvailableUseCase` con el contrato de este plan.
 
 ---
 
@@ -293,20 +293,20 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 2
 
-- [ ] T003 [P] [US2] Unit test en `MarkRoomAvailableServiceTest`: `InCleaning` → `Available` con `CONFIRM_CLEANING_END`; el periodo del historial queda con ese `source_flow` y el miembro como actor, y no se crea un segundo periodo (esc. 4; FR-003, FR-011).
-- [ ] T004 [P] [US2] Unit test: `Reserved` → `Available` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` vinculada; limpia `reserved_by_reservation_ref`. Con una `reservationRef` distinta, rechazo sin cambios (FR-004, FR-011).
-- [ ] T005 [P] [US2] Unit test: rechazo con `CONFIRM_CLEANING_END` desde cualquier estado distinto de `InCleaning`, con el estado actual en la excepción (esc. 8; FR-006).
-- [ ] T006 [P] [US2] Unit test: en los tres flujos, el periodo del historial registra el actor (nulo si es autónoma), el `sourceFlow` del invocador y la hora del servidor, y no se escribe en `room_audit_log` (FR-008; SC-004).
-- [ ] T007 [US2] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el puerto, la habitación queda en su estado de origen sin periodo nuevo (casos borde 3 y 4).
+- [x] T003 [P] [US2] Unit test en `MarkRoomAvailableServiceTest`: `InCleaning` → `Available` con `CONFIRM_CLEANING_END`; el periodo del historial queda con ese `source_flow` y el miembro como actor, y no se crea un segundo periodo (esc. 4; FR-003, FR-011).
+- [x] T004 [P] [US2] Unit test: `Reserved` → `Available` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` vinculada; limpia `reserved_by_reservation_ref`. Con una `reservationRef` distinta, rechazo sin cambios (FR-004, FR-011).
+- [x] T005 [P] [US2] Unit test: rechazo con `CONFIRM_CLEANING_END` desde cualquier estado distinto de `InCleaning`, con el estado actual en la excepción (esc. 8; FR-006).
+- [x] T006 [P] [US2] Unit test: en los tres flujos, el periodo del historial registra el actor (nulo si es autónoma), el `sourceFlow` del invocador y la hora del servidor, y no se escribe en `room_audit_log` (FR-008; SC-004).
+- [x] T007 [US2] Integration test con Testcontainers: si la transacción del invocador falla después de invocar el puerto, la habitación queda en su estado de origen sin periodo nuevo (casos borde 3 y 4).
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] Implementar `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-001, FR-004 a FR-006, FR-008, FR-011):
+- [x] T008 [US2] Implementar `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-001, FR-004 a FR-006, FR-008, FR-011):
   - Validar el origen según `sourceFlow` y los datos del comando: `MARK_AVAILABLE` acepta `Inactive` con `actorId`, o `Reserved` con `reservationRef` igual a `reserved_by_reservation_ref`; `CONFIRM_CLEANING_END` acepta solo `InCleaning`.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, Available, actorId, sourceFlow, reservationRef)`.
   - En la liberación, verificar que `Room.transitionTo()` dejó `reserved_by_reservation_ref` nulo (regla 2 del plan base); el servicio no lo limpia por su cuenta.
   - Ante un origen no válido, lanzar `InvalidRoomTransitionException` con el estado actual.
-- [ ] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T016) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
+- [x] T009 [US2] Verificar con los dueños de los planes invocadores que llamen al puerto con este contrato: `CompleteCleaningService` con `CONFIRM_CLEANING_END` (`plan-confirmar-fin-de-limpieza.md`, T016) y `DailyReservationIngestionService` con `MARK_AVAILABLE`, `actorId` nulo y la `reservationRef` liberada (`plan-consultar-reservas.md`, T012 y T013). T012 y T013 ya invocan este puerto (*Consultar reservas* FR-009).
 
 La continuación tras la limpieza, según la prioridad de la regla 6 de la máquina de estados, la decide *Confirmar fin de limpieza* después de este puerto (esc. 4 y 5); sus pruebas están en `plan-confirmar-fin-de-limpieza.md` (T006, T007) y en `plan-marcar-habitacion-reservada.md`.
 

@@ -143,9 +143,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) permita `Available` → `Reserved` y ninguna otra transición hacia `Reserved`, y que `SourceFlow` (T019) incluya `MARK_RESERVED`.
-- [ ] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` (plan base, T007 y T016), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
-- [ ] T003 [P] Crear `ReservationTrigger`, `MarkRoomReservedOutcome`, `MarkRoomReservedCommand`, `MarkRoomReservedResult` y el puerto `MarkRoomReservedUseCase` con el contrato de este plan.
+- [x] T001 Verificar que la matriz de transiciones de `RoomStateTransitionService` (plan base, T010) permita `Available` → `Reserved` y ninguna otra transición hacia `Reserved`, y que `SourceFlow` (T019) incluya `MARK_RESERVED`.
+- [x] T002 [P] Verificar `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` (plan base, T007 y T016), con el tipo de evento `RESERVATION_STATE_CONFLICT`.
+- [x] T003 [P] Crear `ReservationTrigger`, `MarkRoomReservedOutcome`, `MarkRoomReservedCommand`, `MarkRoomReservedResult` y el puerto `MarkRoomReservedUseCase` con el contrato de este plan.
 
 ---
 
@@ -159,13 +159,13 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `MarkRoomReservedServiceTest`: `Available` → `Reserved` con `reserved_by_reservation_ref` = `reservationRef`, resultado `RESERVED` y periodo con estado previo `Available`, la `reservationRef`, `MARK_RESERVED` y hora de `Clock` (esc. 1; FR-004, FR-005, FR-011).
-- [ ] T005 [P] [US1] Unit test: falta `roomId` o `reservationRef` y se lanza la excepción de validación sin cambios (FR-003; NFR-003).
-- [ ] T006 [US1] Integration test con Testcontainers: transición encadenada; en una transacción la habitación pasa de `InCleaning` a `Available` (vía `MarkRoomAvailableUseCase` con `CONFIRM_CLEANING_END`) y a `Reserved` (vía este puerto con `CLEANING_END`), con dos periodos en `room_state_history` y el segundo con estado previo `Available` (esc. 3).
+- [x] T004 [P] [US1] Unit test en `MarkRoomReservedServiceTest`: `Available` → `Reserved` con `reserved_by_reservation_ref` = `reservationRef`, resultado `RESERVED` y periodo con estado previo `Available`, la `reservationRef`, `MARK_RESERVED` y hora de `Clock` (esc. 1; FR-004, FR-005, FR-011).
+- [x] T005 [P] [US1] Unit test: falta `roomId` o `reservationRef` y se lanza la excepción de validación sin cambios (FR-003; NFR-003).
+- [x] T006 [US1] Integration test con Testcontainers: transición encadenada; en una transacción la habitación pasa de `InCleaning` a `Available` (vía `MarkRoomAvailableUseCase` con `CONFIRM_CLEANING_END`) y a `Reserved` (vía este puerto con `CLEANING_END`), con dos periodos en `room_state_history` y el segundo con estado previo `Available` (esc. 3).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implementar `MarkRoomReservedService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-003 a FR-011):
+- [x] T007 [US1] Implementar `MarkRoomReservedService` con `@Transactional(propagation = Propagation.MANDATORY)` (FR-003 a FR-011):
   - Validar `roomId` y `reservationRef`.
   - Buscar la habitación; si no existe, registrar una advertencia en el log del sistema y devolver `ROOM_NOT_FOUND`.
   - Si está `Available`: invocar `TransitionRoomStateUseCase.transition(roomId, Reserved, null, MARK_RESERVED, reservationRef)`, que asigna `reserved_by_reservation_ref` mediante `Room.reserveFor(reservationRef)` (regla 2 del plan base), y devolver `RESERVED`. El servicio no asigna la referencia por su cuenta.
@@ -185,12 +185,12 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 2
 
-- [ ] T008 [P] [US2] Unit test: misma habitación y misma reserva dos veces; la segunda devuelve `ALREADY_RESERVED` sin periodo ni evento nuevos (esc. 4; FR-006; SC-002).
-- [ ] T009 [P] [US2] Unit test: en `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive` devuelve `CONFLICT`, no cambia el estado y registra el conflicto con el estado actual y la `reservationRef` entrante (esc. 5 a 7; FR-007, FR-008; SC-003, SC-004).
-- [ ] T010 [P] [US2] Unit test: `Reserved` para "RES-101" e invocación con "RES-202" devuelve `CONFLICT`, conserva "RES-101" y registra ambas referencias (esc. 9; FR-007, FR-008; SC-004).
-- [ ] T011 [P] [US2] Unit test: `roomId` inexistente devuelve `ROOM_NOT_FOUND`, no altera ninguna entidad y deja la advertencia en el log (esc. 10).
-- [ ] T012 [US2] Integration test con Testcontainers: dos invocaciones concurrentes para la misma habitación `Available` con reservas distintas, cada una con su bloqueo de fila; solo una la aparta y la otra espera y queda como conflicto (caso borde 3; regla 13 del plan base).
-- [ ] T013 [US2] Integration test: un fallo de persistencia durante la transición revierte la transacción y la habitación sigue `Available` (caso borde "Interrupción de conectividad").
+- [x] T008 [P] [US2] Unit test: misma habitación y misma reserva dos veces; la segunda devuelve `ALREADY_RESERVED` sin periodo ni evento nuevos (esc. 4; FR-006; SC-002).
+- [x] T009 [P] [US2] Unit test: en `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive` devuelve `CONFLICT`, no cambia el estado y registra el conflicto con el estado actual y la `reservationRef` entrante (esc. 5 a 7; FR-007, FR-008; SC-003, SC-004).
+- [x] T010 [P] [US2] Unit test: `Reserved` para "RES-101" e invocación con "RES-202" devuelve `CONFLICT`, conserva "RES-101" y registra ambas referencias (esc. 9; FR-007, FR-008; SC-004).
+- [x] T011 [P] [US2] Unit test: `roomId` inexistente devuelve `ROOM_NOT_FOUND`, no altera ninguna entidad y deja la advertencia en el log (esc. 10).
+- [x] T012 [US2] Integration test con Testcontainers: dos invocaciones concurrentes para la misma habitación `Available` con reservas distintas, cada una con su bloqueo de fila; solo una la aparta y la otra espera y queda como conflicto (caso borde 3; regla 13 del plan base).
+- [x] T013 [US2] Integration test: un fallo de persistencia durante la transición revierte la transacción y la habitación sigue `Available` (caso borde "Interrupción de conectividad").
 
 ### Verificación de los invocadores
 

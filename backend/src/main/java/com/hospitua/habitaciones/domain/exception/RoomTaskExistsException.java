@@ -1,15 +1,15 @@
 package com.hospitua.habitaciones.domain.exception;
 
 /**
- * Excepción lanzada cuando la habitación ya tiene una tarea abierta de otro miembro (HTTP 409 ROOM_TASK_EXISTS).
+ * La habitación ya tiene una tarea abierta (409 ROOM_TASK_EXISTS).
  */
-public class RoomTaskExistsException extends DomainException {
-
-    public RoomTaskExistsException(String message) {
-        super(message);
-    }
+public final class RoomTaskExistsException extends DomainException {
 
     public RoomTaskExistsException() {
-        super("La habitación ya tiene una tarea activa.");
+        this("La habitación ya tiene una tarea activa.");
+    }
+
+    public RoomTaskExistsException(String message) {
+        super(DomainError.ROOM_TASK_EXISTS, message);
     }
 }

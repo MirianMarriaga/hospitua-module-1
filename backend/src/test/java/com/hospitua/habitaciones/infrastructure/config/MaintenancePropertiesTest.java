@@ -6,32 +6,50 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hospitua.habitaciones.domain.model.MaintenanceLimits;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 
 class MaintenancePropertiesTest {
 
-    @Test
-    @DisplayName("MaintenanceProperties expone bean MaintenanceLimits con valores de configuración por defecto")
-    void shouldExposeDefaultMaintenanceLimits() {
-        MaintenanceProperties props = new MaintenanceProperties();
-        assertThat(props.getMaxRangeDays()).isEqualTo(90);
-        assertThat(props.getMaxAdvanceDays()).isEqualTo(365);
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
+            .withUserConfiguration(MaintenanceConfig.class)
+            .withBean(MaintenancePropertiesRegistrar.class);
 
-        MaintenanceLimits limits = props.maintenanceLimits();
-        assertThat(limits).isNotNull();
-        assertThat(limits.maxRangeDays()).isEqualTo(90);
-        assertThat(limits.maxAdvanceDays()).isEqualTo(365);
+    @EnableConfigurationProperties(MaintenanceProperties.class)
+    static class MaintenancePropertiesRegistrar {}
+
+    @Test
+    @DisplayName("MaintenanceConfig expone MaintenanceLimits con los valores por defecto (90 / 365)")
+    void shouldExposeDefaultMaintenanceLimits() {
+        contextRunner.run(context -> {
+            MaintenanceLimits limits = context.getBean(MaintenanceLimits.class);
+            assertThat(limits.maxRangeDays()).isEqualTo(90);
+            assertThat(limits.maxAdvanceDays()).isEqualTo(365);
+        });
     }
 
     @Test
-    @DisplayName("MaintenanceProperties permite configurar valores personalizados")
+    @DisplayName("MaintenanceProperties toma valores personalizados de la configuración")
     void shouldAllowCustomValues() {
-        MaintenanceProperties props = new MaintenanceProperties();
-        props.setMaxRangeDays(60);
-        props.setMaxAdvanceDays(180);
+        contextRunner
+                .withPropertyValues(
+                        "hospitua.maintenance.max-range-days=60", "hospitua.maintenance.max-advance-days=180")
+                .run(context -> {
+                    MaintenanceLimits limits = context.getBean(MaintenanceLimits.class);
+                    assertThat(limits.maxRangeDays()).isEqualTo(60);
+                    assertThat(limits.maxAdvanceDays()).isEqualTo(180);
+                });
+    }
 
-        MaintenanceLimits limits = props.maintenanceLimits();
-        assertThat(limits.maxRangeDays()).isEqualTo(60);
-        assertThat(limits.maxAdvanceDays()).isEqualTo(180);
+    @Test
+    @DisplayName("Un límite no positivo impide arrancar")
+    void shouldFailToStartWithNonPositiveLimit() {
+        contextRunner
+                .withPropertyValues("hospitua.maintenance.max-range-days=0")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @Test

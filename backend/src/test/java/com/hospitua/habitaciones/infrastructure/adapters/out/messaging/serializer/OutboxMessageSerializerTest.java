@@ -6,109 +6,58 @@ import com.hospitua.habitaciones.application.ports.out.OutboxNotification;
 import com.hospitua.habitaciones.application.ports.out.OutboxStatus;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class OutboxMessageSerializerTest {
 
-    private final CheckInMessageSerializer checkInSerializer = new CheckInMessageSerializer();
-    private final CheckOutMessageSerializer checkOutSerializer = new CheckOutMessageSerializer();
-    private final MaintenanceNoticeMessageSerializer maintenanceSerializer = new MaintenanceNoticeMessageSerializer();
     private final CheckOutBillingEventSerializer billingSerializer = new CheckOutBillingEventSerializer();
 
-    @Test
-    @DisplayName("CheckInMessageSerializer agrega messageId y sequenceNumber al payload plano")
-    void checkInSerializerShouldAddMessageIdAndSequenceNumber() {
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"CHECK_IN", "CHECK_OUT", "MAINTENANCE_NOTICE"})
+    @DisplayName("Formato plano de Módulo 2: messageId y sequenceNumber primero, luego el payload sin nulos")
+    void flatSerializerShouldPrependMessageIdAndSequenceNumber(String eventType) {
+        Module2FlatMessageSerializer serializer = new Module2FlatMessageSerializer(eventType);
         UUID messageId = UUID.randomUUID();
-        OutboxNotification notification = new OutboxNotification(
-                UUID.randomUUID(),
-                "CHECK_IN",
-                "habitacion.checkin",
-                Map.of("reservationRef", "RSV-100", "movementType", "ENTRY"),
-                messageId,
-                15L,
-                OutboxStatus.PENDING,
-                0,
-                OffsetDateTime.now(),
-                null,
-                OffsetDateTime.now(),
-                null);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("action", "SCHEDULED");
+        payload.put("maintenanceId", "m-1");
+        payload.put("previousStartDate", null);
 
-        assertThat(checkInSerializer.supports("CHECK_IN")).isTrue();
-        Object serialized = checkInSerializer.serialize(notification);
-
-        assertThat(serialized).isInstanceOf(Map.class);
         @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) serialized;
+        Map<String, Object> message =
+                (Map<String, Object>) serializer.serialize(notification(eventType, payload, messageId));
 
-        assertThat(map.get("messageId")).isEqualTo(messageId);
-        assertThat(map.get("sequenceNumber")).isEqualTo(15L);
-        assertThat(map.get("reservationRef")).isEqualTo("RSV-100");
-        assertThat(map.get("movementType")).isEqualTo("ENTRY");
+        assertThat(serializer.eventType()).isEqualTo(eventType);
+        assertThat(message.keySet()).startsWith("messageId", "sequenceNumber");
+        assertThat(message)
+                .containsEntry("messageId", messageId)
+                .containsEntry("sequenceNumber", 7L)
+                .containsEntry("action", "SCHEDULED")
+                .containsEntry("maintenanceId", "m-1")
+                .doesNotContainKey("previousStartDate");
     }
 
-    @Test
-    @DisplayName("CheckOutMessageSerializer agrega messageId y sequenceNumber al payload plano")
-    void checkOutSerializerShouldAddMessageIdAndSequenceNumber() {
-        UUID messageId = UUID.randomUUID();
-        OutboxNotification notification = new OutboxNotification(
+    private static OutboxNotification notification(String eventType, Object payload, UUID messageId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new OutboxNotification(
                 UUID.randomUUID(),
-                "CHECK_OUT",
-                "habitacion.checkout",
-                Map.of("reservationRef", "RSV-200", "movementType", "DEPARTURE"),
-                messageId,
-                42L,
-                OutboxStatus.PENDING,
-                0,
-                OffsetDateTime.now(),
-                null,
-                OffsetDateTime.now(),
-                null);
-
-        assertThat(checkOutSerializer.supports("CHECK_OUT")).isTrue();
-        Object serialized = checkOutSerializer.serialize(notification);
-
-        assertThat(serialized).isInstanceOf(Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) serialized;
-
-        assertThat(map.get("messageId")).isEqualTo(messageId);
-        assertThat(map.get("sequenceNumber")).isEqualTo(42L);
-        assertThat(map.get("reservationRef")).isEqualTo("RSV-200");
-        assertThat(map.get("movementType")).isEqualTo("DEPARTURE");
-    }
-
-    @Test
-    @DisplayName("MaintenanceNoticeMessageSerializer agrega messageId y sequenceNumber al payload plano")
-    void maintenanceSerializerShouldAddMessageIdAndSequenceNumber() {
-        UUID messageId = UUID.randomUUID();
-        OutboxNotification notification = new OutboxNotification(
-                UUID.randomUUID(),
-                "MAINTENANCE_NOTICE",
-                "habitacion.mantenimiento",
-                Map.of("action", "SCHEDULED", "maintenanceId", "m-1"),
+                eventType,
+                "habitacion.x",
+                payload,
                 messageId,
                 7L,
                 OutboxStatus.PENDING,
                 0,
-                OffsetDateTime.now(),
+                now,
                 null,
-                OffsetDateTime.now(),
+                now,
                 null);
-
-        assertThat(maintenanceSerializer.supports("MAINTENANCE_NOTICE")).isTrue();
-        Object serialized = maintenanceSerializer.serialize(notification);
-
-        assertThat(serialized).isInstanceOf(Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) serialized;
-
-        assertThat(map.get("messageId")).isEqualTo(messageId);
-        assertThat(map.get("sequenceNumber")).isEqualTo(7L);
-        assertThat(map.get("action")).isEqualTo("SCHEDULED");
-        assertThat(map.get("maintenanceId")).isEqualTo("m-1");
     }
 
     @Test
@@ -133,7 +82,7 @@ class OutboxMessageSerializerTest {
                 createdAtUtc,
                 null);
 
-        assertThat(billingSerializer.supports("CHECK_OUT_BILLING")).isTrue();
+        assertThat(billingSerializer.eventType()).isEqualTo("CHECK_OUT_BILLING");
         Object serialized = billingSerializer.serialize(notification);
 
         assertThat(serialized).isInstanceOf(CheckOutBillingEventSerializer.EventEnvelope.class);

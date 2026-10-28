@@ -44,26 +44,28 @@ En la rama `feature/m1-base-lote-1` quedó implementada y verificada la base tro
 - **V2 (`V2__seed_rooms.sql`)**: Semilla sintética con 14 habitaciones (12 `Available`, 2 `Inactive`), sus 14 periodos iniciales abiertos en `room_state_history` con `REGISTER_ROOM` y actor nulo, y 2 registros de baja en `room_decommission` para las habitaciones inactivas (104 y 204).
 
 ## 6. Decisiones técnicas relevantes
-- **Máquina de estados como dato**: `Room.java` encapsula la matriz inmutable `ALLOWED_TRANSITIONS` con 14 transiciones válidas entre 8 estados canónicos.
+- **Máquina de estados como dato**: `RoomTransitions` declara la matriz (`EnumMap`) con las 14 transiciones válidas entre 8 estados canónicos; `Room.transitionTo` la consulta.
 - **Transaccionalidad atómica y Outbox**: `OutboxEventPublisherPort.enqueue` opera con `Propagation.MANDATORY` ligando la emisión del evento a la transacción del hecho.
 - **Secuencias nativas por routing key**: Asignación atómica de `sequenceNumber` sin contención de locks en PostgreSQL.
 - **Orden natural de habitaciones**: Consultas ordenadas primero por piso, luego por número y sufijo alfanumérico.
 - **Aislamiento temporal estricto**: Fechas de calendario en `LocalDate` (`AAAA-MM-DD`) y timestamps vía bean `Clock` (Bogotá UTC-5).
 - **Bootstrap administrativo automático**: `StaffAccountBootstrapper` inicializa la cuenta admin configurable si no existen cuentas activas de Administración.
 - **Resiliencia REST**: `RestClientConfig` con `JdkClientHttpRequestFactory` y timeouts estrictos para Módulo 2 y Módulo 3.
+- **Errores por composición**: cada excepción de dominio compone un `DomainError` (código del catálogo y categoría); `GlobalExceptionHandler` traduce la categoría a HTTP y cualquier otra excepción a `422 UNEXPECTED_ERROR` (regla 7, nunca 500).
+- **Outbox**: un `OutboxMessageSerializer` por `event_type` resuelto por `OutboxSerializerRegistry` (un tipo duplicado impide arrancar); el formato plano de Módulo 2 lo arma una sola clase, `Module2FlatMessageSerializer`, instanciada por tipo en `OutboxConfig`. El JSONB se escribe con el `JsonMapper` de la aplicación (`JsonPersistenceConfig`).
+- **Configuración validada**: `Module2Properties`, `Module3Properties`, `MaintenanceProperties`, `StaffBootstrapProperties` y `OutboxProperties` son `record` con Bean Validation; una propiedad inválida impide arrancar.
 - **Identificación provisional `X-User`**: `CurrentUserResolver` desacoplado que valida la existencia y estado activo de la cuenta sin introducir seguridad prematura.
 
 ## 7. Pruebas
-- **Total ejecutadas**: 132 pruebas automatizadas.
-- **Resultado de `mvnw.cmd verify`**: `BUILD SUCCESS` (132 tests pasados, 0 fallos, 0 errores, 0 omitidos).
+- **Total ejecutadas**: 147 pruebas automatizadas, incluidas las 5 reglas de `ArchitectureTest` (ArchUnit).
+- **Resultado de `mvnw verify`**: `BUILD SUCCESS` (147 tests pasados, 0 fallos, 0 errores, 0 omitidos).
 - **Entorno**: Testcontainers (PostgreSQL 16 y RabbitMQ 3.13), WireMock para contratos REST y validación Spotless en 127 archivos.
 
 ## 8. TODO(pendiente) abiertos
-- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java` (línea 32):
-  `// TODO(pendiente): verificar si se requiere una excepción de dominio dedicada para reservationRef nulo en lugar de IllegalArgumentException`
+Ninguno. El de `RoomStateTransitionService` (referencia de reserva nula) se cerró: la valida solo `Room.reserveFor`, como error de programación, porque ningún usuario puede provocarlo.
 
 ## 9. Puntos a revisar a mano
-- Comprobar que la matriz canónica en `Room.java` cubra exactamente las 14 transiciones descritas en `maquina-estados-habitacion.md`.
+- ~~Comprobar que la matriz canónica cubra exactamente las 14 transiciones de `maquina-estados-habitacion.md`~~: verificado par por par (`RoomTransitions`).
 - Validar si T024 (`MaintenanceNoticePublisher`) se acepta consolidada en esta entrega o si requiere división de commits.
-- Confirmar si se sustituye `IllegalArgumentException` por `ReservationReferenceRequiredException` en la transición hacia `Reserved`.
+- ~~Confirmar si se sustituye `IllegalArgumentException` por `ReservationReferenceRequiredException`~~: se mantiene `IllegalArgumentException` solo en `Room.reserveFor` (ver sección 8).
 - Revisar si la migración `V3` (T017) debe añadirse antes de comenzar con los planes específicos de limpieza y mantenimiento.

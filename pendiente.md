@@ -1,151 +1,101 @@
 # Reporte de Pendientes y Decisiones Técnicas
 
-## Lista de `TODO(pendiente)` dejados en el código
-- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java`:
-  `// TODO(pendiente): Se utilizó IllegalArgumentException para rechazar el destino Reserved sin reservationRef válido; evaluar si se requiere una excepción de dominio específica en T018.`
+## Lista de `TODO(pendiente)` en el código
+- No se dejaron `TODO(pendiente)` activos en el código. El pendiente previo en `RoomStateTransitionService.java` sobre la excepción ante la falta de `reservationRef` al transicionar hacia `Reserved` fue cerrado utilizando `IllegalArgumentException` conforme a la especificación técnica y contrato de `plan-marcar-habitacion-reservada.md` (FR-003, NFR-003).
 
-## Decisiones Técnicas Tomadas
-1. **Matriz de Transiciones Canónicas como Dato (T010 - OCP)**:
-   - En `Room.java` se definió la matriz de transiciones estrictas de la máquina de estados según `maquina-estados-habitacion.md` como una estructura inmutable de datos (`Map<RoomStatus, Set<RoomStatus>>`), permitiendo exactamente las 14 transiciones canónicas válidas entre los 8 estados del sistema.
-   - Cualquier intento de transición no permitida arroja `InvalidRoomTransitionException` con el estado actual y el intentado.
-2. **Encapsulamiento del Ciclo de Vida de `reservedByReservationRef` (T010)**:
-   - `Room.reserveFor(reservationRef)` es el único método y camino habilitado para asignar la referencia de reserva y transicionar a `Reserved`.
-   - En `Room.transitionTo(target)`, si el estado destino es diferente de `Reserved`, la referencia de reserva se limpia a `null` de forma automática.
-3. **Inmutabilidad y Cierre Único de Periodos de Historial (T016 - Regla 8)**:
-   - `RoomStateHistory` modela los periodos como inmutables: una vez creados solo admiten el cierre de periodo (`close(OffsetDateTime)`), el cual lanza `IllegalStateException` si ya se encontraba cerrado.
-   - `RoomStateHistoryRecorder` localiza el periodo actualmente abierto para la habitación (si existe), lo cierra con la marca de tiempo de `Clock`, y abre el nuevo periodo con el estado y `sourceFlow` correspondiente.
-4. **Mapeo de Bitácora y Columna JSONB (T016)**:
-   - En `RoomAuditLogJpaEntity`, el mapa `details` (`Map<String, Object>`) se mapea utilizando `@JdbcTypeCode(SqlTypes.JSON)` de Hibernate 6, integrándose de forma limpia con la columna nativa `jsonb` de PostgreSQL creada en `V1__init_schema.sql` y validada en `ddl-auto: validate`.
-   - La bitácora soporta `actorId` nulo para eventos autónomos del sistema y toma el timestamp del servidor a través de `Clock` (Regla 6).
-5. **Transaccionalidad Atómica (T010 + T016 - Regla 8 y 13)**:
-   - `RoomStateTransitionService` utiliza `@Transactional(propagation = Propagation.REQUIRED)` para unirse a la transacción del caso de uso invocador. Dentro de la misma transacción se actualiza la entidad `Room` y se registran los cambios en `room_state_history`. Si ocurre una falla en cualquier punto del flujo, la transacción revierte tanto el estado de la habitación como el historial.
-6. **Topología Declarativa de RabbitMQ y Publisher Confirms (T011 - Regla 3)**:
-   - Exchange de eventos: `hospitua.events` (Topic).
-   - Colas de salida durables: `m2.habitacion.checkin.queue` (binding `habitacion.checkin`), `m2.habitacion.checkout.queue` (binding `habitacion.checkout`), `m2.habitacion.mantenimiento.queue` (binding `habitacion.mantenimiento`).
-   - M1 no declara la cola `modulo3.checkout`, respetando la separación de contratos con Módulo 3.
-   - Cola de entrada: `m1.reservas.diarias.queue` con bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`, configurada con Dead-Letter Exchange (`hospitua.events.dlx`) y DLQ durable `m1.reservas.diarias.dlq` (`x-dead-letter-exchange` y `x-dead-letter-routing-key`).
-   - `RabbitTemplate` configurado con `setMandatory(true)`, confirm type correlated (`setConfirmCallback`) y `setReturnsCallback` para capturar mensajes unroutable devueltos por el broker.
-7. **Patrón Transaccional Outbox y Serializadores Extensibles (T012 - OCP)**:
-   - Puerto `OutboxEventPublisherPort` en la capa de aplicación con método `enqueue(routingKey, eventType, payload)`.
-   - Implementado en `OutboxNotificationRepositoryAdapter` mediante transacción obligatoria (`@Transactional(propagation = Propagation.MANDATORY)`), enlazando la publicación con la transacción del caso de uso.
-   - Asignación atómica de `sequenceNumber` por routing key utilizando las secuencias nativas de PostgreSQL creadas en Flyway V1 (`SELECT nextval(...)`), garantizando orden y unicidad sin contención de locks.
-   - Diseño OCP para serializadores: interfaz `OutboxMessageSerializer`, clase abstracta `AbstractModule2FlatMessageSerializer` para el formato plano de Módulo 2 (`CHECK_IN`, `CHECK_OUT`, `MAINTENANCE_NOTICE`) agregando `messageId` y `sequenceNumber`, y `CheckOutBillingEventSerializer` para el sobre canónico `EventEnvelope` de Módulo 3 (`eventId`, `eventType = CHECK_OUT`, `occurredAt` con desfase `-05:00`, `sourceModule = MODULE_1`, `payload`) sin `messageId` ni `sequenceNumber`.
-   - `OutboxScheduledWorker`: Proceso programado que obtiene mensajes `PENDING` con `nextAttemptAt <= now()`.
-   - `RabbitMqOutboxPublisherAdapter`: Publica con `RabbitTemplate` confirmando entrega asíncrona mediante `CorrelationData`. Mensajes devueltos por falta de binding (unroutable) son tratados como fallo de publicación sin bloquear el resto de la cola.
-   - Política de reintentos exponencial `OutboxBackoffPolicy`: intervalos de 1 s, 2 s, 4 s, 8 s... limitados a un máximo de 5 minutos (300 s). Al superar `max-retries` (10 por defecto), el estado cambia a `FAILED` y se emite la alerta `OUTBOX_PUBLISH_FAILED` en el logger de errores.
-8. **Configuración de RestClient y Timeouts Diferenciados (T013 - Regla 5)**:
-   - Propiedades de configuración mapeadas con `@ConfigurationProperties`: `Module2Properties` (`hospitua.module2.base-url`, connect-timeout 1s, read-timeout 2s) y `Module3Properties` (`hospitua.module3.base-url`, connect-timeout 1s, read-timeout 3s) utilizando `java.time.Duration`.
-   - `RestClientConfig` instancia los clientes mediante `RestClient.builder()` con `JdkClientHttpRequestFactory`, inyectando de forma estricta los timeouts respectivos. No se crean adaptadores de feature prematuros, reservándolos para sus planes respectivos (`plan-consultar-reservas.md` y `plan-consultar-liquidacion.md`).
+---
 
-## Archivos Creados y Modificados
-### Tarea 1 (Pieza mínima T019):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/SourceFlow.java`: Enum con los 12 flujos de origen y método `displayName()` con el nombre legible en español.
-- `backend/src/test/java/com/hospitua/habitaciones/domain/model/SourceFlowTest.java`: Pruebas unitarias que validan la existencia de los 12 valores y sus nombres legibles.
+## Decisiones Técnicas Tomadas en el Lote de Puertos Transversales (T018)
 
-### Tarea 2 (T016 - Historial de estados y bitácora):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomStateHistory.java`: Entidad de dominio inmutable para periodos de historial.
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomAuditEventType.java`: Enum de tipos de eventos de auditoría (`RESERVATION_STATE_CONFLICT`, `ROOM_EDITED`, `CHECK_IN`, `CHECK_OUT`).
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/RoomAuditEntry.java`: Modelo de dominio puro para entradas de bitácora.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomStateHistoryRepositoryPort.java`: Puerto de persistencia y consulta de periodo abierto.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/RoomAuditLogRepositoryPort.java`: Puerto de registro de bitácora.
-- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateHistoryRecorder.java`: Servicio de aplicación que coordina el cierre y apertura de periodos con `Clock`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomStateHistoryJpaEntity.java`: Entidad JPA para `room_state_history`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/RoomAuditLogJpaEntity.java`: Entidad JPA para `room_audit_log` con `details jsonb`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomStateHistoryJpaRepository.java`: Interfaz Spring Data JPA para historial.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataRoomAuditLogJpaRepository.java`: Interfaz Spring Data JPA para bitácora.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomStateHistoryMapper.java`: Mapper dominio <-> JPA para historial.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/RoomAuditLogMapper.java`: Mapper dominio <-> JPA para bitácora.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomStateHistoryRepositoryAdapter.java`: Adaptador JPA de historial.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/RoomAuditLogRepositoryAdapter.java`: Adaptador JPA de bitácora.
+1. **Pipeline de Integración Continua (Tarea 1 - T025)**:
+   - Configurado `.github/workflows/backend-ci.yml` ejecutando sobre pull requests hacia `develop` y `main`.
+   - Utiliza JDK 21 (Temurin), caché de Maven y ejecuta `./mvnw verify -DexcludedGroups=performance` desde el subdirectorio `backend/`.
 
-### Tarea 3 (T010 - Máquina de estados):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/Room.java`: Actualizado con matriz de transiciones canónicas (`ALLOWED_TRANSITIONS`), `transitionTo(target)` y `reserveFor(ref)`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/TransitionRoomStateUseCase.java`: Puerto de entrada para transiciones habitacionales y registro de estado inicial.
-- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java`: Servicio `@Transactional(propagation = Propagation.REQUIRED)` que orquesta validación, transición, guardado y registro en historial.
-- `backend/src/test/java/com/hospitua/habitaciones/domain/model/RoomTest.java`: Pruebas exhaustivas de las 64 combinaciones origen-destino entre los 8 estados canónicos, asignación de reserva y limpieza de referencias.
-- `backend/src/test/java/com/hospitua/habitaciones/application/service/RoomStateTransitionServiceTest.java`: Pruebas unitarias de Mockito para el servicio de transición.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/RoomStateTransitionIntegrationTest.java`: Pruebas de integración con Testcontainers PostgreSQL que validan atomicidad, reversión ante errores, persistencia de historial y bitácora con y sin actor.
+2. **Puerto Transversal `MarkRoomAvailableUseCase` (Tarea 2 - `plan-marcar-habitacion-como-disponible.md`)**:
+   - Implementado en `MarkRoomAvailableService` con `@Transactional(propagation = Propagation.MANDATORY)` asegurando que se invoque en el contexto transaccional del caso de uso padre (o con bloqueo de fila previo).
+   - Valida estados de origen compatibles según la máquina de estados y las reglas del plan:
+     - Desde `Inactive` requiere `actorId` obligatorio (Administrador).
+     - Desde `Reserved` requiere que `reservationRef` coincida con la que apartó la habitación.
+     - Desde `InCleaning` requiere `sourceFlow = CONFIRM_CLEANING_END`.
+   - Delega la transición a `TransitionRoomStateUseCase`, que actualiza la entidad, limpia automáticamente `reservedByReservationRef` al salir de `Reserved` y registra el periodo en `room_state_history`.
+   - Alcance acotado estrictamente a Phases 2 y 3 (puerto transversal y servicio); las Phases 4 y 5 (endpoints REST de reactivación, consulta de bajas y UI) quedan para el lote correspondiente tras la implementación de bajas.
 
-### Tarea 4 (T011 - Configuración y topología de RabbitMQ):
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/RabbitConfig.java`: Topología declarativa completa (`hospitua.events`, colas y bindings de Módulo 2, cola de entrada `m1.reservas.diarias.queue` con DLX/DLQ `m1.reservas.diarias.dlq`, conversor Jackson JSON y `RabbitTemplate` con publisher confirms y mandatory).
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/config/RabbitTopologyIntegrationTest.java`: Pruebas de integración con Testcontainers RabbitMQ que verifican la existencia de las colas, exchanges, bindings y la entrega de mensajes.
+3. **Puerto Transversal `MarkRoomReservedUseCase` (Tarea 3 - `plan-marcar-habitacion-reservada.md`)**:
+   - DTOs y modelos creados: `ReservationTrigger` (`DAILY_LIST`, `ADDED_UPDATE`, `CLEANING_END`), `MarkRoomReservedOutcome` (`RESERVED`, `ALREADY_RESERVED`, `CONFLICT`, `ROOM_NOT_FOUND`), `MarkRoomReservedCommand`, `MarkRoomReservedResult`.
+   - Implementado en `MarkRoomReservedService` con `@Transactional(propagation = Propagation.MANDATORY)`.
+   - Comportamiento implementado:
+     - Valida `roomId` y `reservationRef` (lanzando `IllegalArgumentException` si son nulos o blancos).
+     - Si la habitación no existe, registra advertencia y retorna `ROOM_NOT_FOUND`.
+     - Si la habitación está en `Available`, transiciona a `Reserved` vía `TransitionRoomStateUseCase` con `MARK_RESERVED` y `actorId = null` (autónomo), retornando `RESERVED`.
+     - Si la habitación ya está en `Reserved` para la misma reserva, es idempotente y retorna `ALREADY_RESERVED` sin escrituras redundantes.
+     - En cualquier otro caso (conflicto con otros estados operativos o con otra reserva previa), registra el conflicto en `room_audit_log` con `RESERVATION_STATE_CONFLICT` y detalle estructurado (`currentStatus`, `incomingReservationRef`, `linkedReservationRef`, `trigger`), retornando `CONFLICT`.
 
-### Tarea 5 (T012 - Mecanismo Transaccional Outbox):
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/OutboxMessage.java`: Record con `messageId` y `sequenceNumber`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/OutboxStatus.java`: Enum de estados (`PENDING`, `PUBLISHED`, `FAILED`).
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/OutboxEventPublisherPort.java`: Puerto de encolado del Outbox.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/OutboxNotification.java`: Modelo de dominio del Outbox.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/OutboxNotificationRepositoryPort.java`: Puerto de persistencia y consulta del Outbox.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/OutboxNotificationJpaEntity.java`: Entidad JPA para `outbox_notification`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/repository/SpringDataOutboxNotificationJpaRepository.java`: Interfaz Spring Data JPA para consultar notificaciones pendientes con `nextAttemptAt <= now()`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/mapper/OutboxNotificationMapper.java`: Mapper dominio <-> JPA para Outbox.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/adapter/OutboxNotificationRepositoryAdapter.java`: Adaptador con `@Transactional(propagation = Propagation.MANDATORY)` y obtención de secuencia PostgreSQL por routing key (`SELECT nextval(...)`).
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/OutboxMessageSerializer.java`: Interfaz extensible OCP para serialización de eventos.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/AbstractModule2FlatMessageSerializer.java`: Clase base para formato plano Módulo 2 con `messageId` y `sequenceNumber`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/CheckInMessageSerializer.java`: Serializador para `CHECK_IN`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/CheckOutMessageSerializer.java`: Serializador para `CHECK_OUT`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/MaintenanceNoticeMessageSerializer.java`: Serializador para `MAINTENANCE_NOTICE`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/CheckOutBillingEventSerializer.java`: Serializador para `CHECK_OUT_BILLING` con sobre `EventEnvelope` de Módulo 3.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/RabbitMqOutboxPublisherAdapter.java`: Adaptador de publicación hacia RabbitMQ con verificación de confirms y control de devueltos (`mandatory = true`).
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/OutboxBackoffPolicy.java`: Estrategia de reintentos exponenciales con tope de 5 minutos.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/OutboxScheduledWorker.java`: Worker programado con `@Scheduled` para procesar el Outbox y reportar alertas `OUTBOX_PUBLISH_FAILED`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/SchedulingConfig.java`: Configuración condicional de `@EnableScheduling` para pruebas.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/OutboxMessageSerializerTest.java`: Pruebas unitarias para serializadores OCP y sobre `EventEnvelope`.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/OutboxBackoffPolicyTest.java`: Pruebas unitarias de política de backoff.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/OutboxTransactionalIntegrationTest.java`: Pruebas de integración con Testcontainers PostgreSQL + RabbitMQ (reversión transaccional en enqueue, worker exitoso y marcado `PUBLISHED`, manejo de fallos y reintentos, tope `FAILED` con alerta).
+4. **Puerto Transversal `MarkPendingCleaningUseCase` (Tarea 4 - `plan-marcar-pendiente-a-limpieza.md`)**:
+   - Modelado con `MarkPendingCleaningCommand` (`roomId`, `sourceFlow`, `actorId`) y `MarkPendingCleaningResult` (`roomId`, `previousStatus`, `transitionDateTime`).
+   - Implementado en `MarkPendingCleaningService` con `@Transactional(propagation = Propagation.MANDATORY)`.
+   - Valida la regla FR-001: el origen `InCleaning` solo se acepta si el flujo invocador es `RELEASE_CLEANING_TASK`; cualquier otro flujo con `InCleaning` es rechazado con `InvalidRoomTransitionException`.
+   - Los demás estados de origen permitidos (`Occupied`, `DisabledForRepairs`, `TechnicalBlock`) son transicionados a `PendingCleaning` vía `TransitionRoomStateUseCase` registrando el periodo correspondiente en `room_state_history`. Orígenes inválidos son rechazados con `InvalidRoomTransitionException(currentStatus)`.
 
-### Tarea 6 (T013 - RestClient y timeouts):
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/rest/Module2Properties.java`: Propiedades de conexión y timeouts para Módulo 2 (connect: 1s, read: 2s).
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/rest/Module3Properties.java`: Propiedades de conexión y timeouts para Módulo 3 (connect: 1s, read: 3s).
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/RestClientConfig.java`: Configuración de los beans `module2RestClient` y `module3RestClient` con `JdkClientHttpRequestFactory`.
-- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/config/RestClientTimeoutWireMockTest.java`: Pruebas con WireMock validando respuestas rápidas exitosas y corte exacto de `read-timeout` para Módulo 2 (2s) y Módulo 3 (3s).
+5. **Aislamiento de Entornos de Pruebas de Integración Concurrente**:
+   - En las pruebas de integración con Testcontainers, las entidades `Room` utilizan números de habitación con prefijo (`AVA-*`, `RES-*`, `CLN-*`) para garantizar que la restricción de unicidad `uk_room_room_number` no interfiera con otras clases de prueba de la suite como `RoomRepositoryAdapterTest`.
 
-### Tarea 7 (T019 - Componentes compartidos de limpieza y mantenimiento):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/SourceFlow.java`: Enum con los 12 flujos de origen y método `displayName()` con el nombre legible en español.
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/MaintenanceLimits.java`: Record de dominio (`maxRangeDays`, `maxAdvanceDays`) desacoplado de infraestructura.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/MaintenanceProperties.java`: Propiedades `hospitua.maintenance.*` exponiendo el bean de dominio `MaintenanceLimits`.
-- Excepciones de tareas en `domain/exception/`: `TaskNotOwnedException` (403), `TaskNotFoundException` (404), `TaskAlreadyClosedException` (409), `ActiveTaskExistsException` (409), `RoomTaskExistsException` (409).
-- Registro de excepciones en `GlobalExceptionHandler`.
-- `backend/src/test/java/com/hospitua/habitaciones/domain/model/SourceFlowTest.java`, `MaintenancePropertiesTest.java`.
+---
 
-### Tarea 8 (T022 - Núcleo de cuentas del personal y bootstrap):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/StaffArea.java`: Enum de áreas (`RECEPCION`, `LIMPIEZA`, `MANTENIMIENTO`, `ADMINISTRACION`, `GERENCIA`).
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/StaffAccount.java`: Entidad de dominio con normalización de username, auditoría, estado activo y versión para control concurrente.
-- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/UsernameAlreadyExistsException.java`: Excepción 409 `USERNAME_ALREADY_EXISTS`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/StaffAccountRepositoryPort.java`: Puerto de persistencia con `save`, `findByUsername`, `countActiveAdminAccounts`, `findActiveAdminAccountsWithLock`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/out/PasswordEncoderPort.java`: Puerto para hashing y verificación de contraseñas.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/security/BCryptPasswordEncoderAdapter.java`: Adaptador con `BCryptPasswordEncoder` de `spring-security-crypto`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/RegisterStaffAccountUseCase.java` y `RegisterStaffAccountService.java`: Servicio de registro con validación de unicidad.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/config/StaffBootstrapProperties.java`: Configuración de cuenta inicial de Administración.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/startup/StaffAccountBootstrapper.java`: `ApplicationRunner` que inicializa la cuenta de administración si no existe ninguna activa.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/entity/UserAccountJpaEntity.java`, `SpringDataUserAccountJpaRepository.java`, `StaffAccountMapper.java`, `StaffAccountRepositoryAdapter.java`.
-- Pruebas unitarias e integración en `StaffAccountTest.java`, `RegisterStaffAccountServiceTest.java`, `StaffAccountIntegrationTest.java`.
+## Archivos Creados y Modificados en este Lote
 
-### Tarea 9 (T020 - Inicio de sesión y usuario actual):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/InvalidCredentialsException.java`: 401 `INVALID_CREDENTIALS`.
-- `backend/src/main/java/com/hospitua/habitaciones/domain/exception/CurrentUserRequiredException.java`: 400 `CURRENT_USER_REQUIRED`.
-- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/LoginUseCase.java` y `LoginService.java`: Validación de credenciales y estado activo sin revelar causa de error.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/dto/LoginRequest.java` y `LoginResponse.java`: DTOs de inicio de sesión sin exponer hash ni contraseñas.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/AuthController.java`: Endpoint `POST /api/auth/login`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/in/web/CurrentUserResolver.java`: Componente inyectable para resolver usuario actual del encabezado `X-User`.
-- Registro de excepciones en `GlobalExceptionHandler`.
-- Pruebas unitarias en `LoginServiceTest.java`, `CurrentUserResolverTest.java`, y MockMvc en `AuthControllerTest.java`.
+### Tarea 1: Pipeline CI (T025)
+- `.github/workflows/backend-ci.yml`: Workflow para validación continua en PRs hacia `develop` y `main`.
 
-### Tarea 10 (T024 - Publicador de avisos de mantenimiento):
-- `backend/src/main/java/com/hospitua/habitaciones/domain/model/MaintenanceNoticeAction.java`: Enum de acciones (`SCHEDULED`, `UPDATED`, `CANCELLED`).
-- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MaintenanceNoticePayload.java`: Record DTO para formato plano con fechas ISO AAAA-MM-DD y omisión de nulos.
-- `backend/src/main/java/com/hospitua/habitaciones/application/service/MaintenanceNoticePublisher.java`: Servicio `@Transactional(propagation = Propagation.MANDATORY)` con métodos `publishScheduled`, `publishUpdated` y `publishCancelled` hacia `habitacion.mantenimiento` con eventType `MAINTENANCE_NOTICE`.
-- `backend/src/main/java/com/hospitua/habitaciones/infrastructure/adapters/out/messaging/serializer/AbstractModule2FlatMessageSerializer.java`: Adaptador plano con inclusión de `messageId`, `sequenceNumber` y omisión de campos nulos.
-- Pruebas unitarias en `MaintenanceNoticePublisherTest.java` e integración completa con Testcontainers en `MaintenanceNoticeIntegrationTest.java` (persistencia jsonb, omisión de campos nulos en BD y mensaje, y rollback atómico).
+### Tarea 2: Puerto Marcar Disponible
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkRoomAvailableCommand.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkRoomAvailableResult.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/MarkRoomAvailableUseCase.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/MarkRoomAvailableService.java`
+- `backend/src/test/java/com/hospitua/habitaciones/application/service/MarkRoomAvailableServiceTest.java`
+- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/MarkRoomAvailableIntegrationTest.java`
 
-### Planes y Documentación:
-- `documentos/PLAN/base/plan.md`: Marcadas con `[x]` las tareas T010, T011, T012, T013, T014, T016, T019, T020, T022, T023 y T024.
-- `pendiente.md`: Actualizado con el registro detallado de las tareas ejecutadas.
+### Tarea 3: Puerto Marcar Reservada
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/ReservationTrigger.java`
+- `backend/src/main/java/com/hospitua/habitaciones/domain/model/MarkRoomReservedOutcome.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkRoomReservedCommand.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkRoomReservedResult.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/MarkRoomReservedUseCase.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/MarkRoomReservedService.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/RoomStateTransitionService.java` (resolución de comentario TODO confirmando `IllegalArgumentException`).
+- `backend/src/test/java/com/hospitua/habitaciones/application/service/MarkRoomReservedServiceTest.java`
+- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/MarkRoomReservedIntegrationTest.java`
+
+### Tarea 4: Puerto Marcar Pendiente a Limpieza
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkPendingCleaningCommand.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/dto/MarkPendingCleaningResult.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/ports/in/MarkPendingCleaningUseCase.java`
+- `backend/src/main/java/com/hospitua/habitaciones/application/service/MarkPendingCleaningService.java`
+- `backend/src/test/java/com/hospitua/habitaciones/application/service/MarkPendingCleaningServiceTest.java`
+- `backend/src/test/java/com/hospitua/habitaciones/infrastructure/adapters/out/persistence/MarkPendingCleaningIntegrationTest.java`
+
+### Planes Actualizados
+- `documentos/PLAN/base/plan.md`: Marcadas `[x]` las tareas T018 y T025.
+- `documentos/PLAN/plan-marcar-habitacion-como-disponible.md`: Marcadas `[x]` las tareas T001 a T009 (Phases 2 y 3).
+- `documentos/PLAN/plan-marcar-habitacion-reservada.md`: Marcadas `[x]` las tareas T001 a T013.
+- `documentos/PLAN/plan-marcar-pendiente-a-limpieza.md`: Marcadas `[x]` las tareas T001 a T007.
+
+---
+
+## Tareas dejadas sin hacer según el alcance definido (KISS / YAGNI)
+1. `plan-marcar-habitacion-como-disponible.md`:
+   - Phases 4 y 5 (T010 a T025): Endpoints de reactivación (`POST /api/rooms/{roomId}/reactivation`), consulta de bajas (`GET /api/rooms/{roomId}/decommission`), integración de `RoomDecommission` y componentes de frontend. Se implementan en el lote posterior tras `plan-dar-de-baja-habitacion.md`.
+2. `plan-marcar-habitacion-reservada.md`:
+   - T014 a T018: Verificación e integración con los invocadores (`DailyReservationIngestionService`, `CompleteCleaningService`, vistas de recepción) y pruebas E2E de latencia, que corresponden a los lotes de cada caso de uso invocador.
+3. `plan-marcar-pendiente-a-limpieza.md`:
+   - T008 en adelante: Flujos invocadores (check-out, reparación y liberación de tareas en recepción y limpieza), que se probarán de extremo a extremo al construir esos casos de uso.
+
+---
 
 ## Resultado de `mvnw.cmd verify`
-- **Docker / Testcontainers**: Contenedores PostgreSQL 16 y RabbitMQ 3.13 activos y conectados de forma dinámica.
-- **Modo Hibernate**: Esquema completamente validado en modo `validate` contra Flyway V1.
-- **Spotless**: 127 archivos Java limpios y formateados según el estándar del proyecto (`BUILD SUCCESS`).
-- **Pruebas Automatizadas**: **132 pruebas ejecutadas, 0 fallos, 0 errores, 0 omitidos**.
-- **Empaquetado JAR**: Generación exitosa de `target/habitaciones-0.0.1-SNAPSHOT.jar`.
-- **Resultado General**: `BUILD SUCCESS`.
+- **Compilación**: 110 archivos de código fuente compilados con Java 21 sin advertencias.
+- **Formateo Spotless**: 147 archivos verificados limpios.
+- **Pruebas Automatizadas**: **172 pruebas ejecutadas, 0 fallos, 0 errores, 0 omitidos**.
+  - Pruebas unitarias de servicios de transición y casos de uso con Mockito.
+  - Pruebas de integración con Testcontainers (PostgreSQL 16 y RabbitMQ 3.13) cubriendo concurrencia, bloqueo pesimista y optimista, rollbacks atómicos, persistencia de historial y bitácora de auditoría.
+- **Empaquetado**: JAR ejecutable `habitaciones-0.0.1-SNAPSHOT.jar` generado exitosamente.
+- **Estado General**: `BUILD SUCCESS`.
