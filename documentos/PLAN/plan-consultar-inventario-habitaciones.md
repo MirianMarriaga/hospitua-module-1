@@ -54,14 +54,14 @@ Accept: application/json
 
 | Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
 | --- | --- | --- | --- | --- | --- |
-| `roomNumber` | query | string | No | Coincidencia exacta, sin espacios al inicio ni al final (FR-004) | `203` |
+| `roomNumber` | query | string | No | Coincidencia exacta, comparado sin espacios al inicio ni al final y con sus letras en mayúsculas (FR-004; *Registrar habitación* FR-014) | `203` |
 | `categoryRoom` | query | string | No | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` | `DOBLE` |
 | `floor` | query | integer | No | Piso | `2` |
 | `status` | query | string | No | Uno de los 8 estados; sin este filtro se incluyen todos, también `Inactive` (FR-003) | `Available` |
 | `sort` | query | string | No | `roomNumber` (por defecto; orden natural de T008 del plan base), `floor`, `categoryRoom`, `maxCapacity`, `baseRate` o `status` (FR-005, esc. 3) | `baseRate` |
 | `direction` | query | string | No | `asc` (por defecto) o `desc` | `asc` |
 | `page` | query | integer | No | Página, desde 1 (por defecto 1) (FR-009) | `1` |
-| `size` | query | integer | No | Tamaño de página; las vistas usan 10 (FR-009); máximo 100 | `10` |
+| `size` | query | integer | No | Tamaño de página, de 1 a 100 (por defecto 10); las vistas usan 10 (FR-009) | `10` |
 
 **Body (JSON):** No aplica.
 
@@ -275,7 +275,7 @@ backend/src/main/
 │       │   └── RoomController.java                # Se agregan GET /api/rooms/inventory, GET /api/rooms/inventory/{roomId}, GET /api/rooms y GET /api/rooms/{roomId}
 │       └── out/persistence/
 │           ├── adapter/RoomRepositoryAdapter.java     # Se agrega searchInventory(...), que usa RoomInventorySpecifications
-│           └── repository/RoomInventorySpecifications.java   # Filtros dinámicos (JPA Specifications)
+│           └── repository/RoomInventorySpecifications.java   # Filtros dinámicos (JPA Specifications); el orden y la página se aplican en memoria
 └── resources/db/migration/
     └── V4__room_inventory_indexes.sql
 frontend/src/
@@ -305,8 +305,8 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [x] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
-- [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter` con `RoomInventorySpecifications` (filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`, y orden por las columnas permitidas). El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
-  - Avance: hecho `searchInventory` con `RoomInventorySpecifications`; el orden y la paginación se aplican en memoria sobre el resultado filtrado, porque el orden natural de `roomNumber` no es un orden por columna. Falta la consulta de habitaciones vendibles para Módulo 2 (L03)
+- [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter`: `RoomInventorySpecifications` aplica en SQL los filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`; el orden por la columna pedida (con el orden natural de `roomNumber` como desempate) y la paginación se aplican en memoria sobre el resultado filtrado, porque el orden natural de `roomNumber` (T008 del plan base) no es un orden por columna. T020 confirma que alcanza para SC-001. El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
+  - Avance: hecho `searchInventory`. Falta la consulta de habitaciones vendibles para Módulo 2 (L03)
 - [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T015).
 
 ---

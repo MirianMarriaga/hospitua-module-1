@@ -53,11 +53,11 @@ X-User: lmendez
 Content-Type: application/json
 ```
 
-**Body (JSON):** todos los campos son obligatorios. `roomNumber` se guarda sin espacios al inicio ni al final. Cualquier `roomId` o `status` enviado se ignora (FR-002, FR-008).
+**Body (JSON):** todos los campos son obligatorios. `roomNumber` se guarda sin espacios al inicio ni al final y con sus letras en mayúsculas (FR-014). Cualquier `roomId` o `status` enviado se ignora (FR-002, FR-008).
 
 | Campo | Tipo | Regla | Ejemplo |
 | --- | --- | --- | --- |
-| `roomNumber` | string | No vacío; único en todo el inventario (FR-004) | `"407"` |
+| `roomNumber` | string | No vacío, máximo 10 caracteres; único en todo el inventario sin distinguir mayúsculas (FR-004, FR-014) | `"407"` |
 | `floor` | integer | Entero mayor a 0 (FR-011) | `4` |
 | `categoryRoom` | string | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (FR-005); la interfaz los muestra como Sencilla, Doble, Suite y Boutique | `"DOBLE"` |
 | `maxCapacity` | integer | Entero mayor a 0 (FR-006) | `2` |
@@ -111,6 +111,7 @@ Content-Type: application/json
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.field` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número de habitación de más de 10 caracteres (FR-014) | "El número de habitación debe tener máximo 10 caracteres." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa, o con más de dos decimales (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
@@ -234,6 +235,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [x] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
 - [x] T016 Integration test: ninguna habitación registrada queda sin UUID, sin estado o sin su periodo inicial en `room_state_history` (SC-004).
+- [x] T017 Unit e integration test: el número se guarda sin espacios y en mayúsculas ("101a" queda "101A"), un número que solo difiere en mayúsculas se rechaza con `ROOM_NUMBER_ALREADY_EXISTS` y uno de más de 10 caracteres con `VALIDATION_ERROR` (FR-004, FR-014).
 
 ---
 
