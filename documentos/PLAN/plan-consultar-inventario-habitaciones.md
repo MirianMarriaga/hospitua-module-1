@@ -260,7 +260,7 @@ backend/src/main/
 │   │   ├── ports/in/
 │   │   │   └── ConsultRoomInventoryUseCase.java
 │   │   ├── ports/out/
-│   │   │   └── RoomRepositoryPort.java            # Se agrega searchInventory(RoomInventoryFilter, page, size)
+│   │   │   └── RoomRepositoryPort.java            # Se agregan searchInventory(RoomInventoryFilter, page, size), findSellableByCategory y findSellableById (sin Inactive)
 │   │   ├── service/
 │   │   │   └── RoomInventoryQueryService.java
 │   │   └── dto/
@@ -292,7 +292,7 @@ frontend/src/
     └── roomService.ts                             # Se agregan getRooms() y getRoom() (hacia /api/rooms/inventory)
 ```
 
-**Structure Decision**: Las dos vistas comparten `RoomInventoryTable`, `RoomInventoryFilters` y `Pagination`; cada página agrega solo sus acciones por fila. Las acciones del Administrador navegan a las páginas de `plan-registrar-habitacion.md`, `plan-editar-habitacion.md`, `plan-dar-de-baja-habitacion.md` y `plan-marcar-habitacion-como-disponible.md`; "Ver historial" navega a `plan-consultar-historial-de-estados.md` con `roomId` en la URL. Los endpoints de Módulo 2 (`GET /api/rooms` y `GET /api/rooms/{roomId}`) devuelven `Module2RoomDto` (arreglo u objeto) y el servicio excluye las habitaciones `Inactive` antes de consultar; los de las vistas están bajo `/api/rooms/inventory`.
+**Structure Decision**: Las dos vistas comparten `RoomInventoryTable`, `RoomInventoryFilters` y `Pagination`; cada página agrega solo sus acciones por fila. Las acciones del Administrador navegan a las páginas de `plan-registrar-habitacion.md`, `plan-editar-habitacion.md`, `plan-dar-de-baja-habitacion.md` y `plan-marcar-habitacion-como-disponible.md`; "Ver historial" navega a `plan-consultar-historial-de-estados.md` con `roomId` en la URL. Los endpoints de Módulo 2 (`GET /api/rooms` y `GET /api/rooms/{roomId}`) devuelven `Module2RoomDto` (arreglo u objeto) y las habitaciones `Inactive` se excluyen en la consulta del repositorio (`findSellableByCategory` y `findSellableById`), así ningún invocador puede olvidar el filtro; los de las vistas están bajo `/api/rooms/inventory`.
 
 ---
 
@@ -305,8 +305,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [x] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
-- [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter`: `RoomInventorySpecifications` aplica en SQL los filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`; el orden por la columna pedida (con el orden natural de `roomNumber` como desempate) y la paginación se aplican en memoria sobre el resultado filtrado, porque el orden natural de `roomNumber` (T008 del plan base) no es un orden por columna. T020 confirma que alcanza para SC-001. El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
-  - Avance: hecho `searchInventory`. Falta la consulta de habitaciones vendibles para Módulo 2 (L03)
+- [x] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter`: `RoomInventorySpecifications` aplica en SQL los filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`; el orden por la columna pedida (con el orden natural de `roomNumber` como desempate) y la paginación se aplican en memoria sobre el resultado filtrado, porque el orden natural de `roomNumber` (T008 del plan base) no es un orden por columna. T020 confirma que alcanza para SC-001. El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
 - [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T015).
 
 ---
@@ -324,7 +323,7 @@ No aplica: usa la infraestructura del plan base.
 - [x] T006 [P] [US1] Unit test: el orden se aplica sin alterar los filtros (esc. 3; FR-005).
 - [x] T007 [P] [US1] Unit test: el filtro por `roomNumber` devuelve como máximo una habitación; un número inexistente devuelve una lista vacía, sin error (caso borde 3; FR-004).
 - [x] T008 [P] [US1] Unit test: la paginación devuelve 10 por página con `totalElements` y `totalPages` correctos (esc. 7; FR-009).
-- [ ] T009 [US1] Integration test del contrato con Módulo 2: `GET /api/rooms?categoryRoom=DOBLE` devuelve un arreglo sin paginar con solo `id`, `roomNumber`, `categoryRoom` y `maxCapacity`, sin la habitación `Inactive` de esa categoría; una categoría sin habitaciones devuelve `[]`; sin `categoryRoom` o con una categoría inválida, `400`; `GET /api/rooms/{roomId}` de una `Inactive` responde `404`, mientras `GET /api/rooms/inventory/{roomId}` responde `200` (esc. 4, 8 y 9; FR-010, FR-011; SC-003).
+- [x] T009 [US1] Integration test del contrato con Módulo 2: `GET /api/rooms?categoryRoom=DOBLE` devuelve un arreglo sin paginar con solo `id`, `roomNumber`, `categoryRoom` y `maxCapacity`, sin la habitación `Inactive` de esa categoría; una categoría sin habitaciones devuelve `[]`; sin `categoryRoom` o con una categoría inválida, `400`; `GET /api/rooms/{roomId}` de una `Inactive` responde `404`, mientras `GET /api/rooms/inventory/{roomId}` responde `200` (esc. 4, 8 y 9; FR-010, FR-011; SC-003).
 - [x] T010 [US1] Integration test: ninguna consulta modifica `room` ni `room_state_history` (FR-006).
 - [ ] T011 [P] [US1] Component test en `ManagerRoomInventoryPage`: la tabla muestra número, piso, tipo, capacidad, tarifa y estado en español, no muestra el UUID y "Ver historial" navega al historial con la habitación (esc. 5; FR-002, FR-007).
 - [ ] T012 [P] [US1] Component test en `AdminRoomInventoryPage`: "Editar" y "Dar de baja" solo en `Available`, "Marcar como disponible" solo en `Inactive`, ninguna acción en los demás estados y "Registrar habitación" sobre el listado (esc. 6; FR-008).
@@ -333,12 +332,10 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implementar `RoomInventoryQueryService` (`@Transactional(readOnly = true)`) sobre `RoomRepositoryPort.searchInventory(...)`, con paginación y orden (FR-003 a FR-006, FR-009), y con el filtro `status != Inactive` en la consulta de Módulo 2 (FR-010).
-  - Avance: hecho `RoomInventoryQueryService` para las vistas (`search` y `getById`). Falta la consulta de Módulo 2 sin `Inactive` (L03)
-- [ ] T016 [US1] Agregar a `RoomController` (FR-001, FR-004, FR-010):
+- [x] T015 [US1] Implementar `RoomInventoryQueryService` (`@Transactional(readOnly = true)`) sobre `RoomRepositoryPort.searchInventory(...)`, con paginación y orden (FR-003 a FR-006, FR-009), y con el filtro `status != Inactive` en la consulta de Módulo 2 (FR-010), aplicado en la consulta del repositorio (`findSellableByCategory` y `findSellableById`), no en el invocador.
+- [x] T016 [US1] Agregar a `RoomController` (FR-001, FR-004, FR-010):
   - Para las vistas: `GET /api/rooms/inventory`, que responde `PagedResultDto<RoomDto>`, y `GET /api/rooms/inventory/{roomId}`, que responde `RoomDto` con `version`.
   - Para Módulo 2: `GET /api/rooms` (con `categoryRoom` obligatorio), que responde un arreglo sin paginar de `Module2RoomDto`, y `GET /api/rooms/{roomId}`, que responde `Module2RoomDto` y `404` para una `Inactive`.
-  - Avance: hechos `GET /api/rooms/inventory` (parámetros validados con `RoomInventoryQuery`) y `GET /api/rooms/inventory/{roomId}`. Faltan los endpoints de Módulo 2 (L03)
 - [ ] T017 [US1] Construir en el frontend `RoomInventoryTable.tsx`, `RoomInventoryFilters.tsx` y `Pagination.tsx`, con los estados y las categorías en español (FR-002, FR-004, FR-009).
 - [ ] T018 [US1] Construir `ManagerRoomInventoryPage.tsx` con "Ver historial" por fila (FR-007).
 - [ ] T019 [US1] Construir `AdminRoomInventoryPage.tsx` con "Registrar habitación" y las acciones por estado (FR-008).
