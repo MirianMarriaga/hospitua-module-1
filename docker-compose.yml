@@ -1,0 +1,39 @@
+# Infraestructura de desarrollo local de Módulo 1 (plan base, T005).
+# Uso: docker compose up -d  →  luego ./mvnw spring-boot:run en backend/ (perfil dev).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hospitua_m1
+      POSTGRES_USER: hospitua
+      POSTGRES_PASSWORD: hospitua
+      TZ: America/Bogota
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hospitua -d hospitua_m1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: hospitua
+      RABBITMQ_DEFAULT_PASS: hospitua
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Interfaz de gestión: http://localhost:15672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  rabbitmq-data:

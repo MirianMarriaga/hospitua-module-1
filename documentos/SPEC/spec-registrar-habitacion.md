@@ -61,7 +61,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 - **FR-004**: El sistema DEBE validar que el número de habitación sea único en todo el inventario, independientemente de su estado (incluidas las habitaciones en estado "Inactive") y de su piso, rechazando el registro si ya existe cualquier habitación con el mismo número.
 - **FR-005**: El sistema DEBE restringir el campo "Tipo" a las categorías predefinidas: Sencilla, Doble, Suite, Boutique.
 - **FR-006**: El sistema DEBE validar que la capacidad máxima de personas sea un número entero positivo (mayor a cero).
-- **FR-007**: El sistema DEBE validar que la tarifa base ingresada sea un valor numérico positivo (mayor a cero).
+- **FR-007**: El sistema DEBE validar que la tarifa base ingresada sea un valor numérico positivo (mayor a cero) con máximo dos decimales.
 - **FR-008**: El sistema DEBE asignar automáticamente el estado "Available" a toda habitación recién registrada.
 - **FR-009**: El sistema DEBE persistir la habitación registrada de forma que quede visible de inmediato en el listado de inventario de habitaciones.
 - **FR-010**: El sistema DEBE registrar la fecha y el usuario responsable de la creación de cada habitación, para efectos de trazabilidad.

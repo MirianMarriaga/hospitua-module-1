@@ -54,6 +54,11 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
    - **Cuando** Se consulta la habitación "101" para una estadía con llegada el "21-10-2026" y salida el "23-10-2026"
    - **Entonces** El sistema retorna que la habitación no está disponible e incluye un cruce con inicio y fin "21-10-2026", porque no puede asignarse hoy
 
+9. **Escenario**: Consulta del módulo de reservas para calcular su disponibilidad publicada
+   - **Dado que** El sistema del módulo de reservas recalcula la disponibilidad que publica en sus canales externos (después de un aviso de mantenimiento o en su recálculo diario)
+   - **Cuando** El sistema consulta los mantenimientos de la habitación "101" desde la fecha actual hasta 90 días después
+   - **Entonces** El sistema evalúa el rango sin aplicar los límites de *Programar Bloqueo Técnico para Habitación* y retorna si la habitación está disponible y, si no lo está, cada cruce con su inicio y su fin estimado, para que Módulo 2 deje de vender esas noches (FR-001, FR-002, FR-008)
+
 ---
 
 ### Casos Límite
@@ -68,10 +73,10 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
    Si el rango todavía incluye días a partir de hoy, se evalúa desde la fecha actual (por ejemplo, la extensión de una estadía en curso). Si termina antes de hoy, se rechaza como rango temporal sin sentido.
 
 4. **¿Qué ocurre con los mantenimientos ya finalizados o caducados?**
-   No se consideran: un `TechnicalBlockReport` en estado `Completed` o `Expired` no genera solapamiento, aunque su rango coincida con el consultado.
+   No se consideran: un `TechnicalBlockReport` en estado `Completed` o `Expired` no genera solapamiento, aunque su rango coincida con el consultado. Ambos son estados definitivos: `Expired` (caducado) solo registra que el mantenimiento caducó sin aplicarse y nunca bloquea reservas.
 
 5. **¿Qué ocurre si la habitación sigue en bloqueo técnico después de la fecha estimada de finalización?**
-   El informe en estado `Applied` deja de bloquear fechas futuras posteriores a su fecha estimada de fin: la reserva tiene prioridad. La habitación sigue en `TechnicalBlock` hasta que se confirme el fin de la reparación, y el panel de mantenimiento la marca como vencida para que se cierre o se programe un nuevo mantenimiento. Mientras siga bloqueada, no se puede asignar para el día actual (escenario 8). Si el día de la llegada la habitación sigue bloqueada, Recepción ve la alerta de su panel (*Consultar panel de recepción*, FR-005).
+   El informe en estado `Applied` deja de bloquear fechas futuras posteriores a su fecha estimada de fin: la reserva tiene prioridad. La habitación sigue en `TechnicalBlock` hasta que se confirme el fin de la reparación, y el panel de mantenimiento la marca como vencida para que se cierre. Mientras siga bloqueada, no se puede asignar para el día actual (escenario 8). Si el día de la llegada la habitación sigue bloqueada, Recepción ve la alerta de su panel (*Consultar panel de recepción*, FR-005).
 
 6. **¿Qué ocurre si se consulta una habitación que no existe?**
    El sistema retorna un error de "habitación no encontrada", distinto de la verificación negativa por solapamiento.
@@ -88,7 +93,7 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE ofrecer la consulta por servicio REST al sistema del módulo de reservas. El personal de mantenimiento la usa de forma interna, a través de *Programar Bloqueo Técnico para Habitación*.
+- **FR-001**: El sistema DEBE ofrecer la consulta por servicio REST al sistema del módulo de reservas, que la usa al asignar una habitación a una reserva y para calcular la disponibilidad que publica en sus canales externos (después de cada aviso de mantenimiento y en su recálculo diario, de hoy a 90 días). El personal de mantenimiento la usa de forma interna, a través de *Programar Bloqueo Técnico para Habitación*.
 - **FR-002**: El sistema DEBE retornar si la habitación está disponible en el rango consultado frente a los mantenimientos y, si no lo está, la fecha de inicio y la fecha estimada de fin de cada mantenimiento que se cruza (FR-010, FR-014). La disponibilidad se refiere solo a mantenimientos; no evalúa reservas, ocupación ni bajas. El sistema NO DEBE incluir en la respuesta la justificación ni otros datos del mantenimiento.
 - **FR-003**: El sistema DEBE recibir como parámetros de la consulta el identificador de una única habitación (`roomId`), la fecha de inicio y la fecha de fin del rango, y evaluarlos contra los campos `TechnicalBlockStartDate` y `EstimatedTechnicalBlockEndDate` de los `TechnicalBlockReport` de esa habitación. Cuando consulta el módulo de reservas, la fecha de inicio es la llegada y la fecha de fin es la salida: se evalúan los días de la llegada al día anterior a la salida, porque el día de salida no se considera ocupado (si la llegada y la salida coinciden, se evalúa ese día). Cuando consulta *Programar Bloqueo Técnico para Habitación*, la fecha de fin es el último día del mantenimiento y sí se evalúa.
 - **FR-004**: El sistema DEBE asegurarse de que cada consulta realizada, independiente del actor que la realice, sea una operación de solo lectura (READ-ONLY).
@@ -106,7 +111,7 @@ Como sistema del módulo de reservas y miembro del personal de mantenimiento qui
 ### Entidades Clave
 
 - **Room**: Entidad que representa una habitación del hotel. Su estado actual se usa solo para FR-014.
-- **TechnicalBlockReport**: Entidad que representa el reporte generado por la programación de un mantenimiento (definida en el caso de uso *Programar Bloqueo Técnico para Habitación*). Solo los informes en estado `Scheduled` o `Applied` cuentan como cruce, dentro de su rango de fechas; la respuesta expone solo su fecha de inicio y su fecha estimada de fin.
+- **TechnicalBlockReport**: Entidad que representa el informe de bloqueo técnico generado por la programación de un mantenimiento (definida en el caso de uso *Programar Bloqueo Técnico para Habitación*). Solo los informes en estado `Scheduled` o `Applied` cuentan como cruce, dentro de su rango de fechas; la respuesta expone solo su fecha de inicio y su fecha estimada de fin.
 
 ---
 

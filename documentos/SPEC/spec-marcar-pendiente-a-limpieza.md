@@ -10,7 +10,7 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 
 **Por qué esta prioridad**: Toda habitación que ha sido ocupada o reparada necesita pasar por limpieza antes de poder ser reasignada. La transición al estado intermedio es automática porque forma parte del flujo de registro de check-out y finalización de reparación en habitaciones, y su documentación centralizada evita la duplicación de labores, asignaciones erróneas e inconsistencias en los registros del hotel.
 
-**Prueba independiente**: Puede ser probada registrando el check-out de un huésped que ocupó una habitación durante un periodo de tiempo y se encuentra en estado `Occupied` la finalización de reparaciones en una habitación en estado `DisabledForRepairs` o `TechnicalBlock`, o la liberación de una tarea de limpieza sobre una habitación en `InCleaning`, verificando que el sistema la marca como `PendingCleaning` y registra la transición en `RoomStateHistory` con la fecha y hora del servidor.
+**Prueba independiente**: Puede ser probada registrando el check-out de un huésped que ocupó una habitación durante un periodo de tiempo y se encuentra en estado `Occupied`, o la finalización de reparaciones en una habitación en estado `DisabledForRepairs` o `TechnicalBlock`, o la liberación de una tarea de limpieza sobre una habitación en `InCleaning`, verificando que el sistema la marca como `PendingCleaning` y registra la transición en `RoomStateHistory` con la fecha y hora del servidor.
 
 **Escenarios de aceptación**:
 
@@ -36,19 +36,30 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 
 ---
 
+### Historia de Usuario 2 - Devolución a PendingCleaning al desactivar la cuenta de un miembro de limpieza con tarea abierta (Prioridad: P2)
+
+Como Administrador, quiero que al desactivar la cuenta de un miembro del personal de limpieza con una tarea abierta su habitación vuelva de `InCleaning` a `PendingCleaning`, para que otro miembro pueda retomarla y la habitación no quede bloqueada a nombre de quien ya no trabaja en el hotel.
+
+**Por qué esta prioridad**: Es un caso menos frecuente que el check-out o el fin de reparación, pero sin él la habitación quedaría en `InCleaning` sin nadie que pueda terminar su limpieza (*Gestionar personal*, FR-011).
+
+**Prueba independiente**: Puede ser probada desactivando en *Gestionar personal* la cuenta de un miembro con una tarea de limpieza abierta sobre una habitación en `InCleaning`, verificando que la habitación queda en `PendingCleaning` y que `RoomStateHistory` registra al Administrador como actor y `RELEASE_CLEANING_TASK` como flujo.
+
+**Escenarios de aceptación**:
+
+5. **Escenario**: Transición `InCleaning` a `PendingCleaning` por desactivación de la cuenta del miembro
+   - **Dado que** Existe una habitación "101" en estado `InCleaning` cuya tarea de limpieza pertenece al miembro "Usuario A"
+   - **Cuando** El Administrador desactiva la cuenta del "Usuario A" en *Gestionar personal* y la tarea se libera mediante *Confirmar Fin de Limpieza de Habitación* (`RELEASE_CLEANING_TASK`)
+   - **Entonces** El sistema cambia el estado de la habitación de `InCleaning` a `PendingCleaning` dentro de la misma transacción de la desactivación (FR-001) y registra la transición en `RoomStateHistory` con el Administrador como actor (FR-004)
+
+---
+
 ### Casos Límite
 
 1. **¿Qué ocurre si hay invocaciones concurrentes sobre la misma habitación (condición de carrera)?**
    Si ocurre un check-out y un intento de manipulación del mismo registro en el mismo milisegundo, el sistema utilizará bloqueo optimista (Optimistic Locking). La primera transacción mutará el estado a `PendingCleaning`. La segunda será abortada y se devolverá al flujo invocador el error con el estado actual de la habitación, para que este muestre el error y la sugerencia de reintentar la operación.
 
-2. **¿Qué ocurre si el cambio de estado falla a nivel de base de datos?**
-   El caso de uso debe ejecutarse dentro del mismo contexto transaccional (ACID) del flujo que lo invoca. Si "Marcar Pendiente a Limpieza" falla (ej. caída de base de datos), el flujo padre (ej. check-out o finalización de reparaciones) DEBE ejecutar un *rollback*, impidiendo la liberación de la habitación, ofreciendo retroalimentación visual del error y la sugerencia de reintentar la operación.
-
-3. **¿Qué ocurre con la sincronización de la información en el panel de limpieza en tiempo real?**
-   El panel de limpieza consulta el estado persistido de las habitaciones, por lo que el cambio queda visible en cuanto se confirma la transacción; no se requiere propagación adicional.
-
-4. **¿Qué ocurre si la conexión a internet falla exactamente al momento de confirmar el check-out o el fin de reparación?**
-   La operación se ejecuta bajo control transaccional estricto (ACID). Si ocurre un error de red al intentar cambiar el estado a `PendingCleaning`, se ejecutará un *rollback* completo. La habitación permanecerá en su estado de origen (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning`) para evitar inconsistencias en el sistema, ofreciendo retroalimentación visual del error y la sugerencia de reintentar la operación.
+2. **¿Qué ocurre si el cambio de estado falla a nivel de base de datos o se pierde la conexión al confirmar el flujo invocador?**
+   El caso de uso se ejecuta dentro del mismo contexto transaccional (ACID) del flujo que lo invoca. Si "Marcar Pendiente a Limpieza" falla (ej. caída de base de datos o error de red), el flujo padre (ej. check-out, finalización de reparaciones o liberación de una tarea de limpieza) DEBE ejecutar un *rollback* completo: la habitación permanece en su estado de origen (`Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning`) y el invocador ofrece retroalimentación visual del error y la sugerencia de reintentar la operación.
 
 
 ---
@@ -57,19 +68,19 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE interceptar toda invocación a este flujo y validar que el estado operativo de la habitación sobre la que se desea realizar la operación sea única y exclusivamente: `Occupied`, `DisabledForRepairs`, o `TechnicalBlock`; o `InCleaning` únicamente cuando el flujo invocador sea la liberación de una tarea de limpieza (*Confirmar Fin de Limpieza de Habitación*).
+- **FR-001**: El sistema DEBE aceptar `InCleaning` como estado de origen únicamente cuando el flujo invocador sea la liberación de una tarea de limpieza (*Confirmar Fin de Limpieza de Habitación*, `RELEASE_CLEANING_TASK`). Los demás orígenes (`Occupied`, `DisabledForRepairs`, `TechnicalBlock`) los valida la máquina de estados.
 - **FR-002**: El sistema DEBE sobrescribir el estado de la entidad a `PendingCleaning` ejecutando la mutación dentro de un contexto transaccional seguro, sin requerir pasos intermedios ni aprobaciones humanas.
-- **FR-003**: El sistema DEBE garantizar que, tras la transición exitosa, la habitación figure de inmediato en el panel de limpieza. Mientras esté en `PendingCleaning` no puede recibir un check-in, que exige el estado `Reserved`.
-- **FR-004**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `PendingCleaning`, `PreviousStatus` = estado de origen, `StartDateTime` = `TransitionDateTime`, `ActorId` = usuario del flujo invocador y `SourceFlow` = nombre del flujo invocador (*Registrar check-out*, *Confirmar Fin de Reparación de Habitación* o *Liberar tarea de limpieza*, definida en *Confirmar Fin de Limpieza de Habitación*).
+- **FR-003**: El sistema DEBE garantizar que, tras la transición exitosa, la habitación figure en el panel de limpieza en la siguiente actualización del panel (sin pasos manuales intermedios). Mientras esté en `PendingCleaning` no puede recibir un check-in, que exige el estado `Reserved`.
+- **FR-004**: El sistema DEBE registrar la transición en `RoomStateHistory` dentro de la misma transacción: cerrar el periodo abierto de la habitación (`EndDateTime`) y abrir uno nuevo con `Status` = `PendingCleaning`, `PreviousStatus` = estado de origen, `StartDateTime` = marca de la transición, `ActorId` = usuario del flujo invocador y `SourceFlow` = nombre del flujo invocador (*Registrar check-out*, *Confirmar Fin de Reparación de Habitación* o *Confirmar fin de limpieza (liberar tarea)*, también cuando la liberación la dispara la desactivación de la cuenta del miembro en *Gestionar personal*, con el Administrador como actor).
 - **FR-005**: El sistema DEBE registrar la transición a `PendingCleaning` como una acción documentada centralmente, evitando duplicación de lógica entre los flujos invocadores (check-out, *Confirmar Fin de Reparación de Habitación* y la liberación de tareas de limpieza de *Confirmar Fin de Limpieza de Habitación*), los cuales DEBEN invocar este caso de uso en lugar de reimplementarlo.
-- **FR-006**: El sistema DEBE generar `TransitionDateTime` exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente o por el flujo invocador.
-- **FR-007**: El sistema DEBE devolver al flujo invocador un error con el estado actual de la habitación cuando rechace la invocación (FR-001), sin modificar el estado; este caso de uso no posee interfaz propia.
-- **FR-008**: El sistema DEBE impedir la modificación o eliminación de los registros de `RoomStateHistory` creados por este caso de uso, salvo el cierre del periodo (`EndDateTime`) que realice la siguiente transición de la habitación.
+- **FR-006**: El sistema DEBE generar la marca de la transición exclusivamente en el servidor, sin aceptar fechas u horas enviadas por el cliente o por el flujo invocador, y registrar el 100% de las transiciones a `PendingCleaning` en `RoomStateHistory` con esa marca.
+- **FR-007**: El sistema DEBE devolver al flujo invocador un error con el estado actual de la habitación cuando rechace la invocación (FR-001 o la máquina de estados), sin modificar el estado ni la consistencia de los datos del inventario; este caso de uso no posee interfaz propia.
+- **FR-008**: Los registros de `RoomStateHistory` creados por este caso de uso son inmutables según la regla 8 del plan base.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Entidad que representa una habitación del hotel. En este caso de uso transita de `Occupied`, `DisabledForRepairs`, `TechnicalBlock` o `InCleaning` a `PendingCleaning`, completando el flujo de check-out en lo que respecta al módulo 1, el flujo de reparaciones o la liberación de una tarea de limpieza.
-- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se cierra el periodo del estado de origen y se abre el periodo `PendingCleaning`, cuyo `StartDateTime` es el `TransitionDateTime` generado por el servidor.
+- **RoomStateHistory**: Historial común de estados de la habitación. En este caso de uso se cierra el periodo del estado de origen y se abre el periodo `PendingCleaning`, cuyo `StartDateTime` es la marca de la transición generada por el servidor.
 
 ---
 
@@ -78,7 +89,3 @@ Como sistema del módulo 1, quiero poder gestionar correctamente los eventos dis
 ### Resultados Medibles
 
 - **SC-001**: El 100% de las invocaciones provenientes de un check-out, de un cierre de reparación o de la liberación de una tarea de limpieza transicionan la habitación a `PendingCleaning` de manera totalmente automatizada (Zero-Touch).
-- **SC-002**: El sistema alcanza un tiempo de procesamiento interno para la transición, actualización de estado e inserción en el log de auditoría inferior a 300 milisegundos.
-- **SC-003**: El total de las peticiones ejecutadas desde estados inválidos (ej. `Available`) resultan en una interrupción controlada con un error devuelto al flujo invocador y sin corromper la consistencia de los datos del inventario.
-- **SC-004**: El panel de limpieza refleja el nuevo estado en cuanto se confirma la transacción, sin pasos manuales intermedios.
-- **SC-005**: El 100% de las transiciones a `PendingCleaning` quedan registradas en `RoomStateHistory` con fecha y hora generadas por el servidor.

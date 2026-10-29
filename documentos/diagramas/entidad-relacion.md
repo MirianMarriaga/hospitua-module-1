@@ -1,10 +1,11 @@
 # Diagrama Entidad-Relación — Módulo 1
 
 **Fuente canónica**: `documentos/PLAN/base/plan.md` (Modelo de Datos Relacional).
-**Última actualización**: 2026-10-12.
+**Última actualización**: 2026-10-22.
 
 > Tipos simplificados: `uuid`, `date`, `decimal`, `json`, `boolean`, `int`, `string`.  
-> **Línea continua** = FK real en BD · **Línea punteada** = relación lógica (campo cadena, sin FK declarada).
+> **Línea continua** = FK real en BD · **Línea punteada** = relación lógica (campo cadena, sin FK declarada).  
+> Los campos de usuario (`actor_id`, `decommissioned_by`, `reactivated_by`, `cleaning_staff_member_id`, `maintenance_staff_member_id`, `author_id`) guardan el `username` de `user_account` sin FK.
 
 ---
 
@@ -16,12 +17,14 @@ erDiagram
   ROOM ||--o{ ROOM_AUDIT_LOG     : "audita (room_id)"
   ROOM ||--o{ ROOM_DECOMMISSION  : "da_de_baja (room_id)"
   USER_ACCOUNT ||..o{ ROOM_STATE_HISTORY : "cambia (actor_id)"
+  USER_ACCOUNT ||..o{ ROOM_AUDIT_LOG     : "registra (actor_id)"
+  USER_ACCOUNT ||..o{ ROOM_DECOMMISSION  : "da_de_baja / reactiva (decommissioned_by, reactivated_by)"
 
   ROOM {
     uuid    id                          PK
     string  room_number                 UK
     int     floor
-    string  room_category
+    string  category_room
     int     max_capacity
     decimal base_rate
     string  status
@@ -77,7 +80,6 @@ erDiagram
 erDiagram
   ROOM ||--o{ STAY       : "aloja (room_id)"
   STAY ||--o{ ROOM_GUEST : "tiene (stay_id)"
-  USER_ACCOUNT ||..o{ STAY : "atiende (actor_id)"
 
   ROOM {
     uuid    id           PK
@@ -113,13 +115,6 @@ erDiagram
     string  destination_place
     boolean is_reservation_guest
   }
-
-  USER_ACCOUNT {
-    string  username  PK
-    string  full_name
-    string  area
-    boolean active
-  }
 ```
 
 ---
@@ -130,6 +125,8 @@ erDiagram
 erDiagram
   ROOM ||--o{ CLEANING_TASK : "limpia (room_id)"
   ROOM ||--o{ DAMAGE_REPORT : "reporta_daño (room_id)"
+  USER_ACCOUNT ||..o{ CLEANING_TASK : "limpia (cleaning_staff_member_id)"
+  USER_ACCOUNT ||..o{ DAMAGE_REPORT : "reporta (author_id)"
 
   ROOM {
     uuid    id           PK
@@ -144,17 +141,27 @@ erDiagram
     timestamp start_date_time
     timestamp end_date_time
     string    outcome
-    int       version
   }
 
   DAMAGE_REPORT {
     uuid      id                  PK
     uuid      room_id             FK
-    string    user_id
+    string    author_id
     string    damage_description
     timestamp report_date_time
   }
+
+  USER_ACCOUNT {
+    string  username  PK
+    string  full_name
+    string  area
+    boolean active
+  }
 ```
+
+> `cleaning_task`: `CHECK (end_date_time IS NULL OR end_date_time >= start_date_time)` y `CHECK ((outcome IS NULL) = (end_date_time IS NULL))`.
+>
+> Índices únicos parciales de tarea abierta por miembro y por habitación (`end_date_time IS NULL`) e índice parcial de última limpieza `(room_id, end_date_time DESC) WHERE outcome IN ('Completed','DamageReported')`.
 
 ---
 
@@ -164,6 +171,8 @@ erDiagram
 erDiagram
   ROOM ||--o{ REPARATION_TASK        : "repara (room_id)"
   ROOM ||--o{ TECHNICAL_BLOCK_REPORT : "bloquea (room_id)"
+  USER_ACCOUNT ||..o{ REPARATION_TASK        : "repara (maintenance_staff_member_id)"
+  USER_ACCOUNT ||..o{ TECHNICAL_BLOCK_REPORT : "programa (maintenance_staff_member_id)"
 
   ROOM {
     uuid    id           PK
@@ -178,7 +187,6 @@ erDiagram
     timestamp start_date_time
     timestamp end_date_time
     string    outcome
-    int       version
   }
 
   TECHNICAL_BLOCK_REPORT {
@@ -190,9 +198,21 @@ erDiagram
     date      estimated_technical_block_end_date
     timestamp report_date_time
     string    status
-    int       version
+  }
+
+  USER_ACCOUNT {
+    string  username  PK
+    string  full_name
+    string  area
+    boolean active
   }
 ```
+
+> `reparation_task`: `CHECK (end_date_time IS NULL OR end_date_time >= start_date_time)` y `CHECK ((outcome IS NULL) = (end_date_time IS NULL))`; índices únicos parciales de tarea abierta por miembro y por habitación (`end_date_time IS NULL`).
+>
+> `technical_block_report`: `CHECK (estimated_technical_block_end_date >= technical_block_start_date)` y `CHECK (status IN ('Scheduled','Applied','Completed','Expired'))`; índice por `(room_id, status)`, índice único parcial `(room_id) WHERE status = 'Applied'` (un solo bloqueo aplicado por habitación) e índice parcial `(technical_block_start_date) WHERE status = 'Scheduled'` para el trabajo diario de bloqueos.
+>
+> Ninguna de las dos tiene columna `version`: el bloqueo de la fila de la habitación serializa sus escrituras (regla 13 del plan base).
 
 ---
 
@@ -201,7 +221,7 @@ erDiagram
 ```mermaid
 erDiagram
   DAILY_RESERVATION ||--o{ DAILY_RESERVATION_ROOM : "incluye (reservation_ref)"
-  ROOM ||--o{ DAILY_RESERVATION_ROOM              : "copia_local (room_id)"
+  ROOM ||..o{ DAILY_RESERVATION_ROOM              : "copia_local (room_id, sin FK)"
 
   DAILY_RESERVATION {
     string    reservation_ref     PK
@@ -228,7 +248,9 @@ erDiagram
   DAILY_RESERVATION_MESSAGE_LOG {
     string    message_id      PK
     bigint    sequence_number
+    date      operational_date
     string    message_type
+    string    reservation_ref
     timestamp received_at
   }
 

@@ -65,6 +65,18 @@
         <mxCell id="lsaymILH9A-lfnMMY0ns-103" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#B85450;" value="COLA · Proactivo" vertex="1">
           <mxGeometry height="16" width="280" x="570" y="630" as="geometry" />
         </mxCell>
+        <mxCell id="m1-aviso-mantenimiento-edge" edge="1" parent="1" source="lsaymILH9A-lfnMMY0ns-88" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#B85450;exitX=1;exitY=0.3958;exitDx=0;exitDy=0;entryX=0;entryY=0.3958;entryDx=0;entryDy=0;" target="lsaymILH9A-lfnMMY0ns-90" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m1-aviso-mantenimiento-cola" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=6;direction=south;fillColor=#ffffff;strokeColor=#B85450;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="16" width="40" x="690" y="672" as="geometry" />
+        </mxCell>
+        <mxCell id="m1-aviso-mantenimiento-label" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Aviso de mantenimiento" vertex="1">
+          <mxGeometry height="18" width="280" x="570" y="652" as="geometry" />
+        </mxCell>
+        <mxCell id="m1-aviso-mantenimiento-tipo" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#B85450;" value="COLA · Proactivo" vertex="1">
+          <mxGeometry height="16" width="280" x="570" y="690" as="geometry" />
+        </mxCell>
         <mxCell id="lsaymILH9A-lfnMMY0ns-104" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Consultar reservas por fechas (mantenimientos)" vertex="1">
           <mxGeometry height="18" width="280" x="570" y="712" as="geometry" />
         </mxCell>

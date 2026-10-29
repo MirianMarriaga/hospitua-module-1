@@ -1,0 +1,129 @@
+# Configuración base de Módulo 1 (plan base, T006).
+# Perfiles: dev (por defecto, con docker-compose.yml), test (Testcontainers) y prod (todo por variables de entorno).
+spring:
+  application:
+    name: habitaciones
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  rabbitmq:
+    # Publisher Confirms para el worker del Outbox (plan base, T012)
+    publisher-confirm-type: correlated
+    publisher-returns: true
+  jackson:
+    time-zone: America/Bogota
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+
+hospitua:
+  # Clientes REST hacia los otros módulos (plan base, regla 5 y T013)
+  module2:
+    connect-timeout: 1s
+    read-timeout: 2s
+  module3:
+    connect-timeout: 1s
+    read-timeout: 3s
+  outbox:
+    max-retries: 10
+  maintenance:
+    max-range-days: 90
+    max-advance-days: 365
+
+---
+# Desarrollo local contra docker-compose.yml (raíz del repositorio).
+spring:
+  config:
+    activate:
+      on-profile: dev
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev-data
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hospitua_m1}
+    username: ${DB_USERNAME:hospitua}
+    password: ${DB_PASSWORD:hospitua}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:hospitua}
+    password: ${RABBITMQ_PASSWORD:hospitua}
+
+hospitua:
+  module2:
+    base-url: ${MODULE2_BASE_URL:http://localhost:8082}
+  module3:
+    base-url: ${MODULE3_BASE_URL:http://localhost:8083}
+  # Cuenta inicial de Administración que crea StaffAccountBootstrapper (plan base, T023)
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:admin123}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:Administrador}
+
+logging:
+  level:
+    com.hospitua.habitaciones: DEBUG
+
+---
+# PostgreSQL y RabbitMQ los inyecta Testcontainers con @ServiceConnection o variables de entorno.
+# Las pruebas de clientes REST usan MockRestServiceServer y WireMock.
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hospitua_m1_test}
+    username: ${DB_USERNAME:hospitua}
+    password: ${DB_PASSWORD:hospitua}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:hospitua}
+    password: ${RABBITMQ_PASSWORD:hospitua}
+
+hospitua:
+  module2:
+    base-url: ${MODULE2_BASE_URL:http://localhost:8082}
+  module3:
+    base-url: ${MODULE3_BASE_URL:http://localhost:8083}
+  outbox:
+    worker:
+      enabled: false
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:admin123}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME:Administrador}
+
+---
+# Sin valores por defecto: toda la configuración llega por variables de entorno.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+hospitua:
+  module2:
+    base-url: ${MODULE2_BASE_URL}
+  module3:
+    base-url: ${MODULE3_BASE_URL}
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD}
+      full-name: ${BOOTSTRAP_ADMIN_FULL_NAME}

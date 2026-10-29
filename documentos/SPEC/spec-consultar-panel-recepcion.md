@@ -68,22 +68,22 @@ Como Recepcionista, quiero ver el listado de estancias con salida programada par
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Visualización del listado de salidas del día (Happy Path)
+8. **Escenario**: Visualización del listado de salidas del día (Happy Path)
    - **Dado** que el Recepcionista cambia a la pestaña Salidas del panel
    - **Cuando** la pestaña se activa
    - **Entonces** el sistema consulta localmente en Módulo 1 las estancias activas (`Stay` con habitación en estado `Occupied`) y muestra la tabla en columnas: Hab. · Huésped (`firstName` y `lastName`, con documento debajo obtenidos de `Stay` y `RoomGuest` con `isReservationGuest = true`) · Fecha entrada (`checkInDate`) · Fecha salida (`expectedCheckoutDate`) · Personas (total de ocupantes de la estancia) · Tipo habitación · Fuente (`source` de `Stay`: `DIRECTA` o nombre de la OTA) · botón de acción "Check-out". Las estancias cuya fecha de salida ya expiró se resaltan visualmente con la etiqueta "Vencida" junto a la fecha de salida.
 
-2. **Escenario**: Búsqueda de estancia para Check-Out por nombre, documento, código o habitación
+9. **Escenario**: Búsqueda de estancia para Check-Out por nombre, documento, código o habitación
    - **Dado** que el Recepcionista se encuentra en la pestaña Salidas
    - **Cuando** ingresa cualquier criterio en el buscador de Salidas (nombre o apellido del titular, documento, código de reserva o número de habitación)
    - **Entonces** el sistema filtra en tiempo real la tabla consultando únicamente los datos locales de Módulo 1 (`Stay` + `Room` + `RoomGuest`), sin realizar ninguna petición a Módulo 2, mostrando las estancias coincidentes con sus columnas completas.
 
-3. **Escenario**: Inicio del proceso de Check-Out desde el listado
+10. **Escenario**: Inicio del proceso de Check-Out desde el listado
    - **Dado** que el Recepcionista ha localizado la estancia deseada en la pestaña Salidas
    - **Cuando** pulsa el botón "Check-out" de la fila correspondiente
    - **Entonces** el sistema navega al flujo de Registrar Check-Out transfiriendo la referencia de la estancia ya seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar ningún criterio de búsqueda adicional.
 
-4. **Escenario**: Visualización de salidas vencidas
+11. **Escenario**: Visualización de salidas vencidas
    - **Dado** que existen estancias activas locales cuya fecha de salida esperada (`expectedCheckoutDate`) es anterior a la fecha actual del sistema
    - **Cuando** el Recepcionista visualiza la pestaña Salidas
    - **Entonces** dichas estancias aparecen en la tabla con la etiqueta "Vencida" destacada visualmente junto a la fecha de salida, para que el Recepcionista las identifique de forma prioritaria.
@@ -100,10 +100,32 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 
 **Escenarios de Aceptación**:
 
-1. **Escenario**: Cálculo y visualización de los 4 KPIs al cargar la pantalla
+12. **Escenario**: Cálculo y visualización de los 4 KPIs al cargar la pantalla
    - **Dado** que el Recepcionista accede al panel de inicio
    - **Cuando** la vista se carga
    - **Entonces** el sistema muestra en orden: (1) "Llegadas de hoy" con el conteo de habitaciones pendientes de llegada en la copia local de la lista del día; (2) "Salidas de hoy" con el conteo de estancias locales activas cuya fecha de salida esperada es hoy; (3) "Salidas vencidas" con el conteo de estancias locales activas con fecha de salida ya expirada, resaltadas en color de alerta; (4) "Habitaciones ocupadas" con el total de habitaciones en estado `Occupied` en el inventario de Módulo 1.
+
+---
+
+### Historia de Usuario 4 - Llegadas al día con los cambios de reservas y aviso de lista no recibida (Prioridad: P2)
+
+Como Recepcionista, quiero que el listado de llegadas y los indicadores reflejen los cambios de reservas recibidos durante el día y que se me informe cuando la lista del día aún no ha llegado, para no atender llegadas canceladas ni confundir una lista pendiente con un día sin llegadas.
+
+**Por qué esta prioridad**: Las reservas cambian durante el día (nuevas, modificadas o canceladas); si el panel no lo reflejara, el Recepcionista intentaría admitir reservas que ya no existen o no vería las nuevas. Depende de la copia local que mantiene *Consultar reservas*.
+
+**Prueba Independiente**: Se prueba procesando un `ADDED`, un `UPDATED` y un `REMOVED` en la copia local y verificando que la siguiente consulta del panel muestra los cambios en la pestaña Llegadas y en el KPI "Llegadas de hoy"; y abriendo el panel sin la lista del día recibida, verificando el aviso en Llegadas mientras Salidas y los demás KPIs siguen operando.
+
+**Escenarios de Aceptación**:
+
+13. **Escenario**: Cambios de reservas reflejados en la siguiente consulta
+   - **Dado** que la copia local recibió un `ADDED`, un `UPDATED` o un `REMOVED` de una reserva del día
+   - **Cuando** el panel vuelve a consultar las llegadas y los indicadores
+   - **Entonces** el sistema muestra la nueva reserva con sus habitaciones, refresca los datos modificados o retira la reserva eliminada, y actualiza el KPI "Llegadas de hoy" en consecuencia (FR-006).
+
+14. **Escenario**: Lista del día no recibida
+   - **Dado** que no se ha recibido la lista del día de las 00:00 o la copia local no está disponible
+   - **Cuando** el Recepcionista visualiza la pestaña Llegadas
+   - **Entonces** el sistema muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." sin errores técnicos, mientras la pestaña Salidas y los KPIs de estancias y habitaciones siguen operando (FR-011).
 
 ---
 
@@ -152,12 +174,12 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Indicador informativo, sin alerta de conflicto, cuando la habitación aún no se ha apartado por estar ocupada o en limpieza (`Occupied`, `PendingCleaning` o `InCleaning`), con el texto "[Estado]: se apartará al terminar la limpieza" (escenario 7).
   - Botón individual de acción "Check-in" por cada habitación.
 
-- **FR-005a**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas desde Módulo 2:
+- **FR-006**: El panel de Llegadas DEBE reflejar de forma reactiva las actualizaciones del día recibidas desde Módulo 2:
   - `ADDED`: incorpora la nueva reserva y sus habitaciones al listado y actualiza los indicadores.
   - `UPDATED`: refresca los datos modificados de la reserva o habitaciones.
   - `REMOVED`: remueve la reserva del listado y descuenta su conteo de llegadas pendientes.
 
-- **FR-006**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
+- **FR-007**: La tabla de la pestaña **Salidas** DEBE presentar las siguientes columnas para cada estancia:
   - Número de habitación.
   - Nombre del huésped titular (`titularFirstName`, `titularLastName` con número de documento `titularDocumentNumber` debajo), visible en todas las habitaciones gracias a la copia persistida en `Stay`.
   - Fecha de entrada real (`checkInDate`).
@@ -167,20 +189,20 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
   - Fuente (`source` de `Stay`: `DIRECTA` o nombre de la OTA).
   - Botón de acción "Check-out".
 
-- **FR-007**: Al pulsar el botón "Check-in" en una fila de Llegadas, el sistema DEBE navegar al flujo de Registrar Check-In transfiriendo la referencia de la reserva y la habitación seleccionada, de modo que el proceso de admisión inicie directamente en el paso 1 (Validar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
+- **FR-008**: Al pulsar el botón "Check-in" en una fila de Llegadas, el sistema DEBE navegar al flujo de Registrar Check-In transfiriendo la referencia de la reserva y la habitación seleccionada, de modo que el proceso de admisión inicie directamente en el paso 1 (Validar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
 
-- **FR-008**: Al pulsar el botón "Check-out" en una fila de Salidas, el sistema DEBE navegar al flujo de Registrar Check-Out transfiriendo la referencia de la estancia seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
+- **FR-009**: Al pulsar el botón "Check-out" en una fila de Salidas, el sistema DEBE navegar al flujo de Registrar Check-Out transfiriendo la referencia de la estancia seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
 
-- **FR-009**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
+- **FR-010**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
 
-- **FR-010**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
+- **FR-011**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
 
 ---
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
 - **Room**: Unidad habitacional del hotel. Atributos clave: ID único (UUID), número de habitación, piso/ala, tipo, capacidad máxima de personas (`maxCapacity`), tarifa base, estado actual (uno de los 8 estados del ciclo de vida: Available, Reserved, Occupied, PendingCleaning, InCleaning, DisabledForRepairs, TechnicalBlock, Inactive) y `reservedByReservationRef` (referencia de reserva que aparta la habitación, presente solo en estado `Reserved`).
-- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinDate`, `expectedCheckoutDate` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`), recepcionista de check-in (`receptionistIdCheckIn`) y recepcionista de check-out (`receptionistIdCheckOut`).
+- **Stay**: Entidad conceptual de estancia que representa la ocupación física real. Atributos clave: ID único, referencia de reserva (`reservationRef`), identificador de habitación (`roomId`), fuente (`source`: `DIRECTA` o nombre de la OTA tal como llega de Módulo 2), fecha de llegada real (`checkInDate`), fecha de salida real (`checkOutDate`), fechas esperadas de reserva (`expectedCheckinDate`, `expectedCheckoutDate` — fechas sin hora), datos copiados del titular (`titularFirstName`, `titularLastName`, `titularDocumentNumber`).
 - **RoomGuest**: Entidad conceptual que representa a cada individuo físicamente alojado. Registro inmutable vinculado a la Estancia. Atributos clave: `id`, `stayId`, `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality` e `isReservationGuest` (flag booleano que identifica al titular de la reserva).
 - **DailyReservation**: Entidad conceptual de la copia local que almacena la cabecera de la reserva recibida asíncronamente desde Módulo 2: `reservationRef` (PK), `guestFirstName`, `guestLastName`, `guestDocumentType`, `guestDocumentNumber`, `guestNationality`, `source` (`DIRECTA` o nombre de la OTA), `startDate`, `endDate`, `guestCount` total de la reserva y `updatedAt`.
 - **DailyReservationRoom**: Entidad conceptual de la copia local que almacena cada habitación de la reserva (de 1 a 10 por reserva): `reservationRef` + `roomId` (PK), `roomNumber`, `categoryRoom` y `guestCount` (cantidad de personas por habitación; confirmado por Módulo 2: `rooms[]` de la lista del día incluye `guestCount` por habitación, con `maxCapacity` de `Room` como respaldo).
@@ -198,4 +220,3 @@ Como Recepcionista, quiero ver al inicio de mi jornada un resumen numérico de l
 - **SC-004**: El 100% de los botones "Check-in" transfieren correctamente la referencia de reserva y habitación al flujo de admisión sin requerir ningún criterio de búsqueda adicional dentro del proceso.
 - **SC-005**: El 100% de los botones "Check-out" transfieren correctamente la referencia de estancia al flujo de salida sin requerir ningún criterio de búsqueda adicional dentro del proceso.
 - **SC-006**: Ante ausencia o retraso en la entrega de la lista de las 00:00 desde Módulo 2, el 100% de los KPIs calculados localmente y la pestaña Salidas permanecen operativos sin interrupciones.
-

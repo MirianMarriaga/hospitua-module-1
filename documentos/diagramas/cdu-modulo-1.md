@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Página-1" id="SqzdmELL1t0c-c9SqVwx">
-    <mxGraphModel dx="2068" dy="813" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="light-dark(#ffffff, #121212)" math="0" shadow="0">
+    <mxGraphModel dx="2298" dy="964" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="light-dark(#ffffff, #121212)" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -42,7 +42,7 @@
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-12" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=none;fontColor=default;" target="6qvytv6oTkwjXiFrrnVx-10" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <mxPoint x="90" y="100" as="sourcePoint" />
+            <mxPoint x="100" y="120" as="sourcePoint" />
             <mxPoint x="210" y="180" as="targetPoint" />
           </mxGeometry>
         </mxCell>
@@ -146,7 +146,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-35" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;" value="Marcar habitación&lt;div&gt;como disponible&lt;/div&gt;" vertex="1">
-          <mxGeometry height="60" width="130" x="340" y="80" as="geometry" />
+          <mxGeometry height="60" width="130" x="450" y="160" as="geometry" />
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-36" edge="1" parent="1" source="6qvytv6oTkwjXiFrrnVx-17" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;labelBackgroundColor=none;fontColor=default;" target="6qvytv6oTkwjXiFrrnVx-35" value="&amp;lt;&amp;lt;includes&amp;gt;&amp;gt;">
           <mxGeometry relative="1" width="160" x="-0.1679" y="4" as="geometry">
@@ -202,7 +202,7 @@
           <mxGeometry height="60" width="30" x="900" y="40" as="geometry" />
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-45" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;" value="Consultar reservas" vertex="1">
-          <mxGeometry height="60" width="130" x="569" y="220" as="geometry" />
+          <mxGeometry height="60" width="130" x="530" y="250" as="geometry" />
         </mxCell>
         <mxCell id="6qvytv6oTkwjXiFrrnVx-48" edge="1" parent="1" source="6qvytv6oTkwjXiFrrnVx-27" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=none;fontColor=default;" target="6qvytv6oTkwjXiFrrnVx-45" value="&amp;lt;&amp;lt;includes&amp;gt;&amp;gt;">
           <mxGeometry relative="1" width="160" x="-0.1612" y="4" as="geometry">
@@ -340,6 +340,19 @@
             </Array>
             <mxPoint x="70" y="330" as="sourcePoint" />
             <mxPoint x="229" y="384" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="bY6orJY3gfvsYCfo87zS-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;" value="Gestionar personal" vertex="1">
+          <mxGeometry height="60" width="130" x="320" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="bY6orJY3gfvsYCfo87zS-17" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;endFill=1;edgeStyle=orthogonalEdgeStyle;labelBackgroundColor=none;fontColor=default;" target="bY6orJY3gfvsYCfo87zS-15" value="">
+          <mxGeometry height="50" relative="1" width="50" x="0.3408" as="geometry">
+            <Array as="points">
+              <mxPoint x="90" y="50" />
+              <mxPoint x="390" y="50" />
+            </Array>
+            <mxPoint x="90" y="50" as="sourcePoint" />
+            <mxPoint x="514" y="114" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>

@@ -10,14 +10,14 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 
 **Por qué esta prioridad**: Es el punto de entrada del trabajo de mantenimiento. Desde el panel se inician las reparaciones (*Confirmar Fin de Reparación de Habitación*), se programan bloqueos técnicos (*Programar Bloqueo Técnico para Habitación*), se reportan daños (*Marcar Habitación Inhabilitada por Reparaciones*) y se consultan los informes. Sin él, una habitación inhabilitada o con un bloqueo vencido puede quedar fuera de servicio indefinidamente.
 
-**Prueba independiente**: Puede ser probada como un miembro del personal de mantenimiento sin tarea activa, verificando que el panel lista todas las habitaciones excepto las `Inactive` (primero las que requieren intervención), con número, tipo, estado, mantenimiento programado y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
+**Prueba independiente**: Puede ser probada como un miembro del personal de mantenimiento sin tarea activa, verificando que el panel lista todas las habitaciones excepto las `Inactive` (primero las que requieren intervención), con número, tipo, estado, mantenimiento y las acciones de cada estado; buscando una habitación por su número; y verificando que un miembro con una tarea activa es redirigido a la vista de tarea activa.
 
 **Escenarios de aceptación**:
 
 1. **Escenario**: Panel con habitaciones que requieren intervención
    - **Dado que** El miembro del personal de mantenimiento no tiene una tarea activa y existen las habitaciones "201" en `DisabledForRepairs`, "202" en `TechnicalBlock`, "203" en `Occupied` y "204" en `Inactive`
    - **Cuando** El miembro ingresa al panel de mantenimiento
-   - **Entonces** El sistema lista primero las habitaciones "201" y "202", luego la "203", cada una con su número, tipo, estado en español, mantenimiento programado y acciones, y no lista la habitación "204"
+   - **Entonces** El sistema lista primero las habitaciones "201" y "202", luego la "203", cada una con su número, tipo, estado en español, mantenimiento y acciones, y no lista la habitación "204"
 
 2. **Escenario**: Acciones según el estado de la habitación
    - **Dado que** El panel lista una habitación en `Available`, una en `DisabledForRepairs` sin tarea abierta, una en `TechnicalBlock` sin tarea abierta y una en `Occupied` con un mantenimiento programado
@@ -32,7 +32,7 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 4. **Escenario**: Bloqueo técnico vencido
    - **Dado que** La habitación "202" está en `TechnicalBlock` con un `TechnicalBlockReport` `Applied` cuya fecha estimada de fin fue "20-10-2026" y la fecha actual es "21-10-2026"
    - **Cuando** El miembro consulta el panel
-   - **Entonces** El sistema muestra su estado como "Bloqueo técnico (vencido)" y la ubica antes que las demás habitaciones en `TechnicalBlock`
+   - **Entonces** El sistema muestra su estado como "Bloqueo técnico (vencido)" y la ubica antes que todas las demás habitaciones del panel (FR-006)
 
 5. **Escenario**: Mantenimiento programado
    - **Dado que** La habitación "203" tiene dos `TechnicalBlockReport` en `Scheduled` (del "25-10-2026" al "26-10-2026" y del "10-11-2026" al "12-11-2026") y la habitación "205" tuvo uno que pasó a `Expired`
@@ -70,20 +70,19 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 
 - **FR-001**: El sistema DEBE ofrecer el panel de mantenimiento a los miembros del personal de mantenimiento. Si el miembro tiene una `ReparationTask` sin `EndDateTime`, el sistema DEBE redirigirlo a la vista de tarea activa (*Confirmar Fin de Reparación de Habitación*, FR-001) en lugar de mostrar el panel.
 - **FR-002**: El sistema DEBE listar todas las habitaciones excepto las que están en estado `Inactive`.
-- **FR-003**: Cada habitación listada DEBE mostrar: número de habitación, tipo (Sencilla, Doble, Suite o Boutique), estado con su nombre en español, mantenimiento programado y las acciones de su estado (FR-005). Una habitación en `TechnicalBlock` cuyo `TechnicalBlockReport` `Applied` tiene la fecha estimada de fin anterior a la fecha actual DEBE mostrarse como "Bloqueo técnico (vencido)", para indicar que debe confirmarse el fin de la reparación o programarse un nuevo mantenimiento.
-- **FR-004**: El mantenimiento programado DEBE ser el rango del `TechnicalBlockReport` en estado `Scheduled` de fecha de inicio más temprana (formato DD-MM-YYYY a DD-MM-YYYY), o "Sin programar" si no tiene ninguno. Los informes `Expired` no se muestran.
+- **FR-003**: Cada habitación listada DEBE mostrar: número de habitación, tipo (Sencilla, Doble, Suite o Boutique), estado con su nombre en español, mantenimiento (FR-004) y las acciones de su estado (FR-005). Una habitación en `TechnicalBlock` con el bloqueo vencido (definición en *Programar Bloqueo Técnico para Habitación*, Entidades Clave) DEBE mostrarse como "Bloqueo técnico (vencido)", para indicar que debe confirmarse el fin de la reparación.
+- **FR-004**: El mantenimiento de cada habitación DEBE ser el rango de su `TechnicalBlockReport` en estado `Applied` o, si no tiene, el del `Scheduled` de fecha de inicio más temprana (formato DD-MM-YYYY a DD-MM-YYYY), o "Sin programar" si no tiene ninguno. Los informes `Expired` y `Completed` no se muestran.
 - **FR-005**: El sistema DEBE ofrecer en cada habitación las acciones de su estado:
   - Todas las habitaciones listadas: **Programar mantenimiento** (*Programar Bloqueo Técnico para Habitación*).
   - `Available`: además **Reportar daño** (*Marcar Habitación Inhabilitada por Reparaciones*).
-  - `DisabledForRepairs`: además **Ver informe** (reporte de daño, *Marcar Habitación Inhabilitada por Reparaciones* FR-007) e **Iniciar reparaciones** (*Confirmar Fin de Reparación de Habitación*, FR-011).
-  - `TechnicalBlock`: además **Ver informe** (informe del bloqueo, *Programar Bloqueo Técnico para Habitación* FR-011) e **Iniciar reparaciones**.
-  - Demás estados: **Ver informe** (informe del bloqueo) si la habitación tiene un mantenimiento programado.
+  - `DisabledForRepairs` y `TechnicalBlock`: además **Iniciar reparaciones** (*Confirmar Fin de Reparación de Habitación*, FR-011).
+  - **Ver informe**, con una sola regla: en `DisabledForRepairs`, el reporte de daño (*Marcar Habitación Inhabilitada por Reparaciones* FR-006); en cualquier otra habitación con mantenimiento (FR-004), incluida `TechnicalBlock`, el informe del bloqueo (*Programar Bloqueo Técnico para Habitación* FR-009).
   - **Iniciar reparaciones** solo aparece si la habitación no tiene una `ReparationTask` abierta; si la tiene, el sistema DEBE mostrar la etiqueta "En reparación".
   - Este caso de uso no reimplementa las reglas de las acciones que ejecuta.
-- **FR-006**: El sistema DEBE ordenar el listado mostrando primero las habitaciones que requieren intervención (`DisabledForRepairs` y `TechnicalBlock`, con los bloqueos vencidos antes que los demás) y después el resto, cada grupo por número de habitación ascendente.
+- **FR-006**: El sistema DEBE ordenar el listado en tres grupos: primero las habitaciones en `TechnicalBlock` con el bloqueo vencido, después el resto de las que requieren intervención (`DisabledForRepairs` y `TechnicalBlock`) y al final las demás, cada grupo por número de habitación ascendente.
 - **FR-007**: El sistema DEBE permitir buscar en el listado por número de habitación con coincidencia exacta, presentando el resultado con el mismo formato del listado. Al vaciar la búsqueda, el panel vuelve a mostrar el listado completo.
 - **FR-008**: El sistema DEBE informar "No se encontró la habitación X" cuando la búsqueda no retorne resultados, y "No hay habitaciones para listar" cuando el panel no tenga habitaciones.
-- **FR-009**: El sistema DEBE mostrar sobre el listado la cantidad de habitaciones inhabilitadas por reparaciones, la cantidad en bloqueo técnico (indicando cuántos están vencidos) y la cantidad con un mantenimiento programado.
+- **FR-009**: El sistema DEBE mostrar sobre el listado la cantidad de habitaciones inhabilitadas por reparaciones, la cantidad en bloqueo técnico (indicando cuántos están vencidos) y la cantidad cuyo mantenimiento (FR-004) es un `TechnicalBlockReport` en `Scheduled`.
 - **FR-010**: El sistema DEBE actualizar el panel automáticamente cada 60 segundos y al volver a él después de ejecutar una acción. Si una acción falla porque la habitación cambió de estado o ya tiene una tarea abierta, el sistema DEBE informar el motivo y recargar el panel.
 - **FR-011**: La consulta del panel DEBE ser de solo lectura: no cambia el estado de ninguna habitación ni crea o modifica tareas o informes.
 
@@ -91,7 +90,7 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 
 - **Room**: Habitación del hotel. El panel lista todas excepto las `Inactive`.
 - **ReparationTask**: Entidad definida en *Confirmar Fin de Reparación de Habitación*. El panel la consulta para detectar la tarea activa del miembro y las habitaciones "En reparación".
-- **TechnicalBlockReport**: Entidad definida en *Programar Bloqueo Técnico para Habitación*. El panel la consulta para el mantenimiento programado y el bloqueo vencido.
+- **TechnicalBlockReport**: Entidad definida en *Programar Bloqueo Técnico para Habitación*. El panel la consulta para la columna de mantenimiento (en curso o programado) y el bloqueo vencido.
 - **DamageReport**: Entidad definida en *Marcar Habitación Inhabilitada por Reparaciones*. Se consulta con la acción **Ver informe** de una habitación `DisabledForRepairs`.
 
 ---
@@ -101,6 +100,4 @@ Como miembro del personal de mantenimiento quiero ver en un solo panel las habit
 ### Resultados Medibles
 
 - **SC-001**: El panel carga en menos de 2 segundos.
-- **SC-002**: El 100% de las habitaciones `Inactive` quedan fuera del panel y el 100% de las demás aparecen en él.
-- **SC-003**: El 100% de las habitaciones en `DisabledForRepairs` o `TechnicalBlock` aparecen antes que las demás, y ninguna con una tarea abierta ofrece **Iniciar reparaciones**.
-- **SC-004**: Una habitación que pasa a `DisabledForRepairs` aparece en el panel en menos de 60 segundos sin que el miembro recargue la página.
+- **SC-002**: Una habitación que pasa a `DisabledForRepairs` aparece en el panel en menos de 60 segundos sin que el miembro recargue la página.

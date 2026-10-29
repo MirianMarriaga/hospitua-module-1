@@ -23,8 +23,8 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
   - Solo lectura: no modifica datos ni ejecuta transiciones (FR-005).
   - Snapshot consistente sin bloquear las transiciones de otras habitaciones: transacción `readOnly` con aislamiento `REPEATABLE_READ`, que en PostgreSQL lee una instantánea sin bloquear escrituras (caso borde "Concurrente"; SC-004).
   - Rango de fechas: incluye los periodos que se cruzan con el rango, es decir, que empiezan antes del fin de "Hasta" y terminan después del inicio de "Desde" o siguen abiertos.
-  - Orden cronológico por inicio del periodo; a igual inicio, por número de habitación (SC-002).
-  - El tipo que se muestra y se filtra es el tipo actual de la habitación (`room.room_category`); el historial no guarda el tipo de cada periodo.
+  - Orden por `start_date_time`, `room_number`, `end_date_time ASC NULLS LAST` e `id`; `id` solo garantiza un orden total para la paginación (SC-002).
+  - El tipo que se muestra y se filtra es el tipo actual de la habitación (`room.category_room`); el historial no guarda el tipo de cada periodo.
   - Toda habitación tiene al menos un periodo, el abierto por *Registrar habitación* (FR-013 de ese spec); una habitación sin cambios muestra una fila "En curso" (caso borde "Historial vacío").
 
 ---
@@ -79,7 +79,7 @@ Accept: application/json
 | `items[].startDateTime` | string | Inicio del periodo | `"2026-01-14T09:15:00-05:00"` |
 | `items[].endDateTime` | string \| null | Fin del periodo; nulo si sigue abierto (el frontend muestra "En curso", FR-004) | `"2026-01-14T10:05:00-05:00"` |
 | `items[].actorName` | string \| null | Nombre del usuario que provocó la transición (`user_account.full_name` de `actor_id`); nulo si fue autónoma (el frontend muestra "Sistema", FR-003) | `"Ana Gómez"` |
-| `items[].sourceFlow` | string | Flujo de origen (valor de `SourceFlow`, plan base T020) | `"START_CLEANING"` |
+| `items[].sourceFlow` | string | Flujo de origen (valor de `SourceFlow`, plan base T019) | `"START_CLEANING"` |
 | `items[].sourceFlowName` | string | Nombre legible del caso de uso que provocó la transición (FR-003) | `"Marcar habitación en limpieza"` |
 | `page` | integer | Página actual | `1` |
 | `size` | integer | Siempre 15 | `15` |
@@ -155,10 +155,11 @@ documentos/
 ```text
 backend/src/main/
 ├── java/com/hospitua/habitaciones/
-│   ├── domain/
-│   │   └── ports/in/
-│   │       └── ConsultRoomStateHistoryUseCase.java
 │   ├── application/
+│   │   ├── ports/in/
+│   │   │   └── ConsultRoomStateHistoryUseCase.java
+│   │   ├── ports/out/
+│   │   │   └── RoomStateHistoryRepositoryPort.java  # Plan base (T016); se agrega search(RoomStateHistoryFilter, page)
 │   │   ├── service/
 │   │   │   └── RoomStateHistoryQueryService.java
 │   │   └── dto/
@@ -169,6 +170,7 @@ backend/src/main/
 │       ├── in/web/
 │       │   └── RoomStateHistoryController.java
 │       └── out/persistence/
+│           ├── adapter/RoomStateHistoryRepositoryAdapter.java     # Plan base (T016); se agrega search(...)
 │           └── repository/RoomStateHistoryQueryRepository.java   # Consulta con join a room y a user_account
 └── resources/db/migration/
     └── V5__room_state_history_indexes.sql
@@ -180,7 +182,7 @@ frontend/src/
     └── roomStateHistoryService.ts
 ```
 
-**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T020). Reutiliza `Pagination.tsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
+**Structure Decision**: La consulta une `room_state_history` con `room`, para obtener el número y el tipo, y con `user_account` (unión externa por `actor_id`), para el nombre del responsable; si `actor_id` es nulo, el responsable es "Sistema". El nombre legible del flujo sale del enum `SourceFlow` (plan base, T019). Reutiliza `Pagination.tsx` de `plan-consultar-inventario-habitaciones.md`. La página lee `roomId` de la URL para aplicar el filtro de habitación cuando llega desde "Ver historial" (FR-007).
 
 ---
 
@@ -193,7 +195,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Crear la migración `V5__room_state_history_indexes.sql` con índices sobre `room_state_history(room_id, start_date_time)` y `room_state_history(status, start_date_time)` (SC-001).
-- [ ] T002 [P] Implementar `RoomStateHistoryQueryRepository` con los filtros combinables, el cruce de rango de fechas, el orden cronológico y la paginación de 15.
+- [ ] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico (`start_date_time, room_number, end_date_time ASC NULLS LAST, id`) y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
 
 ---
 
@@ -221,7 +223,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
+- [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
 - [ ] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
 - [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
 - [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
@@ -239,7 +241,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T017).
+- **Foundational**: Requiere del plan base `room_state_history` y `room` (T007), el registro de periodos de `TransitionRoomStateUseCase` (regla 8, T016).
 - **Planes de los que depende**:
   - `plan-registrar-habitacion.md`: periodo inicial de cada habitación.
   - `plan-consultar-inventario-habitaciones.md`: "Ver historial", `Pagination.tsx` y `PagedResultDto`.

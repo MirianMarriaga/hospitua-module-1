@@ -12,10 +12,12 @@ Implementar el caso de uso **Gestionar Personal** para el Administrador, desde l
 1. **Registrar** (FR-002 a FR-006): usuario, contraseña, nombre completo y área. El sistema normaliza y valida el usuario, cifra la contraseña con BCrypt y crea la cuenta activa.
 2. **Consultar** (FR-007): lista paginada del personal con filtros por área y estado y búsqueda por usuario o nombre.
 3. **Editar** (FR-006, FR-008): nombre, área y, de forma opcional, contraseña de una cuenta activa. El usuario no cambia.
-4. **Desactivar** (FR-009, FR-010): previa confirmación, la cuenta queda desactivada sin borrarse. No se permite desactivar la propia cuenta ni la última cuenta activa del área Administración.
-5. **Cuenta inicial** (FR-011): si al arrancar no hay ninguna cuenta activa de Administración, un componente de arranque crea la de la configuración llamando al mismo puerto de registro.
+4. **Desactivar** (FR-009, FR-010): previa confirmación, la cuenta queda desactivada sin borrarse. No se permite desactivar la propia cuenta ni la última cuenta activa del área Administración. Al desactivar, libera las tareas abiertas de la cuenta mediante los puertos internos de limpieza y reparación (FR-011).
+5. **Cuenta inicial** (FR-012): si al arrancar no hay ninguna cuenta activa de Administración, un componente de arranque crea la de la configuración llamando al mismo puerto de registro.
 
-Cada operación registra la fecha, la hora y el Administrador responsable (FR-012), que es el usuario actual del encabezado `X-User` (regla 14 del plan base). Las cuentas son las que usa `POST /api/auth/login` del plan base (T021).
+El núcleo de las cuentas (modelo, repositorio, cifrado, puerto de registro y cuenta inicial) lo implementa el plan base en T022, porque lo necesitan el inicio de sesión y todo endpoint con `X-User`. Este plan lo verifica y agrega los endpoints, la consulta, la edición, la desactivación y las vistas.
+
+Cada operación registra la fecha, la hora y el Administrador responsable (FR-013), que es el usuario actual del encabezado `X-User` (regla 14 del plan base). Las cuentas son las que usa `POST /api/auth/login` del plan base (T020).
 
 ---
 
@@ -30,6 +32,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
   - Desactivar no borra la fila: `active = false`. El login y `CurrentUserResolver` ya rechazan las cuentas desactivadas (regla 14 del plan base; SC-003).
   - La validación de "propia cuenta" y "último Administrador activo" se hace dentro de la transacción, bloqueando las cuentas activas de Administración con `SELECT … FOR UPDATE`, para que dos desactivaciones simultáneas no dejen el sistema sin Administrador (FR-010).
   - Ediciones simultáneas: control optimista con `user_account.version` (caso borde "Ediciones simultáneas").
+  - Cada operación es una sola transacción (`@Transactional`): si la conexión se pierde o falla el guardado, no se guarda nada y la cuenta queda como estaba (caso borde "Pérdida de conexión o fallo al guardar").
   - En esta etapa no hay permisos por rol (regla 14 del plan base): la sección "Personal" solo aparece en la vista del Administrador.
 
 ---
@@ -41,7 +44,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
 - **Errores**: esquema `ApiError` del plan base, con `details` cuando aporta contexto.
 - **Áreas**: la API usa `area` con los valores `RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA` y `MANTENIMIENTO`; la interfaz los muestra como "Recepción", "Administración", "Gerencia", "Limpieza" y "Mantenimiento".
 - **Contraseña**: viaja solo en el cuerpo de `POST` y `PATCH`; ninguna respuesta la incluye.
-- **Errores comunes a todos los endpoints**:
+- **Errores comunes a los endpoints que usan el usuario actual** (`POST /api/staff`, `PATCH /api/staff/{username}` y `POST /api/staff/{username}/deactivation`; las dos consultas no envían `X-User`, regla 14 del plan base):
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
@@ -51,7 +54,7 @@ Cada operación registra la fecha, la hora y el Administrador responsable (FR-01
 
 ## POST /api/staff
 
-**Descripción:** Registra una cuenta del personal, activa y con la contraseña cifrada (FR-001 a FR-006, FR-012).
+**Descripción:** Registra una cuenta del personal, activa y con la contraseña cifrada (FR-001 a FR-006, FR-013).
 
 ### Petición (Request)
 
@@ -108,7 +111,7 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta un campo obligatorio; `details.fields` lista los campos pendientes (FR-002, esc. 3) | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta un campo obligatorio; `details.field` lista los campos pendientes (FR-002, esc. 3) | "Completa los campos obligatorios: {campos}." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Usuario con caracteres no permitidos o fuera de 3 a 30 caracteres (FR-003, esc. 3) | "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Contraseña de menos de 8 caracteres (FR-004, esc. 3) | "La contraseña debe tener al menos 8 caracteres." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Área fuera del catálogo (FR-002) | "Selecciona un área válida." |
@@ -134,7 +137,6 @@ Content-Type: application/json
 **Headers:**
 
 ```http
-X-User: lmendez
 Accept: application/json
 ```
 
@@ -195,7 +197,6 @@ Una consulta sin coincidencias responde `200` con `items` vacío; el frontend mu
 **Headers:**
 
 ```http
-X-User: lmendez
 Accept: application/json
 ```
 
@@ -225,7 +226,7 @@ Accept: application/json
 
 ## PATCH /api/staff/{username}
 
-**Descripción:** Edita el nombre, el área y, si se envía, la contraseña de una cuenta activa (FR-006, FR-008, FR-012).
+**Descripción:** Edita el nombre, el área y, si se envía, la contraseña de una cuenta activa (FR-006, FR-008, FR-013).
 
 ### Petición (Request)
 
@@ -236,7 +237,7 @@ X-User: lmendez
 Content-Type: application/json
 ```
 
-**Body (JSON):** `version` es obligatoria. `password` es opcional: si falta o está vacía, la contraseña actual se conserva (esc. 7). `username` no se acepta: el usuario no cambia.
+**Body (JSON):** `version` es obligatoria. `password` es opcional: si falta o está vacía, la contraseña actual se conserva (esc. 7). El cuerpo no lleva `username`: el usuario sale de la ruta y no cambia (FR-008); si llega, se ignora.
 
 ```json
 {
@@ -264,7 +265,7 @@ Content-Type: application/json
 
 ## POST /api/staff/{username}/deactivation
 
-**Descripción:** Desactiva una cuenta del personal sin borrarla (FR-009, FR-010, FR-012).
+**Descripción:** Desactiva una cuenta del personal sin borrarla (FR-009, FR-010, FR-013).
 
 ### Petición (Request)
 
@@ -312,27 +313,27 @@ backend/src/main/
 ├── java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   ├── model/
-│   │   │   ├── StaffAccount.java                  # Cuenta del personal y sus reglas (usuario, área, activa)
-│   │   │   └── StaffArea.java                     # Enum: RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO
-│   │   ├── exception/
-│   │   │   ├── UsernameAlreadyExistsException.java    # 409
-│   │   │   ├── StaffAccountNotFoundException.java     # 404
-│   │   │   ├── AccountInactiveException.java          # 409
-│   │   │   ├── CannotDeactivateSelfException.java     # 409
-│   │   │   └── LastAdministratorException.java        # 409
-│   │   └── ports/
-│   │       ├── in/
-│   │       │   ├── RegisterStaffAccountUseCase.java
-│   │       │   ├── ListStaffAccountsUseCase.java
-│   │       │   ├── GetStaffAccountUseCase.java
-│   │       │   ├── EditStaffAccountUseCase.java
-│   │       │   └── DeactivateStaffAccountUseCase.java
-│   │       └── out/
-│   │           ├── StaffAccountRepositoryPort.java
-│   │           └── PasswordEncoderPort.java       # Cifrado de contraseñas; lo usa también LoginService (plan base, T021)
+│   │   │   ├── StaffAccount.java                  # Plan base (T022); aquí se verifica
+│   │   │   └── StaffArea.java                     # Plan base (T022): RECEPCION, ADMINISTRACION, GERENCIA, LIMPIEZA, MANTENIMIENTO
+│   │   └── exception/
+│   │       ├── UsernameAlreadyExistsException.java    # 409; plan base (T022)
+│   │       ├── StaffAccountNotFoundException.java     # 404
+│   │       ├── AccountInactiveException.java          # 409
+│   │       ├── CannotDeactivateSelfException.java     # 409
+│   │       └── LastAdministratorException.java        # 409
 │   ├── application/
+│   │   ├── ports/
+│   │   │   ├── in/
+│   │   │   │   ├── RegisterStaffAccountUseCase.java   # Plan base (T022)
+│   │   │   │   ├── ListStaffAccountsUseCase.java
+│   │   │   │   ├── GetStaffAccountUseCase.java
+│   │   │   │   ├── EditStaffAccountUseCase.java
+│   │   │   │   └── DeactivateStaffAccountUseCase.java
+│   │   │   └── out/
+│   │   │       ├── StaffAccountRepositoryPort.java   # Plan base (T022); aquí se agregan las consultas de la lista
+│   │   │       └── PasswordEncoderPort.java       # Plan base (T022); lo usan LoginService y el registro
 │   │   ├── service/
-│   │   │   ├── RegisterStaffAccountService.java
+│   │   │   ├── RegisterStaffAccountService.java   # Plan base (T022)
 │   │   │   ├── StaffAccountQueryService.java      # Listar y obtener
 │   │   │   ├── EditStaffAccountService.java
 │   │   │   └── DeactivateStaffAccountService.java
@@ -344,13 +345,13 @@ backend/src/main/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   ├── web/StaffController.java       # /api/staff
-│       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-011)
+│       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T022)
 │       │   └── out/
-│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Spring Data sobre UserAccountJpaEntity (plan base)
-│       │       ├── persistence/adapter/JpaStaffAccountAdapter.java
-│       │       └── security/BCryptPasswordEncoderAdapter.java   # Implementa PasswordEncoderPort con spring-security-crypto
+│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Plan base (T022)
+│       │       ├── persistence/adapter/StaffAccountRepositoryAdapter.java   # Plan base (T022)
+│       │       └── security/BCryptPasswordEncoderAdapter.java   # Plan base (T022)
 │       └── config/
-│           └── StaffBootstrapProperties.java      # hospitua.bootstrap.admin.username, password y full-name (variables de entorno)
+│           └── StaffBootstrapProperties.java      # Plan base (T022): hospitua.bootstrap.admin.username, password y full-name
 frontend/src/
 ├── components/
 │   └── staffAreaLabels.ts                         # RECEPCION → "Recepción", …
@@ -364,23 +365,23 @@ frontend/src/
     └── staffService.ts
 ```
 
-**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y sin responsable: `created_by` queda nulo, como el `actor_id` de las acciones autónomas, y la interfaz lo muestra como "Sistema" (FR-011, FR-012). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T021), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
+**Structure Decision**: Las cuatro operaciones y la cuenta inicial entran por puertos de entrada; `StaffAccountBootstrapper` no escribe SQL, sino que llama a `RegisterStaffAccountUseCase` con los datos de `StaffBootstrapProperties` y sin responsable: `created_by` queda nulo, como el `actor_id` de las acciones autónomas, y la interfaz lo muestra como "Sistema" (FR-012, FR-013). El cifrado vive detrás de `PasswordEncoderPort`, que comparten este plan y `LoginService` (plan base, T020), para que el dominio no dependa de la librería de cifrado (regla 1 del plan base). La sección "Personal" se agrega al menú de la vista del Administrador, junto a "Inventario".
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Agregar a `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name`, leídas de variables de entorno, sin valores por defecto en el repositorio.
+- [ ] T001 Verificar en `application.yml` las propiedades `hospitua.bootstrap.admin.username`, `hospitua.bootstrap.admin.password` y `hospitua.bootstrap.admin.full-name` (plan base, T022), leídas de variables de entorno: en los perfiles `dev` y `test` tienen los valores de desarrollo `admin` / `admin123` (README); en `prod` no tienen valores por defecto y llegan solo por `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD` y `BOOTSTRAP_ADMIN_FULL_NAME`.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T021) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
-- [ ] T003 [P] Implementar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
-- [ ] T004 [P] Implementar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter`, y verificar que `LoginService` (plan base, T021) use el mismo puerto.
-- [ ] T005 [P] Implementar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` (Spring Data sobre `UserAccountJpaEntity`) y `JpaStaffAccountAdapter`, incluida la consulta con bloqueo de las cuentas activas de Administración.
-- [ ] T006 [P] Registrar en `GlobalExceptionHandler` `USERNAME_ALREADY_EXISTS`, `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y mapear la violación de la clave primaria de `user_account` a `409 USERNAME_ALREADY_EXISTS`.
+- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T020) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
+- [ ] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T022).
+- [ ] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T022) y que `LoginService` (plan base, T020) use el mismo puerto.
+- [ ] T005 [P] Verificar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
+- [ ] T006 [P] Registrar en `GlobalExceptionHandler` `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y verificar que `USERNAME_ALREADY_EXISTS` y la violación de la clave primaria de `user_account` ya están mapeados (plan base, T022).
 
 ---
 
@@ -392,18 +393,18 @@ frontend/src/
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Unit test en `RegisterStaffAccountServiceTest`: el registro válido crea la cuenta activa, normaliza el usuario, guarda la contraseña cifrada y registra al Administrador y la hora de `Clock` (esc. 1; FR-002 a FR-005, FR-012).
-- [ ] T008 [P] [US1] Unit test: rechazo con `USERNAME_ALREADY_EXISTS` si el usuario existe, incluido uno desactivado o con otras mayúsculas (esc. 2; FR-003).
+- [ ] T007 [P] [US1] Unit test en `RegisterStaffAccountServiceTest`: el registro válido crea la cuenta activa, normaliza el usuario, guarda la contraseña cifrada y registra al Administrador y la hora de `Clock` (esc. 1; FR-002 a FR-005, FR-013).
+- [ ] T008 [P] [US1] Unit test: rechazo con `USERNAME_ALREADY_EXISTS` si el usuario existe, incluido uno desactivado o con otras mayúsculas (esc. 2; FR-003; SC-004).
 - [ ] T009 [P] [US1] Unit test: rechazo de campos faltantes, usuario con caracteres no permitidos o fuera de 3 a 30 caracteres, contraseña de menos de 8 y área inválida (esc. 3; FR-002 a FR-004).
 - [ ] T010 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo usuario; solo uno tiene éxito (FR-003).
-- [ ] T011 [US1] Integration test: con la base de datos sin cuentas activas de Administración, `StaffAccountBootstrapper` crea la cuenta de la configuración por `RegisterStaffAccountUseCase`; si ya existe una, no crea otra (FR-011).
+- [ ] T011 [US1] Integration test: con la base de datos sin cuentas activas de Administración, `StaffAccountBootstrapper` crea la cuenta de la configuración por `RegisterStaffAccountUseCase`; si ya existe una, no crea otra (FR-012).
 - [ ] T012 [US1] Integration test: la contraseña no aparece en ninguna respuesta ni en los logs (SC-002).
 - [ ] T013 [P] [US1] Component test en `RegisterStaffPage`: señala cada campo con su error, restringe el área a las 5 opciones y muestra la confirmación con usuario, nombre, área y estado, sin contraseña (esc. 1 y 3; FR-006).
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implementar `RegisterStaffAccountService` (`@Transactional`): normalizar y validar el usuario, validar la unicidad, cifrar la contraseña con `PasswordEncoderPort`, crear la cuenta activa y registrar el responsable y la hora (FR-002 a FR-005, FR-012).
-- [ ] T015 [US1] Implementar `StaffAccountBootstrapper` (al arrancar la aplicación) y `StaffBootstrapProperties`; la cuenta inicial queda con `created_by` nulo (FR-011, FR-012).
+- [ ] T014 [US1] Verificar `RegisterStaffAccountService` (plan base, T022): normaliza y valida el usuario, valida la unicidad, cifra la contraseña con `PasswordEncoderPort`, crea la cuenta activa y registra el responsable y la hora (FR-002 a FR-005, FR-013).
+- [ ] T015 [US1] Verificar `StaffAccountBootstrapper` y `StaffBootstrapProperties` (plan base, T022); la cuenta inicial queda con `created_by` nulo (FR-012, FR-013). Si no hay ninguna cuenta activa de Administración y faltan las propiedades o no cumplen FR-002 a FR-004, la aplicación no arranca y registra el motivo en el log, sin la contraseña.
 - [ ] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
 - [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
 
@@ -440,14 +441,14 @@ frontend/src/
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Unit test en `EditStaffAccountServiceTest`: cambia nombre y área, cifra la contraseña nueva y registra el responsable y la hora (esc. 6; FR-008, FR-012).
+- [ ] T023 [P] [US3] Unit test en `EditStaffAccountServiceTest`: cambia nombre y área, cifra la contraseña nueva y registra el responsable y la hora (esc. 6; FR-008, FR-013).
 - [ ] T024 [P] [US3] Unit test: con la contraseña vacía se conserva la actual (esc. 7; FR-008).
 - [ ] T025 [P] [US3] Unit test: rechazo de una cuenta desactivada con `ACCOUNT_INACTIVE` y de una contraseña nueva de menos de 8 caracteres (caso borde "Edición de una cuenta desactivada"; FR-004).
 - [ ] T026 [US3] Integration test con Testcontainers: dos ediciones simultáneas con la misma `version`; la segunda recibe `409 CONCURRENT_UPDATE` (caso borde "Ediciones simultáneas").
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-012).
+- [ ] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-013).
 - [ ] T028 [US3] Construir `EditStaffPage.tsx`, con el usuario de solo lectura y el campo de contraseña opcional (FR-008).
 
 **Checkpoint**: Las cuentas se pueden corregir y las contraseñas restablecer.
@@ -462,15 +463,15 @@ frontend/src/
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-012).
-- [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010).
+- [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-013). Desactivar con una tarea de limpieza abierta deja la habitación en `PendingCleaning`, y con una tarea de reparación abierta la deja liberada sin cambiar la habitación (esc. 11; FR-011).
+- [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010; SC-004).
 - [ ] T031 [US4] Integration test con Testcontainers: dos desactivaciones simultáneas de las dos únicas cuentas activas de Administración; solo una tiene éxito y la otra recibe `LAST_ADMINISTRATOR` (FR-010).
 - [ ] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
 - [ ] T033 [P] [US4] Component test en `DeactivateStaffDialog`: muestra usuario, nombre y área, advierte que la persona no podrá iniciar sesión y cancelar no envía nada (esc. 9; FR-009).
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar (FR-009, FR-010, FR-012).
+- [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y `ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)` (username de la cuenta; sin actor). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los dos puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) y `ReleaseRepairTaskOnDeactivationUseCase` (`plan-confirmar-reparacion-finalizada.md`) (FR-009, FR-010, FR-011, FR-013).
 - [ ] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
 
 **Checkpoint**: La gestión del personal queda completa.
@@ -480,16 +481,19 @@ frontend/src/
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
-- [ ] T037 Medir que el registro completo responda en menos de 2 segundos (SC-001).
+- [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Foundational**: Requiere del plan base la tabla `user_account` (T007), el inicio de sesión y `CurrentUserResolver` (regla 14, T021 y T022), `ClockConfig` y `GlobalExceptionHandler`.
+- **Foundational**: Requiere del plan base la tabla `user_account` (T007), el núcleo de las cuentas y la cuenta inicial (T022), el inicio de sesión y `CurrentUserResolver` (regla 14, T020 y T021), `ClockConfig` y `GlobalExceptionHandler`.
 - **Planes relacionados**:
-  - Plan base, T021: `LoginService` usa `PasswordEncoderPort` de este plan y rechaza las cuentas desactivadas.
+  - Plan base, T020 y T022: `LoginService` usa `PasswordEncoderPort` (T022) y rechaza las cuentas desactivadas.
   - `plan-consultar-historial-de-estados.md`: muestra `full_name` de `user_account` como responsable, también de las cuentas desactivadas.
   - `plan-consultar-inventario-habitaciones.md`: `Pagination.tsx` y el menú de la vista del Administrador.
+  - `plan-confirmar-fin-de-limpieza.md`: `ReleaseCleaningTaskOnDeactivationUseCase`, puerto que libera la tarea de limpieza abierta al desactivar (FR-011).
+  - `plan-confirmar-reparacion-finalizada.md`: `ReleaseRepairTaskOnDeactivationUseCase`, puerto que libera la tarea de reparación abierta al desactivar, sin actor (FR-011).
+- **Riesgo aceptado**: si la persona inicia una tarea en el mismo instante en que se desactiva su cuenta, ambas operaciones pueden confirmarse porque ninguna bloquea a la otra; es poco probable y se documenta.
 - **Alcance provisional**: el manejo de contraseñas de este plan es provisional (regla 14 y punto abierto 1 del plan base). Si se adopta un inicio de sesión compartido, se retiran la contraseña y `PasswordEncoderPort`, y se conservan el registro, la consulta, la edición y la desactivación de las cuentas como perfil local.
-- **Orden**: Phase 1 → Phase 2 → Phase 3 (la cuenta inicial debe existir antes que todo lo demás) → Phase 4 → Phase 5 → Phase 6 → Phase 7.
+- **Orden**: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. La cuenta inicial ya existe desde el plan base (T022).
