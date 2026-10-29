@@ -1,12 +1,16 @@
 package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.adapter;
 
+import com.hospitua.habitaciones.application.dto.PagedResultDto;
+import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
 import com.hospitua.habitaciones.domain.exception.RoomNumberAlreadyExistsException;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.RoomJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.RoomMapper;
+import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.RoomInventorySpecifications;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.SpringDataRoomJpaRepository;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -59,6 +63,15 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
         return roomJpaRepository.existsByRoomNumber(roomNumber);
     }
 
+    @Override
+    public PagedResultDto<Room> searchInventory(RoomInventoryFilter filter, int page, int size) {
+        List<Room> rooms = roomJpaRepository.findAll(RoomInventorySpecifications.matching(filter)).stream()
+                .map(roomMapper::toDomain)
+                .sorted(inventoryOrder(filter))
+                .toList();
+        return PagedResultDto.of(rooms, page, size);
+    }
+
     /** Solo dentro de la transacción del invocador: fuera de ella el bloqueo se liberaría al instante (regla 13). */
     @Transactional(propagation = Propagation.MANDATORY)
     @Override
@@ -82,6 +95,20 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                 .map(roomMapper::toDomain)
                 .sorted(RoomNumberOrder.NATURAL)
                 .toList();
+    }
+
+    /** Columna pedida y, como desempate, el orden natural del número; se ordena en memoria por ese orden natural. */
+    private static Comparator<Room> inventoryOrder(RoomInventoryFilter filter) {
+        Comparator<Room> primary =
+                switch (filter.sort()) {
+                    case ROOM_NUMBER -> RoomNumberOrder.NATURAL;
+                    case FLOOR -> Comparator.comparingInt(Room::getFloor);
+                    case CATEGORY_ROOM -> Comparator.comparing(Room::getCategoryRoom);
+                    case MAX_CAPACITY -> Comparator.comparingInt(Room::getMaxCapacity);
+                    case BASE_RATE -> Comparator.comparing(Room::getBaseRate);
+                    case STATUS -> Comparator.comparing(Room::getStatus);
+                };
+        return (filter.descending() ? primary.reversed() : primary).thenComparing(RoomNumberOrder.NATURAL);
     }
 
     private static boolean violates(DataIntegrityViolationException ex, String constraintName) {

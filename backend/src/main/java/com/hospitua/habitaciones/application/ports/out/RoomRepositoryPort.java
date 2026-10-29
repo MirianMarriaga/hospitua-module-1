@@ -1,5 +1,7 @@
 package com.hospitua.habitaciones.application.ports.out;
 
+import com.hospitua.habitaciones.application.dto.PagedResultDto;
+import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.util.List;
@@ -24,6 +26,12 @@ public interface RoomRepositoryPort {
     Room insert(Room room);
 
     boolean existsByRoomNumber(String roomNumber);
+
+    /**
+     * Inventario filtrado y ordenado (con el orden natural de {@code room_number} como desempate), en la página
+     * {@code page} desde 1 (consultar-inventario T002).
+     */
+    PagedResultDto<Room> searchInventory(RoomInventoryFilter filter, int page, int size);
 
     /**
      * Bloquea la fila de la habitación con SELECT ... FOR UPDATE (bloqueo pesimista).

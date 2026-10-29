@@ -267,9 +267,11 @@ backend/src/main/
 │   │       ├── RoomInventoryFilter.java
 │   │       ├── RoomDto.java                       # Definido en plan-registrar-habitacion.md; incluye version
 │   │       ├── Module2RoomDto.java                # Respuesta para Módulo 2: id, roomNumber, categoryRoom, maxCapacity
+│   │       ├── RoomInventorySort.java             # Columnas de orden: ROOM_NUMBER (por defecto), FLOOR, CATEGORY_ROOM, MAX_CAPACITY, BASE_RATE, STATUS
 │   │       └── PagedResultDto.java
 │   └── infrastructure/adapters/
 │       ├── in/web/
+│       │   ├── dto/RoomInventoryQuery.java        # Parámetros de GET /api/rooms/inventory con Bean Validation (@ModelAttribute)
 │       │   └── RoomController.java                # Se agregan GET /api/rooms/inventory, GET /api/rooms/inventory/{roomId}, GET /api/rooms y GET /api/rooms/{roomId}
 │       └── out/persistence/
 │           ├── adapter/RoomRepositoryAdapter.java     # Se agrega searchInventory(...), que usa RoomInventorySpecifications
@@ -302,8 +304,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
+- [x] T001 Crear la migración `V4__room_inventory_indexes.sql` con índices sobre `room(status)`, `room(category_room)` y `room(floor)` (SC-001).
 - [ ] T002 [P] Agregar a `RoomRepositoryPort` la operación `searchInventory(RoomInventoryFilter filter, int page, int size)` y la consulta de habitaciones vendibles por categoría o por ID (sin `Inactive`), implementarlas en `RoomRepositoryAdapter` con `RoomInventorySpecifications` (filtros combinables por `roomNumber`, `categoryRoom`, `floor` y `status`, y orden por las columnas permitidas). El servicio no usa `RoomInventorySpecifications` directamente (regla 1 del plan base).
+  - Avance: hecho `searchInventory` con `RoomInventorySpecifications`; el orden y la paginación se aplican en memoria sobre el resultado filtrado, porque el orden natural de `roomNumber` no es un orden por columna. Falta la consulta de habitaciones vendibles para Módulo 2 (L03)
 - [ ] T003 [P] Crear las rutas del frontend para las vistas de administración y gerencia dentro de sus layouts por área (plan base, T015).
 
 ---
@@ -316,13 +319,13 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `RoomInventoryQueryServiceTest`: sin filtros devuelve todas las habitaciones, incluidas las `Inactive` (esc. 1; FR-003; SC-002).
-- [ ] T005 [P] [US1] Unit test: los filtros por tipo, piso y estado se combinan (esc. 2; FR-004).
-- [ ] T006 [P] [US1] Unit test: el orden se aplica sin alterar los filtros (esc. 3; FR-005).
-- [ ] T007 [P] [US1] Unit test: el filtro por `roomNumber` devuelve como máximo una habitación; un número inexistente devuelve una lista vacía, sin error (caso borde 3; FR-004).
-- [ ] T008 [P] [US1] Unit test: la paginación devuelve 10 por página con `totalElements` y `totalPages` correctos (esc. 7; FR-009).
+- [x] T004 [P] [US1] Unit test en `RoomInventoryQueryServiceTest`: sin filtros devuelve todas las habitaciones, incluidas las `Inactive` (esc. 1; FR-003; SC-002).
+- [x] T005 [P] [US1] Unit test: los filtros por tipo, piso y estado se combinan (esc. 2; FR-004).
+- [x] T006 [P] [US1] Unit test: el orden se aplica sin alterar los filtros (esc. 3; FR-005).
+- [x] T007 [P] [US1] Unit test: el filtro por `roomNumber` devuelve como máximo una habitación; un número inexistente devuelve una lista vacía, sin error (caso borde 3; FR-004).
+- [x] T008 [P] [US1] Unit test: la paginación devuelve 10 por página con `totalElements` y `totalPages` correctos (esc. 7; FR-009).
 - [ ] T009 [US1] Integration test del contrato con Módulo 2: `GET /api/rooms?categoryRoom=DOBLE` devuelve un arreglo sin paginar con solo `id`, `roomNumber`, `categoryRoom` y `maxCapacity`, sin la habitación `Inactive` de esa categoría; una categoría sin habitaciones devuelve `[]`; sin `categoryRoom` o con una categoría inválida, `400`; `GET /api/rooms/{roomId}` de una `Inactive` responde `404`, mientras `GET /api/rooms/inventory/{roomId}` responde `200` (esc. 4, 8 y 9; FR-010, FR-011; SC-003).
-- [ ] T010 [US1] Integration test: ninguna consulta modifica `room` ni `room_state_history` (FR-006).
+- [x] T010 [US1] Integration test: ninguna consulta modifica `room` ni `room_state_history` (FR-006).
 - [ ] T011 [P] [US1] Component test en `ManagerRoomInventoryPage`: la tabla muestra número, piso, tipo, capacidad, tarifa y estado en español, no muestra el UUID y "Ver historial" navega al historial con la habitación (esc. 5; FR-002, FR-007).
 - [ ] T012 [P] [US1] Component test en `AdminRoomInventoryPage`: "Editar" y "Dar de baja" solo en `Available`, "Marcar como disponible" solo en `Inactive`, ninguna acción en los demás estados y "Registrar habitación" sobre el listado (esc. 6; FR-008).
 - [ ] T013 [P] [US1] Component test en `Pagination` y `RoomInventoryFilters`: "Mostrando 1–10 de 24", "Anterior", "Siguiente" y número de página; al cambiar un filtro vuelve a la página 1 y al cambiar de página conserva filtros y orden (esc. 7; FR-009).
@@ -331,9 +334,11 @@ No aplica: usa la infraestructura del plan base.
 ### Implementation for User Story 1
 
 - [ ] T015 [US1] Implementar `RoomInventoryQueryService` (`@Transactional(readOnly = true)`) sobre `RoomRepositoryPort.searchInventory(...)`, con paginación y orden (FR-003 a FR-006, FR-009), y con el filtro `status != Inactive` en la consulta de Módulo 2 (FR-010).
+  - Avance: hecho `RoomInventoryQueryService` para las vistas (`search` y `getById`). Falta la consulta de Módulo 2 sin `Inactive` (L03)
 - [ ] T016 [US1] Agregar a `RoomController` (FR-001, FR-004, FR-010):
   - Para las vistas: `GET /api/rooms/inventory`, que responde `PagedResultDto<RoomDto>`, y `GET /api/rooms/inventory/{roomId}`, que responde `RoomDto` con `version`.
   - Para Módulo 2: `GET /api/rooms` (con `categoryRoom` obligatorio), que responde un arreglo sin paginar de `Module2RoomDto`, y `GET /api/rooms/{roomId}`, que responde `Module2RoomDto` y `404` para una `Inactive`.
+  - Avance: hechos `GET /api/rooms/inventory` (parámetros validados con `RoomInventoryQuery`) y `GET /api/rooms/inventory/{roomId}`. Faltan los endpoints de Módulo 2 (L03)
 - [ ] T017 [US1] Construir en el frontend `RoomInventoryTable.tsx`, `RoomInventoryFilters.tsx` y `Pagination.tsx`, con los estados y las categorías en español (FR-002, FR-004, FR-009).
 - [ ] T018 [US1] Construir `ManagerRoomInventoryPage.tsx` con "Ver historial" por fila (FR-007).
 - [ ] T019 [US1] Construir `AdminRoomInventoryPage.tsx` con "Registrar habitación" y las acciones por estado (FR-008).

@@ -232,7 +232,7 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
+- [x] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
 - [x] T016 Integration test: ninguna habitación registrada queda sin UUID, sin estado o sin su periodo inicial en `room_state_history` (SC-004).
 
 ---

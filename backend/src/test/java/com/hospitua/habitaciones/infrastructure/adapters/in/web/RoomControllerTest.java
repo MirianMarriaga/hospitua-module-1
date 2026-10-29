@@ -3,17 +3,24 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RegisterRoomCommand;
 import com.hospitua.habitaciones.application.dto.RoomDto;
+import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
+import com.hospitua.habitaciones.application.dto.RoomInventorySort;
+import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterRoomUseCase;
 import com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException;
+import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
 import com.hospitua.habitaciones.domain.exception.RoomNumberAlreadyExistsException;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
@@ -21,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,16 +48,19 @@ class RoomControllerTest {
 
     private MockMvc mockMvc;
     private RegisterRoomUseCase registerRoomUseCase;
+    private ConsultRoomInventoryUseCase consultRoomInventoryUseCase;
     private CurrentUserResolver currentUserResolver;
 
     @BeforeEach
     void setUp() {
         registerRoomUseCase = Mockito.mock(RegisterRoomUseCase.class);
+        consultRoomInventoryUseCase = Mockito.mock(ConsultRoomInventoryUseCase.class);
         currentUserResolver = Mockito.mock(CurrentUserResolver.class);
         when(currentUserResolver.resolve("lmendez")).thenReturn("lmendez");
         Clock clock = Clock.fixed(Instant.parse("2026-10-09T15:05:00Z"), ZoneId.of("America/Bogota"));
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new RoomController(registerRoomUseCase, currentUserResolver))
+        mockMvc = MockMvcBuilders.standaloneSetup(
+                        new RoomController(registerRoomUseCase, consultRoomInventoryUseCase, currentUserResolver))
                 .setControllerAdvice(new GlobalExceptionHandler(new ApiErrorFactory(clock)))
                 .build();
     }
@@ -178,5 +189,93 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("CURRENT_USER_REQUIRED"));
 
         verify(registerRoomUseCase, never()).register(any());
+    }
+
+    @Test
+    @DisplayName("GET /inventory sin parámetros pide la página 1 de 10, sin filtros y por número ascendente")
+    void inventory_defaults() throws Exception {
+        when(consultRoomInventoryUseCase.search(RoomInventoryFilter.none(), 1, 10))
+                .thenReturn(new PagedResultDto<>(List.of(room()), 1, 10, 24, 3));
+
+        mockMvc.perform(get("/api/rooms/inventory"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].roomId").value(ROOM_ID.toString()))
+                .andExpect(jsonPath("$.items[0].status").value("Available"))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(24))
+                .andExpect(jsonPath("$.totalPages").value(3));
+    }
+
+    @Test
+    @DisplayName("GET /inventory traduce filtros, orden y página; recorta los espacios del número")
+    void inventory_mapsParameters() throws Exception {
+        RoomInventoryFilter expected = new RoomInventoryFilter(
+                "203", RoomCategory.DOBLE, 2, RoomStatus.Inactive, RoomInventorySort.BASE_RATE, true);
+        when(consultRoomInventoryUseCase.search(expected, 2, 5))
+                .thenReturn(new PagedResultDto<>(List.of(), 2, 5, 0, 0));
+
+        mockMvc.perform(get("/api/rooms/inventory")
+                        .param("roomNumber", " 203 ")
+                        .param("categoryRoom", "DOBLE")
+                        .param("floor", "2")
+                        .param("status", "Inactive")
+                        .param("sort", "baseRate")
+                        .param("direction", "desc")
+                        .param("page", "2")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @ParameterizedTest(name = "{0} = {1}")
+    @CsvSource({
+        "size, 101",
+        "size, 0",
+        "page, 0",
+        "floor, -1",
+        "floor, dos",
+        "sort, roomId",
+        "direction, up",
+        "categoryRoom, PENTHOUSE",
+        "status, Ocupada"
+    })
+    @DisplayName("GET /inventory con un parámetro fuera de sus valores responde 400 VALIDATION_ERROR con el campo")
+    void inventory_invalidParameter_returns400(String field, String value) throws Exception {
+        mockMvc.perform(get("/api/rooms/inventory").param(field, value))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value(field));
+
+        verify(consultRoomInventoryUseCase, never()).search(any(), anyInt(), anyInt());
+    }
+
+    @Test
+    @DisplayName("GET /inventory/{roomId} devuelve el detalle con version")
+    void inventoryDetail_returnsRoom() throws Exception {
+        when(consultRoomInventoryUseCase.getById(ROOM_ID)).thenReturn(room());
+
+        mockMvc.perform(get("/api/rooms/inventory/{roomId}", ROOM_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomNumber").value("407"))
+                .andExpect(jsonPath("$.version").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /inventory/{roomId} responde 404 ROOM_NOT_FOUND si no existe y 400 si no es un UUID")
+    void inventoryDetail_errors() throws Exception {
+        when(consultRoomInventoryUseCase.getById(ROOM_ID)).thenThrow(new RoomNotFoundException());
+
+        mockMvc.perform(get("/api/rooms/inventory/{roomId}", ROOM_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("ROOM_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("No se encontró la habitación."));
+        mockMvc.perform(get("/api/rooms/inventory/{roomId}", "no-es-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+    }
+
+    private static RoomDto room() {
+        return new RoomDto(ROOM_ID, RoomStatus.Available, "407", 4, RoomCategory.DOBLE, 2, new BigDecimal("250000"), 0);
     }
 }

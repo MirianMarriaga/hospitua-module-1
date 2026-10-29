@@ -40,6 +40,10 @@ record ValidationFailure(String field, String message) {
         if (error == null) {
             return new ValidationFailure(null, DEFAULT_MESSAGE);
         }
+        if (error.isBindingFailure()) {
+            // Valor que no se pudo convertir al tipo del campo (p. ej. un enum fuera de catálogo en un filtro)
+            return new ValidationFailure(error.getField(), "Tipo de dato inválido para el campo: " + error.getField());
+        }
         String message = error.getDefaultMessage() != null ? error.getDefaultMessage() : DEFAULT_MESSAGE;
         return new ValidationFailure(error.getField(), message);
     }
