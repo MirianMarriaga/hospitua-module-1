@@ -21,19 +21,26 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class FlywayMigrationAndSchemaTest {
 
+    // Todas las pruebas de integración comparten la base y otras confirman habitaciones propias: las aserciones
+    // sobre la semilla se limitan a sus ids (prefijo fijo de V2) para no depender del orden de ejecución.
+    private static final String SEEDED_ROOM_ID = "'a0000000-0000-0000-0000-%'";
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("V1 y V2 deben sembrar 14 habitaciones con sus estados canónicos")
     void shouldHaveSeededFourteenRooms() {
-        Integer roomCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM room", Integer.class);
+        Integer roomCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM room WHERE id::text LIKE " + SEEDED_ROOM_ID, Integer.class);
         assertThat(roomCount).isEqualTo(14);
 
-        Integer availableCount =
-                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM room WHERE status = 'Available'", Integer.class);
-        Integer inactiveCount =
-                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM room WHERE status = 'Inactive'", Integer.class);
+        Integer availableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM room WHERE status = 'Available' AND id::text LIKE " + SEEDED_ROOM_ID,
+                Integer.class);
+        Integer inactiveCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM room WHERE status = 'Inactive' AND id::text LIKE " + SEEDED_ROOM_ID,
+                Integer.class);
 
         assertThat(availableCount).isEqualTo(12);
         assertThat(inactiveCount).isEqualTo(2);
@@ -43,7 +50,8 @@ class FlywayMigrationAndSchemaTest {
     @DisplayName("Cada habitación sembrada tiene exactamente un periodo inicial abierto en room_state_history")
     void eachSeededRoomMustHaveOpenPeriodInHistory() {
         List<Map<String, Object>> histories = jdbcTemplate.queryForList(
-                "SELECT room_id, status, previous_status, end_date_time, actor_id, source_flow FROM room_state_history");
+                "SELECT room_id, status, previous_status, end_date_time, actor_id, source_flow FROM room_state_history "
+                        + "WHERE room_id::text LIKE " + SEEDED_ROOM_ID);
 
         assertThat(histories).hasSize(14);
 
@@ -59,7 +67,8 @@ class FlywayMigrationAndSchemaTest {
     @DisplayName("Cada habitación Inactive tiene una baja vigente en room_decommission")
     void eachInactiveRoomMustHaveActiveDecommission() {
         List<Map<String, Object>> decommissions = jdbcTemplate.queryForList(
-                "SELECT room_id, decommissioned_by, reactivated_by, reactivation_date_time FROM room_decommission");
+                "SELECT room_id, decommissioned_by, reactivated_by, reactivation_date_time FROM room_decommission "
+                        + "WHERE room_id::text LIKE " + SEEDED_ROOM_ID);
 
         assertThat(decommissions).hasSize(2);
 
@@ -88,6 +97,17 @@ class FlywayMigrationAndSchemaTest {
         assertThatThrownBy(() -> jdbcTemplate.update(
                         "INSERT INTO room (id, room_number, floor, category_room, max_capacity, base_rate, status, version) "
                                 + "VALUES (?, '999', 0, 'SENCILLA', 2, 100000.00, 'Available', 0)",
+                        newId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("Restricción base_rate > 0 debe impedir tarifas iguales a cero")
+    void shouldEnforceBaseRateGreaterThanZeroConstraint() {
+        UUID newId = UUID.randomUUID();
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                        "INSERT INTO room (id, room_number, floor, category_room, max_capacity, base_rate, status, version) "
+                                + "VALUES (?, '998', 1, 'SENCILLA', 2, 0.00, 'Available', 0)",
                         newId))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }

@@ -10,7 +10,7 @@ CREATE TABLE room (
     floor INT NOT NULL CHECK (floor > 0),
     category_room VARCHAR(50) NOT NULL,
     max_capacity INT NOT NULL CHECK (max_capacity > 0),
-    base_rate NUMERIC(12, 2) NOT NULL CHECK (base_rate >= 0),
+    base_rate NUMERIC(12, 2) NOT NULL CHECK (base_rate > 0),
     status VARCHAR(50) NOT NULL,
     reserved_by_reservation_ref VARCHAR(100),
     version INT NOT NULL DEFAULT 0,

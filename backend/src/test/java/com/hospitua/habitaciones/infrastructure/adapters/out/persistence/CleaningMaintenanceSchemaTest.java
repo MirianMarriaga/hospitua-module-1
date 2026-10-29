@@ -38,9 +38,12 @@ class CleaningMaintenanceSchemaTest {
     private UUID roomId;
     private UUID otherRoomId;
 
+    // Habitaciones de la semilla V2: no dependen de lo que confirmen otras pruebas de integración.
     @BeforeEach
     void loadSeededRooms() {
-        List<UUID> roomIds = jdbcTemplate.queryForList("SELECT id FROM room ORDER BY room_number LIMIT 2", UUID.class);
+        List<UUID> roomIds = jdbcTemplate.queryForList(
+                "SELECT id FROM room WHERE id::text LIKE 'a0000000-0000-0000-0000-%' ORDER BY room_number LIMIT 2",
+                UUID.class);
         roomId = roomIds.get(0);
         otherRoomId = roomIds.get(1);
     }
