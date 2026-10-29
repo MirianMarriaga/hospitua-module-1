@@ -26,4 +26,6 @@ public interface SpringDataRoomJpaRepository extends JpaRepository<RoomJpaEntity
     List<RoomJpaEntity> findByStatusNot(RoomStatus status);
 
     Optional<RoomJpaEntity> findByRoomNumber(String roomNumber);
+
+    boolean existsByRoomNumber(String roomNumber);
 }

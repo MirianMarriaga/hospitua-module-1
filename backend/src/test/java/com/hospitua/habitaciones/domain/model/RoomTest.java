@@ -3,6 +3,8 @@ package com.hospitua.habitaciones.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hospitua.habitaciones.domain.exception.DomainError;
+import com.hospitua.habitaciones.domain.exception.InvalidRoomDataException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -112,6 +114,58 @@ class RoomTest {
         room.transitionTo(RoomStatus.Occupied);
         assertThat(room.getStatus()).isEqualTo(RoomStatus.Occupied);
         assertThat(room.getReservedByReservationRef()).isNull();
+    }
+
+    @Test
+    @DisplayName("register crea la habitación en Available con UUID propio, versión 0 y el número sin espacios")
+    void register_createsAvailableRoom() {
+        Room room = Room.register("  407 ", 4, RoomCategory.DOBLE, 2, new BigDecimal("250000"));
+
+        assertThat(room.getId()).isNotNull();
+        assertThat(room.getStatus()).isEqualTo(RoomStatus.Available);
+        assertThat(room.getRoomNumber()).isEqualTo("407");
+        assertThat(room.getReservedByReservationRef()).isNull();
+        assertThat(room.getVersion()).isZero();
+    }
+
+    @ParameterizedTest(name = "{0} = {1} se rechaza")
+    @CsvSource(
+            nullValues = "null",
+            value = {
+                "roomNumber, ' '",
+                "floor, 0",
+                "floor, -1",
+                "floor, null",
+                "categoryRoom, null",
+                "maxCapacity, 0",
+                "maxCapacity, -2",
+                "baseRate, 0",
+                "baseRate, -10",
+                "baseRate, 100.123"
+            })
+    @DisplayName("register rechaza los atributos inválidos con VALIDATION_ERROR y el campo")
+    void register_rejectsInvalidAttribute(String field, String value) {
+        String roomNumber = field.equals("roomNumber") ? value : "407";
+        Integer floor = field.equals("floor") ? (value == null ? null : Integer.valueOf(value)) : Integer.valueOf(4);
+        RoomCategory category = field.equals("categoryRoom") ? null : RoomCategory.DOBLE;
+        Integer capacity = field.equals("maxCapacity") ? Integer.valueOf(value) : 2;
+        BigDecimal rate = field.equals("baseRate") ? new BigDecimal(value) : new BigDecimal("250000");
+
+        assertThatThrownBy(() -> Room.register(roomNumber, floor, category, capacity, rate))
+                .isInstanceOf(InvalidRoomDataException.class)
+                .satisfies(ex -> {
+                    InvalidRoomDataException invalid = (InvalidRoomDataException) ex;
+                    assertThat(invalid.error()).isEqualTo(DomainError.VALIDATION_ERROR);
+                    assertThat(invalid.details()).containsEntry("field", field);
+                });
+    }
+
+    @Test
+    @DisplayName("register acepta una tarifa con ceros decimales de sobra (250000.000)")
+    void register_acceptsTrailingZeros() {
+        Room room = Room.register("407", 4, RoomCategory.DOBLE, 2, new BigDecimal("250000.000"));
+
+        assertThat(room.getBaseRate()).isEqualByComparingTo("250000");
     }
 
     private Room createRoomWithStatus(RoomStatus status) {

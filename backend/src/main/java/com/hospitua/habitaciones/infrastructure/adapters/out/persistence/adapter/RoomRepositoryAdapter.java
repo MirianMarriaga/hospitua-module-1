@@ -1,6 +1,7 @@
 package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.adapter;
 
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
+import com.hospitua.habitaciones.domain.exception.RoomNumberAlreadyExistsException;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.RoomJpaEntity;
@@ -11,6 +12,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 public class RoomRepositoryAdapter implements RoomRepositoryPort {
+
+    private static final String ROOM_NUMBER_UNIQUE = "uk_room_room_number";
 
     private final SpringDataRoomJpaRepository roomJpaRepository;
     private final RoomMapper roomMapper;
@@ -35,6 +40,23 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
         RoomJpaEntity entity = roomMapper.toEntity(room);
         RoomJpaEntity saved = roomJpaRepository.save(entity);
         return roomMapper.toDomain(saved);
+    }
+
+    @Override
+    public Room insert(Room room) {
+        try {
+            return roomMapper.toDomain(roomJpaRepository.saveAndFlush(roomMapper.toEntity(room)));
+        } catch (DataIntegrityViolationException ex) {
+            if (violates(ex, ROOM_NUMBER_UNIQUE)) {
+                throw new RoomNumberAlreadyExistsException(room.getRoomNumber());
+            }
+            throw ex;
+        }
+    }
+
+    @Override
+    public boolean existsByRoomNumber(String roomNumber) {
+        return roomJpaRepository.existsByRoomNumber(roomNumber);
     }
 
     /** Solo dentro de la transacción del invocador: fuera de ella el bloqueo se liberaría al instante (regla 13). */
@@ -60,5 +82,14 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                 .map(roomMapper::toDomain)
                 .sorted(RoomNumberOrder.NATURAL)
                 .toList();
+    }
+
+    private static boolean violates(DataIntegrityViolationException ex, String constraintName) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException violation) {
+                return constraintName.equalsIgnoreCase(violation.getConstraintName());
+            }
+        }
+        return false;
     }
 }

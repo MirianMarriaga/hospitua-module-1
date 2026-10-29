@@ -12,8 +12,10 @@ public enum DomainError {
     ACTIVE_TASK_EXISTS(ErrorCategory.CONFLICT),
     ROOM_TASK_EXISTS(ErrorCategory.CONFLICT),
     USERNAME_ALREADY_EXISTS(ErrorCategory.CONFLICT),
+    ROOM_NUMBER_ALREADY_EXISTS(ErrorCategory.CONFLICT),
     TASK_NOT_OWNED(ErrorCategory.FORBIDDEN),
     CURRENT_USER_REQUIRED(ErrorCategory.INVALID_REQUEST),
+    VALIDATION_ERROR(ErrorCategory.INVALID_REQUEST),
     INVALID_CREDENTIALS(ErrorCategory.UNAUTHORIZED);
 
     private final ErrorCategory category;

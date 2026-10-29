@@ -343,6 +343,7 @@ backend/
     │   │   │       ├── InvalidRoomTransitionException.java   # Estado que no admite la operación (409 ROOM_INVALID_STATE)
     │   │   │       ├── RoomNotFoundException.java            # Habitación inexistente (404 ROOM_NOT_FOUND)
     │   │   │       ├── RoomNumberAlreadyExistsException.java # Número de habitación repetido (409) (plan-registrar-habitacion.md)
+    │   │   │       ├── InvalidRoomDataException.java          # 400 VALIDATION_ERROR con details.field: reglas de Room.register en el dominio (plan-registrar-habitacion.md)
     │   │   │       ├── TaskNotOwnedException.java            # Tarea de otro miembro del personal (403)
     │   │   │       ├── TaskNotFoundException.java            # Tarea inexistente (404)
     │   │   │       ├── TaskAlreadyClosedException.java       # Tarea ya confirmada o liberada (409)

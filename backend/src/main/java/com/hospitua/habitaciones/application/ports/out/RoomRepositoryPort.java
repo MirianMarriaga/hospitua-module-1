@@ -17,6 +17,15 @@ public interface RoomRepositoryPort {
     Room save(Room room);
 
     /**
+     * Inserta una habitación nueva y la escribe de inmediato, para que un número repetido se detecte dentro de la
+     * operación. Lanza {@code RoomNumberAlreadyExistsException} si otro registro ganó el número (registrar-habitacion
+     * FR-004).
+     */
+    Room insert(Room room);
+
+    boolean existsByRoomNumber(String roomNumber);
+
+    /**
      * Bloquea la fila de la habitación con SELECT ... FOR UPDATE (bloqueo pesimista).
      * Devuelve vacío si la habitación no existe.
      */
