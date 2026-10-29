@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.domain.model;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomDataException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -43,14 +44,29 @@ public class Room {
         this.version = version;
     }
 
+    public static final int MAX_ROOM_NUMBER_LENGTH = 10;
+
+    /**
+     * Forma canónica del número (registrar-habitacion FR-014): sin espacios al inicio ni al final y en mayúsculas, para
+     * que "101a" y "101A" sean el mismo número al guardar, al validar la unicidad y al filtrar el inventario.
+     */
+    public static String normalizeRoomNumber(String roomNumber) {
+        return roomNumber.strip().toUpperCase(Locale.ROOT);
+    }
+
     /**
      * Crea una habitación nueva con un UUID del sistema y estado Available (registrar-habitacion FR-002 a FR-008,
-     * FR-011). El número se guarda sin espacios al inicio ni al final; su unicidad la valida el servicio.
+     * FR-011, FR-014). El número se guarda con {@link #normalizeRoomNumber}; su unicidad la valida el servicio.
      */
     public static Room register(
             String roomNumber, Integer floor, RoomCategory categoryRoom, Integer maxCapacity, BigDecimal baseRate) {
         if (roomNumber == null || roomNumber.isBlank()) {
             throw new InvalidRoomDataException("roomNumber", "El número de habitación es obligatorio.");
+        }
+        String normalizedNumber = normalizeRoomNumber(roomNumber);
+        if (normalizedNumber.length() > MAX_ROOM_NUMBER_LENGTH) {
+            throw new InvalidRoomDataException(
+                    "roomNumber", "El número de habitación debe tener máximo 10 caracteres.");
         }
         if (floor == null || floor <= 0) {
             throw new InvalidRoomDataException("floor", "El piso debe ser un número entero mayor a 0.");
@@ -71,7 +87,7 @@ public class Room {
         }
         return new Room(
                 UUID.randomUUID(),
-                roomNumber.strip(),
+                normalizedNumber,
                 floor,
                 categoryRoom,
                 maxCapacity,

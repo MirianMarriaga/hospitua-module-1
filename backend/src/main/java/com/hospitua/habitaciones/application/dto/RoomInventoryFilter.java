@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.application.dto;
 
+import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.util.Objects;
@@ -17,7 +18,7 @@ public record RoomInventoryFilter(
         boolean descending) {
 
     public RoomInventoryFilter {
-        roomNumber = roomNumber == null || roomNumber.isBlank() ? null : roomNumber.strip();
+        roomNumber = roomNumber == null || roomNumber.isBlank() ? null : Room.normalizeRoomNumber(roomNumber);
         sort = Objects.requireNonNullElse(sort, RoomInventorySort.ROOM_NUMBER);
     }
 

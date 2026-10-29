@@ -124,6 +124,7 @@ class RoomControllerTest {
                 "baseRate     | 0          | La tarifa base debe ser mayor a 0 y tener máximo dos decimales.",
                 "baseRate     | -1         | La tarifa base debe ser mayor a 0 y tener máximo dos decimales.",
                 "baseRate     | 100.123    | La tarifa base debe ser mayor a 0 y tener máximo dos decimales.",
+                "roomNumber   | \"12345678901\" | El número de habitación debe tener máximo 10 caracteres.",
                 "categoryRoom | \"PENTHOUSE\" | Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique."
             })
     @DisplayName("T006: valores fuera de regla responden 400 VALIDATION_ERROR con su mensaje y campo")
@@ -208,15 +209,15 @@ class RoomControllerTest {
     }
 
     @Test
-    @DisplayName("GET /inventory traduce filtros, orden y página; recorta los espacios del número")
+    @DisplayName("GET /inventory traduce filtros, orden y página; normaliza el número (espacios y mayúsculas)")
     void inventory_mapsParameters() throws Exception {
         RoomInventoryFilter expected = new RoomInventoryFilter(
-                "203", RoomCategory.DOBLE, 2, RoomStatus.Inactive, RoomInventorySort.BASE_RATE, true);
+                "203A", RoomCategory.DOBLE, 2, RoomStatus.Inactive, RoomInventorySort.BASE_RATE, true);
         when(consultRoomInventoryUseCase.search(expected, 2, 5))
                 .thenReturn(new PagedResultDto<>(List.of(), 2, 5, 0, 0));
 
         mockMvc.perform(get("/api/rooms/inventory")
-                        .param("roomNumber", " 203 ")
+                        .param("roomNumber", " 203a ")
                         .param("categoryRoom", "DOBLE")
                         .param("floor", "2")
                         .param("status", "Inactive")

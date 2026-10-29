@@ -1,12 +1,14 @@
 package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 
 import com.hospitua.habitaciones.application.dto.RegisterRoomCommand;
+import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
@@ -15,7 +17,8 @@ import java.math.BigDecimal;
  * piso y la capacidad como número decimal para rechazar un valor no entero en vez de truncarlo (FR-006, FR-011).
  */
 public record RegisterRoomRequest(
-        @NotBlank(message = REQUIRED) String roomNumber,
+        @NotBlank(message = REQUIRED) @Size(max = Room.MAX_ROOM_NUMBER_LENGTH, message = ROOM_NUMBER_RULE)
+        String roomNumber,
 
         @NotNull(message = REQUIRED)
         @Positive(message = FLOOR_RULE)
@@ -39,6 +42,7 @@ public record RegisterRoomRequest(
         BigDecimal baseRate) {
 
     private static final String REQUIRED = "Completa los campos obligatorios.";
+    private static final String ROOM_NUMBER_RULE = "El número de habitación debe tener máximo 10 caracteres.";
     private static final String FLOOR_RULE = "El piso debe ser un número entero mayor a 0.";
     private static final String CAPACITY_RULE = "La capacidad máxima debe ser un número entero mayor a 0.";
     private static final String BASE_RATE_RULE = "La tarifa base debe ser mayor a 0 y tener máximo dos decimales.";

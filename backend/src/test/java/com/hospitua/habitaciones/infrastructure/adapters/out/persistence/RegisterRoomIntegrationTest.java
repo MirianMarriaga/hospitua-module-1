@@ -90,6 +90,17 @@ class RegisterRoomIntegrationTest {
     }
 
     @Test
+    @DisplayName("FR-014: un número que solo difiere en mayúsculas se rechaza como repetido")
+    void register_rejectsSameNumberWithDifferentCase() {
+        String roomNumber = uniqueNumber();
+        registerRoomUseCase.register(command(roomNumber));
+
+        assertThatThrownBy(() -> registerRoomUseCase.register(command(roomNumber.toLowerCase())))
+                .isInstanceOf(RoomNumberAlreadyExistsException.class);
+        assertThat(countRooms(roomNumber)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("T008: dos registros simultáneos con el mismo número: uno gana y el otro recibe 409")
     void register_concurrentSameNumber_onlyOneSucceeds() throws Exception {
         String roomNumber = uniqueNumber();
@@ -143,7 +154,7 @@ class RegisterRoomIntegrationTest {
     }
 
     private static String uniqueNumber() {
-        return "T-" + UUID.randomUUID().toString().substring(0, 8);
+        return "T-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
     private static RegisterRoomCommand command(String roomNumber) {

@@ -133,6 +133,7 @@ class RoomTest {
             nullValues = "null",
             value = {
                 "roomNumber, ' '",
+                "roomNumber, 12345678901",
                 "floor, 0",
                 "floor, -1",
                 "floor, null",
@@ -158,6 +159,17 @@ class RoomTest {
                     assertThat(invalid.error()).isEqualTo(DomainError.VALIDATION_ERROR);
                     assertThat(invalid.details()).containsEntry("field", field);
                 });
+    }
+
+    @Test
+    @DisplayName("FR-014: register guarda el número en mayúsculas y acepta 10 caracteres sin contar los espacios")
+    void register_normalizesRoomNumber() {
+        assertThat(Room.register(" 101a ", 1, RoomCategory.DOBLE, 2, new BigDecimal("1"))
+                        .getRoomNumber())
+                .isEqualTo("101A");
+        assertThat(Room.register(" 9999999999 ", 1, RoomCategory.DOBLE, 2, new BigDecimal("1"))
+                        .getRoomNumber())
+                .isEqualTo("9999999999");
     }
 
     @Test
