@@ -5,6 +5,7 @@ import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
 import com.hospitua.habitaciones.domain.exception.RoomNumberAlreadyExistsException;
 import com.hospitua.habitaciones.domain.model.Room;
+import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.RoomJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.RoomMapper;
@@ -70,6 +71,21 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                 .sorted(inventoryOrder(filter))
                 .toList();
         return PagedResultDto.of(rooms, page, size);
+    }
+
+    @Override
+    public List<Room> findSellableByCategory(RoomCategory categoryRoom) {
+        return roomJpaRepository.findByCategoryRoomAndStatusNot(categoryRoom, RoomStatus.Inactive).stream()
+                .map(roomMapper::toDomain)
+                .sorted(RoomNumberOrder.NATURAL)
+                .toList();
+    }
+
+    @Override
+    public Optional<Room> findSellableById(UUID roomId) {
+        return roomJpaRepository
+                .findByIdAndStatusNot(roomId, RoomStatus.Inactive)
+                .map(roomMapper::toDomain);
     }
 
     /** Solo dentro de la transacción del invocador: fuera de ella el bloqueo se liberaría al instante (regla 13). */

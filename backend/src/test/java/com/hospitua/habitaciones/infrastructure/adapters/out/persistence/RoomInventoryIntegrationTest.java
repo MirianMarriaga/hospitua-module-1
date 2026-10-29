@@ -15,6 +15,7 @@ import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -159,6 +160,46 @@ class RoomInventoryIntegrationTest {
         inventory.getById(any.roomId());
 
         assertThat(snapshot()).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("FR-010: las vendibles de una categoría excluyen las Inactive e incluyen los demás estados")
+    void findSellableByCategory_excludesOnlyInactive() {
+        Room occupied = new Room(
+                UUID.randomUUID(),
+                number(13),
+                floor,
+                RoomCategory.DOBLE,
+                2,
+                new BigDecimal("1"),
+                RoomStatus.Occupied,
+                null,
+                0);
+        roomRepository.save(occupied);
+
+        List<String> sellable = roomRepository.findSellableByCategory(RoomCategory.DOBLE).stream()
+                .map(Room::getRoomNumber)
+                .toList();
+
+        // 1 y 2 son Inactive; 12 es SUITE
+        assertThat(sellable).doesNotContain(number(1), number(2), number(12));
+        assertThat(sellable).contains(number(3), number(11), number(13));
+        assertThat(roomRepository.findSellableByCategory(RoomCategory.DOBLE))
+                .extracting(Room::getStatus)
+                .doesNotContain(RoomStatus.Inactive);
+    }
+
+    @Test
+    @DisplayName("FR-011: findSellableById no devuelve una Inactive ni un id inexistente")
+    void findSellableById_hidesInactive() {
+        UUID inactiveId =
+                jdbcTemplate.queryForObject("SELECT id FROM room WHERE room_number = ?", UUID.class, number(1));
+        UUID availableId =
+                jdbcTemplate.queryForObject("SELECT id FROM room WHERE room_number = ?", UUID.class, number(3));
+
+        assertThat(roomRepository.findSellableById(inactiveId)).isEmpty();
+        assertThat(roomRepository.findSellableById(UUID.randomUUID())).isEmpty();
+        assertThat(roomRepository.findSellableById(availableId)).isPresent();
     }
 
     /** Número único de la habitación {@code i} del piso de la prueba, p. ej. 123401 en el piso 1234. */

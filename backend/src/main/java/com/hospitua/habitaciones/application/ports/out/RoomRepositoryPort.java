@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.application.ports.out;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.domain.model.Room;
+import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,15 @@ public interface RoomRepositoryPort {
      * {@code page} desde 1 (consultar-inventario T002).
      */
     PagedResultDto<Room> searchInventory(RoomInventoryFilter filter, int page, int size);
+
+    /**
+     * Habitaciones vendibles (todas menos las {@code Inactive}) de la categoría, en orden natural por número
+     * (consultar-inventario FR-010). La exclusión va en la consulta, no en el invocador.
+     */
+    List<Room> findSellableByCategory(RoomCategory categoryRoom);
+
+    /** La habitación si existe y no está {@code Inactive}; vacío en los dos casos contrarios (FR-011). */
+    Optional<Room> findSellableById(UUID roomId);
 
     /**
      * Bloquea la fila de la habitación con SELECT ... FOR UPDATE (bloqueo pesimista).

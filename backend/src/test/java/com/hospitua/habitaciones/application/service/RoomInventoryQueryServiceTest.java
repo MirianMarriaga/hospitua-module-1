@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.hospitua.habitaciones.application.dto.Module2RoomDto;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RoomDto;
 import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
@@ -67,6 +68,27 @@ class RoomInventoryQueryServiceTest {
         when(roomRepository.findById(missing)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getById(missing)).isInstanceOf(RoomNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName(
+            "FR-010: listSellableByCategory pide al repositorio las vendibles y devuelve solo los datos de Módulo 2")
+    void listSellableByCategory_mapsToModule2Dto() {
+        Room room = room("201", RoomStatus.Occupied, 3);
+        when(roomRepository.findSellableByCategory(RoomCategory.DOBLE)).thenReturn(List.of(room));
+
+        assertThat(service.listSellableByCategory(RoomCategory.DOBLE))
+                .containsExactly(new Module2RoomDto(room.getId(), "201", RoomCategory.DOBLE, 2));
+    }
+
+    @Test
+    @DisplayName(
+            "FR-011: getSellableById lanza ROOM_NOT_FOUND si el repositorio no la devuelve (inexistente o Inactive)")
+    void getSellableById_missingOrInactive_throwsNotFound() {
+        UUID roomId = UUID.randomUUID();
+        when(roomRepository.findSellableById(roomId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getSellableById(roomId)).isInstanceOf(RoomNotFoundException.class);
     }
 
     private static Room room(String number, RoomStatus status, int version) {

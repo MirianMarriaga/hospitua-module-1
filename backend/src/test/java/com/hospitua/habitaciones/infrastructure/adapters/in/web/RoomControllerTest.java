@@ -9,9 +9,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hospitua.habitaciones.application.dto.Module2RoomDto;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RegisterRoomCommand;
 import com.hospitua.habitaciones.application.dto.RoomDto;
@@ -272,6 +274,74 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("ROOM_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("No se encontró la habitación."));
         mockMvc.perform(get("/api/rooms/inventory/{roomId}", "no-es-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    @DisplayName(
+            "Módulo 2: GET /api/rooms?categoryRoom= responde el arreglo con solo id, roomNumber, categoryRoom y maxCapacity")
+    void sellableByCategory_returnsOnlyModule2Fields() throws Exception {
+        when(consultRoomInventoryUseCase.listSellableByCategory(RoomCategory.DOBLE))
+                .thenReturn(List.of(new Module2RoomDto(ROOM_ID, "201", RoomCategory.DOBLE, 2)));
+
+        mockMvc.perform(get("/api/rooms").param("categoryRoom", "DOBLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(ROOM_ID.toString()))
+                .andExpect(jsonPath("$[0].roomNumber").value("201"))
+                .andExpect(jsonPath("$[0].categoryRoom").value("DOBLE"))
+                .andExpect(jsonPath("$[0].maxCapacity").value(2))
+                .andExpect(jsonPath("$[0].status").doesNotExist())
+                .andExpect(jsonPath("$[0].baseRate").doesNotExist())
+                .andExpect(jsonPath("$[0].version").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Módulo 2: una categoría sin habitaciones vendibles responde []")
+    void sellableByCategory_empty_returnsEmptyArray() throws Exception {
+        when(consultRoomInventoryUseCase.listSellableByCategory(RoomCategory.BOUTIQUE))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/rooms").param("categoryRoom", "BOUTIQUE"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @ParameterizedTest(name = "categoryRoom = {0}")
+    @CsvSource(
+            nullValues = "null",
+            value = {"null", "PENTHOUSE", "doble"})
+    @DisplayName("Módulo 2: sin categoryRoom o con una categoría inválida responde 400 VALIDATION_ERROR")
+    void sellableByCategory_invalidCategory_returns400(String categoryRoom) throws Exception {
+        var request = get("/api/rooms");
+        if (categoryRoom != null) {
+            request = request.param("categoryRoom", categoryRoom);
+        }
+
+        mockMvc.perform(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value("categoryRoom"));
+    }
+
+    @Test
+    @DisplayName(
+            "Módulo 2: GET /api/rooms/{roomId} responde solo los 4 campos; 404 si no es vendible y 400 si no es un UUID")
+    void sellableById_contract() throws Exception {
+        UUID inactive = UUID.randomUUID();
+        when(consultRoomInventoryUseCase.getSellableById(ROOM_ID))
+                .thenReturn(new Module2RoomDto(ROOM_ID, "201", RoomCategory.DOBLE, 2));
+        when(consultRoomInventoryUseCase.getSellableById(inactive)).thenThrow(new RoomNotFoundException());
+
+        mockMvc.perform(get("/api/rooms/{roomId}", ROOM_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomNumber").value("201"))
+                .andExpect(jsonPath("$.status").doesNotExist());
+        mockMvc.perform(get("/api/rooms/{roomId}", inactive))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("ROOM_NOT_FOUND"));
+        mockMvc.perform(get("/api/rooms/{roomId}", "no-es-uuid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
     }

@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository;
 
+import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.RoomJpaEntity;
 import jakarta.persistence.LockModeType;
@@ -30,4 +31,8 @@ public interface SpringDataRoomJpaRepository
     Optional<RoomJpaEntity> findByRoomNumber(String roomNumber);
 
     boolean existsByRoomNumber(String roomNumber);
+
+    List<RoomJpaEntity> findByCategoryRoomAndStatusNot(RoomCategory categoryRoom, RoomStatus status);
+
+    Optional<RoomJpaEntity> findByIdAndStatusNot(UUID id, RoomStatus status);
 }
