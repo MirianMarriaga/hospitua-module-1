@@ -310,8 +310,8 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - Avance: hechos `DailyReservation` y `DailyReservationRoom` (L05). Hechos `ReservationConflictQuery` y `ReservationConflictResult` (L24). Hecho `ArrivalGroup` (L08).
 - [x] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T020); la usa `plan-confirmar-fin-de-limpieza.md`.
   - Avance: hechos `DailyReservationRepositoryPort` (L05) e `IngestDailyReservationsUseCase` (L06). Hechos `CheckRoomReservationConflictsUseCase` y `Module2ReservationConflictClientPort` (L24). Hecho `SearchDailyReservationsUseCase` (L08).
-- [ ] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
-  - Avance: hecha `ExternalModule2UnavailableException` (424 `MODULE_2_UNAVAILABLE`, categoría `DEPENDENCY_FAILED` de `DomainError`; L24). Falta `ReservationNotFoundException`, con su primer consumidor.
+- [x] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
+  - Avance: hecha `ExternalModule2UnavailableException` (424 `MODULE_2_UNAVAILABLE`, categoría `DEPENDENCY_FAILED` de `DomainError`; L24). Hecha `ReservationNotFoundException` (404 `RESERVATION_NOT_FOUND`) con su primer consumidor, el Paso 1 del Check-In (L11).
 
 ---
 
