@@ -26,6 +26,14 @@ public interface SpringDataDailyReservationRoomJpaRepository
             + " WHERE s.reservationRef = drr.reservationRef AND s.roomId = drr.roomId)")
     List<DailyReservationRoomJpaEntity> findPendingArrivalRooms(@Param("operationalDate") LocalDate operationalDate);
 
+    /** Cuántas de {@link #findPendingArrivalRooms} existen en el inventario, como las filas de la pestaña Llegadas. */
+    @Query("SELECT COUNT(drr) FROM DailyReservationRoomJpaEntity drr, DailyReservationJpaEntity dr"
+            + " WHERE dr.reservationRef = drr.reservationRef AND dr.startDate = :operationalDate"
+            + " AND NOT EXISTS (SELECT 1 FROM StayJpaEntity s"
+            + " WHERE s.reservationRef = drr.reservationRef AND s.roomId = drr.roomId)"
+            + " AND EXISTS (SELECT 1 FROM RoomJpaEntity r WHERE r.id = drr.roomId)")
+    long countPendingArrivalRooms(@Param("operationalDate") LocalDate operationalDate);
+
     /**
      * Como {@link #findPendingArrivalRooms}, solo de las reservas cuya referencia o documento del titular es
      * {@code query}, o cuyo nombre, apellido o nombre completo contiene {@code pattern}; los dos van en minúsculas.

@@ -375,16 +375,17 @@ frontend/src/
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
-  - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Falta `ReceptionDashboardKpis` (L10).
-- [ ] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
-- [ ] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
-  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Los dos conteos de salidas quedan para los KPIs (L10).
+- [x] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
+  - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Hecho `ReceptionDashboardKpis` (L10); `arrivalsToday` nulo se omite del JSON por la misma configuración.
+- [x] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
+  - Hecho (L10): `RoomRepositoryPort.countByStatus(RoomStatus)`.
+- [x] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
+  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los conteos `countActiveWithExpectedCheckoutOn(today)` y `countActiveWithExpectedCheckoutBefore(today)`, en lugar de devolver las listas.
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
   - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
-- [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
-  - Avance (L08): hechos `searchPendingArrivals(LocalDate, String)` e `isDailyListReceived(LocalDate)`. Falta el conteo de llegadas pendientes (L10).
+- [x] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
+  - Avance (L08): hechos `searchPendingArrivals(LocalDate, String)` e `isDailyListReceived(LocalDate)`. Hecho (L10) `countPendingArrivalRooms(LocalDate)`, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
   - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T020).
   - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
@@ -440,13 +441,13 @@ frontend/src/
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
+- [x] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
 - [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-011).
 
 ### Implementation for User Story 3
 
-- [ ] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
-- [ ] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
+- [x] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
+- [x] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
 - [ ] T024 [US3] Construir el componente `KpiCards.tsx` en frontend con las 4 tarjetas de resumen (FR-002).
 
 ---
@@ -458,6 +459,7 @@ frontend/src/
 - [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
 - [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
 - [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
+  - Pendiente: la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola usan días de 2200 en la base compartida, así que esta prueba con el día real necesita su propia base o un reloj fijo. Lo cubren por partes la ingesta (R3) y las pruebas de `arrivals` y `panel/kpis` sobre la copia local. La parte de frontend va con `ReceptionPanel.tsx`.
 - [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---

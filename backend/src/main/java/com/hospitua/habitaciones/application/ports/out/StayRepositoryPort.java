@@ -23,4 +23,10 @@ public interface StayRepositoryPort {
      * por parte del nombre, del apellido o del nombre completo del titular.
      */
     List<DepartureSummary> searchActiveDepartures(LocalDate today, String normalizedQuery);
+
+    /** Estancias activas con salida esperada en {@code date} (KPI "Salidas de hoy"). */
+    long countActiveWithExpectedCheckoutOn(LocalDate date);
+
+    /** Estancias activas con salida esperada antes de {@code date} (KPI "Salidas vencidas"). */
+    long countActiveWithExpectedCheckoutBefore(LocalDate date);
 }

@@ -59,4 +59,14 @@ public class StayRepositoryAdapter implements StayRepositoryPort {
                 .sorted(DEPARTURE_ORDER)
                 .toList();
     }
+
+    @Override
+    public long countActiveWithExpectedCheckoutOn(LocalDate date) {
+        return stayJpaRepository.countByCheckOutDateIsNullAndExpectedCheckoutDate(date);
+    }
+
+    @Override
+    public long countActiveWithExpectedCheckoutBefore(LocalDate date) {
+        return stayJpaRepository.countByCheckOutDateIsNullAndExpectedCheckoutDateBefore(date);
+    }
 }

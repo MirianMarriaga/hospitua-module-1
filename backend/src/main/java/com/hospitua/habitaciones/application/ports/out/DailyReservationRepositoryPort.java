@@ -58,4 +58,10 @@ public interface DailyReservationRepositoryPort {
      * apellido o del nombre completo del titular.
      */
     List<PendingArrival> searchPendingArrivals(LocalDate operationalDate, String normalizedQuery);
+
+    /**
+     * Habitaciones de las reservas del día sin {@code Stay} que existen en el inventario: las filas de la pestaña
+     * Llegadas sin filtro (KPI "Llegadas de hoy").
+     */
+    int countPendingArrivalRooms(LocalDate operationalDate);
 }

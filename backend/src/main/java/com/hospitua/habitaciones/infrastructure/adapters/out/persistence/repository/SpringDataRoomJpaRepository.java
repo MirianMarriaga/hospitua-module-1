@@ -28,6 +28,8 @@ public interface SpringDataRoomJpaRepository
 
     List<RoomJpaEntity> findByStatusNot(RoomStatus status);
 
+    long countByStatus(RoomStatus status);
+
     Optional<RoomJpaEntity> findByRoomNumber(String roomNumber);
 
     boolean existsByRoomNumber(String roomNumber);

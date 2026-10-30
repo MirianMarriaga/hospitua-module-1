@@ -2,8 +2,10 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
 import com.hospitua.habitaciones.application.dto.DeparturesDto;
 import com.hospitua.habitaciones.application.dto.PendingArrivalsDto;
+import com.hospitua.habitaciones.application.ports.in.GetReceptionPanelUseCase;
 import com.hospitua.habitaciones.application.ports.in.SearchDailyReservationsUseCase;
 import com.hospitua.habitaciones.application.ports.in.SearchDeparturesUseCase;
+import com.hospitua.habitaciones.domain.model.ReceptionDashboardKpis;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -25,6 +27,7 @@ public class ReceptionPanelController {
 
     private final SearchDailyReservationsUseCase searchDailyReservationsUseCase;
     private final SearchDeparturesUseCase searchDeparturesUseCase;
+    private final GetReceptionPanelUseCase getReceptionPanelUseCase;
 
     /** Pestaña Llegadas: habitaciones de las reservas de hoy pendientes de check-in, agrupadas por reserva (FR-003). */
     @GetMapping("/arrivals")
@@ -40,5 +43,11 @@ public class ReceptionPanelController {
             @RequestParam(required = false) @Size(max = 100, message = "La búsqueda admite máximo 100 caracteres.")
                     String query) {
         return searchDeparturesUseCase.searchDepartures(query);
+    }
+
+    /** Los cuatro indicadores del turno; {@code arrivalsToday} se omite si hoy no llegó la lista de las 00:00 (FR-002). */
+    @GetMapping("/panel/kpis")
+    public ReceptionDashboardKpis kpis() {
+        return getReceptionPanelUseCase.getKpis();
     }
 }

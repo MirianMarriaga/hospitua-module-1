@@ -146,6 +146,11 @@ public class DailyReservationRepositoryAdapter implements DailyReservationReposi
                 .toList();
     }
 
+    @Override
+    public int countPendingArrivalRooms(LocalDate operationalDate) {
+        return Math.toIntExact(roomRepository.countPendingArrivalRooms(operationalDate));
+    }
+
     private static OptionalLong toOptionalLong(Optional<Long> value) {
         return value.map(OptionalLong::of).orElseGet(OptionalLong::empty);
     }

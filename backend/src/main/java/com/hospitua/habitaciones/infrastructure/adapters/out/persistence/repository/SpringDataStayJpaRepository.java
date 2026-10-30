@@ -23,6 +23,10 @@ public interface SpringDataStayJpaRepository extends JpaRepository<StayJpaEntity
             + " WHERE r.id = s.roomId AND s.checkOutDate IS NULL AND s.expectedCheckoutDate <= :date")
     List<Object[]> findActiveDepartures(@Param("date") LocalDate date);
 
+    long countByCheckOutDateIsNullAndExpectedCheckoutDate(LocalDate date);
+
+    long countByCheckOutDateIsNullAndExpectedCheckoutDateBefore(LocalDate date);
+
     /**
      * Como {@link #findActiveDepartures}, solo las estancias cuya referencia, documento del titular o número de
      * habitación es {@code query}, o cuyo nombre, apellido o nombre completo contiene {@code pattern}; los dos van en

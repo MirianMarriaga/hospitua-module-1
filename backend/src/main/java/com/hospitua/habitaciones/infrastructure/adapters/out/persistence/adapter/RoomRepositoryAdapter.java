@@ -121,6 +121,11 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                 .toList();
     }
 
+    @Override
+    public long countByStatus(RoomStatus status) {
+        return roomJpaRepository.countByStatus(status);
+    }
+
     /** Columna pedida y, como desempate, el orden natural del número; se ordena en memoria por ese orden natural. */
     private static Comparator<Room> inventoryOrder(RoomInventoryFilter filter) {
         Comparator<Room> primary =

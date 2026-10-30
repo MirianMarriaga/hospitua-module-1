@@ -62,4 +62,7 @@ public interface RoomRepositoryPort {
      * Consulta habitaciones excluyendo un estado, ordenadas en orden natural por room_number.
      */
     List<Room> findByStatusNot(RoomStatus status);
+
+    /** Habitaciones en el estado (KPI "Habitaciones ocupadas" con {@code Occupied}). */
+    long countByStatus(RoomStatus status);
 }
