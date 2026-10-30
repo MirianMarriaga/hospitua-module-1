@@ -35,7 +35,8 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Cliente de {@code GET /api/reservations} de Módulo 2 contra WireMock (consultar-reservas T023, T024). El read-timeout
- * se acorta a 500 ms para que la prueba sea rápida; los timeouts reales los cubre {@code RestClientTimeoutWireMockTest}.
+ * es de 2 s, con margen para la primera petición a WireMock en frío, que en equipos lentos supera los 500 ms; los
+ * timeouts reales los cubre {@code RestClientTimeoutWireMockTest}.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class Module2ReservationConflictRestAdapterTest {
@@ -142,7 +143,7 @@ class Module2ReservationConflictRestAdapterTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"items\":[]}")
-                        .withFixedDelay(1_500)));
+                        .withFixedDelay(3_000)));
 
         assertThatThrownBy(() -> adapter.checkConflicts(QUERY))
                 .isInstanceOf(ExternalModule2UnavailableException.class)
@@ -182,7 +183,7 @@ class Module2ReservationConflictRestAdapterTest {
     }
 
     private static Module2ReservationConflictRestAdapter adapterFor(String baseUrl) {
-        Module2Properties properties = new Module2Properties(baseUrl, Duration.ofSeconds(1), Duration.ofMillis(500));
+        Module2Properties properties = new Module2Properties(baseUrl, Duration.ofSeconds(1), Duration.ofSeconds(2));
         return new Module2ReservationConflictRestAdapter(new RestClientConfig().module2RestClient(properties));
     }
 }
