@@ -72,7 +72,7 @@ Accept: application/json
 
 | Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
 | --- | --- | --- | --- | --- | --- |
-| `query` | query | string | No | Nombre o apellido del titular, número de documento o `reservationRef` (sin distinguir mayúsculas ni espacios sobrantes) (FR-003) | `González` |
+| `query` | query | string | No | Máximo 100 caracteres. Sin distinguir mayúsculas, sin espacios al inicio ni al final y con los espacios repetidos reducidos a uno: `reservationRef` y número de documento del titular se comparan **exactos**; nombre, apellido o nombre completo del titular, **por parte** del texto (FR-003) | `González` |
 
 **Body (JSON):** No aplica.
 
@@ -88,7 +88,7 @@ Accept: application/json
 | `groups` | array | Una entrada por reserva con habitaciones pendientes de Check-In | |
 | `groups[].reservationRef` | string | Referencia de la reserva | `"RES-10482"` |
 | `groups[].pendingRooms` | entero | Habitaciones de la reserva sin `Stay` | `1` |
-| `groups[].totalRooms` | entero | Habitaciones de la reserva (el frontend muestra "RES-10482 · 1 de 2 pendientes", FR-005) | `2` |
+| `groups[].totalRooms` | entero | Habitaciones de la reserva (el frontend muestra "RES-10482 · 1 de 2 pendientes", FR-005). Incluye una habitación que Módulo 2 envió y no existe en el inventario; esa no aparece en `rooms` porque no se le puede hacer check-in | `2` |
 | `groups[].rooms` | array | Una fila por habitación pendiente (FR-005) | |
 | `groups[].rooms[].roomId` | UUID | Habitación asignada | `"3f1c…"` |
 | `groups[].rooms[].roomNumber` | string | Número de habitación | `"304"` |
@@ -102,7 +102,7 @@ Accept: application/json
 | `groups[].rooms[].guestCount` | entero | Personas de la habitación | `2` |
 | `groups[].rooms[].source` | string | `DIRECTA` o el nombre de la OTA, tal como llega | `"BOOKING"` |
 | `groups[].rooms[].roomStatus` | string | Estado actual de la habitación | `"Reserved"` |
-| `groups[].rooms[].notice` | object \| null | Aviso de la fila; nulo si la habitación está en `Reserved` | `null` |
+| `groups[].rooms[].notice` | object (opcional) | Aviso de la fila; no viene en la respuesta si la habitación está en `Reserved` o `Available` (los nulos se omiten, `default-property-inclusion: non_null`) | |
 | `groups[].rooms[].notice.type` | string | `UNAVAILABLE` (alerta: `DisabledForRepairs`, `TechnicalBlock` o `Inactive`) o `PENDING_ASSIGNMENT` (informativo: `Occupied`, `PendingCleaning` o `InCleaning`) | `"UNAVAILABLE"` |
 | `groups[].rooms[].notice.text` | string | "No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza", con el estado en español | `"No disponible: Bloqueo técnico"` |
 
@@ -129,8 +129,7 @@ Accept: application/json
           "nights": 3,
           "guestCount": 2,
           "source": "BOOKING",
-          "roomStatus": "Reserved",
-          "notice": null
+          "roomStatus": "Reserved"
         },
         {
           "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
@@ -157,7 +156,11 @@ Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` 
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `ConstraintViolationException` | `query` de más de 100 caracteres (`details.field` = `query`) |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -177,7 +180,7 @@ Accept: application/json
 
 | Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
 | --- | --- | --- | --- | --- | --- |
-| `query` | query | string | No | Nombre o apellido del titular, número de documento, `reservationRef` o número de habitación (FR-004) | `304` |
+| `query` | query | string | No | Máximo 100 caracteres, con las mismas reglas de texto que Llegadas: `reservationRef`, número de documento del titular y número de habitación se comparan **exactos**; nombre, apellido o nombre completo del titular, **por parte** del texto (FR-004) | `304` |
 
 **Body (JSON):** No aplica.
 
@@ -232,7 +235,11 @@ Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "N
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `ConstraintViolationException` | `query` de más de 100 caracteres (`details.field` = `query`) |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -260,7 +267,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `arrivalsToday` | entero \| null | Habitaciones de la copia local sin `Stay`; nulo si la lista de las 00:00 no ha llegado (el frontend muestra "—", FR-011) | `12` |
+| `arrivalsToday` | entero (opcional) | Habitaciones de las reservas del día sin `Stay` que existen en el inventario: las mismas filas de la pestaña Llegadas. No viene en la respuesta si la lista de las 00:00 no ha llegado (los nulos se omiten); el frontend muestra "—" (FR-011) | `12` |
 | `departuresToday` | entero | Estancias activas con `expectedCheckoutDate` = hoy | `8` |
 | `overdueDepartures` | entero | Estancias activas con `expectedCheckoutDate` anterior a hoy (tarjeta de alerta) | `1` |
 | `occupiedRooms` | entero | Habitaciones en `Occupied` | `34` |
@@ -367,13 +374,17 @@ frontend/src/
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
-- [ ] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
-- [ ] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
+- [x] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
+  - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Hecho `ReceptionDashboardKpis` (L10); `arrivalsToday` nulo se omite del JSON por la misma configuración.
+- [x] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
+  - Hecho (L10): `RoomRepositoryPort.countByStatus(RoomStatus)`.
+- [x] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
+  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los conteos `countActiveWithExpectedCheckoutOn(today)` y `countActiveWithExpectedCheckoutBefore(today)`, en lugar de devolver las listas.
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
   - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
-- [ ] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
+- [x] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
+  - Avance (L08): hechos `searchPendingArrivals(LocalDate, String)` e `isDailyListReceived(LocalDate)`. Hecho (L10) `countPendingArrivalRooms(LocalDate)`, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
   - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
   - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T020).
   - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
@@ -388,14 +399,14 @@ frontend/src/
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
-- [ ] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
+- [x] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
+- [x] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
 - [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-008; SC-004).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T019 y T020) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
-- [ ] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-011).
+- [x] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T019 y T020) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
+- [x] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-011).
 - [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-008).
 
 ---
@@ -408,14 +419,15 @@ frontend/src/
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
-- [ ] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
+- [x] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
+- [x] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
 - [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
-- [ ] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
+- [x] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
+  - Hecho (L09): mismo texto normalizado que Llegadas (`SearchQuery.normalize`); referencia, documento y número de habitación exactos, y nombre, apellido o nombre completo por parte del texto.
+- [x] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
 - [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-007, FR-009).
 
 ---
@@ -428,13 +440,13 @@ frontend/src/
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
+- [x] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
 - [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-011).
 
 ### Implementation for User Story 3
 
-- [ ] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
-- [ ] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
+- [x] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
+- [x] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
 - [ ] T024 [US3] Construir el componente `KpiCards.tsx` en frontend con las 4 tarjetas de resumen (FR-002).
 
 ---
@@ -444,8 +456,9 @@ frontend/src/
 - [ ] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-010).
 - [ ] T026 Garantizar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración desacopladas de red, midiendo que el panel completo carga en menos de 2 segundos y cada búsqueda responde en menos de 0,5 segundos (SC-001 a SC-003).
 - [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
-- [ ] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
+- [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
 - [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
+  - Pendiente: la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola usan días de 2200 en la base compartida, así que esta prueba con el día real necesita su propia base o un reloj fijo. Lo cubren por partes la ingesta (R3) y las pruebas de `arrivals` y `panel/kpis` sobre la copia local. La parte de frontend va con `ReceptionPanel.tsx`.
 - [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---

@@ -146,7 +146,7 @@ Como Recepcionista, quiero que el listado de llegadas y los indicadores reflejen
 - **FR-001**: El sistema DEBE mostrar al Recepcionista la pantalla de inicio de jornada compuesta por: encabezado corporativo con nombre del sistema ("Hotel Hospitua · Recepción") y el nombre del usuario en turno, saludo personalizado con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", espacio institucional para imagen del hotel, cuatro tarjetas de indicadores operativos (KPIs), y un panel de trabajo con pestañas de Llegadas y Salidas.
 
 - **FR-002**: El sistema DEBE calcular y mostrar los siguientes cuatro indicadores operativos locales al cargar la pantalla:
-  1. **Llegadas de hoy**: total de reservas del día en la copia local pendientes de Check-In (calculado localmente a partir de `daily_reservation` y sus habitaciones sin `Stay`).
+  1. **Llegadas de hoy**: total de habitaciones de las reservas del día en la copia local pendientes de Check-In (calculado localmente a partir de `daily_reservation` y sus habitaciones sin `Stay`), las mismas filas que muestra la pestaña Llegadas.
   2. **Salidas de hoy**: total de estancias activas locales (`Stay`) con `expectedCheckoutDate` igual a la fecha actual.
   3. **Salidas vencidas**: total de estancias activas locales (`Stay`) con `expectedCheckoutDate` anterior a la fecha actual. Este KPI DEBE mostrarse con color de alerta diferenciado.
   4. **Habitaciones ocupadas**: total de habitaciones en estado `Occupied` en el inventario de Módulo 1.

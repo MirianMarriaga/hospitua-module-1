@@ -8,8 +8,10 @@ import java.util.Comparator;
  */
 final class RoomNumberOrder {
 
-    static final Comparator<Room> NATURAL = Comparator.comparingLong((Room room) -> numericPart(room.getRoomNumber()))
-            .thenComparing(room -> suffix(room.getRoomNumber()));
+    static final Comparator<String> NUMBERS =
+            Comparator.comparingLong(RoomNumberOrder::numericPart).thenComparing(RoomNumberOrder::suffix);
+
+    static final Comparator<Room> NATURAL = Comparator.comparing(Room::getRoomNumber, NUMBERS);
 
     private RoomNumberOrder() {}
 

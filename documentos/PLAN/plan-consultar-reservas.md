@@ -306,10 +306,10 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - `daily_reservation_room`: `reservation_ref` (FK a `daily_reservation`), `room_id` (UUID, sin FK a `room`: una habitación desconocida se salta con `ROOM_NOT_FOUND` sin revertir la ingesta), `room_number`, `category_room`, `guest_count` (PK compuesta `reservation_ref, room_id`).
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `operational_date` DATE NOT NULL, `message_type` VARCHAR(50), `reservation_ref` VARCHAR(50) nullable (la reserva de cada actualización), `received_at` TIMESTAMP, con índice `(operational_date, reservation_ref, sequence_number)` para la última secuencia aplicada de cada reserva y con índice `(operational_date, message_type)`.
 - [x] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
-- [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery`, `ReservationConflictResult` y `ArrivalGroup` (sus `rooms` son `ArrivalItemSummary`, `plan-consultar-panel-recepcion.md`).
-  - Avance: hechos `DailyReservation` y `DailyReservationRoom` (L05). Hechos `ReservationConflictQuery` y `ReservationConflictResult` (L24). Falta `ArrivalGroup` (L08).
-- [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T020); la usa `plan-confirmar-fin-de-limpieza.md`.
-  - Avance: hechos `DailyReservationRepositoryPort` (L05) e `IngestDailyReservationsUseCase` (L06). Hechos `CheckRoomReservationConflictsUseCase` y `Module2ReservationConflictClientPort` (L24). Falta `SearchDailyReservationsUseCase` (L08).
+- [x] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery`, `ReservationConflictResult` y `ArrivalGroup` (sus `rooms` son `ArrivalItemSummary`, `plan-consultar-panel-recepcion.md`).
+  - Avance: hechos `DailyReservation` y `DailyReservationRoom` (L05). Hechos `ReservationConflictQuery` y `ReservationConflictResult` (L24). Hecho `ArrivalGroup` (L08).
+- [x] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T020); la usa `plan-confirmar-fin-de-limpieza.md`.
+  - Avance: hechos `DailyReservationRepositoryPort` (L05) e `IngestDailyReservationsUseCase` (L06). Hechos `CheckRoomReservationConflictsUseCase` y `Module2ReservationConflictClientPort` (L24). Hecho `SearchDailyReservationsUseCase` (L08).
 - [ ] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
   - Avance: hecha `ExternalModule2UnavailableException` (424 `MODULE_2_UNAVAILABLE`, categoría `DEPENDENCY_FAILED` de `DomainError`; L24). Falta `ReservationNotFoundException`, con su primer consumidor.
 
@@ -358,20 +358,21 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ### Tests for User Story 2
 
-- [ ] T016 [P] [US2] Unit test en `DailyReservationSearchServiceTest`:
+- [x] T016 [P] [US2] Unit test en `DailyReservationSearchServiceTest`:
   - Búsqueda por `reservationRef` exacto.
   - Búsqueda por documento del titular.
   - Búsqueda por coincidencia de nombre/apellido (case-insensitive, trim).
   - Enriquecimiento con estado físico de `Room` local (`Room.status`).
   - Cálculo dinámico de noches (`endDate - startDate`) sin campo persistido `nights`.
   - Retorno de múltiples coincidencias cuando aplique.
-- [ ] T017 [P] [US2] Integration test de `SearchDailyReservationsUseCase`: con varias coincidencias devuelve todas (la Recepcionista elige una en la tabla de Llegadas del panel) y sin coincidencias devuelve una lista vacía (HU-2, escenarios 6 y 7).
+- [x] T017 [P] [US2] Integration test de `SearchDailyReservationsUseCase`: con varias coincidencias devuelve todas (la Recepcionista elige una en la tabla de Llegadas del panel) y sin coincidencias devuelve una lista vacía (HU-2, escenarios 6 y 7).
 
 ### Implementation for User Story 2
 
-- [ ] T018 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
-- [ ] T019 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
-- [ ] T020 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `List<ArrivalGroup> searchPendingArrivals(String query)`: cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
+- [x] T018 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
+- [x] T019 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
+- [x] T020 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `PendingArrivalsDto searchPendingArrivals(String query)` (`listAvailable` y la lista de `ArrivalGroup` en `groups`): cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
+  - Hecho (L08): `searchPendingArrivals(String query)` devuelve `PendingArrivalsDto` (`listAvailable` y `groups`), no solo la lista, para que el controlador no consulte aparte si llegó la lista del día (FR-011). Una habitación que no está en el inventario se omite, como en la ingesta.
 - [ ] T021 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
 
 ---
@@ -477,7 +478,8 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T030 Sanitización de entradas de texto en búsquedas locales: trim de espacios accidentales e insensibilidad a mayúsculas/minúsculas.
+- [x] T030 Sanitización de entradas de texto en búsquedas locales: trim de espacios accidentales e insensibilidad a mayúsculas/minúsculas.
+  - Hecho (L08): `DailyReservationSearchService.normalize` quita los espacios sobrantes y pasa a minúsculas; la referencia y el documento se comparan exactos, y el nombre, el apellido o el nombre completo por coincidencia parcial, con los comodines de `LIKE` escapados.
 - [ ] T031 Validar que no se muestren banners residuales tipo "Reserva encontrada" en la UI.
 - [ ] T032 Auditoría y observabilidad: Métricas de latencia en la llamada REST a Módulo 2 y log transaccional de ingesta de cola en `daily_reservation_message_log`.
 

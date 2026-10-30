@@ -11,6 +11,7 @@ import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.RoomMapper;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.RoomInventorySpecifications;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.SpringDataRoomJpaRepository;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,13 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
     @Override
     public Optional<Room> findById(UUID roomId) {
         return roomJpaRepository.findById(roomId).map(roomMapper::toDomain);
+    }
+
+    @Override
+    public List<Room> findAllById(Collection<UUID> roomIds) {
+        return roomJpaRepository.findAllById(roomIds).stream()
+                .map(roomMapper::toDomain)
+                .toList();
     }
 
     @Override
@@ -111,6 +119,11 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                 .map(roomMapper::toDomain)
                 .sorted(RoomNumberOrder.NATURAL)
                 .toList();
+    }
+
+    @Override
+    public long countByStatus(RoomStatus status) {
+        return roomJpaRepository.countByStatus(status);
     }
 
     /** Columna pedida y, como desempate, el orden natural del número; se ordena en memoria por ese orden natural. */

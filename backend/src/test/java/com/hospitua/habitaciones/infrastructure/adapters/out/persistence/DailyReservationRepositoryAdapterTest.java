@@ -10,6 +10,7 @@ import com.hospitua.habitaciones.domain.model.DailyReservation;
 import com.hospitua.habitaciones.domain.model.DailyReservationMessageLog;
 import com.hospitua.habitaciones.domain.model.DailyReservationMessageType;
 import com.hospitua.habitaciones.domain.model.DailyReservationRoom;
+import com.hospitua.habitaciones.domain.model.PendingArrival;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
@@ -236,6 +237,113 @@ class DailyReservationRepositoryAdapterTest {
                 .hasValue(ref);
         assertThat(repository.findPendingArrivalReservationRef(UUID.randomUUID(), day))
                 .isEmpty();
+    }
+
+    @Test
+    @DisplayName("FR-011: la lista del día cuenta solo si se registró una lista de las 00:00 de ese día")
+    void isDailyListReceived_onlyWithThatDaysList() {
+        repository.logMessage(log(UUID.randomUUID().toString(), 3, DailyReservationMessageType.UPDATE, ref()));
+        assertThat(repository.isDailyListReceived(day)).isFalse();
+
+        repository.logMessage(log(UUID.randomUUID().toString(), 1, DailyReservationMessageType.DAILY_LIST, null));
+
+        assertThat(repository.isDailyListReceived(day)).isTrue();
+        assertThat(repository.isDailyListReceived(day.plusDays(1))).isFalse();
+    }
+
+    @Test
+    @DisplayName("T018: llegadas del día con al menos una habitación sin estancia, con todas sus habitaciones")
+    void searchPendingArrivals_onlyPendingReservationsOfTheDay() {
+        Room checkedIn = room();
+        DailyReservationRoom pending = room("402");
+        String partial = ref();
+        repository.save(reservation(partial, List.of(roomOf(checkedIn), pending)));
+        Room alone = room();
+        String allCheckedIn = ref();
+        repository.save(reservation(allCheckedIn, List.of(roomOf(alone))));
+        String tomorrow = ref();
+        repository.save(new DailyReservation(
+                tomorrow,
+                "Ana",
+                "Pérez",
+                "CC",
+                "123456",
+                "Colombia",
+                "BOOKING",
+                day.plusDays(1),
+                day.plusDays(3),
+                1,
+                UPDATED_AT,
+                List.of(room("403"))));
+        checkIn(partial, checkedIn);
+        checkIn(allCheckedIn, alone);
+
+        List<PendingArrival> arrivals = repository.searchPendingArrivals(day, null);
+
+        assertThat(arrivals)
+                .extracting(arrival -> arrival.reservation().reservationRef())
+                .contains(partial)
+                .doesNotContain(allCheckedIn, tomorrow);
+        PendingArrival arrival = arrivals.stream()
+                .filter(candidate -> candidate.reservation().reservationRef().equals(partial))
+                .findFirst()
+                .orElseThrow();
+        assertThat(arrival.reservation().rooms()).hasSize(2);
+        assertThat(arrival.pendingRoomIds()).containsExactly(pending.roomId());
+    }
+
+    @Test
+    @DisplayName("T018/T030: busca por referencia o documento exactos y por parte del nombre, sin mayúsculas")
+    void searchPendingArrivals_byReferenceDocumentOrName() {
+        String suffix = UUID.randomUUID().toString().substring(0, 6);
+        String ref = ref();
+        String document = "DOC" + suffix;
+        repository.save(new DailyReservation(
+                ref,
+                "María José",
+                "González" + suffix,
+                "CC",
+                document,
+                "Colombia",
+                "DIRECTA",
+                day,
+                day.plusDays(2),
+                2,
+                UPDATED_AT,
+                List.of(room("501"))));
+
+        assertThat(refsMatching(ref.toLowerCase())).contains(ref);
+        assertThat(refsMatching(document.toLowerCase())).contains(ref);
+        assertThat(refsMatching("josé")).contains(ref);
+        assertThat(refsMatching(("zález" + suffix).toLowerCase())).contains(ref);
+        assertThat(refsMatching(("maría josé gonzález" + suffix).toLowerCase())).contains(ref);
+
+        assertThat(refsMatching(ref.substring(0, 6).toLowerCase())).doesNotContain(ref);
+        assertThat(refsMatching(document.substring(0, 4).toLowerCase())).doesNotContain(ref);
+        assertThat(refsMatching("%")).doesNotContain(ref);
+        assertThat(refsMatching("_")).doesNotContain(ref);
+    }
+
+    private List<String> refsMatching(String normalizedQuery) {
+        return repository.searchPendingArrivals(day, normalizedQuery).stream()
+                .map(arrival -> arrival.reservation().reservationRef())
+                .toList();
+    }
+
+    private void checkIn(String ref, Room room) {
+        stayRepository.save(new Stay(
+                UUID.randomUUID(),
+                ref,
+                room.getId(),
+                "BOOKING",
+                day,
+                null,
+                day,
+                day.plusDays(3),
+                "Ana",
+                "Pérez",
+                "123456",
+                0));
     }
 
     private DailyReservation reservation(String ref, List<DailyReservationRoom> rooms) {

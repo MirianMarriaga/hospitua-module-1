@@ -4,6 +4,8 @@ import com.hospitua.habitaciones.application.ports.out.DailyReservationRepositor
 import com.hospitua.habitaciones.domain.model.DailyReservation;
 import com.hospitua.habitaciones.domain.model.DailyReservationMessageLog;
 import com.hospitua.habitaciones.domain.model.DailyReservationMessageType;
+import com.hospitua.habitaciones.domain.model.PendingArrival;
+import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.DailyReservationJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.DailyReservationRoomJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.DailyReservationMapper;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.SpringDataDailyReservationJpaRepository;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -109,6 +112,43 @@ public class DailyReservationRepositoryAdapter implements DailyReservationReposi
     @Override
     public Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate) {
         return reservationRepository.findPendingArrivalReservationRef(roomId, operationalDate);
+    }
+
+    @Override
+    public boolean isDailyListReceived(LocalDate operationalDate) {
+        return messageLogRepository.existsByMessageTypeAndOperationalDate(
+                DailyReservationMapper.toMessageTypeColumn(DailyReservationMessageType.DAILY_LIST), operationalDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PendingArrival> searchPendingArrivals(LocalDate operationalDate, String normalizedQuery) {
+        // Tres consultas: las habitaciones pendientes que cumplen el filtro, sus reservas y todas sus habitaciones
+        List<DailyReservationRoomJpaEntity> pendingRooms = normalizedQuery == null
+                ? roomRepository.findPendingArrivalRooms(operationalDate)
+                : roomRepository.searchPendingArrivalRooms(
+                        operationalDate, normalizedQuery, LikePatterns.containing(normalizedQuery));
+        Map<String, Set<UUID>> pendingByReservation = pendingRooms.stream()
+                .collect(Collectors.groupingBy(
+                        DailyReservationRoomJpaEntity::getReservationRef,
+                        Collectors.mapping(DailyReservationRoomJpaEntity::getRoomId, Collectors.toSet())));
+        if (pendingByReservation.isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<DailyReservationRoomJpaEntity>> roomsByReservation =
+                roomRepository.findByReservationRefInOrderByRoomNumber(pendingByReservation.keySet()).stream()
+                        .collect(Collectors.groupingBy(DailyReservationRoomJpaEntity::getReservationRef));
+        return reservationRepository.findAllById(pendingByReservation.keySet()).stream()
+                .sorted(Comparator.comparing(DailyReservationJpaEntity::getReservationRef))
+                .map(entity -> new PendingArrival(
+                        mapper.toDomain(entity, roomsByReservation.getOrDefault(entity.getReservationRef(), List.of())),
+                        pendingByReservation.get(entity.getReservationRef())))
+                .toList();
+    }
+
+    @Override
+    public long countPendingArrivalRooms(LocalDate operationalDate) {
+        return roomRepository.countPendingArrivalRooms(operationalDate);
     }
 
     private static OptionalLong toOptionalLong(Optional<Long> value) {
