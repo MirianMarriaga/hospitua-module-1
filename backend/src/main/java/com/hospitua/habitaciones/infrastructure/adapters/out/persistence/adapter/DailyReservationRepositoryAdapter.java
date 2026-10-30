@@ -92,7 +92,8 @@ public class DailyReservationRepositoryAdapter implements DailyReservationReposi
 
     @Override
     public Optional<LocalDate> findLatestDailyListDate() {
-        return messageLogRepository.findLatestOperationalDate(DailyReservationMessageType.DAILY_LIST.routingKey());
+        return messageLogRepository.findLatestOperationalDate(
+                DailyReservationMapper.toMessageTypeColumn(DailyReservationMessageType.DAILY_LIST));
     }
 
     @Override

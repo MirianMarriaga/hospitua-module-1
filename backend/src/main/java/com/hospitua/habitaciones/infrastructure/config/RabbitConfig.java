@@ -1,6 +1,5 @@
 package com.hospitua.habitaciones.infrastructure.config;
 
-import java.time.Duration;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -14,7 +13,6 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.amqp.autoconfigure.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -124,18 +122,15 @@ public class RabbitConfig {
     public SimpleRabbitListenerContainerFactory dailyReservationsListenerFactory(
             SimpleRabbitListenerContainerFactoryConfigurer configurer,
             ConnectionFactory connectionFactory,
-            @Value("${hospitua.daily-reservations.retry.max-retries:3}") long maxRetries,
-            @Value("${hospitua.daily-reservations.retry.initial-interval:1s}") Duration initialInterval,
-            @Value("${hospitua.daily-reservations.retry.multiplier:2}") double multiplier,
-            @Value("${hospitua.daily-reservations.retry.max-interval:10s}") Duration maxInterval) {
+            DailyReservationRetryProperties retry) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         configurer.configure(factory, connectionFactory);
         factory.setDefaultRequeueRejected(false);
         RetryPolicy retryPolicy = RetryPolicy.builder()
-                .maxRetries(maxRetries)
-                .delay(initialInterval)
-                .multiplier(multiplier)
-                .maxDelay(maxInterval)
+                .maxRetries(retry.maxRetries())
+                .delay(retry.initialInterval())
+                .multiplier(retry.multiplier())
+                .maxDelay(retry.maxInterval())
                 .predicate(RabbitConfig::isTemporaryFailure)
                 .build();
         factory.setAdviceChain(RetryInterceptorBuilder.stateless()

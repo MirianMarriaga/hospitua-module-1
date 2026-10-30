@@ -7,6 +7,7 @@ import com.hospitua.habitaciones.domain.model.DailyReservationRoom;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.DailyReservationJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.DailyReservationMessageLogJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.DailyReservationRoomJpaEntity;
+import com.hospitua.habitaciones.infrastructure.config.RabbitConfig;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -63,19 +64,20 @@ public class DailyReservationMapper {
                 domain.messageId(),
                 domain.sequenceNumber(),
                 domain.operationalDate(),
-                domain.messageType().routingKey(),
+                toMessageTypeColumn(domain.messageType()),
                 domain.reservationRef(),
                 domain.receivedAt());
     }
 
-    public DailyReservationMessageLog toDomain(DailyReservationMessageLogJpaEntity entity) {
-        return new DailyReservationMessageLog(
-                entity.getMessageId(),
-                entity.getSequenceNumber(),
-                entity.getOperationalDate(),
-                DailyReservationMessageType.fromRoutingKey(entity.getMessageType()),
-                entity.getReservationRef(),
-                entity.getReceivedAt());
+    /**
+     * Valor de {@code message_type}: la routing key del mensaje, que es lo que consulta el panel de recepción para saber
+     * si llegó la lista del día (plan-consultar-panel-recepcion.md).
+     */
+    public static String toMessageTypeColumn(DailyReservationMessageType type) {
+        return switch (type) {
+            case DAILY_LIST -> RabbitConfig.ROUTING_KEY_DAILY_LIST;
+            case UPDATE -> RabbitConfig.ROUTING_KEY_DAILY_UPDATE;
+        };
     }
 
     private static DailyReservationRoom toDomain(DailyReservationRoomJpaEntity entity) {

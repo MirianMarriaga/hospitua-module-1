@@ -35,13 +35,6 @@ hospitua:
   maintenance:
     max-range-days: 90
     max-advance-days: 365
-  # Reintentos del listener de m1.reservas.diarias.queue ante un error temporal (plan-consultar-reservas.md T014)
-  daily-reservations:
-    retry:
-      max-retries: 3
-      initial-interval: 1s
-      multiplier: 2
-      max-interval: 10s
 
 ---
 # Desarrollo local contra docker-compose.yml (raíz del repositorio).

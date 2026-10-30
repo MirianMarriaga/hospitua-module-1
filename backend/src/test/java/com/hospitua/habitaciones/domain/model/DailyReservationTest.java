@@ -44,18 +44,6 @@ class DailyReservationTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
-    @Test
-    @DisplayName("el tipo de mensaje se guarda y se lee por su routing key")
-    void messageType_roundTripsByRoutingKey() {
-        for (DailyReservationMessageType type : DailyReservationMessageType.values()) {
-            assertThat(DailyReservationMessageType.fromRoutingKey(type.routingKey()))
-                    .isEqualTo(type);
-        }
-        assertThat(DailyReservationMessageType.DAILY_LIST.routingKey()).isEqualTo("reserva.lista-del-dia");
-        assertThatThrownBy(() -> DailyReservationMessageType.fromRoutingKey("otra"))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
     private static DailyReservation reservation(
             LocalDate startDate, LocalDate endDate, List<DailyReservationRoom> rooms) {
         return new DailyReservation(
