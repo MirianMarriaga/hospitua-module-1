@@ -5,6 +5,7 @@ import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,9 @@ import java.util.UUID;
 public interface RoomRepositoryPort {
 
     Optional<Room> findById(UUID roomId);
+
+    /** Las habitaciones que existen de esos ids, sin orden; los ids desconocidos se omiten. */
+    List<Room> findAllById(Collection<UUID> roomIds);
 
     Room save(Room room);
 

@@ -2,6 +2,7 @@ package com.hospitua.habitaciones.application.ports.out;
 
 import com.hospitua.habitaciones.domain.model.DailyReservation;
 import com.hospitua.habitaciones.domain.model.DailyReservationMessageLog;
+import com.hospitua.habitaciones.domain.model.PendingArrival;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -46,4 +47,15 @@ public interface DailyReservationRepositoryPort {
      * {@code Stay} para esa habitación (llegada pendiente); la usa Confirmar fin de limpieza.
      */
     Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate);
+
+    /** Si se registró la lista de las 00:00 ({@code reserva.lista-del-dia}) de ese día operativo (FR-011). */
+    boolean isDailyListReceived(LocalDate operationalDate);
+
+    /**
+     * Reservas con {@code start_date = operationalDate} y al menos una habitación sin {@code Stay}, en orden de
+     * {@code reservationRef} y con sus habitaciones por número. {@code normalizedQuery} va sin espacios sobrantes y en
+     * minúsculas; nulo devuelve todas, y si no, filtra por referencia o documento exactos o por parte del nombre, del
+     * apellido o del nombre completo del titular.
+     */
+    List<PendingArrival> searchPendingArrivals(LocalDate operationalDate, String normalizedQuery);
 }

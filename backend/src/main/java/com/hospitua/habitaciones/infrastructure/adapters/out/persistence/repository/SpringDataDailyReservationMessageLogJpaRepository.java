@@ -17,6 +17,8 @@ public interface SpringDataDailyReservationMessageLogJpaRepository
             "SELECT MAX(l.operationalDate) FROM DailyReservationMessageLogJpaEntity l WHERE l.messageType = :messageType")
     Optional<LocalDate> findLatestOperationalDate(@Param("messageType") String messageType);
 
+    boolean existsByMessageTypeAndOperationalDate(String messageType, LocalDate operationalDate);
+
     @Query("SELECT MAX(l.sequenceNumber) FROM DailyReservationMessageLogJpaEntity l"
             + " WHERE l.operationalDate = :operationalDate")
     Optional<Long> findLastSequence(@Param("operationalDate") LocalDate operationalDate);
