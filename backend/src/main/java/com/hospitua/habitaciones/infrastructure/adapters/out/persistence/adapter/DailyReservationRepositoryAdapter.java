@@ -127,7 +127,7 @@ public class DailyReservationRepositoryAdapter implements DailyReservationReposi
         List<DailyReservationRoomJpaEntity> pendingRooms = normalizedQuery == null
                 ? roomRepository.findPendingArrivalRooms(operationalDate)
                 : roomRepository.searchPendingArrivalRooms(
-                        operationalDate, normalizedQuery, "%" + escapeLike(normalizedQuery) + "%");
+                        operationalDate, normalizedQuery, LikePatterns.containing(normalizedQuery));
         Map<String, Set<UUID>> pendingByReservation = pendingRooms.stream()
                 .collect(Collectors.groupingBy(
                         DailyReservationRoomJpaEntity::getReservationRef,
@@ -144,11 +144,6 @@ public class DailyReservationRepositoryAdapter implements DailyReservationReposi
                         mapper.toDomain(entity, roomsByReservation.getOrDefault(entity.getReservationRef(), List.of())),
                         pendingByReservation.get(entity.getReservationRef())))
                 .toList();
-    }
-
-    /** Escapa los comodines de LIKE para que el texto buscado se compare literal. */
-    private static String escapeLike(String text) {
-        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private static OptionalLong toOptionalLong(Optional<Long> value) {

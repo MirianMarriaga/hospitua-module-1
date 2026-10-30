@@ -13,7 +13,6 @@ import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -43,7 +42,8 @@ public class DailyReservationSearchService implements SearchDailyReservationsUse
         if (!reservationRepository.isDailyListReceived(today)) {
             return PendingArrivalsDto.listNotReceived();
         }
-        List<PendingArrival> arrivals = reservationRepository.searchPendingArrivals(today, normalize(query));
+        List<PendingArrival> arrivals =
+                reservationRepository.searchPendingArrivals(today, SearchQuery.normalize(query));
         List<UUID> pendingRoomIds = arrivals.stream()
                 .flatMap(arrival -> arrival.pendingRoomIds().stream())
                 .toList();
@@ -64,13 +64,5 @@ public class DailyReservationSearchService implements SearchDailyReservationsUse
                 .toList();
         return new ArrivalGroup(
                 reservation.reservationRef(), rows.size(), reservation.rooms().size(), rows);
-    }
-
-    /** Sin espacios sobrantes y en minúsculas (T030); nulo si no queda texto, para listar todas las llegadas. */
-    static String normalize(String query) {
-        if (query == null || query.isBlank()) {
-            return null;
-        }
-        return query.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 }

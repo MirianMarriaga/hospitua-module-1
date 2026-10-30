@@ -181,7 +181,7 @@ Accept: application/json
 
 | Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
 | --- | --- | --- | --- | --- | --- |
-| `query` | query | string | No | Nombre o apellido del titular, número de documento, `reservationRef` o número de habitación (FR-004) | `304` |
+| `query` | query | string | No | Máximo 100 caracteres, con las mismas reglas de texto que Llegadas: `reservationRef`, número de documento del titular y número de habitación se comparan **exactos**; nombre, apellido o nombre completo del titular, **por parte** del texto (FR-004) | `304` |
 
 **Body (JSON):** No aplica.
 
@@ -236,7 +236,11 @@ Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "N
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `ConstraintViolationException` | `query` de más de 100 caracteres (`details.field` = `query`) |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
@@ -372,9 +376,10 @@ frontend/src/
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
-  - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Faltan `ReceptionDashboardKpis` (L10) y `DepartureSummary` (L09).
+  - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Falta `ReceptionDashboardKpis` (L10).
 - [ ] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
 - [ ] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
+  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Los dos conteos de salidas quedan para los KPIs (L10).
   - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
   - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
   - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
@@ -414,14 +419,15 @@ frontend/src/
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
-- [ ] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
+- [x] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
+- [x] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
 - [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
-- [ ] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
+- [x] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
+  - Hecho (L09): mismo texto normalizado que Llegadas (`SearchQuery.normalize`); referencia, documento y número de habitación exactos, y nombre, apellido o nombre completo por parte del texto.
+- [x] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
 - [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-007, FR-009).
 
 ---
