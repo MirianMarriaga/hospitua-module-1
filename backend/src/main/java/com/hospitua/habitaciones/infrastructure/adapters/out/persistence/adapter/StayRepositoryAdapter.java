@@ -43,6 +43,11 @@ public class StayRepositoryAdapter implements StayRepositoryPort {
     }
 
     @Override
+    public boolean existsByReservationRefAndRoomId(String reservationRef, UUID roomId) {
+        return stayJpaRepository.existsByReservationRefAndRoomId(reservationRef, roomId);
+    }
+
+    @Override
     public List<DepartureSummary> searchActiveDepartures(LocalDate today, String normalizedQuery) {
         // Una sola consulta: la estancia, su habitación y el conteo de huéspedes
         List<DepartureRow> rows = normalizedQuery == null

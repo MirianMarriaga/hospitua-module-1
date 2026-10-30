@@ -16,6 +16,9 @@ public interface StayRepositoryPort {
 
     Optional<Stay> findById(UUID id);
 
+    /** Si ya hay una estancia, activa o cerrada, para el par reserva y habitación (registrar-check-in FR-003). */
+    boolean existsByReservationRefAndRoomId(String reservationRef, UUID roomId);
+
     /**
      * Estancias activas (sin {@code checkOutDate}) con salida esperada en {@code today} o antes, primero las vencidas y
      * después por número de habitación (panel-recepcion T006, FR-004). {@code normalizedQuery} va sin espacios sobrantes
