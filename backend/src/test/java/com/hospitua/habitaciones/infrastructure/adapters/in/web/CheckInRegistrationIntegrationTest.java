@@ -231,7 +231,9 @@ class CheckInRegistrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Sin X-User responde 400 CURRENT_USER_REQUIRED, y sin guests 400 VALIDATION_ERROR; no crea nada")
+    @DisplayName(
+            "Sin X-User responde 400 CURRENT_USER_REQUIRED, y sin guests o con un huésped nulo 400 VALIDATION_ERROR;"
+                    + " no crea nada")
     void register_missingUserOrGuests() throws Exception {
         register(null, HOLDER, COMPANION)
                 .andExpect(status().isBadRequest())
@@ -243,6 +245,10 @@ class CheckInRegistrationIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details.field").value("guests"));
+        register(RECEPTIONIST, HOLDER, "null")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value("guests[1]"));
 
         assertNothingCreated();
     }

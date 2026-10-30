@@ -21,7 +21,7 @@ public record RegisterCheckInRequest(
         @NotNull(message = "La habitación es obligatoria.") UUID roomId,
 
         @NotNull(message = "Registra los huéspedes que ocupan la habitación.")
-        List<GuestRequest> guests) {
+        List<@NotNull(message = "Cada huésped debe tener sus datos.") GuestRequest> guests) {
 
     public RegisterCheckInCommand toCommand(String receptionistId) {
         return new RegisterCheckInCommand(

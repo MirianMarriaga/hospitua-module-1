@@ -15,6 +15,7 @@ import com.hospitua.habitaciones.application.ports.out.StayRepositoryPort;
 import com.hospitua.habitaciones.domain.model.CheckInEligibility;
 import com.hospitua.habitaciones.domain.model.CheckInGuest;
 import com.hospitua.habitaciones.domain.model.DailyReservation;
+import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomAuditEntry;
 import com.hospitua.habitaciones.domain.model.RoomAuditEventType;
 import com.hospitua.habitaciones.domain.model.RoomGuest;
@@ -57,13 +58,14 @@ public class CheckInExecutionService implements RegisterCheckInUseCase {
     public CheckInResultDto registerCheckIn(RegisterCheckInCommand command) {
         LocalDate today = LocalDate.now(clock);
         List<CheckInGuest> guests = validatedGuests(command.guests(), today);
+        Room room = roomRepository.lockById(command.roomId()).orElse(null);
         CheckInEligibility eligibility = CheckInEligibility.verify(
                 command.reservationRef(),
                 command.roomId(),
                 reservationRepository
                         .findByReservationRef(command.reservationRef())
                         .orElse(null),
-                roomRepository.lockById(command.roomId()).orElse(null),
+                room,
                 stayRepository.existsByReservationRefAndRoomId(command.reservationRef(), command.roomId()),
                 today);
         eligibility.verifyGuests(guests);

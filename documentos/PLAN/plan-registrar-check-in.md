@@ -303,7 +303,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 | Status Code | errorCode | Excepción | Cuándo ocurre | Endpoint |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base); la interfaz muestra "Tu sesión terminó. Inicia sesión de nuevo." | 2 |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un parámetro o campo, `documentType` no admitido, `birthDate` no anterior a hoy, o extranjero sin `originPlace`/`destinationPlace`; `details.field` y `details.guestIndex` señalan el campo (FR-006, FR-009) | 1 y 2 |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`, `ConstraintViolationException` o `InvalidGuestDataException` (datos de un huésped, validados en el dominio) | Falta un parámetro o campo, un elemento de `guests[]` es nulo, `documentType` no admitido, `birthDate` no anterior a hoy, o extranjero sin `originPlace`/`destinationPlace`; `details.field` y `details.guestIndex` señalan el campo (FR-006, FR-009) | 1 y 2 |
 | 400 | `GUEST_COUNT_MISMATCH` | `GuestCountMismatchException` | La cantidad de huéspedes difiere de `guestCount` de la habitación (FR-008) | 2 |
 | 400 | `ROOM_CAPACITY_EXCEEDED` | `RoomCapacityExceededException` | La cantidad de huéspedes supera `maxCapacity` (FR-008) | 2 |
 | 400 | `DUPLICATE_GUEST_DOCUMENT` | `DuplicateGuestDocumentException` | Dos huéspedes de la habitación tienen el mismo tipo y número de documento | 2 |
