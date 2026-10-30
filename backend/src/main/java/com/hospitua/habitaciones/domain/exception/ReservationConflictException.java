@@ -22,8 +22,8 @@ public final class ReservationConflictException extends DomainException {
     private static Map<String, Object> toDetail(ConflictingReservation reservation) {
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("reservationRef", reservation.reservationRef());
-        detail.put("startDate", String.valueOf(reservation.startDate()));
-        detail.put("endDate", String.valueOf(reservation.endDate()));
+        detail.put("startDate", reservation.startDate().toString());
+        detail.put("endDate", reservation.endDate().toString());
         detail.put("status", reservation.status());
         return detail;
     }

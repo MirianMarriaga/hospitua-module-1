@@ -19,7 +19,7 @@ import org.springframework.web.client.RestClientException;
 /**
  * Cliente de {@code GET /api/reservations?dateFrom&dateTo&roomId} de Módulo 2 (consultar-reservas T003, T026), con los
  * timeouts de {@code module2RestClient}. Toda falla (4xx, 5xx, timeout, caída o respuesta ilegible) termina en
- * {@link ExternalModule2UnavailableException}; un 4xx además deja una alerta de configuración en el log de errores con
+ * {@link ExternalModule2UnavailableException}, también una reserva sin referencia, estado o fechas; un 4xx además deja una alerta de configuración en el log de errores con
  * el {@code errorCode} de Módulo 2, porque indica un contrato roto (p. ej. {@code INVALID_CLIENT}) y no una caída.
  */
 @Slf4j
@@ -70,6 +70,12 @@ public class Module2ReservationConflictRestAdapter implements Module2Reservation
             log.warn("Módulo 2 respondió la consulta de reservas de la habitación {} sin items", query.roomId());
             throw new ExternalModule2UnavailableException(new IllegalStateException("Respuesta sin items"));
         }
+        if (response.items().stream().anyMatch(item -> item == null || !item.isComplete())) {
+            log.warn(
+                    "Módulo 2 respondió la consulta de reservas de la habitación {} con una reserva incompleta",
+                    query.roomId());
+            throw new ExternalModule2UnavailableException(new IllegalStateException("Reserva incompleta"));
+        }
         return new ReservationConflictResult(
                 response.items().stream().map(ReservationItem::toDomain).toList());
     }
@@ -90,6 +96,11 @@ public class Module2ReservationConflictRestAdapter implements Module2Reservation
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ReservationItem(String reservationRef, String status, LocalDate startDate, LocalDate endDate) {
+
+        /** Sin referencia, estado o fechas no se puede informar el conflicto; la respuesta cuenta como ilegible. */
+        boolean isComplete() {
+            return reservationRef != null && status != null && startDate != null && endDate != null;
+        }
 
         ConflictingReservation toDomain() {
             return new ConflictingReservation(reservationRef, status, startDate, endDate);

@@ -292,7 +292,8 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
       read-timeout: 2s
   ```
 
-- [ ] T002 Verificar en `RabbitConfig.java` (plan base, T011) la cola durable `m1.reservas.diarias.queue`, el exchange topic `hospitua.events`, los bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` y la cola de mensajes fallidos `m1.reservas.diarias.dlq`.
+- [x] T002 Verificar en `RabbitConfig.java` (plan base, T011) la cola durable `m1.reservas.diarias.queue`, el exchange topic `hospitua.events`, los bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` y la cola de mensajes fallidos `m1.reservas.diarias.dlq`.
+  - Hecho: lo cubre `RabbitTopologyIntegrationTest` (L07, R3).
 - [x] T003 Crear el `RestClient` hacia Módulo 2 con los timeouts de `RestClientConfig` (plan base, T013: 1 s conexión, 2 s lectura) y el mapeo de errores HTTP 4xx/5xx que usa `Module2ReservationConflictRestAdapter.java` (T026).
   - Hecho: `Module2ReservationConflictRestAdapter` usa el bean `module2RestClient` de `RestClientConfig`; cualquier 4xx, 5xx, timeout, caída o respuesta ilegible termina en `ExternalModule2UnavailableException` (L24).
 

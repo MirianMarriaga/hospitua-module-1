@@ -39,6 +39,20 @@ class ReservationConflictQueryTest {
     }
 
     @Test
+    @DisplayName("T022: una reserva en conflicto sin referencia, estado o fechas es un error de programación")
+    void conflictingReservationRejectsNulls() {
+        LocalDate end = START.plusDays(3);
+        assertThatThrownBy(() -> new ConflictingReservation(null, "ACTIVE", START, end))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ConflictingReservation("RSV-1", null, START, end))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ConflictingReservation("RSV-1", "ACTIVE", null, end))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ConflictingReservation("RSV-1", "ACTIVE", START, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     @DisplayName("T022: sin reservas no hay conflicto; con alguna, sí, y la lista no cambia después")
     void resultHasConflictOnlyWithReservations() {
         List<ConflictingReservation> reservations = new ArrayList<>();

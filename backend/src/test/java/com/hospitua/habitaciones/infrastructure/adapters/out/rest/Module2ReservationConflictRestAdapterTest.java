@@ -174,6 +174,25 @@ class Module2ReservationConflictRestAdapterTest {
                 .hasCauseInstanceOf(IllegalStateException.class);
     }
 
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+            strings = {
+                "{\"items\":[null]}",
+                "{\"items\":[{\"status\":\"ACTIVE\",\"startDate\":\"2026-10-21\",\"endDate\":\"2026-10-24\"}]}",
+                "{\"items\":[{\"reservationRef\":\"RSV-1\",\"startDate\":\"2026-10-21\",\"endDate\":\"2026-10-24\"}]}",
+                "{\"items\":[{\"reservationRef\":\"RSV-1\",\"status\":\"ACTIVE\",\"endDate\":\"2026-10-24\"}]}",
+                "{\"items\":[{\"reservationRef\":\"RSV-1\",\"status\":\"ACTIVE\",\"startDate\":\"2026-10-21\"}]}"
+            })
+    @DisplayName("Una reserva sin referencia, estado o fechas da MODULE_2_UNAVAILABLE, nunca un conflicto a medias")
+    void incompleteReservation_isUnavailable(String body, CapturedOutput output) {
+        stubReservations(200, body);
+
+        assertThatThrownBy(() -> adapter.checkConflicts(QUERY))
+                .isInstanceOf(ExternalModule2UnavailableException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
+        assertThat(output).contains("reserva incompleta");
+    }
+
     private static void stubReservations(int status, String body) {
         module2.stubFor(get(urlPathEqualTo("/api/reservations"))
                 .willReturn(aResponse()
