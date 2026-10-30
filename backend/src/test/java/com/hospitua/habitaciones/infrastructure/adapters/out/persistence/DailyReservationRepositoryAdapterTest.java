@@ -31,7 +31,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Copia local de reservas contra PostgreSQL real (plan-consultar-reservas.md T004, T005 y T011). Cada prueba usa
- * referencias y un día propios, porque comparten la base.
+ * referencias y un día pasado propio, porque comparten la base con la ingesta de la cola diaria.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -56,7 +56,8 @@ class DailyReservationRepositoryAdapterTest {
 
     @BeforeEach
     void pickDay() {
-        day = LocalDate.of(2100, 1, 1).plusDays(ThreadLocalRandom.current().nextInt(0, 30_000));
+        // Días pasados: la lista del día que registran estas pruebas no debe dejar la copia local en el futuro
+        day = LocalDate.of(1900, 1, 1).plusDays(ThreadLocalRandom.current().nextInt(0, 30_000));
     }
 
     @Test

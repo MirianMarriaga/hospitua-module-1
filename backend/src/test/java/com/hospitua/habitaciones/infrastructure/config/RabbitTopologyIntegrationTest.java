@@ -3,16 +3,19 @@ package com.hospitua.habitaciones.infrastructure.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hospitua.habitaciones.TestcontainersConfiguration;
+import com.hospitua.habitaciones.infrastructure.adapters.in.amqp.DailyReservationRabbitListener;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.MessageListenerContainer;
 import org.springframework.amqp.core.QueueInformation;
 import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -28,6 +31,9 @@ class RabbitTopologyIntegrationTest {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private RabbitListenerEndpointRegistry listenerRegistry;
 
     @Test
     @DisplayName("La topología completa de RabbitMQ se declara correctamente")
@@ -74,17 +80,27 @@ class RabbitTopologyIntegrationTest {
     @Test
     @DisplayName("Mensajes con routing keys de entrada llegan a m1.reservas.diarias.queue")
     void incomingMessagesShouldRouteToDailyReservationsQueue() {
-        // Lista del día
-        Map<String, Object> dailyListMsg = Map.of("test", "dailyList");
-        rabbitTemplate.convertAndSend(RabbitConfig.EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_DAILY_LIST, dailyListMsg);
-        Object receivedList = rabbitTemplate.receiveAndConvert(RabbitConfig.DAILY_RESERVATIONS_QUEUE, 5000);
-        assertThat(receivedList).isNotNull();
+        // Sin el listener de la cola diaria, que si no consumiría los mensajes de prueba
+        MessageListenerContainer listener =
+                listenerRegistry.getListenerContainer(DailyReservationRabbitListener.LISTENER_ID);
+        listener.stop();
+        try {
+            // Lista del día
+            Map<String, Object> dailyListMsg = Map.of("test", "dailyList");
+            rabbitTemplate.convertAndSend(
+                    RabbitConfig.EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_DAILY_LIST, dailyListMsg);
+            Object receivedList = rabbitTemplate.receiveAndConvert(RabbitConfig.DAILY_RESERVATIONS_QUEUE, 5000);
+            assertThat(receivedList).isNotNull();
 
-        // Actualización
-        Map<String, Object> updateMsg = Map.of("test", "update");
-        rabbitTemplate.convertAndSend(RabbitConfig.EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_DAILY_UPDATE, updateMsg);
-        Object receivedUpdate = rabbitTemplate.receiveAndConvert(RabbitConfig.DAILY_RESERVATIONS_QUEUE, 5000);
-        assertThat(receivedUpdate).isNotNull();
+            // Actualización
+            Map<String, Object> updateMsg = Map.of("test", "update");
+            rabbitTemplate.convertAndSend(
+                    RabbitConfig.EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_DAILY_UPDATE, updateMsg);
+            Object receivedUpdate = rabbitTemplate.receiveAndConvert(RabbitConfig.DAILY_RESERVATIONS_QUEUE, 5000);
+            assertThat(receivedUpdate).isNotNull();
+        } finally {
+            listener.start();
+        }
     }
 
     @Test
