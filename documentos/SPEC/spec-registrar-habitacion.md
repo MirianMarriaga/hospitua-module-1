@@ -68,6 +68,7 @@ Como Administrador, quiero registrar una nueva habitación en la plataforma indi
 - **FR-011**: El sistema DEBE validar que el piso sea un número entero positivo (mayor a cero).
 - **FR-012**: Tras un registro exitoso, el sistema DEBE mostrar una confirmación con el ID, el estado, el número, el piso, el tipo, la capacidad máxima y la tarifa base de la habitación, y ofrecer las opciones "Registrar otra" y "Volver al inventario". La fecha y el usuario de FR-010 se guardan, pero no se muestran en la confirmación.
 - **FR-013**: Al registrar la habitación, el sistema DEBE abrir su primer periodo en `RoomStateHistory` dentro de la misma transacción, con `Status` = `Available`, `PreviousStatus` nulo, `StartDateTime` = fecha y hora del servidor, `EndDateTime` nulo, `ActorId` = Administrador responsable y `SourceFlow` = *Registrar habitación*.
+- **FR-014**: El sistema DEBE validar que el número de habitación tenga como máximo 10 caracteres y DEBE guardarlo sin espacios al inicio ni al final y con sus letras en mayúsculas, de modo que "101a" y "101A" son el mismo número para la unicidad (FR-004).
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 

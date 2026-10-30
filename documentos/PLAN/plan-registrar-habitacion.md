@@ -53,11 +53,11 @@ X-User: lmendez
 Content-Type: application/json
 ```
 
-**Body (JSON):** todos los campos son obligatorios. `roomNumber` se guarda sin espacios al inicio ni al final. Cualquier `roomId` o `status` enviado se ignora (FR-002, FR-008).
+**Body (JSON):** todos los campos son obligatorios. `roomNumber` se guarda sin espacios al inicio ni al final y con sus letras en mayúsculas (FR-014). Cualquier `roomId` o `status` enviado se ignora (FR-002, FR-008).
 
 | Campo | Tipo | Regla | Ejemplo |
 | --- | --- | --- | --- |
-| `roomNumber` | string | No vacío; único en todo el inventario (FR-004) | `"407"` |
+| `roomNumber` | string | No vacío, máximo 10 caracteres; único en todo el inventario sin distinguir mayúsculas (FR-004, FR-014) | `"407"` |
 | `floor` | integer | Entero mayor a 0 (FR-011) | `4` |
 | `categoryRoom` | string | `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (FR-005); la interfaz los muestra como Sencilla, Doble, Suite y Boutique | `"DOBLE"` |
 | `maxCapacity` | integer | Entero mayor a 0 (FR-006) | `2` |
@@ -111,6 +111,7 @@ Content-Type: application/json
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta un campo obligatorio (FR-003, esc. 3); `details.field` lista los campos pendientes | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número de habitación de más de 10 caracteres (FR-014) | "El número de habitación debe tener máximo 10 caracteres." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero, igual a 0 o negativo (FR-011, caso borde 1) | "El piso debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad no entera, igual a 0 o negativa (FR-006, caso borde 2) | "La capacidad máxima debe ser un número entero mayor a 0." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa igual a 0 o negativa, o con más de dos decimales (FR-007, esc. 4) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
@@ -156,7 +157,8 @@ backend/src/main/
 │   │   ├── model/
 │   │   │   └── RoomCategory.java                  # Enum: SENCILLA, DOBLE, SUITE, BOUTIQUE
 │   │   └── exception/
-│   │       └── RoomNumberAlreadyExistsException.java   # 409
+│   │       ├── RoomNumberAlreadyExistsException.java   # 409
+│   │       └── InvalidRoomDataException.java           # 400 VALIDATION_ERROR: respaldo en el dominio de las reglas del DTO
 │   ├── application/
 │   │   ├── ports/
 │   │   │   └── in/
@@ -168,7 +170,8 @@ backend/src/main/
 │   │       └── RoomDto.java
 │   └── infrastructure/adapters/
 │       └── in/web/
-│           └── RoomController.java                # Se agrega POST /api/rooms
+│           ├── RoomController.java                # Se agrega POST /api/rooms
+│           └── dto/RegisterRoomRequest.java       # Bean Validation; piso y capacidad como decimal para rechazar no enteros
 frontend/src/
 ├── components/
 │   └── roomCategoryLabels.ts                  # SENCILLA → "Sencilla", …; lo usan todas las vistas de habitaciones
@@ -191,8 +194,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` (regla 8 del plan base, T010 y T016): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
-- [ ] T002 [P] Implementar `RoomCategory` y registrar en `GlobalExceptionHandler` `RoomNumberAlreadyExistsException` (`409 ROOM_NUMBER_ALREADY_EXISTS`), mapeando también la violación del índice único de `room.room_number`.
+- [x] T001 Verificar en `TransitionRoomStateUseCase` la operación `registerInitialStatus(roomId, actorId, sourceFlow)` (regla 8 del plan base, T010 y T016): abre el primer periodo de una habitación con `previous_status` nulo y devuelve la marca de tiempo del servidor.
+- [x] T002 [P] Implementar `RoomCategory` y registrar en `GlobalExceptionHandler` `RoomNumberAlreadyExistsException` (`409 ROOM_NUMBER_ALREADY_EXISTS`), mapeando también la violación del índice único de `room.room_number`.
 
 ---
 
@@ -204,23 +207,23 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Unit test en `RegisterRoomServiceTest`: el registro válido crea la habitación con UUID del servidor y estado `Available`, ignora `roomId` y `status` del cliente y abre el periodo inicial con `REGISTER_ROOM` (esc. 1; FR-002, FR-008, FR-013).
-- [ ] T004 [P] [US1] Unit test: rechazo con `ROOM_NUMBER_ALREADY_EXISTS` si el número existe en otra habitación, incluida una `Inactive` o de otro piso (esc. 2, caso borde 3; FR-004).
-- [ ] T005 [P] [US1] Unit test: rechazo con `VALIDATION_ERROR` y la lista de campos faltantes (esc. 3; FR-003).
-- [ ] T006 [P] [US1] Unit test: rechazo de piso no entero o menor o igual a 0, capacidad menor o igual a 0, tarifa menor o igual a 0 y tipo fuera del catálogo (esc. 4, casos borde 1, 2 y 4; FR-005 a FR-007, FR-011).
-- [ ] T007 [P] [US1] Unit test con `Clock` fijo: el periodo inicial guarda como actor al Administrador que registra y la hora del servidor como inicio (FR-010, FR-013).
-- [ ] T008 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo número; solo uno tiene éxito y el otro recibe `409` (FR-004; SC-003).
-- [ ] T009 [US1] Integration test: un fallo forzado al abrir el periodo inicial revierte la habitación; no queda una habitación sin su periodo (caso borde 5; SC-004).
+- [x] T003 [P] [US1] Unit test en `RegisterRoomServiceTest`: el registro válido crea la habitación con UUID del servidor y estado `Available`, ignora `roomId` y `status` del cliente y abre el periodo inicial con `REGISTER_ROOM` (esc. 1; FR-002, FR-008, FR-013).
+- [x] T004 [P] [US1] Unit test: rechazo con `ROOM_NUMBER_ALREADY_EXISTS` si el número existe en otra habitación, incluida una `Inactive` o de otro piso (esc. 2, caso borde 3; FR-004).
+- [x] T005 [P] [US1] Unit test: rechazo con `VALIDATION_ERROR` y la lista de campos faltantes (esc. 3; FR-003).
+- [x] T006 [P] [US1] Unit test: rechazo de piso no entero o menor o igual a 0, capacidad menor o igual a 0, tarifa menor o igual a 0 y tipo fuera del catálogo (esc. 4, casos borde 1, 2 y 4; FR-005 a FR-007, FR-011).
+- [x] T007 [P] [US1] Unit test con `Clock` fijo: el periodo inicial guarda como actor al Administrador que registra y la hora del servidor como inicio (FR-010, FR-013).
+- [x] T008 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo número; solo uno tiene éxito y el otro recibe `409` (FR-004; SC-003).
+- [x] T009 [US1] Integration test: un fallo forzado al abrir el periodo inicial revierte la habitación; no queda una habitación sin su periodo (caso borde 5; SC-004).
 - [ ] T010 [P] [US1] Component test en `RegisterRoomPage`: marca los campos pendientes, restringe el tipo a las 4 categorías y, tras el registro, muestra la confirmación con ID, estado, número, piso, tipo, capacidad y tarifa, sin fecha ni usuario, con "Registrar otra" y "Volver al inventario" (esc. 3 y 5; FR-005, FR-012).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implementar `RegisterRoomService` (`@Transactional`) (FR-001 a FR-011, FR-013):
+- [x] T011 [US1] Implementar `RegisterRoomService` (`@Transactional`) (FR-001 a FR-011, FR-013):
   - Validar los campos obligatorios y sus reglas.
   - Validar que el número no exista en ninguna habitación.
   - Crear la habitación con UUID generado y estado `Available`.
   - Abrir el primer periodo con `registerInitialStatus(roomId, administratorId, REGISTER_ROOM)`, que guarda el Administrador y la hora de `Clock` (FR-010, FR-013).
-- [ ] T012 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms` (FR-001).
+- [x] T012 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms` (FR-001).
 - [ ] T013 [US1] Construir en el frontend `RegisterRoomPage.tsx` (formulario con número, piso, tipo como lista de las 4 categorías con las etiquetas de `roomCategoryLabels.ts`, capacidad y tarifa) y `RegisterRoomConfirmation.tsx` ("Registrar otra" limpia el formulario; "Volver al inventario" regresa al listado) (FR-005, FR-012).
 - [ ] T014 [US1] Mostrar los errores del endpoint con el texto de su tabla, señalando cada campo pendiente o inválido (esc. 2 a 4).
 
@@ -230,8 +233,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
-- [ ] T016 Integration test: ninguna habitación registrada queda sin UUID, sin estado o sin su periodo inicial en `room_state_history` (SC-004).
+- [x] T015 Integration test: tras el registro, `GET /api/rooms/inventory?roomNumber=407` devuelve la habitación en `Available` sin recargar el inventario (FR-009; SC-002).
+- [x] T016 Integration test: ninguna habitación registrada queda sin UUID, sin estado o sin su periodo inicial en `room_state_history` (SC-004).
+- [x] T017 Unit e integration test: el número se guarda sin espacios y en mayúsculas ("101a" queda "101A"), un número que solo difiere en mayúsculas se rechaza con `ROOM_NUMBER_ALREADY_EXISTS` y uno de más de 10 caracteres con `VALIDATION_ERROR` (FR-004, FR-014).
 
 ---
 

@@ -10,7 +10,7 @@
 Implementar el caso de uso **Editar Habitación** para el Administrador. Desde la acción "Editar" de una habitación `Available` en el inventario (*Consultar inventario de habitaciones*, FR-008), el Administrador modifica número, piso, tipo, capacidad máxima o tarifa base (FR-001). El sistema:
 
 - rechaza la edición si la habitación no está en `Available`, indicando su estado actual (FR-002 a FR-004);
-- valida los valores nuevos con las reglas del registro (FR-005) y la unicidad del número en todo el inventario, sin contar la propia habitación (FR-009);
+- valida los valores nuevos con las reglas del registro (FR-005), incluido el número de máximo 10 caracteres guardado sin espacios al inicio ni al final y con sus letras en mayúsculas (*Registrar habitación* FR-014) y la unicidad del número en todo el inventario, sin contar la propia habitación (FR-009);
 - si no hubo cambios, lo informa sin guardar ni auditar (FR-010);
 - si los hay, guarda solo los campos modificados (FR-006), registra la edición en la bitácora con el valor anterior y el nuevo de cada campo (FR-008) y muestra la confirmación "Antes / Ahora" con los datos actualizados (FR-007).
 

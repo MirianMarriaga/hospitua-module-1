@@ -19,7 +19,7 @@ on:
 jobs:
   verify:
     name: Maven Verify (Spotless, Unit & Integration Tests)
-    runs-on: ubuntu-24-04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository

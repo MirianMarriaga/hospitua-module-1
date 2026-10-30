@@ -8,14 +8,14 @@ import java.util.Comparator;
  */
 final class RoomNumberOrder {
 
-    static final Comparator<Room> NATURAL = Comparator.comparingInt((Room room) -> numericPart(room.getRoomNumber()))
+    static final Comparator<Room> NATURAL = Comparator.comparingLong((Room room) -> numericPart(room.getRoomNumber()))
             .thenComparing(room -> suffix(room.getRoomNumber()));
 
     private RoomNumberOrder() {}
 
-    private static int numericPart(String roomNumber) {
+    private static long numericPart(String roomNumber) {
         int digits = leadingDigits(roomNumber);
-        return digits == 0 ? 0 : Integer.parseInt(roomNumber.substring(0, digits));
+        return digits == 0 ? 0 : Long.parseLong(roomNumber.substring(0, digits));
     }
 
     private static String suffix(String roomNumber) {
