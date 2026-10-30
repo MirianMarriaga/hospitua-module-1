@@ -3,9 +3,13 @@ package com.hospitua.habitaciones.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hospitua.habitaciones.domain.exception.DuplicateGuestDocumentException;
+import com.hospitua.habitaciones.domain.exception.GuestCountMismatchException;
 import com.hospitua.habitaciones.domain.exception.InvalidCheckInDateException;
+import com.hospitua.habitaciones.domain.exception.InvalidGuestDataException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import com.hospitua.habitaciones.domain.exception.ReservationNotFoundException;
+import com.hospitua.habitaciones.domain.exception.RoomCapacityExceededException;
 import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
 import com.hospitua.habitaciones.domain.exception.StayAlreadyExistsException;
 import java.math.BigDecimal;
@@ -105,6 +109,93 @@ class CheckInEligibilityTest {
         assertThatThrownBy(() -> CheckInEligibility.verify(REF, ROOM_ID, reservation(TODAY), room, false, TODAY))
                 .isInstanceOf(InvalidRoomTransitionException.class)
                 .hasMessageStartingWith("La habitación 204 está Reservada para otra reserva;");
+    }
+
+    @Test
+    @DisplayName("T009: los ocupantes que coinciden con el guestCount y caben en la habitación son aceptados")
+    void verifyGuests_accepted() {
+        CheckInEligibility eligibility = eligibleReservation();
+
+        eligibility.verifyGuests(List.of(guest("CC", "123", true), guest("TI", "456", false)));
+        // El titular puede no alojarse: entonces no es ocupante y no cuenta para el aforo
+        eligibility.verifyGuests(List.of(guest("CC", "777", false), guest("TI", "456", false)));
+    }
+
+    @Test
+    @DisplayName("T021: menos o más ocupantes que el guestCount de la reserva es GUEST_COUNT_MISMATCH")
+    void verifyGuests_countMismatch() {
+        CheckInEligibility eligibility = eligibleReservation();
+
+        assertThatThrownBy(() -> eligibility.verifyGuests(List.of(guest("CC", "123", true))))
+                .isInstanceOf(GuestCountMismatchException.class)
+                .extracting(e -> ((GuestCountMismatchException) e).details())
+                .isEqualTo(Map.of("expectedGuests", 2, "receivedGuests", 1));
+        assertThatThrownBy(() -> eligibility.verifyGuests(
+                        List.of(guest("CC", "1", false), guest("CC", "2", false), guest("CC", "3", false))))
+                .isInstanceOf(GuestCountMismatchException.class);
+    }
+
+    @Test
+    @DisplayName("T021: más ocupantes que la capacidad máxima es ROOM_CAPACITY_EXCEEDED, antes que el guestCount")
+    void verifyGuests_capacityExceeded() {
+        CheckInEligibility eligibility = eligibleReservation();
+
+        assertThatThrownBy(() -> eligibility.verifyGuests(List.of(
+                        guest("CC", "1", false),
+                        guest("CC", "2", false),
+                        guest("CC", "3", false),
+                        guest("CC", "4", false))))
+                .isInstanceOf(RoomCapacityExceededException.class)
+                .extracting(e -> ((RoomCapacityExceededException) e).details())
+                .isEqualTo(Map.of("maxCapacity", 3, "receivedGuests", 4));
+    }
+
+    @Test
+    @DisplayName("T022: dos ocupantes con el mismo tipo y número de documento es DUPLICATE_GUEST_DOCUMENT")
+    void verifyGuests_duplicateDocument() {
+        CheckInEligibility eligibility = eligibleReservation();
+
+        assertThatThrownBy(
+                        () -> eligibility.verifyGuests(List.of(guest("PAS", "ab1", false), guest("PAS", "AB1", false))))
+                .isInstanceOf(DuplicateGuestDocumentException.class)
+                .extracting(e -> ((DuplicateGuestDocumentException) e).details())
+                .isEqualTo(Map.of("guestIndex", 1));
+        eligibility.verifyGuests(List.of(guest("CC", "777", false), guest("TI", "777", false)));
+    }
+
+    @Test
+    @DisplayName("T009: el titular marcado debe tener el documento del titular, y solo puede haber uno")
+    void verifyGuests_reservationGuest() {
+        CheckInEligibility eligibility = eligibleReservation();
+
+        assertThatThrownBy(() -> eligibility.verifyGuests(List.of(guest("CC", "999", true), guest("CC", "1", false))))
+                .isInstanceOf(InvalidGuestDataException.class)
+                .extracting(e -> ((InvalidGuestDataException) e).details())
+                .isEqualTo(Map.of("field", "isReservationGuest", "guestIndex", 0));
+        assertThatThrownBy(() -> eligibility.verifyGuests(List.of(guest("CC", "123", true), guest("CC", "123", true))))
+                .isInstanceOf(InvalidGuestDataException.class)
+                .extracting(e -> ((InvalidGuestDataException) e).details().get("guestIndex"))
+                .isEqualTo(1);
+    }
+
+    private static CheckInEligibility eligibleReservation() {
+        return CheckInEligibility.verify(
+                REF, ROOM_ID, reservation(TODAY), room(RoomStatus.Reserved, REF), false, TODAY);
+    }
+
+    private static CheckInGuest guest(String documentType, String documentNumber, boolean reservationGuest) {
+        return CheckInGuest.of(
+                0,
+                "Ana",
+                "Pérez",
+                documentType,
+                documentNumber,
+                "Colombia",
+                LocalDate.of(1990, 5, 20),
+                null,
+                null,
+                reservationGuest,
+                TODAY);
     }
 
     private static DailyReservation reservation(LocalDate startDate) {

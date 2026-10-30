@@ -336,7 +336,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 2: Foundational Domain & Entities
 
-- [ ] T004 Actualizar entidad de dominio JPA `Stay`:
+- [x] T004 Actualizar entidad de dominio JPA `Stay`:
+  - Hecho (L12): `Stay` ya tenía estos campos desde el plan base; el Check-In la crea con `checkOutDate` nulo y la copia del titular de la copia local.
   - `id` (UUID)
   - `reservationRef` (String)
   - `roomId` (UUID)
@@ -344,7 +345,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - `titularFirstName`, `titularLastName`, `titularDocumentNumber`
   - `checkInDate` (LocalDate), `checkOutDate` (LocalDate nullable)
   - `expectedCheckinDate` (LocalDate), `expectedCheckoutDate` (LocalDate)
-- [ ] T005 Actualizar entidad inmutable `RoomGuest`:
+- [x] T005 Actualizar entidad inmutable `RoomGuest`:
+  - Hecho (L12): `RoomGuest` ya existía; los datos llegan validados por `CheckInGuest.of` (dominio), que deja nulos los lugares de los colombianos.
   - `id` (UUID), `stayId` (UUID)
   - `firstName` (String), `lastName` (String)
   - `documentType` (String), `documentNumber` (String)
@@ -352,7 +354,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - `birthDate` (LocalDate, obligatorio para todos los huéspedes)
   - `originPlace` (String nullable, obligatorio si `nationality ≠ Colombia`)
   - `destinationPlace` (String nullable, obligatorio si `nationality ≠ Colombia`)
-- [ ] T006 Implementar DTOs para el contrato plano hacia `m2.habitacion.checkin.queue`:
+- [x] T006 Implementar DTOs para el contrato plano hacia `m2.habitacion.checkin.queue`:
+  - Hecho (L12): `CheckInMessagePayload.entry(...)` y `GuestMessageDto` en `application/dto`. No llevan `messageId` ni `sequenceNumber`: los antepone `Module2FlatMessageSerializer("CHECK_IN")` del Outbox al publicar, como en el aviso de mantenimiento; `movementDate` viaja como `YYYY-MM-DD` y los lugares nulos no viajan (`non_null`).
   - `CheckInMessagePayload`: `messageId` (UUID), `sequenceNumber` (long, BIGINT en el outbox), `reservationRef` (String), `roomId` (UUID), `movementType` (`MovementType.ENTRY`), `movementDate` (String: YYYY-MM-DD), `guests` (List<GuestMessageDto>).
   - `GuestMessageDto`: `firstName`, `lastName`, `documentType`, `documentNumber`, `nationality`, `birthDate`, `originPlace`, `destinationPlace`.
 - [x] T007 Implementar excepciones de dominio en `GlobalExceptionHandler`: `GuestCountMismatchException`, `RoomCapacityExceededException`, `DuplicateGuestDocumentException`, `InvalidCheckInDateException`, `StayAlreadyExistsException`, con los códigos de la tabla "Errores de los dos endpoints"; `ReservationNotFoundException` es de `plan-consultar-reservas.md`. `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
@@ -369,12 +372,18 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 ### Tests for User Story 1
 
 - [x] T008 [P] [US1] Unit test: Verificar validación del Paso 1 contra la copia local `DailyReservationRepositoryPort` y validación de precondición `Room.status == Reserved` y ausencia de `Stay` para `(reservationRef, roomId)`.
-- [ ] T009 [P] [US1] Unit test: Verificar que el titular queda precargado en solo lectura con el selector de país bloqueado; si se aloja, se registra en `RoomGuest` con `isReservationGuest = true` y `birthDate`; si no se aloja, no aparece en `RoomGuest` ni en `guests[]`, sus datos quedan en `Stay` y el aforo cuenta solo a los ocupantes reales.
-- [ ] T010 [P] [US1] Unit test: Validar rechazo si cualquier huésped no incluye `birthDate` o si es igual o posterior a hoy, si un extranjero no incluye `originPlace` o `destinationPlace`, o si `documentType` no es uno de los códigos admitidos.
-- [ ] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
-- [ ] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `TransitionRoomStateUseCase` con `SourceFlow` = `CHECK_IN`.
-- [ ] T013 [P] [US1] Integration test: Verificar payload insertado en `outbox_notification`: formato plano (sin EventEnvelope), `movementType = ENTRY`, `movementDate = checkInDate`, `guests[]` con todos los ocupantes y `messageId` inmutable en reintentos.
-- [ ] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`, sobre una habitación que `MarkRoomReservedUseCase` dejó en `Reserved`: el check-in la acepta como origen válido hacia `Occupied` y `reserved_by_reservation_ref` queda nulo (*Marcar habitación como reservada*, esc. 2 y FR-010; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
+- [x] T009 [P] [US1] Unit test: Verificar que el titular queda precargado en solo lectura con el selector de país bloqueado; si se aloja, se registra en `RoomGuest` con `isReservationGuest = true` y `birthDate`; si no se aloja, no aparece en `RoomGuest` ni en `guests[]`, sus datos quedan en `Stay` y el aforo cuenta solo a los ocupantes reales.
+  - Hecho (L12): `CheckInEligibilityTest` (titular marcado con su documento, a lo sumo uno, y titular que no se aloja). La precarga en solo lectura es del frontend (T018).
+- [x] T010 [P] [US1] Unit test: Validar rechazo si cualquier huésped no incluye `birthDate` o si es igual o posterior a hoy, si un extranjero no incluye `originPlace` o `destinationPlace`, o si `documentType` no es uno de los códigos admitidos.
+  - Hecho (L12): `CheckInGuestTest` y `CheckInRegistrationIntegrationTest` (400 `VALIDATION_ERROR` con `details.field` y `details.guestIndex`).
+- [x] T011 [P] [US1] Unit test: Verificar que para huéspedes colombianos `originPlace` y `destinationPlace` se persisten como null y no se exigen, y que `birthDate` sí se exige.
+  - Hecho (L12): `CheckInGuestTest` y la integración (columnas `origin_place`/`destination_place` nulas y sin `originPlace` en el mensaje).
+- [x] T012 [P] [US1] Unit test: Verificar que `CheckInExecutionService` transiciona atómicamente `Room.status` a `Occupied` vía `TransitionRoomStateUseCase` con `SourceFlow` = `CHECK_IN`.
+  - Hecho (L12): `CheckInExecutionServiceTest` (estancia, huéspedes, transición `CHECK_IN`, auditoría y Outbox en ese orden; un rechazo no escribe nada).
+- [x] T013 [P] [US1] Integration test: Verificar payload insertado en `outbox_notification`: formato plano (sin EventEnvelope), `movementType = ENTRY`, `movementDate = checkInDate`, `guests[]` con todos los ocupantes y `messageId` inmutable en reintentos.
+  - Hecho (L12): `CheckInRegistrationIntegrationTest` revisa la fila de `outbox_notification`. Que el `messageId` no cambie en los reintentos lo cubre el worker del plan base (T024).
+- [x] T014 [P] [US1] Integration test con Testcontainers para `POST /api/check-in` retornando HTTP 201 Created y `CheckInResultDto`, sobre una habitación que `MarkRoomReservedUseCase` dejó en `Reserved`: el check-in la acepta como origen válido hacia `Occupied` y `reserved_by_reservation_ref` queda nulo (*Marcar habitación como reservada*, esc. 2 y FR-010; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
+  - Hecho (L12): `CheckInRegistrationIntegrationTest` (201, `Stay`, `RoomGuest`, habitación `Occupied` con `reserved_by_reservation_ref` nulo, historial y auditoría).
 
 ### Implementation for User Story 1
 
@@ -383,7 +392,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Búsqueda en copia local `daily_reservation` y `daily_reservation_room` mediante `DailyReservationRepositoryPort`, el puerto de la copia local de `plan-consultar-reservas.md` (implementado por `DailyReservationRepositoryAdapter`), usado aquí solo para lectura y sin un segundo origen de datos.
   - Validación de existencia y no duplicidad de `Stay` previo para ese `(reservationRef, roomId)`.
   - Validación de habitación física en estado `Reserved` con `reservedByReservationRef == reservationRef`.
-- [ ] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
+- [x] T016 [P] [US1] Implementar en `CheckInExecutionService` el método `@Transactional registerCheckIn(RegisterCheckInCommand command)`:
+  - Hecho (L12): bloquea la habitación con `lockById` antes de repetir `CheckInEligibility.verify`, valida los ocupantes con `CheckInGuest.of` y `verifyGuests` (titular, aforo físico, `guestCount` y documentos, en ese orden) y luego escribe todo en una transacción.
   - Validar lista de huéspedes: presencia obligatoria de nombres, apellidos y documentos; como mucho un ocupante con `isReservationGuest = true`, y que coincida con el titular de la copia local (el titular puede no alojarse).
   - Validar `birthDate < LocalDate.now(clock)` (regla 6 del plan base) y `documentType` admitido para todos los huéspedes, y `originPlace` y `destinationPlace` no vacíos para extranjeros.
   - Validar aforo: la cantidad de ocupantes debe ser igual a `guest_count` de la habitación en `daily_reservation_room` (`GuestCountMismatchException`) y nunca mayor que `room.maxCapacity` (`RoomCapacityExceededException`).
@@ -394,8 +404,8 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Ejecutar transición `Reserved → Occupied` con `TransitionRoomStateUseCase.transition(roomId, Occupied, recepcionista, CHECK_IN, reservationRef)`, que registra el periodo en `room_state_history` (regla 8 del plan base) y, al salir de `Reserved`, limpia `reserved_by_reservation_ref` (regla 2 del plan base).
   - Construir el mensaje plano `CheckInMessagePayload`; `messageId` y `sequenceNumber` (creciente por cola, nunca reiniciado) los asigna `OutboxEventPublisherPort.enqueue(...)` (plan base, T012).
   - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkin", "CHECK_IN", payload)` dentro de la misma transacción, para su publicación asíncrona hacia `m2.habitacion.checkin.queue`.
-- [ ] T017 [US1] Implementar controlador REST `CheckInController`:
-  - Avance (L11): hecho `GET /api/check-in/validate` (`reservationRef` obligatorio, máximo 100 caracteres). Falta `POST /api/check-in` (L12).
+- [x] T017 [US1] Implementar controlador REST `CheckInController`:
+  - Hecho: `GET /api/check-in/validate` (L11) y `POST /api/check-in` (L12), que responde 201 y toma el recepcionista de `X-User`; el cuerpo solo exige la forma (`RegisterCheckInRequest`).
   - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1; Endpoint 1).
   - `POST /api/check-in` (confirmación del Paso 3; Endpoint 2).
 - [ ] T018 [US1] Construir el flujo de 4 pasos en `pages/checkin/` y `checkInService.ts` (Endpoints 1 y 2) (FR-002):
@@ -415,9 +425,12 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 - [x] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación no está en `Reserved`, incluido `Available`, o si está apartada para otra reserva (`InvalidRoomTransitionException`).
 - [x] T020 [P] [US2] Unit test: Rechazar Check-In si ya existe una estancia (activa o cerrada) para el par `reservationRef` y `roomId` (`StayAlreadyExistsException`).
-- [ ] T021 [P] [US2] Unit test: Rechazar Check-In si el número de ocupantes supera el `guest_count` de la habitación (`GuestCountMismatchException`) o la capacidad física (`RoomCapacityExceededException`).
-- [ ] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
+- [x] T021 [P] [US2] Unit test: Rechazar Check-In si el número de ocupantes supera el `guest_count` de la habitación (`GuestCountMismatchException`) o la capacidad física (`RoomCapacityExceededException`).
+  - Hecho (L12): `CheckInEligibilityTest` y la integración (400 con `expectedGuests`/`receivedGuests` y `maxCapacity`).
+- [x] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
+  - Hecho (L12): `CheckInEligibilityTest` y la integración (400 con el `guestIndex` del repetido; el número se compara sin mayúsculas).
 - [ ] T023 [P] [US2] Integration test: Simular fallo de RabbitMQ durante la publicación; comprobar que la transacción local de `Stay` y `Room.status = Occupied` queda en firme y el outbox reintenta con el mismo `messageId`.
+  - Pendiente: el Check-In ya encola en la misma transacción, así que la caída de RabbitMQ no lo revierte; falta la prueba con el broker caído.
 
 ### Implementation for User Story 2
 
