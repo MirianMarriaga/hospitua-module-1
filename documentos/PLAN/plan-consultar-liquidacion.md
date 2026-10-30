@@ -217,7 +217,7 @@ Host: modulo3.sistema.local
 
 **Headers de respuesta**: `Content-Type: application/json`, `Cache-Control: no-store`.
 
-**Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista). Regla general: cualquier respuesta no 2xx con cuerpo `ApiError` → `UNAVAILABLE` con causa = `errorCode`; sin cuerpo `ApiError` → causa `HTTP_ERROR`; timeout → `TIMEOUT`; error de red → `CONNECTION_ERROR`. Códigos que devuelve Módulo 3:
+**Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista). Regla general: cualquier respuesta no 2xx con cuerpo `ApiError` → `UNAVAILABLE` con causa = `errorCode`; sin cuerpo `ApiError` → causa `HTTP_ERROR`; timeout de lectura → `TIMEOUT`; error de red o de conexión → `CONNECTION_ERROR`; liquidación ilegible → `INVALID_RESPONSE`; circuito abierto → `CIRCUIT_OPEN`. Códigos que devuelve Módulo 3:
 
 | Código | Caso | Excepción en Módulo 1 | Resultado en Módulo 1 |
 | --- | --- | --- | --- |
@@ -228,8 +228,10 @@ Host: modulo3.sistema.local
 | `422` | Error inesperado (`UNEXPECTED_ERROR`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `UNEXPECTED_ERROR` |
 | `424` | Módulo 2 no disponible (`MODULE2_UNAVAILABLE`) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `MODULE2_UNAVAILABLE` |
 | Otro no 2xx | Sin cuerpo `ApiError` | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `HTTP_ERROR` |
-| Timeout | Sin respuesta en 3 s | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `TIMEOUT` |
-| Red | Error de red | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `CONNECTION_ERROR` |
+| Timeout | Sin respuesta en 3 s (timeout de lectura) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `TIMEOUT` |
+| Red | Error de red, incluido no poder conectar en 1 s (timeout de conexión) | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `CONNECTION_ERROR` |
+| `200` ilegible | La liquidación no se puede leer, o le falta el tipo, el desglose o un monto obligatorio, o un monto no es decimal | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `INVALID_RESPONSE` |
+| Circuito abierto | El circuito `module3` no deja llamar; no se consulta a Módulo 3 | `ExternalModule3UnavailableException` (causa en `unavailableCause`) | `UNAVAILABLE` + causa `CIRCUIT_OPEN` |
 
 **Paginación**: no aplica.
 
@@ -381,7 +383,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 - [x] T022 [US2] Traducir errores HTTP, timeouts y errores de red a `ExternalModule3UnavailableException` en `SettlementRestAdapter` (depende de T004, T010)
   - Hecho (L13): además de las causas de la tabla, `INVALID_RESPONSE` para una liquidación ilegible o con un monto ausente o no decimal, y `CIRCUIT_OPEN` cuando el circuito no deja llamar. Un connect-timeout cuenta como `CONNECTION_ERROR`; solo el read-timeout es `TIMEOUT`.
-- [x] T023 [US2] Aplicar `@CircuitBreaker` de Resilience4j a la llamada, sin reintentos; el límite de 3 s lo da el timeout de lectura de `RestClient` (regla 5 del plan base), porque `@TimeLimiter` solo funciona con llamadas asíncronas
+- [x] T023 [US2] Aplicar `@CircuitBreaker` de Resilience4j a la llamada, sin reintentos; el límite de 3 s lo da el timeout de lectura de `RestClient` (regla 5 del plan base), porque `@TimeLimiter` solo funciona con llamadas asíncronas. El circuito solo cuenta las caídas (sin respuesta, error de red o 5xx); los 4xx llegan rápido y son respuestas de negocio de una estancia, así que no lo abren
   - Hecho (L13): circuito `module3` en `application.yml` (ventana de 10 llamadas, mínimo 5, 50 % de fallas, 30 s abierto, sin reintentos). `Module3OutagePredicate` solo cuenta las caídas (timeout, red y 5xx), no los 4xx de negocio. `SettlementCircuitBreakerIntegrationTest` lo prueba con la configuración real.
 - [ ] T024 [US2] En `SettlementQueryService`, capturar la excepción y devolver `status=UNAVAILABLE` con `unavailableCause`, sin montos parciales ni calculados
 - [ ] T025 [US2] Mapear `UNAVAILABLE` como respuesta `200` controlada en `SettlementController` y registrar la contingencia
