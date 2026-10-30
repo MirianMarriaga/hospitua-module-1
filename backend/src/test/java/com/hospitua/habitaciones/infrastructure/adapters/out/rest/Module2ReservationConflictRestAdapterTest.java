@@ -35,8 +35,8 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Cliente de {@code GET /api/reservations} de Módulo 2 contra WireMock (consultar-reservas T023, T024). El read-timeout
- * es de 2 s, con margen para la primera petición a WireMock en frío, que en equipos lentos supera los 500 ms; los
- * timeouts reales los cubre {@code RestClientTimeoutWireMockTest}.
+ * es de 2 s y WireMock se calienta antes de las pruebas, porque la primera petición en frío es lenta en equipos con poca
+ * CPU libre; los timeouts reales los cubre {@code RestClientTimeoutWireMockTest}.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class Module2ReservationConflictRestAdapterTest {
@@ -70,6 +70,21 @@ class Module2ReservationConflictRestAdapterTest {
         module2 = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         module2.start();
         adapter = adapterFor("http://localhost:" + module2.port());
+        warmUp();
+    }
+
+    /**
+     * Una petición descartada antes de las pruebas: la primera contra WireMock en frío carga el cliente y el servidor, y
+     * con la suite completa corriendo en paralelo superaba el read-timeout aunque fuera de 2 s.
+     */
+    private static void warmUp() {
+        stubReservations(200, "{\"items\":[]}");
+        try {
+            adapter.checkConflicts(QUERY);
+        } catch (ExternalModule2UnavailableException slowFirstRequest) {
+            // Solo importa haber cargado las clases; las pruebas empiezan con los stubs limpios
+        }
+        module2.resetAll();
     }
 
     @AfterAll
