@@ -16,6 +16,7 @@ public enum DomainError {
     TASK_NOT_OWNED(ErrorCategory.FORBIDDEN),
     CURRENT_USER_REQUIRED(ErrorCategory.INVALID_REQUEST),
     VALIDATION_ERROR(ErrorCategory.INVALID_REQUEST),
+    INVALID_DATE_RANGE(ErrorCategory.INVALID_REQUEST),
     INVALID_CREDENTIALS(ErrorCategory.UNAUTHORIZED);
 
     private final ErrorCategory category;
