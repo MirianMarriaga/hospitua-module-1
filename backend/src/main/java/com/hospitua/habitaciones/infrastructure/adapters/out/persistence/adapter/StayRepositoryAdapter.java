@@ -2,10 +2,10 @@ package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.adapte
 
 import com.hospitua.habitaciones.application.ports.out.StayRepositoryPort;
 import com.hospitua.habitaciones.domain.model.DepartureSummary;
-import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.Stay;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.StayJpaEntity;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.StayMapper;
+import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.DepartureRow;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.SpringDataStayJpaRepository;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -45,16 +45,16 @@ public class StayRepositoryAdapter implements StayRepositoryPort {
     @Override
     public List<DepartureSummary> searchActiveDepartures(LocalDate today, String normalizedQuery) {
         // Una sola consulta: la estancia, su habitación y el conteo de huéspedes
-        List<Object[]> rows = normalizedQuery == null
+        List<DepartureRow> rows = normalizedQuery == null
                 ? stayJpaRepository.findActiveDepartures(today)
                 : stayJpaRepository.searchActiveDepartures(
                         today, normalizedQuery, LikePatterns.containing(normalizedQuery));
         return rows.stream()
                 .map(row -> DepartureSummary.of(
-                        stayMapper.toDomain((StayJpaEntity) row[0]),
-                        (String) row[1],
-                        (RoomCategory) row[2],
-                        ((Number) row[3]).intValue(),
+                        stayMapper.toDomain(row.stay()),
+                        row.roomNumber(),
+                        row.categoryRoom(),
+                        row.guestCount().intValue(),
                         today))
                 .sorted(DEPARTURE_ORDER)
                 .toList();

@@ -52,9 +52,9 @@ class ReceptionPanelQueryServiceTest {
     @DisplayName("T020: los cuatro KPIs salen de la copia local, las estancias y el inventario, con hoy de Bogotá")
     void computesTheFourKpis() {
         when(reservationRepository.isDailyListReceived(TODAY)).thenReturn(true);
-        when(reservationRepository.countPendingArrivalRooms(TODAY)).thenReturn(12);
+        when(reservationRepository.countPendingArrivalRooms(TODAY)).thenReturn(12L);
 
-        assertThat(service.getKpis()).isEqualTo(new ReceptionDashboardKpis(12, 8, 1, 34));
+        assertThat(service.getKpis()).isEqualTo(new ReceptionDashboardKpis(12L, 8, 1, 34));
     }
 
     @Test

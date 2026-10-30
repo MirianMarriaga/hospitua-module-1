@@ -31,7 +31,7 @@ public class ReceptionPanelQueryService implements GetReceptionPanelUseCase {
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ReceptionDashboardKpis getKpis() {
         LocalDate today = LocalDate.now(clock);
-        Integer arrivalsToday = reservationRepository.isDailyListReceived(today)
+        Long arrivalsToday = reservationRepository.isDailyListReceived(today)
                 ? reservationRepository.countPendingArrivalRooms(today)
                 : null;
         return new ReceptionDashboardKpis(

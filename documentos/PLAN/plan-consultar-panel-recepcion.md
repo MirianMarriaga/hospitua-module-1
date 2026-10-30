@@ -102,7 +102,7 @@ Accept: application/json
 | `groups[].rooms[].guestCount` | entero | Personas de la habitación | `2` |
 | `groups[].rooms[].source` | string | `DIRECTA` o el nombre de la OTA, tal como llega | `"BOOKING"` |
 | `groups[].rooms[].roomStatus` | string | Estado actual de la habitación | `"Reserved"` |
-| `groups[].rooms[].notice` | object \| null | Aviso de la fila; nulo si la habitación está en `Reserved` o `Available` | `null` |
+| `groups[].rooms[].notice` | object (opcional) | Aviso de la fila; no viene en la respuesta si la habitación está en `Reserved` o `Available` (los nulos se omiten, `default-property-inclusion: non_null`) | |
 | `groups[].rooms[].notice.type` | string | `UNAVAILABLE` (alerta: `DisabledForRepairs`, `TechnicalBlock` o `Inactive`) o `PENDING_ASSIGNMENT` (informativo: `Occupied`, `PendingCleaning` o `InCleaning`) | `"UNAVAILABLE"` |
 | `groups[].rooms[].notice.text` | string | "No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza", con el estado en español | `"No disponible: Bloqueo técnico"` |
 
@@ -129,8 +129,7 @@ Accept: application/json
           "nights": 3,
           "guestCount": 2,
           "source": "BOOKING",
-          "roomStatus": "Reserved",
-          "notice": null
+          "roomStatus": "Reserved"
         },
         {
           "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
@@ -268,7 +267,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `arrivalsToday` | entero \| null | Habitaciones de la copia local sin `Stay`; nulo si la lista de las 00:00 no ha llegado (el frontend muestra "—", FR-011) | `12` |
+| `arrivalsToday` | entero (opcional) | Habitaciones de las reservas del día sin `Stay` que existen en el inventario: las mismas filas de la pestaña Llegadas. No viene en la respuesta si la lista de las 00:00 no ha llegado (los nulos se omiten); el frontend muestra "—" (FR-011) | `12` |
 | `departuresToday` | entero | Estancias activas con `expectedCheckoutDate` = hoy | `8` |
 | `overdueDepartures` | entero | Estancias activas con `expectedCheckoutDate` anterior a hoy (tarjeta de alerta) | `1` |
 | `occupiedRooms` | entero | Habitaciones en `Occupied` | `34` |

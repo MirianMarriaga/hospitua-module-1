@@ -63,5 +63,5 @@ public interface DailyReservationRepositoryPort {
      * Habitaciones de las reservas del día sin {@code Stay} que existen en el inventario: las filas de la pestaña
      * Llegadas sin filtro (KPI "Llegadas de hoy").
      */
-    int countPendingArrivalRooms(LocalDate operationalDate);
+    long countPendingArrivalRooms(LocalDate operationalDate);
 }
