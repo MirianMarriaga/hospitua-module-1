@@ -158,6 +158,17 @@ class ReceptionArrivalsIntegrationTest {
                 .andExpect(jsonPath("$.groups", hasSize(0)));
     }
 
+    @Test
+    @DisplayName("Una búsqueda de más de 100 caracteres responde 400 VALIDATION_ERROR sin consultar")
+    void arrivals_tooLongQuery_isRejected() throws Exception {
+        mockMvc.perform(get("/api/reception/arrivals").param("query", "a".repeat(101)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value("query"));
+        mockMvc.perform(get("/api/reception/arrivals").param("query", "a".repeat(100)))
+                .andExpect(status().isOk());
+    }
+
     private void givenTodaysListReceived() {
         reservationRepository.logMessage(new DailyReservationMessageLog(
                 UUID.randomUUID().toString(),

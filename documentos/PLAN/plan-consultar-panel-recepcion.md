@@ -72,7 +72,7 @@ Accept: application/json
 
 | Parámetro | Ubicación | Tipo | Obligatorio | Descripción | Ejemplo |
 | --- | --- | --- | --- | --- | --- |
-| `query` | query | string | No | Nombre o apellido del titular, número de documento o `reservationRef` (sin distinguir mayúsculas ni espacios sobrantes) (FR-003) | `González` |
+| `query` | query | string | No | Máximo 100 caracteres. Sin distinguir mayúsculas, sin espacios al inicio ni al final y con los espacios repetidos reducidos a uno: `reservationRef` y número de documento del titular se comparan **exactos**; nombre, apellido o nombre completo del titular, **por parte** del texto (FR-003) | `González` |
 
 **Body (JSON):** No aplica.
 
@@ -88,7 +88,7 @@ Accept: application/json
 | `groups` | array | Una entrada por reserva con habitaciones pendientes de Check-In | |
 | `groups[].reservationRef` | string | Referencia de la reserva | `"RES-10482"` |
 | `groups[].pendingRooms` | entero | Habitaciones de la reserva sin `Stay` | `1` |
-| `groups[].totalRooms` | entero | Habitaciones de la reserva (el frontend muestra "RES-10482 · 1 de 2 pendientes", FR-005) | `2` |
+| `groups[].totalRooms` | entero | Habitaciones de la reserva (el frontend muestra "RES-10482 · 1 de 2 pendientes", FR-005). Incluye una habitación que Módulo 2 envió y no existe en el inventario; esa no aparece en `rooms` porque no se le puede hacer check-in | `2` |
 | `groups[].rooms` | array | Una fila por habitación pendiente (FR-005) | |
 | `groups[].rooms[].roomId` | UUID | Habitación asignada | `"3f1c…"` |
 | `groups[].rooms[].roomNumber` | string | Número de habitación | `"304"` |
@@ -102,7 +102,7 @@ Accept: application/json
 | `groups[].rooms[].guestCount` | entero | Personas de la habitación | `2` |
 | `groups[].rooms[].source` | string | `DIRECTA` o el nombre de la OTA, tal como llega | `"BOOKING"` |
 | `groups[].rooms[].roomStatus` | string | Estado actual de la habitación | `"Reserved"` |
-| `groups[].rooms[].notice` | object \| null | Aviso de la fila; nulo si la habitación está en `Reserved` | `null` |
+| `groups[].rooms[].notice` | object \| null | Aviso de la fila; nulo si la habitación está en `Reserved` o `Available` | `null` |
 | `groups[].rooms[].notice.type` | string | `UNAVAILABLE` (alerta: `DisabledForRepairs`, `TechnicalBlock` o `Inactive`) o `PENDING_ASSIGNMENT` (informativo: `Occupied`, `PendingCleaning` o `InCleaning`) | `"UNAVAILABLE"` |
 | `groups[].rooms[].notice.text` | string | "No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza", con el estado en español | `"No disponible: Bloqueo técnico"` |
 
@@ -157,7 +157,11 @@ Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` 
 
 ### Respuestas de error
 
-No tiene errores propios; un fallo inesperado se responde con el formato `ApiError` del plan base.
+| Status Code | errorCode | Excepción | Cuándo ocurre |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `ConstraintViolationException` | `query` de más de 100 caracteres (`details.field` = `query`) |
+
+Un fallo inesperado se responde con el formato `ApiError` del plan base.
 
 ---
 
