@@ -242,10 +242,10 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("ExternalModule2UnavailableException traduce a MODULE_2_UNAVAILABLE (503)")
+    @DisplayName("ExternalModule2UnavailableException traduce a MODULE_2_UNAVAILABLE (424, regla \"siempre 4xx\")")
     void shouldHandleExternalModule2UnavailableException() throws Exception {
         mockMvc.perform(get("/test/module2-unavailable"))
-                .andExpect(status().isServiceUnavailable())
+                .andExpect(status().is(424))
                 .andExpect(jsonPath("$.errorCode", is("MODULE_2_UNAVAILABLE")))
                 .andExpect(jsonPath("$.message", is("Servicio de reservas temporalmente no disponible.")))
                 .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));

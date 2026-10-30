@@ -19,7 +19,7 @@ public enum DomainError {
     VALIDATION_ERROR(ErrorCategory.INVALID_REQUEST),
     INVALID_DATE_RANGE(ErrorCategory.INVALID_REQUEST),
     INVALID_CREDENTIALS(ErrorCategory.UNAUTHORIZED),
-    MODULE_2_UNAVAILABLE(ErrorCategory.UNAVAILABLE);
+    MODULE_2_UNAVAILABLE(ErrorCategory.DEPENDENCY_FAILED);
 
     private final ErrorCategory category;
 

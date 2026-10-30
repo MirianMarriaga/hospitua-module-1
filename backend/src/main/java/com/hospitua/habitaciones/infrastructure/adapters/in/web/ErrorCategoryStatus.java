@@ -17,7 +17,7 @@ final class ErrorCategoryStatus {
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case INVALID_REQUEST -> HttpStatus.BAD_REQUEST;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case DEPENDENCY_FAILED -> HttpStatus.FAILED_DEPENDENCY;
         };
     }
 }

@@ -9,6 +9,9 @@ public enum ErrorCategory {
     FORBIDDEN,
     INVALID_REQUEST,
     UNAUTHORIZED,
-    /** Un módulo externo no responde y la operación no se puede verificar. */
-    UNAVAILABLE
+    /**
+     * Un módulo del que depende la operación no respondió y la operación no puede continuar (424). La liquidación de
+     * Módulo 3 no la usa: es informativa y responde 200 con UNAVAILABLE.
+     */
+    DEPENDENCY_FAILED
 }

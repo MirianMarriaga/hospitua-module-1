@@ -18,9 +18,10 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Cliente de {@code GET /api/reservations?dateFrom&dateTo&roomId} de Módulo 2 (consultar-reservas T003, T026), con los
- * timeouts de {@code module2RestClient}. Toda falla (4xx, 5xx, timeout, caída o respuesta ilegible) termina en
- * {@link ExternalModule2UnavailableException}, también una reserva sin referencia, estado o fechas; un 4xx además deja una alerta de configuración en el log de errores con
- * el {@code errorCode} de Módulo 2, porque indica un contrato roto (p. ej. {@code INVALID_CLIENT}) y no una caída.
+ * timeouts de {@code module2RestClient}. Toda falla termina en {@link ExternalModule2UnavailableException}: 4xx, 5xx,
+ * timeout, caída, respuesta ilegible o sin {@code items}, o una reserva sin referencia, estado o fechas. Un 4xx además
+ * deja una alerta de configuración en el log de errores con el {@code errorCode} de Módulo 2, porque indica un contrato
+ * roto (p. ej. {@code INVALID_CLIENT}) y no una caída.
  */
 @Slf4j
 @Component
@@ -38,9 +39,13 @@ public class Module2ReservationConflictRestAdapter implements Module2Reservation
 
     @Override
     public ReservationConflictResult checkConflicts(ReservationConflictQuery query) {
-        ReservationsResponse response;
+        return toResult(query, requestReservations(query));
+    }
+
+    /** Llama a Módulo 2 y traduce cualquier error HTTP o de red a {@link ExternalModule2UnavailableException}. */
+    private ReservationsResponse requestReservations(ReservationConflictQuery query) {
         try {
-            response = restClient
+            return restClient
                     .get()
                     .uri(uri -> uri.path(RESERVATIONS_PATH)
                             .queryParam("dateFrom", query.startDate())
@@ -66,6 +71,10 @@ public class Module2ReservationConflictRestAdapter implements Module2Reservation
                     ex.getMessage());
             throw new ExternalModule2UnavailableException(ex);
         }
+    }
+
+    /** Valida la respuesta y la convierte: sin {@code items} o con una reserva incompleta cuenta como ilegible. */
+    private static ReservationConflictResult toResult(ReservationConflictQuery query, ReservationsResponse response) {
         if (response == null || response.items() == null) {
             log.warn("Módulo 2 respondió la consulta de reservas de la habitación {} sin items", query.roomId());
             throw new ExternalModule2UnavailableException(new IllegalStateException("Respuesta sin items"));
