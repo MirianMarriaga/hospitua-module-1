@@ -282,7 +282,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar las propiedades de integración de Módulo 2 en `application.yml` (`Module2Properties`, plan base T013):
+- [x] T001 Verificar las propiedades de integración de Módulo 2 en `application.yml` (`Module2Properties`, plan base T013):
 
   ```yaml
   hospitua:
@@ -293,7 +293,8 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   ```
 
 - [ ] T002 Verificar en `RabbitConfig.java` (plan base, T011) la cola durable `m1.reservas.diarias.queue`, el exchange topic `hospitua.events`, los bindings `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` y la cola de mensajes fallidos `m1.reservas.diarias.dlq`.
-- [ ] T003 Crear el `RestClient` hacia Módulo 2 con los timeouts de `RestClientConfig` (plan base, T013: 1 s conexión, 2 s lectura) y el mapeo de errores HTTP 4xx/5xx que usa `Module2ReservationConflictRestAdapter.java` (T026).
+- [x] T003 Crear el `RestClient` hacia Módulo 2 con los timeouts de `RestClientConfig` (plan base, T013: 1 s conexión, 2 s lectura) y el mapeo de errores HTTP 4xx/5xx que usa `Module2ReservationConflictRestAdapter.java` (T026).
+  - Hecho: `Module2ReservationConflictRestAdapter` usa el bean `module2RestClient` de `RestClientConfig`; cualquier 4xx, 5xx, timeout, caída o respuesta ilegible termina en `ExternalModule2UnavailableException` (L24).
 
 ---
 
@@ -305,10 +306,11 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
   - `daily_reservation_message_log`: `message_id` (PK VARCHAR(100)), `sequence_number` BIGINT, `operational_date` DATE NOT NULL, `message_type` VARCHAR(50), `reservation_ref` VARCHAR(50) nullable (la reserva de cada actualización), `received_at` TIMESTAMP, con índice `(operational_date, reservation_ref, sequence_number)` para la última secuencia aplicada de cada reserva y con índice `(operational_date, message_type)`.
 - [x] T005 Implementar entidades JPA `DailyReservationJpaEntity`, `DailyReservationRoomJpaEntity` y `DailyReservationMessageLogJpaEntity`.
 - [ ] T006 Implementar modelos de dominio `DailyReservation`, `DailyReservationRoom`, `ReservationConflictQuery`, `ReservationConflictResult` y `ArrivalGroup` (sus `rooms` son `ArrivalItemSummary`, `plan-consultar-panel-recepcion.md`).
-  - Avance: hechos `DailyReservation` y `DailyReservationRoom` (L05). Faltan `ArrivalGroup` (L08) y `ReservationConflictQuery`/`ReservationConflictResult` (L24).
+  - Avance: hechos `DailyReservation` y `DailyReservationRoom` (L05). Hechos `ReservationConflictQuery` y `ReservationConflictResult` (L24). Falta `ArrivalGroup` (L08).
 - [ ] T007 Implementar interfaces de puertos: `IngestDailyReservationsUseCase`, `SearchDailyReservationsUseCase`, `CheckRoomReservationConflictsUseCase`, `DailyReservationRepositoryPort`, `Module2ReservationConflictClientPort`. `DailyReservationRepositoryPort` incluye `Optional<String> findPendingArrivalReservationRef(UUID roomId, LocalDate operationalDate)`: la reserva del día (`start_date = operationalDate`) asignada a la habitación que todavía no tiene una `Stay` para esa habitación (el mismo criterio de "pendiente" que `pendingRooms`, T020); la usa `plan-confirmar-fin-de-limpieza.md`.
-  - Avance: hechos `DailyReservationRepositoryPort` (L05) e `IngestDailyReservationsUseCase` (L06). Faltan `SearchDailyReservationsUseCase` (L08), `CheckRoomReservationConflictsUseCase` y `Module2ReservationConflictClientPort` (L24).
+  - Avance: hechos `DailyReservationRepositoryPort` (L05) e `IngestDailyReservationsUseCase` (L06). Hechos `CheckRoomReservationConflictsUseCase` y `Module2ReservationConflictClientPort` (L24). Falta `SearchDailyReservationsUseCase` (L08).
 - [ ] T008 Registrar excepciones con formato `ApiError` en `GlobalExceptionHandler`: `ReservationNotFoundException`, `ExternalModule2UnavailableException`.
+  - Avance: hecha `ExternalModule2UnavailableException` (503 `MODULE_2_UNAVAILABLE`, categoría `UNAVAILABLE` de `DomainError`; L24). Falta `ReservationNotFoundException`, con su primer consumidor.
 
 ---
 
@@ -450,24 +452,24 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Unit test en `RoomReservationConflictServiceTest`:
+- [x] T022 [P] [US3] Unit test en `RoomReservationConflictServiceTest`:
   - Consulta de "Dar de baja" con `startDate = hoy` y `endDate = hoy + 365 días`.
   - Validación de consulta para Bloqueo Técnico con `startDate` y `endDate` válidos (`startDate <= endDate`).
   - Mapeo de `items` vacío (`hasConflict = false`) y de `items` con reservas (`hasConflict = true`, con cada reserva devuelta).
   - Lanzamiento de `ExternalModule2UnavailableException` ante fallo o timeout del cliente REST.
-- [ ] T023 [P] [US3] Integration test con `MockRestServiceServer` para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con la cabecera `X-Client: MODULE1`, respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout, `5xx` o cualquiera de los `400` de Módulo 2 (incluido `INVALID_CLIENT`).
-- [ ] T024 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones.
+- [x] T023 [P] [US3] Integration test con WireMock (en lugar de `MockRestServiceServer`, para probar el timeout y la conexión rechazada con HTTP real) para `Module2ReservationConflictRestAdapter`: llamada a `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` con la cabecera `X-Client: MODULE1`, respuesta 200 OK con reservas y propagación de `ExternalModule2UnavailableException` ante timeout, `5xx` o cualquiera de los `400` de Módulo 2 (incluido `INVALID_CLIENT`).
+- [x] T024 [P] [US3] Contract test de `Module2ReservationConflictRestAdapter` con el ejemplo del punto 4: parámetros `dateFrom`/`dateTo`/`roomId` y lectura de `items[]` con sus habitaciones. Las habitaciones de cada reserva se aceptan pero no se leen: ningún flujo las usa (`details.reservations` solo lleva `reservationRef`, `startDate`, `endDate` y `status`).
 
 ### Implementation for User Story 3
 
-- [ ] T025 [P] [US3] Implementar puerto de salida `Module2ReservationConflictClientPort` con el método:
-  `ReservationConflictResult checkConflicts(UUID roomId, LocalDate startDate, LocalDate endDate)`.
-- [ ] T026 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` mediante `RestClient` con la cabecera `X-Client: MODULE1` en cada petición y timeouts estrictos. Ante un `400`, registra el `errorCode` de Módulo 2 como alerta de configuración en el log de errores (patrón de `OUTBOX_PUBLISH_FAILED` del plan base) y lanza `ExternalModule2UnavailableException`; la respuesta al usuario sigue siendo `503 MODULE_2_UNAVAILABLE`.
-- [ ] T027 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
+- [x] T025 [P] [US3] Implementar puerto de salida `Module2ReservationConflictClientPort` con el método:
+  `ReservationConflictResult checkConflicts(ReservationConflictQuery query)`; la consulta (`roomId`, `startDate`, `endDate`) valida que el fin no sea anterior al inicio.
+- [x] T026 [P] [US3] Implementar `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations?dateFrom={startDate}&dateTo={endDate}&roomId={roomId}` mediante `RestClient` con la cabecera `X-Client: MODULE1` en cada petición y timeouts estrictos. Ante un `400`, registra el `errorCode` de Módulo 2 como alerta de configuración en el log de errores (patrón de `OUTBOX_PUBLISH_FAILED` del plan base) y lanza `ExternalModule2UnavailableException`; la respuesta al usuario sigue siendo `503 MODULE_2_UNAVAILABLE`.
+- [x] T027 [P] [US3] Implementar puerto de entrada `CheckRoomReservationConflictsUseCase` y el servicio `RoomReservationConflictService`:
   - Método `checkMaintenanceConflict(UUID roomId, LocalDate startDate, LocalDate endDate)`
   - Método `checkDecommissionConflict(UUID roomId)` (calcula automáticamente `startDate = LocalDate.now(clock)` y `endDate = startDate.plusDays(365)`).
-- [ ] T028 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
-- [ ] T029 [P] [US3] Implementar y registrar en `GlobalExceptionHandler` `ReservationConflictException` (409 `RESERVATION_CONFLICT`; este plan es su único dueño, catálogo del plan base) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
+- [x] T028 [P] [US3] Exponer `checkMaintenanceConflict` y `checkDecommissionConflict` solo como puerto interno, sin endpoints REST propios: los usan `POST /api/rooms/{roomId}/technical-blocks` (`plan-programar-bloqueo-tecnico-para-habitacion.md`) y `POST /api/rooms/{roomId}/decommission` (`plan-dar-de-baja-habitacion.md`).
+- [x] T029 [P] [US3] Implementar y registrar en `GlobalExceptionHandler` `ReservationConflictException` (409 `RESERVATION_CONFLICT`; este plan es su único dueño, catálogo del plan base) compartida por la baja y el bloqueo, con `details.reservations` (`reservationRef`, `startDate`, `endDate`, `status` de cada reserva devuelta).
 
 ---
 

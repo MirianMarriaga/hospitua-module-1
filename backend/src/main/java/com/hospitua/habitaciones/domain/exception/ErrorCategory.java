@@ -8,5 +8,7 @@ public enum ErrorCategory {
     CONFLICT,
     FORBIDDEN,
     INVALID_REQUEST,
-    UNAUTHORIZED
+    UNAUTHORIZED,
+    /** Un módulo externo no responde y la operación no se puede verificar. */
+    UNAVAILABLE
 }
