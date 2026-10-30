@@ -194,8 +194,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Crear la migración `V5__room_state_history_indexes.sql` con índices sobre `room_state_history(room_id, start_date_time)` y `room_state_history(status, start_date_time)` (SC-001).
-- [ ] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico (`start_date_time, room_number, end_date_time ASC NULLS LAST, id`) y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
+- [x] T001 Crear la migración `V5__room_state_history_indexes.sql` con índices sobre `room_state_history(room_id, start_date_time)` y `room_state_history(status, start_date_time)` (SC-001).
+- [x] T002 [P] Agregar a `RoomStateHistoryRepositoryPort` la operación `search(RoomStateHistoryFilter filter, int page)` e implementarla en `RoomStateHistoryRepositoryAdapter` con `RoomStateHistoryQueryRepository` (filtros combinables, cruce de rango de fechas, orden cronológico (`start_date_time, room_number, end_date_time ASC NULLS LAST, id`) y paginación de 15). El servicio no usa `RoomStateHistoryQueryRepository` directamente (regla 1 del plan base).
 
 ---
 
@@ -207,12 +207,12 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Unit test en `RoomStateHistoryQueryServiceTest`: el historial de una habitación se devuelve en orden cronológico con número, tipo, estado, inicio, fin, responsable y flujo de origen; una transición autónoma llega con `actorName` nulo (esc. 1; FR-003; SC-002).
-- [ ] T004 [P] [US1] Unit test: los filtros por habitación (número o identificador), tipo, estado y rango de fechas se combinan; el rango incluye los periodos que se cruzan con él (esc. 2; FR-002; SC-003).
-- [ ] T005 [P] [US1] Unit test: un periodo abierto llega con `endDateTime` nulo (casos borde "Historial vacío" y "Transición sin fin"; FR-004).
-- [ ] T006 [P] [US1] Unit test: `from` posterior a `to` se rechaza con `INVALID_DATE_RANGE` sin consultar (esc. 4; FR-006).
-- [ ] T007 [P] [US1] Unit test: la paginación devuelve 15 por página con `totalElements` y `totalPages` correctos (FR-008).
-- [ ] T008 [US1] Integration test con Testcontainers: la consulta no modifica datos y no bloquea una transición que ocurre al mismo tiempo en otra habitación (FR-005, caso borde "Concurrente"; SC-004).
+- [x] T003 [P] [US1] Unit test en `RoomStateHistoryQueryServiceTest`: el historial de una habitación se devuelve en orden cronológico con número, tipo, estado, inicio, fin, responsable y flujo de origen; una transición autónoma llega con `actorName` nulo (esc. 1; FR-003; SC-002).
+- [x] T004 [P] [US1] Unit test: los filtros por habitación (número o identificador), tipo, estado y rango de fechas se combinan; el rango incluye los periodos que se cruzan con él (esc. 2; FR-002; SC-003).
+- [x] T005 [P] [US1] Unit test: un periodo abierto llega con `endDateTime` nulo (casos borde "Historial vacío" y "Transición sin fin"; FR-004).
+- [x] T006 [P] [US1] Unit test: `from` posterior a `to` se rechaza con `INVALID_DATE_RANGE` sin consultar (esc. 4; FR-006).
+- [x] T007 [P] [US1] Unit test: la paginación devuelve 15 por página con `totalElements` y `totalPages` correctos (FR-008).
+- [x] T008 [US1] Integration test con Testcontainers: la consulta no modifica datos y no bloquea una transición que ocurre al mismo tiempo en otra habitación (FR-005, caso borde "Concurrente"; SC-004).
 - [ ] T009 [P] [US1] Component test en `RoomStateHistoryPage`:
   - Muestra habitación, tipo, estado en español, inicio, fin o "En curso", responsable o "Sistema", y flujo de origen.
   - Al llegar con `roomId` en la URL, el filtro de habitación ya viene aplicado.
@@ -223,8 +223,8 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
-- [ ] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
+- [x] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
+- [x] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
 - [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
 - [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
 
