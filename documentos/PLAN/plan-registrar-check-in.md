@@ -414,7 +414,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 ### Tests for User Story 2
 
 - [x] T019 [P] [US2] Unit test: Rechazar Check-In si la habitación no está en `Reserved`, incluido `Available`, o si está apartada para otra reserva (`InvalidRoomTransitionException`).
-- [x] T020 [P] [US2] Unit test: Rechazar Check-In si ya existe un `Stay` activo para esa habitación (`StayAlreadyExistsException`).
+- [x] T020 [P] [US2] Unit test: Rechazar Check-In si ya existe una estancia (activa o cerrada) para el par `reservationRef` y `roomId` (`StayAlreadyExistsException`).
 - [ ] T021 [P] [US2] Unit test: Rechazar Check-In si el número de ocupantes supera el `guest_count` de la habitación (`GuestCountMismatchException`) o la capacidad física (`RoomCapacityExceededException`).
 - [ ] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
 - [ ] T023 [P] [US2] Integration test: Simular fallo de RabbitMQ durante la publicación; comprobar que la transacción local de `Stay` y `Room.status = Occupied` queda en firme y el outbox reintenta con el mismo `messageId`.
