@@ -36,6 +36,20 @@ hospitua:
     max-range-days: 90
     max-advance-days: 365
 
+# Circuito hacia Módulo 3 (consultar-liquidacion T023), sin reintentos: el límite de 3 s lo da el read-timeout.
+# Solo cuentan las caídas (sin respuesta o 5xx), no las respuestas 4xx de negocio.
+resilience4j:
+  circuitbreaker:
+    instances:
+      module3:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        record-failure-predicate: com.hospitua.habitaciones.infrastructure.adapters.out.rest.Module3OutagePredicate
+
 ---
 # Desarrollo local contra docker-compose.yml (raíz del repositorio).
 spring:

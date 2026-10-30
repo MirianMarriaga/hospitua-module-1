@@ -316,15 +316,19 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 Verificar los componentes transversales de comunicación REST, Resilience4j y WireMock en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar `Module3Properties` (`hospitua.module3.*`: `base-url` y `read-timeout` de `3s`) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
-- [ ] T003 Configurar el entorno de pruebas con WireMock y `MockRestServiceServer` para simular las respuestas del contrato `GET /api/settlements` de Módulo 3.
+- [x] T002 Verificar `Module3Properties` (`hospitua.module3.*`: `base-url` y `read-timeout` de `3s`) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
+  - Hecho (L13): `Module3Properties` y `module3RestClient` ya existían (plan base, T013); `SettlementRestAdapter` usa ese cliente.
+- [x] T003 Configurar el entorno de pruebas con WireMock y `MockRestServiceServer` para simular las respuestas del contrato `GET /api/settlements` de Módulo 3.
+  - Hecho (L13): WireMock en `SettlementRestAdapterTest` y `SettlementCircuitBreakerIntegrationTest`; `MockRestServiceServer` no hizo falta.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Implementar los modelos de dominio `SettlementRequest`, `SettlementSummary` (sin `source`), `SettlementAvailabilityStatus` y la excepción `ExternalModule3UnavailableException` en `domain/model/` y `domain/exception/`.
+- [x] T004 Implementar los modelos de dominio `SettlementRequest`, `SettlementSummary` (sin `source`), `SettlementAvailabilityStatus` y la excepción `ExternalModule3UnavailableException` en `domain/model/` y `domain/exception/`.
+  - Hecho (L13): `SettlementRequest` (con `of(stay)`), `SettlementSummary`, `SettlementAvailabilityStatus` y `ExternalModule3UnavailableException` (con `unavailableCause()`; error `MODULE_3_UNAVAILABLE`, que no llega al recepcionista). Se agregó el enum `SettlementType` (`INFORMATIVE`, `FINAL`).
 - [ ] T005 Definir la interfaz del puerto de entrada `QuerySettlementUseCase` en `application/ports/in/` y del puerto de salida `SettlementRestQueryPort` para `GET /api/settlements` en `application/ports/out/` (regla 1 del plan base).
+  - Avance (L13): `SettlementRestQueryPort`. `QuerySettlementUseCase` va en L14, porque devuelve `SettlementResponseDto` (T006).
 - [ ] T006 Implementar los DTOs de aplicación `SettlementQueryCommand` y `SettlementResponseDto` en `application/dto/`.
 
 ---
@@ -337,13 +341,15 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Contract test del adaptador contra WireMock (solo los query params `reservationRef` y `roomId`, headers, mapeo de `breakdown` a `SettlementSummary` con conversión de texto a `BigDecimal`) en `infrastructure/rest/SettlementModule3ContractTest.java`
+- [x] T007 [P] [US1] Contract test del adaptador contra WireMock (solo los query params `reservationRef` y `roomId`, headers, mapeo de `breakdown` a `SettlementSummary` con conversión de texto a `BigDecimal`) en `infrastructure/rest/SettlementModule3ContractTest.java`
+  - Hecho (L13): en `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java` (la carpeta de los adaptadores REST del proyecto): solo `reservationRef` y `roomId`, sin `X-User`, y el desglose OTA y directo como `BigDecimal` con la escala recibida.
 - [ ] T008 [P] [US1] Test unitario de no alteración: montos de salida idénticos a Módulo 3 y ausencia de consumos locales, en `application/SettlementQueryServiceTest.java`
 - [ ] T009 [P] [US1] Test de integración de los escenarios 1 y 2 (DIRECTA con `otaCommissionPercentage` null, comisión `"0.00"` e ingreso neto = hospedaje; OTA con comisión) en `infrastructure/rest/SettlementQueryIntegrationTest.java`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `SettlementRestAdapter` (GET con `reservationRef` y `roomId` desde `SettlementRequest`, mapeo de `settlementType` y `breakdown` a `SettlementSummary` convirtiendo los textos decimales a `BigDecimal`) (depende de T002, T004, T005)
+- [x] T010 [US1] Implementar `SettlementRestAdapter` (GET con `reservationRef` y `roomId` desde `SettlementRequest`, mapeo de `settlementType` y `breakdown` a `SettlementSummary` convirtiendo los textos decimales a `BigDecimal`) (depende de T002, T004, T005)
+  - Hecho (L13): lee solo `settlementType` y `breakdown`; los montos se leen como texto y se convierten con `new BigDecimal(...)`.
 - [ ] T011 [P] [US1] Implementar `settlementService.ts` en `frontend/src/api/`
 - [ ] T012 [US1] Implementar `SettlementQueryService`: cargar `Stay`, construir `SettlementRequest`, invocar el puerto, tomar `source` de `Stay.source` y calcular `nights` (depende de T005, T006, T010)
 - [ ] T013 [US1] Verificar que el único consumidor de `QuerySettlementUseCase` sea `SettlementController` (Endpoint 2), que usa el frontend del check-out en los pasos 2 y 3; el caso de uso no tiene lógica de liberación de habitación (depende de T012)
@@ -366,13 +372,17 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ### Tests for User Story 2
 
 - [ ] T019 [P] [US2] Test de integración de timeout (respuesta con retraso > 3 s) → `UNAVAILABLE` / `TIMEOUT` en `infrastructure/rest/SettlementUnavailabilityIntegrationTest.java`
-- [ ] T020 [P] [US2] Test unitario del adaptador: regla general (cualquier no 2xx con `ApiError` → causa = `errorCode`, p. ej. 400 `INVALID_QUERY_PARAMS`, 404 `RESERVATION_NOT_FOUND`/`QUOTE_NOT_FOUND`, 409 `MISSING_COMMISSION`/`INVALID_COMMISSION`, 422 `UNEXPECTED_ERROR`, 424 `MODULE2_UNAVAILABLE`; sin `ApiError` → `HTTP_ERROR`) y errores de red/tiempo a su causa, en `infrastructure/rest/SettlementRestAdapterTest.java`
+  - Avance (L13): `SettlementRestAdapterTest` cubre el timeout en el adaptador (causa `TIMEOUT`); falta la prueba con el servicio (`UNAVAILABLE`), en L14.
+- [x] T020 [P] [US2] Test unitario del adaptador: regla general (cualquier no 2xx con `ApiError` → causa = `errorCode`, p. ej. 400 `INVALID_QUERY_PARAMS`, 404 `RESERVATION_NOT_FOUND`/`QUOTE_NOT_FOUND`, 409 `MISSING_COMMISSION`/`INVALID_COMMISSION`, 422 `UNEXPECTED_ERROR`, 424 `MODULE2_UNAVAILABLE`; sin `ApiError` → `HTTP_ERROR`) y errores de red/tiempo a su causa, en `infrastructure/rest/SettlementRestAdapterTest.java`
+  - Hecho (L13): `SettlementRestAdapterTest`, con todos los códigos de la tabla, un 5xx con `ApiError` y respuestas sin `ApiError`.
 - [ ] T021 [P] [US2] Test de no efectos secundarios: tras `UNAVAILABLE` no se invoca ningún repositorio de escritura (Mockito `verifyNoInteractions`)
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Traducir errores HTTP, timeouts y errores de red a `ExternalModule3UnavailableException` en `SettlementRestAdapter` (depende de T004, T010)
-- [ ] T023 [US2] Aplicar `@CircuitBreaker` de Resilience4j a la llamada, sin reintentos; el límite de 3 s lo da el timeout de lectura de `RestClient` (regla 5 del plan base), porque `@TimeLimiter` solo funciona con llamadas asíncronas
+- [x] T022 [US2] Traducir errores HTTP, timeouts y errores de red a `ExternalModule3UnavailableException` en `SettlementRestAdapter` (depende de T004, T010)
+  - Hecho (L13): además de las causas de la tabla, `INVALID_RESPONSE` para una liquidación ilegible o con un monto ausente o no decimal, y `CIRCUIT_OPEN` cuando el circuito no deja llamar. Un connect-timeout cuenta como `CONNECTION_ERROR`; solo el read-timeout es `TIMEOUT`.
+- [x] T023 [US2] Aplicar `@CircuitBreaker` de Resilience4j a la llamada, sin reintentos; el límite de 3 s lo da el timeout de lectura de `RestClient` (regla 5 del plan base), porque `@TimeLimiter` solo funciona con llamadas asíncronas
+  - Hecho (L13): circuito `module3` en `application.yml` (ventana de 10 llamadas, mínimo 5, 50 % de fallas, 30 s abierto, sin reintentos). `Module3OutagePredicate` solo cuenta las caídas (timeout, red y 5xx), no los 4xx de negocio. `SettlementCircuitBreakerIntegrationTest` lo prueba con la configuración real.
 - [ ] T024 [US2] En `SettlementQueryService`, capturar la excepción y devolver `status=UNAVAILABLE` con `unavailableCause`, sin montos parciales ni calculados
 - [ ] T025 [US2] Mapear `UNAVAILABLE` como respuesta `200` controlada en `SettlementController` y registrar la contingencia
 - [ ] T026 [P] [US2] Mostrar en las dos tarjetas el mensaje de indisponibilidad del servicio de facturación y devolver el control a Registrar Check-Out
