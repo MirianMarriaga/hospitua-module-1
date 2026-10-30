@@ -125,7 +125,7 @@ El resultado indica que la habitación ya no aparece entre las habitaciones disp
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available`, antes de la consulta o al ejecutar la baja (FR-003, esc. 2) | "No es posible dar de baja la habitación: está en estado {estado} y debe estar Disponible." (con `Occupied`: "La habitación tiene un huésped activo; debe estar Disponible para darla de baja.") |
 | 409 | `RESERVATION_CONFLICT` | `ReservationConflictException` | Módulo 2 devolvió al menos una reserva vigente desde hoy (FR-004, esc. 3); `details.reservations` lista `reservationRef`, `startDate`, `endDate` y `status` de cada una | "La habitación tiene reservas vigentes. Deben reasignarse antes de darla de baja." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación cambió de estado mientras se verificaban las reservas (se detecta al bloquear la fila) | "La habitación cambió de estado (estado actual: {estado}); no se dio de baja." |
-| 503 | `MODULE_2_UNAVAILABLE` | `ExternalModule2UnavailableException` | Módulo 2 no respondió, superó el timeout o respondió con error (FR-004, FR-009, caso borde "Fallo de Módulo 2") | "No fue posible verificar las reservas de la habitación; no se dio de baja." con el botón "Reintentar" |
+| 424 | `MODULE_2_UNAVAILABLE` | `ExternalModule2UnavailableException` | Módulo 2 no respondió, superó el timeout o respondió con error (FR-004, FR-009, caso borde "Fallo de Módulo 2") | "No fue posible verificar las reservas de la habitación; no se dio de baja." con el botón "Reintentar" |
 
 ```json
 {
@@ -201,7 +201,7 @@ frontend/src/
     └── roomService.ts                             # Se agrega decommissionRoom()
 ```
 
-**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T027), que consulta desde hoy hasta hoy + 365 días (`dateTo` = hoy + 365, el máximo de 366 días que acepta Módulo 2; *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`503 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (usuario actual).
+**Structure Decision**: La consulta a Módulo 2 reutiliza `CheckRoomReservationConflictsUseCase.checkDecommissionConflict(roomId)` de `plan-consultar-reservas.md` (T027), que consulta desde hoy hasta hoy + 365 días (`dateTo` = hoy + 365, el máximo de 366 días que acepta Módulo 2; *Consultar reservas* FR-007) y lanza `ExternalModule2UnavailableException` (`424 MODULE_2_UNAVAILABLE`) si Módulo 2 falla. La verificación ocurre dentro de `POST /api/rooms/{roomId}/decommission`; ese plan no expone un endpoint de verificación previa (T027). La transición `Available` → `Inactive` y su periodo en el historial los hace `TransitionRoomStateUseCase` con `sourceFlow = DECOMMISSION_ROOM` (regla 8 del plan base). `DecommissionRoomCommand` contiene `roomId`, `reasonCategory`, `reasonDetail` y `administratorId` (usuario actual).
 
 ---
 
@@ -228,7 +228,7 @@ No aplica: usa la infraestructura del plan base.
 
 - Módulo 2 responde sin reservas: la habitación pasa a `Inactive` con su registro en `room_decommission` y su periodo en `room_state_history`.
 - Módulo 2 responde con una reserva vigente, aunque sea dentro de meses: `409 RESERVATION_CONFLICT` con la reserva listada.
-- Módulo 2 supera el timeout: `503 MODULE_2_UNAVAILABLE`.
+- Módulo 2 supera el timeout: `424 MODULE_2_UNAVAILABLE`.
 
 En los dos últimos casos la habitación sigue `Available`.
 
@@ -238,7 +238,7 @@ En los dos últimos casos la habitación sigue `Available`.
 - [ ] T006 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en los 7 estados distintos de `Available`, sin consultar a Módulo 2 (esc. 2; FR-003; SC-002).
 - [ ] T007 [P] [US1] Unit test: invoca `checkDecommissionConflict` con el `roomId`; cualquier reserva devuelta rechaza la baja con todas las reservas en conflicto y la habitación sigue `Available` (esc. 3; FR-002, FR-004; SC-005).
 - [ ] T008 [P] [US1] Unit test: una reserva vigente con `startDate` dentro de los próximos 365 días, aunque sea a varios meses, rechaza la baja (FR-004).
-- [ ] T009 [P] [US1] Unit test: con `ExternalModule2UnavailableException` la operación se cancela sin cambios y responde `503`; repetir la petición con el mismo motivo vuelve a verificar (FR-004, FR-009, caso borde "Fallo de Módulo 2").
+- [ ] T009 [P] [US1] Unit test: con `ExternalModule2UnavailableException` la operación se cancela sin cambios y responde `424`; repetir la petición con el mismo motivo vuelve a verificar (FR-004, FR-009, caso borde "Fallo de Módulo 2").
 - [ ] T010 [P] [US1] Unit test: rechazo sin categoría, con `OTHER` y detalle vacío o solo espacios, y con detalle de más de 500 caracteres; con otra categoría el detalle es opcional (FR-008, casos borde de motivo).
 - [ ] T011 [US1] Integration test con Testcontainers y `MockRestServiceServer`: si la habitación cambia de estado mientras Módulo 2 responde, la transacción de la baja lo detecta al bloquear la fila, responde `409 ROOM_INVALID_STATE` y no crea `RoomDecommission` (regla 13 del plan base).
 - [ ] T012 [US1] Integration test: un fallo forzado al registrar `RoomDecommission` revierte la transición y el periodo del historial; la habitación sigue `Available` (caso borde 3).

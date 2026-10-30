@@ -8,8 +8,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hospitua.habitaciones.domain.exception.ExternalModule2UnavailableException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
+import com.hospitua.habitaciones.domain.exception.ReservationConflictException;
 import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
+import com.hospitua.habitaciones.domain.model.ReservationConflictResult.ConflictingReservation;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 class GlobalExceptionHandlerTest {
@@ -224,6 +228,29 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.errorCode", is("INVALID_CREDENTIALS")));
     }
 
+    @Test
+    @DisplayName("ReservationConflictException traduce a RESERVATION_CONFLICT (409) con details.reservations")
+    void shouldHandleReservationConflictException() throws Exception {
+        mockMvc.perform(get("/test/reservation-conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("RESERVATION_CONFLICT")))
+                .andExpect(jsonPath("$.message", is("La habitación tiene reservas vigentes.")))
+                .andExpect(jsonPath("$.details.reservations[0].reservationRef", is("RES-10502")))
+                .andExpect(jsonPath("$.details.reservations[0].startDate", is("2026-10-24")))
+                .andExpect(jsonPath("$.details.reservations[0].endDate", is("2026-10-27")))
+                .andExpect(jsonPath("$.details.reservations[0].status", is("ACTIVE")));
+    }
+
+    @Test
+    @DisplayName("ExternalModule2UnavailableException traduce a MODULE_2_UNAVAILABLE (424, regla \"siempre 4xx\")")
+    void shouldHandleExternalModule2UnavailableException() throws Exception {
+        mockMvc.perform(get("/test/module2-unavailable"))
+                .andExpect(status().is(424))
+                .andExpect(jsonPath("$.errorCode", is("MODULE_2_UNAVAILABLE")))
+                .andExpect(jsonPath("$.message", is("Servicio de reservas temporalmente no disponible.")))
+                .andExpect(jsonPath("$.timestamp", endsWith("-05:00")));
+    }
+
     record SampleDto(
             @NotBlank(message = "El nombre no puede estar vacío")
             String name) {}
@@ -317,6 +344,19 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/invalid-credentials")
         void testInvalidCredentials() {
             throw new com.hospitua.habitaciones.domain.exception.InvalidCredentialsException();
+        }
+
+        @GetMapping("/test/reservation-conflict")
+        void testReservationConflict() {
+            throw new ReservationConflictException(
+                    "La habitación tiene reservas vigentes.",
+                    List.of(new ConflictingReservation(
+                            "RES-10502", "ACTIVE", LocalDate.of(2026, 10, 24), LocalDate.of(2026, 10, 27))));
+        }
+
+        @GetMapping("/test/module2-unavailable")
+        void testModule2Unavailable() {
+            throw new ExternalModule2UnavailableException(new ResourceAccessException("timeout"));
         }
 
         @GetMapping("/test/internal-error")

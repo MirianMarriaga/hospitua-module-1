@@ -8,5 +8,10 @@ public enum ErrorCategory {
     CONFLICT,
     FORBIDDEN,
     INVALID_REQUEST,
-    UNAUTHORIZED
+    UNAUTHORIZED,
+    /**
+     * Un módulo del que depende la operación no respondió y la operación no puede continuar (424). La liquidación de
+     * Módulo 3 no la usa: es informativa y responde 200 con UNAVAILABLE.
+     */
+    DEPENDENCY_FAILED
 }

@@ -221,7 +221,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 - **HTTP 403**: La tarea pertenece a otro miembro del personal (`TASK_NOT_OWNED`).
 - **HTTP 404**: Recurso inexistente (ej. habitación no encontrada).
 - **HTTP 409**: Conflicto de concurrencia optimista o violación del ciclo de vida de la máquina de estados habitacional.
-- **HTTP 503**: Un módulo externo no responde y la operación no puede verificarse (por ejemplo, `MODULE_2_UNAVAILABLE`).
+- **HTTP 424**: Un módulo del que depende la operación no responde y la operación no puede verificarse ni continuar (`MODULE_2_UNAVAILABLE`, al programar un bloqueo técnico o dar de baja). Sigue la regla "siempre 4xx" y es el mismo código que usa Módulo 3 cuando Módulo 2 no le responde (`424 MODULE2_UNAVAILABLE`). La liquidación de Módulo 3 no usa este código: es informativa y responde `200` con `status: UNAVAILABLE` (`plan-consultar-liquidacion.md`).
 - **HTTP 500 no controlado PROHIBIDO**: Todo error inesperado es capturado por `@RestControllerAdvice`, registrado con identificador de correlación en logs y devuelto al cliente como `422 UNEXPECTED_ERROR` (catálogo siguiente).
 
 #### Catálogo de errores comunes
@@ -243,7 +243,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `ROOM_TASK_EXISTS` | 409 | `RoomTaskExistsException`; la lanza el dominio o el adaptador del repositorio al traducir el índice único de tarea abierta por habitación en `cleaning_task` o `reparation_task` (`DataIntegrityViolationException`): otro miembro ya tiene una tarea abierta sobre la habitación | Plan base (`domain/exception/`, T019). En limpieza es solo respaldo del índice (con el bloqueo de la regla 13 no se alcanza en flujo normal); en reparación lo emite la comprobación de *Iniciar reparaciones* con la fila bloqueada (`plan-confirmar-reparacion-finalizada.md`), con el índice como respaldo | Lo define el plan del endpoint (limpieza o reparación) |
 | `INVALID_DATE_RANGE` | 400 | `InvalidDateRangeException`, con `details.rule` | `plan-consultar-informacion-mantenimientos.md` (T001); la reutilizan *Programar bloqueo técnico* y *Consultar historial de estados* | El de la regla, en la tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md` |
 | `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T029); la reutilizan *Programar bloqueo técnico* y *Dar de baja* | Lo define el plan del endpoint |
-| `MODULE_2_UNAVAILABLE` | 503 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
+| `MODULE_2_UNAVAILABLE` | 424 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
 | `UNEXPECTED_ERROR` | 422 | Cualquier excepción no controlada (`GlobalExceptionHandler`, regla 7) | Plan base | "Ocurrió un error inesperado. Referencia: {correlationId}" |
 
 ---
@@ -356,7 +356,7 @@ backend/
     │   │   │       ├── ReservationConflictException.java     # 409 RESERVATION_CONFLICT (plan-consultar-reservas.md, T029; la usan el bloqueo técnico y la baja)
     │   │   │       ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
     │   │   │       ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
-    │   │   │       ├── ExternalModule2UnavailableException.java # 503 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
+    │   │   │       ├── ExternalModule2UnavailableException.java # 424 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
     │   │   │       ├── ExternalModule3UnavailableException.java # Módulo 3 no responde (plan-consultar-liquidacion.md)
     │   │   │       ├── GuestCountMismatchException.java      # Huéspedes distintos a los de la reserva (plan-registrar-check-in.md)
     │   │   │       ├── RoomCapacityExceededException.java    # Supera la capacidad máxima (plan-registrar-check-in.md)
