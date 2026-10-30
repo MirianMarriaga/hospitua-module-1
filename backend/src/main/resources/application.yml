@@ -95,6 +95,9 @@ hospitua:
   outbox:
     worker:
       enabled: false
+  daily-reservations:
+    retry:
+      initial-interval: 100ms
   bootstrap:
     admin:
       username: ${BOOTSTRAP_ADMIN_USERNAME:admin}

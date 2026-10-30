@@ -1,16 +1,22 @@
 package com.hospitua.habitaciones.infrastructure.config;
 
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.boot.amqp.autoconfigure.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.retry.RetryPolicy;
 
 /**
  * Configuración de la topología de RabbitMQ para el Módulo 1.
@@ -28,6 +34,7 @@ public class RabbitConfig {
 
     public static final String DAILY_RESERVATIONS_QUEUE = "m1.reservas.diarias.queue";
     public static final String DAILY_RESERVATIONS_DLQ = "m1.reservas.diarias.dlq";
+    public static final String DAILY_RESERVATIONS_LISTENER_FACTORY = "dailyReservationsListenerFactory";
 
     public static final String ROUTING_KEY_CHECKIN = "habitacion.checkin";
     public static final String ROUTING_KEY_CHECKOUT = "habitacion.checkout";
@@ -103,6 +110,44 @@ public class RabbitConfig {
     @Bean
     public Binding dailyReservationsDailyUpdateBinding(Queue dailyReservationsQueue, TopicExchange eventsExchange) {
         return BindingBuilder.bind(dailyReservationsQueue).to(eventsExchange).with(ROUTING_KEY_DAILY_UPDATE);
+    }
+
+    /**
+     * Fábrica del listener de la cola diaria (plan-consultar-reservas.md T014): un error temporal se reintenta con
+     * espera creciente y, agotados los reintentos, el mensaje se rechaza sin reencolar y el Dead-Letter Exchange lo
+     * lleva a {@code m1.reservas.diarias.dlq}. Un mensaje inválido ({@link AmqpRejectAndDontRequeueException}) va a
+     * esa cola sin reintentos.
+     */
+    @Bean(name = DAILY_RESERVATIONS_LISTENER_FACTORY)
+    public SimpleRabbitListenerContainerFactory dailyReservationsListenerFactory(
+            SimpleRabbitListenerContainerFactoryConfigurer configurer,
+            ConnectionFactory connectionFactory,
+            DailyReservationRetryProperties retry) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        configurer.configure(factory, connectionFactory);
+        factory.setDefaultRequeueRejected(false);
+        RetryPolicy retryPolicy = RetryPolicy.builder()
+                .maxRetries(retry.maxRetries())
+                .delay(retry.initialInterval())
+                .multiplier(retry.multiplier())
+                .maxDelay(retry.maxInterval())
+                .predicate(RabbitConfig::isTemporaryFailure)
+                .build();
+        factory.setAdviceChain(RetryInterceptorBuilder.stateless()
+                .retryPolicy(retryPolicy)
+                .recoverer(new RejectAndDontRequeueRecoverer())
+                .build());
+        return factory;
+    }
+
+    /** Un mensaje rechazado a propósito no se reintenta: el error está en el mensaje, no en el entorno. */
+    private static boolean isTemporaryFailure(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof AmqpRejectAndDontRequeueException) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Bean
