@@ -18,7 +18,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -60,7 +59,7 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
         try {
             return roomMapper.toDomain(roomJpaRepository.saveAndFlush(roomMapper.toEntity(room)));
         } catch (DataIntegrityViolationException ex) {
-            if (violates(ex, ROOM_NUMBER_UNIQUE)) {
+            if (ConstraintViolations.violates(ex, ROOM_NUMBER_UNIQUE)) {
                 throw new RoomNumberAlreadyExistsException(room.getRoomNumber());
             }
             throw ex;
@@ -138,14 +137,5 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
                     case STATUS -> Comparator.comparing(Room::getStatus);
                 };
         return (filter.descending() ? primary.reversed() : primary).thenComparing(RoomNumberOrder.NATURAL);
-    }
-
-    private static boolean violates(DataIntegrityViolationException ex, String constraintName) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ConstraintViolationException violation) {
-                return constraintName.equalsIgnoreCase(violation.getConstraintName());
-            }
-        }
-        return false;
     }
 }

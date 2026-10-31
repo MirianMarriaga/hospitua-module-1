@@ -166,8 +166,10 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `cleaning_task` con sus índices únicos parciales (respaldo de integridad) y el índice parcial de última limpieza existan (plan base, T017), y verificar `RoomRepositoryPort.lockById` (plan base, T008) (FR-004, FR-007; reglas 9 y 13 del plan base).
-- [ ] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`:
+- [x] T001 Verificar que la tabla `cleaning_task` con sus índices únicos parciales (respaldo de integridad) y el índice parcial de última limpieza existan (plan base, T017), y verificar `RoomRepositoryPort.lockById` (plan base, T008) (FR-004, FR-007; reglas 9 y 13 del plan base).
+  - Hecho (L17): la migración V3 ya tenía `uk_cleaning_task_open_by_member`, `uk_cleaning_task_open_by_room` e `idx_cleaning_task_last_cleaning`, y `lockById` existe desde el plan base; `CleaningTaskRepositoryAdapterTest` comprueba los dos índices únicos.
+- [x] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`:
+  - Hecho (L17): `CleaningTask` y `CleaningTaskOutcome` (`countsAsCleaning()` devuelve `Completed` y `DamageReported`); el constructor exige fecha de fin y resultado juntos, como el `CHECK` de V3, y `close` rechaza también una tarea ya cerrada. `findLastCleaningEndByRoomIds` no consulta si no recibe habitaciones o resultados. La búsqueda del nombre de la restricción violada pasó a `ConstraintViolations`, que comparte con `RoomRepositoryAdapter`.
   - Dominio, con las reglas de la tarea:
     - `static CleaningTask start(roomId, memberId, startDateTime)`.
     - `void ensureClosableBy(memberId)`: lanza `TaskNotOwnedException` si la tarea no es del miembro y después `TaskAlreadyClosedException` si ya está cerrada, en ese orden.
@@ -186,7 +188,8 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
   - El adaptador guarda con `saveAndFlush` y traduce la violación de cada índice único a `ActiveTaskExistsException` (miembro) o `RoomTaskExistsException` (habitación).
 
   El cierre y la última limpieza los usan `plan-confirmar-fin-de-limpieza.md` y `plan-consultar-panel-limpieza.md`.
-- [ ] T003 [P] Verificar en `GlobalExceptionHandler` que las excepciones de los códigos comunes `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` estén registradas (plan base, T009 y T019); la traducción de los índices la hace el adaptador (T002).
+- [x] T003 [P] Verificar en `GlobalExceptionHandler` que las excepciones de los códigos comunes `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` estén registradas (plan base, T009 y T019); la traducción de los índices la hace el adaptador (T002).
+  - Hecho (L17): `GlobalExceptionHandler` atiende toda `DomainException` por su `DomainError`, así que `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` ya responden con su código; no hizo falta un `@ExceptionHandler` nuevo.
 - [ ] T004 [P] Crear `CleaningController` (`@RestController`, `@RequestMapping("/api/cleaning")`) sin endpoints, para que `plan-consultar-panel-limpieza.md` y `plan-confirmar-fin-de-limpieza.md` le agreguen los suyos aunque este plan termine después de ellos.
 
 ---
