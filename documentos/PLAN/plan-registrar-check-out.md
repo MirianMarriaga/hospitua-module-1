@@ -88,7 +88,6 @@ backend/src/
 │   │   │       └── OutboxEventPublisherPort.java
 │   │   ├── service/
 │   │   │   ├── CheckOutExecutionService.java
-│   │   │   ├── CheckOutValidationService.java
 │   │   │   └── ActiveStayQueryService.java
 │   │   └── dto/
 │   │       ├── ActiveStayResponseDto.java
@@ -361,8 +360,8 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T003 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
-  - Avance: `ActiveStayNotFoundException` (404 `ACTIVE_STAY_NOT_FOUND`), creada con su primer consumidor, la consulta de la liquidación (L14); L15 le agregó el constructor del par, con `reservationRef` y `roomId` en `details`. Falta `MandatoryConfirmationMissingException` (L16).
+- [x] T003 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
+  - Hecho: `ActiveStayNotFoundException` (404 `ACTIVE_STAY_NOT_FOUND`), creada con su primer consumidor, la consulta de la liquidación (L14), con el constructor del par en L15; `MandatoryConfirmationMissingException` (400 `CONFIRMATION_REQUIRED`, L16). Sin `@ExceptionHandler` nuevos.
 
 ---
 
@@ -376,16 +375,20 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 - [x] T004 [P] [US1] Unit test para `ActiveStayQueryService` verificando recuperación 100% local desde `Stay`, `Room` y `RoomGuest` sin llamadas externas a Módulo 2.
   - Hecho (L15): `ActiveStayQueryServiceTest`; el servicio solo depende de los puertos de `Stay`, `Room` y `RoomGuest`, así que no puede llamar a Módulo 2.
-- [ ] T005 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
-- [ ] T006 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`), y la fila del Contrato 2 (`event_type = CHECK_OUT_BILLING`, routing key `facturacion.checkout`) con `eventId` = `message_id`, `occurredAt` con offset `-05:00` y `billingCustomer` del titular.
+- [x] T005 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
+  - Hecho (L16): `CheckOutExecutionServiceTest` (bloqueo, estancia cerrada con su `version`, `PendingCleaning`, auditoría y los dos mensajes, en ese orden).
+- [x] T006 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`), y la fila del Contrato 2 (`event_type = CHECK_OUT_BILLING`, routing key `facturacion.checkout`) con `eventId` = `message_id`, `occurredAt` con offset `-05:00` y `billingCustomer` del titular.
+  - Hecho (L16): `CheckOutRegistrationIntegrationTest` revisa las dos filas de `outbox_notification` (el worker está apagado en el perfil de pruebas). El sobre del Contrato 2 (`eventId` = `message_id`, `occurredAt` con `-05:00`) lo prueba `OutboxMessageSerializerTest`.
 - [ ] T007 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
-- [ ] T008 [P] [US1] Integration test verificando que tras el check-out la habitación queda en `PendingCleaning` (su aparición en el panel de limpieza la prueba `plan-consultar-panel-limpieza.md`, T012).
+- [x] T008 [P] [US1] Integration test verificando que tras el check-out la habitación queda en `PendingCleaning` (su aparición en el panel de limpieza la prueba `plan-consultar-panel-limpieza.md`, T012).
+  - Hecho (L16): `CheckOutRegistrationIntegrationTest`, a partir de un Check-In real: habitación `PendingCleaning` con el periodo `CHECK_OUT` del recepcionista en el historial.
 
 ### Implementation for User Story 1
 
 - [x] T009 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por el par `reservationRef` y `roomId` (una reserva puede tener varias habitaciones, cada una con su `Stay`), obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
   - Hecho (L15): `ActiveStayQueryService` (solo lectura) con las reglas de `CheckOutEligibility` (dominio) y `StayRepositoryPort.findByReservationRefAndRoomId`; pruebas en `CheckOutEligibilityTest` y `CheckOutActiveStayIntegrationTest`.
-- [ ] T010 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
+- [x] T010 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
+  - Hecho (L16): `confirmed` primero; estancia activa por `stayId`; `lockById` de la habitación y `CheckOutEligibility.verify` (L15) con la fila bloqueada; `Stay.checkOut(hoy)` conserva la `version` (control optimista); `MarkPendingCleaningUseCase` (`CHECK_OUT`); auditoría con `stayId`, `reservationRef` y `checkOutDate` (el `stayId` es también la referencia de la liquidación); los dos mensajes en el Outbox. `GuestMessageDto` quedó en su propio archivo y sale del `RoomGuest`, igual para el Check-In y el Check-Out. `MovementType.EXIT` (L12) pasó a `DEPARTURE`, el valor del Contrato 1 y del plan base; no tenía usos.
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
   - Transicionar `Room.status` a `RoomStatus.PendingCleaning` invocando `MarkPendingCleaningUseCase` con `sourceFlow = CHECK_OUT` y el recepcionista (usuario actual) como `actorId`.
@@ -419,8 +422,8 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
   - Registrar en `room_audit_log` el evento `CHECK_OUT` con `stayId`, `reservationRef`, recepcionista, `checkOutDate` y la referencia de la liquidación (el `stayId`), mediante `RoomAuditLogRepositoryPort` (FR-015).
   - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkout", "CHECK_OUT", payload)` dentro de la misma transacción; `messageId` y `sequenceNumber` los asigna el outbox (plan base, T012).
   - Encolar también el Contrato 2 con `OutboxEventPublisherPort.enqueue("facturacion.checkout", "CHECK_OUT_BILLING", payload)` en la misma transacción, con `stayId`, `reservationRef`, `roomId`, `categoryRoom`, `checkInDate`, `checkOutDate` y `billingCustomer` del titular (FR-016); `eventId` es el `message_id` de la fila y `occurredAt` su `created_at` con offset `-05:00`.
-- [ ] T011 [US1] Implementar endpoints REST en `CheckOutController.java`:
-  - Avance (L15): `GET /api/check-out/active-stay` en `CheckOutController`. Falta `POST /api/check-out` (L16).
+- [x] T011 [US1] Implementar endpoints REST en `CheckOutController.java`:
+  - Hecho: `GET /api/check-out/active-stay` (L15) y `POST /api/check-out` (L16), que responde 200 y toma el recepcionista de `X-User`; `RegisterCheckOutRequest` exige `stayId` y `confirmed` (si falta, `400 VALIDATION_ERROR`).
   - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
   - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
 - [ ] T012 [US1] Construir los componentes frontend en React:
@@ -440,24 +443,31 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomTransitionException`.
-- [ ] T014 [P] [US2] Unit test: Rechazar Check-Out si no existe estancia activa vinculada arrojando `ActiveStayNotFoundException`.
-- [ ] T015 [P] [US2] Unit test: Rechazar Check-Out si `isConfirmed == false` arrojando `MandatoryConfirmationMissingException`.
-- [ ] T016 [P] [US2] Integration test: con la liquidación en `UNAVAILABLE` (`plan-consultar-liquidacion.md`), `POST /api/check-out` registra la salida y libera la habitación a `PendingCleaning`.
+- [x] T013 [P] [US2] Unit test: Rechazar Check-Out si `Room.status != Occupied` con `InvalidRoomTransitionException`.
+  - Hecho (L16): `CheckOutEligibilityTest`, `CheckOutExecutionServiceTest` y la integración (409 con `details.currentStatus`).
+- [x] T014 [P] [US2] Unit test: Rechazar Check-Out si no existe estancia activa vinculada arrojando `ActiveStayNotFoundException`.
+  - Hecho (L16): `CheckOutExecutionServiceTest` y la integración (404, también en un segundo Check-Out de la misma estancia).
+- [x] T015 [P] [US2] Unit test: Rechazar Check-Out si `isConfirmed == false` arrojando `MandatoryConfirmationMissingException`.
+  - Hecho (L16): `CheckOutExecutionServiceTest` y la integración (400 `CONFIRMATION_REQUIRED` sin leer ni escribir nada).
+- [x] T016 [P] [US2] Integration test: con la liquidación en `UNAVAILABLE` (`plan-consultar-liquidacion.md`), `POST /api/check-out` registra la salida y libera la habitación a `PendingCleaning`.
+  - Hecho (L16): la integración corre sin Módulo 3; `POST /api/check-out` no lo consulta, así que una liquidación `UNAVAILABLE` no lo bloquea.
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
-  - Avance (L15): las validaciones de existencia y estado viven en `CheckOutEligibility.verify` (dominio, sin consultas); L16 las puede repetir con la habitación bloqueada sin crear `CheckOutValidationService`.
+- [x] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
+  - Hecho (L15/L16): las validaciones de existencia y estado viven en `CheckOutEligibility.verify` (dominio, sin consultas); el Paso 1 las aplica con lo que leyó y el registro las repite con la habitación bloqueada. No hizo falta `CheckOutValidationService`.
 - [ ] T018 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T019 Verificar que en las pantallas y respuestas no se expongan horas en ningún campo de fecha (`checkInDate`, `checkOutDate`).
-- [ ] T020 Verificar que ante reenvíos de notificación de Check-Out por la cola RabbitMQ, se mantenga el mismo `messageId` (Contrato 1) y el mismo `eventId` (Contrato 2) para garantizar procesamiento idempotente en Módulo 2 y en Módulo 3.
+- [x] T019 Verificar que en las pantallas y respuestas no se expongan horas en ningún campo de fecha (`checkInDate`, `checkOutDate`).
+  - Hecho (L16): `checkInDate`, `checkOutDate` y `expectedCheckoutDate` son `LocalDate` en las respuestas y en los mensajes (`YYYY-MM-DD`).
+- [x] T020 Verificar que ante reenvíos de notificación de Check-Out por la cola RabbitMQ, se mantenga el mismo `messageId` (Contrato 1) y el mismo `eventId` (Contrato 2) para garantizar procesamiento idempotente en Módulo 2 y en Módulo 3.
+  - Hecho: `OutboxTransactionalIntegrationTest` ("se reintenta, conserva messageId") cubre a todos los tipos del Outbox; el `eventId` del Contrato 2 es ese mismo `message_id`.
 - [ ] T021 Pruebas E2E de concurrencia: dos recepcionistas intentando el Check-Out sobre la misma habitación simultáneamente (la segunda debe fallar con colisión controlada).
+  - Avance (L16): el bloqueo de la fila serializa dos Check-Out de la misma habitación; el segundo ve la habitación ya en `PendingCleaning` (409) o la estancia cerrada (404). Falta la prueba E2E con dos peticiones simultáneas (L38).
 
 ---
 
