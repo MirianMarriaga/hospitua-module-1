@@ -8,6 +8,7 @@ public enum DomainError {
     ROOM_NOT_FOUND(ErrorCategory.NOT_FOUND),
     TASK_NOT_FOUND(ErrorCategory.NOT_FOUND),
     RESERVATION_NOT_FOUND(ErrorCategory.NOT_FOUND),
+    ACTIVE_STAY_NOT_FOUND(ErrorCategory.NOT_FOUND),
     ROOM_INVALID_STATE(ErrorCategory.CONFLICT),
     TASK_ALREADY_CLOSED(ErrorCategory.CONFLICT),
     ACTIVE_TASK_EXISTS(ErrorCategory.CONFLICT),

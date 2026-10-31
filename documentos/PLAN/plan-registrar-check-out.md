@@ -361,6 +361,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T003 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
+  - Avance (L14): `ActiveStayNotFoundException` (404 `ACTIVE_STAY_NOT_FOUND`), creada con su primer consumidor, la consulta de la liquidación. Falta `MandatoryConfirmationMissingException` (L16).
 
 ---
 

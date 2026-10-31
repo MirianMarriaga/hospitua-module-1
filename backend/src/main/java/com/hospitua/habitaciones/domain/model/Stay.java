@@ -100,6 +100,11 @@ public class Stay {
         return version;
     }
 
+    /** Una estancia sigue activa hasta que el Check-Out le pone {@code checkOutDate}. */
+    public boolean isActive() {
+        return checkOutDate == null;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
