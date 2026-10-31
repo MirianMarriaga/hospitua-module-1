@@ -364,6 +364,7 @@ backend/
     │   │   │       ├── ActiveTaskExistsException.java        # El miembro ya tiene una tarea abierta (409)
     │   │   │       ├── RoomTaskExistsException.java          # La habitación ya tiene una tarea abierta de otro miembro (409 ROOM_TASK_EXISTS)
     │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │       ├── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción del daño, también desde el fin de limpieza con daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
     │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
@@ -587,7 +588,8 @@ backend/
     │   │       │   │   │   │   ├── RoomStateHistoryQuery.java    # Parámetros de GET /api/room-state-history
     │   │       │   │   │   │   ├── RegisterCheckInRequest.java   # POST /api/check-in
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
-    │   │       │   │   │   │   └── StartCleaningRequest.java     # POST /api/cleaning/tasks
+    │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
+    │   │       │   │   │   │   └── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
     │   │       │   │   │   ├── ErrorCategoryStatus.java      # ErrorCategory → código HTTP (T009)
@@ -625,6 +627,7 @@ backend/
     │   │       │       │   ├── repository/                   # Spring Data JPA Repositories y consultas
     │   │       │       │   │   ├── SpringDataCleaningTaskJpaRepository.java # Spring Data sobre CleaningTaskJpaEntity; última limpieza por lotes (MAX(end_date_time) … GROUP BY room_id); solo la usa CleaningTaskRepositoryAdapter
     │   │       │       │   │   ├── DepartureRow.java         # Proyección de una salida: estancia, número, categoría y huéspedes
+    │   │       │       │   │   ├── SpringDataDamageReportJpaRepository.java # Último reporte por habitación, uno o por lotes
     │   │       │       │   │   ├── SpringDataDailyReservationJpaRepository.java # Búsquedas de la copia local por referencia, documento y nombre
     │   │       │       │   │   ├── SpringDataDailyReservationRoomJpaRepository.java
     │   │       │       │   │   ├── SpringDataDailyReservationMessageLogJpaRepository.java
