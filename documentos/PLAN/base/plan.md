@@ -720,6 +720,7 @@ backend/
         │       ├── CleaningPanelQueryServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
+        │       ├── DamageReportQueryServiceTest.java
         │       ├── DepartureSearchServiceTest.java
         │       ├── LoginServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
@@ -729,6 +730,7 @@ backend/
         │       ├── ReceptionPanelQueryServiceTest.java
         │       ├── RegisterRoomServiceTest.java
         │       ├── RegisterStaffAccountServiceTest.java
+        │       ├── ReportDamageServiceTest.java
         │       ├── RoomInventoryQueryServiceTest.java
         │       ├── RoomReservationConflictServiceTest.java
         │       ├── RoomStateHistoryQueryServiceTest.java
@@ -747,6 +749,7 @@ backend/
         │       ├── CheckOutEligibilityTest.java
         │       ├── CleaningTaskTest.java
         │       ├── DailyReservationTest.java
+        │       ├── DamageReportTest.java
         │       ├── DepartureSummaryTest.java
         │       ├── ReservationConflictQueryTest.java
         │       ├── RoomTest.java
@@ -766,6 +769,7 @@ backend/
         │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
         │   │   │       ├── CleaningPanelIntegrationTest.java          # plan-consultar-panel-limpieza.md
         │   │   │       ├── CurrentUserResolverTest.java
+        │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
@@ -786,6 +790,7 @@ backend/
         │   │       │   ├── CleaningMaintenanceSchemaTest.java         # Plan base
         │   │       │   ├── CleaningTaskRepositoryAdapterTest.java
         │   │       │   ├── DailyReservationRepositoryAdapterTest.java
+        │   │       │   ├── DamageReportRepositoryAdapterTest.java
         │   │       │   ├── FlywayMigrationAndSchemaTest.java          # Plan base
         │   │       │   ├── MarkPendingCleaningIntegrationTest.java    # plan-marcar-pendiente-a-limpieza.md
         │   │       │   ├── MarkRoomAvailableIntegrationTest.java      # plan-marcar-habitacion-como-disponible.md
