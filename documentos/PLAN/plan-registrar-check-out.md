@@ -69,6 +69,7 @@ backend/src/
 │   │   │   ├── RoomStatus.java
 │   │   │   ├── Stay.java
 │   │   │   ├── RoomGuest.java
+│   │   │   ├── CheckOutEligibility.java   # Reglas del Paso 1 (estancia activa, habitación Occupied); sin consultas
 │   │   │   └── CheckOutDetails.java   # Sin uso asignado
 │   │   └── exception/
 │   │       ├── ActiveStayNotFoundException.java
@@ -269,10 +270,10 @@ GET /api/check-out/active-stay?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 | --- | --- | --- | --- |
-| `reservationRef` | string | Sí | Referencia que entrega el botón "Check-out" del panel de recepción (FR-003) |
+| `reservationRef` | string | Sí | Referencia que entrega el botón "Check-out" del panel de recepción (FR-003); máximo 100 caracteres, sin espacios al inicio ni al final |
 | `roomId` | UUID | Sí | Habitación seleccionada; con la referencia identifica la estancia, porque una reserva puede tener varias habitaciones |
 
-Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`ActiveStayResponseDto`):
+Lee solo `Stay`, `Room` y `RoomGuest`, sin llamar a Módulo 2 (FR-003). Verifica, en orden, que el par tenga una estancia activa (404), que la habitación exista (404 `ROOM_NOT_FOUND`) y que esté `Occupied` (409). `guests[]` lleva solo lo que muestra el Paso 1 (sin `birthDate` ni lugares), con el titular primero si se aloja y los demás por apellido y nombre. Respuesta `200 OK` (`ActiveStayResponseDto`):
 
 ```json
 {
@@ -342,7 +343,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 ```json
 {
   "errorCode": "ACTIVE_STAY_NOT_FOUND",
-  "message": "No hay una estancia activa de la reserva RSV-8D02E5A4 en la habitación 204.",
+  "message": "No hay una estancia activa de la reserva RSV-8D02E5A4 en esta habitación.",
   "timestamp": "2026-10-11T11:20:40-05:00",
   "path": "/api/check-out/active-stay",
   "details": { "reservationRef": "RSV-8D02E5A4", "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d" }
@@ -361,7 +362,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T003 Implementar las excepciones de dominio (`ActiveStayNotFoundException`, `MandatoryConfirmationMissingException`) en `GlobalExceptionHandler`, con los códigos de la tabla "Errores de los dos endpoints". `InvalidRoomTransitionException`, `ObjectOptimisticLockingFailureException` y los códigos comunes vienen del catálogo de errores del plan base.
-  - Avance (L14): `ActiveStayNotFoundException` (404 `ACTIVE_STAY_NOT_FOUND`), creada con su primer consumidor, la consulta de la liquidación. Falta `MandatoryConfirmationMissingException` (L16).
+  - Avance: `ActiveStayNotFoundException` (404 `ACTIVE_STAY_NOT_FOUND`), creada con su primer consumidor, la consulta de la liquidación (L14); L15 le agregó el constructor del par, con `reservationRef` y `roomId` en `details`. Falta `MandatoryConfirmationMissingException` (L16).
 
 ---
 
@@ -373,7 +374,8 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test para `ActiveStayQueryService` verificando recuperación 100% local desde `Stay`, `Room` y `RoomGuest` sin llamadas externas a Módulo 2.
+- [x] T004 [P] [US1] Unit test para `ActiveStayQueryService` verificando recuperación 100% local desde `Stay`, `Room` y `RoomGuest` sin llamadas externas a Módulo 2.
+  - Hecho (L15): `ActiveStayQueryServiceTest`; el servicio solo depende de los puertos de `Stay`, `Room` y `RoomGuest`, así que no puede llamar a Módulo 2.
 - [ ] T005 [P] [US1] Unit test para `CheckOutExecutionService` verificando la transición atómica a `PendingCleaning`, el cierre de `Stay` y la serialización del payload plano unificado en `outbox_notification`.
 - [ ] T006 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`), y la fila del Contrato 2 (`event_type = CHECK_OUT_BILLING`, routing key `facturacion.checkout`) con `eventId` = `message_id`, `occurredAt` con offset `-05:00` y `billingCustomer` del titular.
 - [ ] T007 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
@@ -381,7 +383,8 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por el par `reservationRef` y `roomId` (una reserva puede tener varias habitaciones, cada una con su `Stay`), obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
+- [x] T009 [P] [US1] Implementar en `ActiveStayQueryService` la búsqueda de la estancia activa por el par `reservationRef` y `roomId` (una reserva puede tener varias habitaciones, cada una con su `Stay`), obteniendo titular (`Stay.titularFirstName`, `Stay.titularLastName`), huéspedes vinculados y canal `Stay.source`.
+  - Hecho (L15): `ActiveStayQueryService` (solo lectura) con las reglas de `CheckOutEligibility` (dominio) y `StayRepositoryPort.findByReservationRefAndRoomId`; pruebas en `CheckOutEligibilityTest` y `CheckOutActiveStayIntegrationTest`.
 - [ ] T010 [P] [US1] Implementar en `CheckOutExecutionService` el método `@Transactional registerCheckOut(RegisterCheckOutCommand command)`:
   - Validar que `command.isConfirmed()` sea `true` (arrojar `MandatoryConfirmationMissingException` si es false).
   - Verificar que la habitación esté en estado `Occupied`.
@@ -417,6 +420,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
   - Encolarlo con `OutboxEventPublisherPort.enqueue("habitacion.checkout", "CHECK_OUT", payload)` dentro de la misma transacción; `messageId` y `sequenceNumber` los asigna el outbox (plan base, T012).
   - Encolar también el Contrato 2 con `OutboxEventPublisherPort.enqueue("facturacion.checkout", "CHECK_OUT_BILLING", payload)` en la misma transacción, con `stayId`, `reservationRef`, `roomId`, `categoryRoom`, `checkInDate`, `checkOutDate` y `billingCustomer` del titular (FR-016); `eventId` es el `message_id` de la fila y `occurredAt` su `created_at` con offset `-05:00`.
 - [ ] T011 [US1] Implementar endpoints REST en `CheckOutController.java`:
+  - Avance (L15): `GET /api/check-out/active-stay` en `CheckOutController`. Falta `POST /api/check-out` (L16).
   - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
   - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
 - [ ] T012 [US1] Construir los componentes frontend en React:
@@ -444,6 +448,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 ### Implementation for User Story 2
 
 - [ ] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
+  - Avance (L15): las validaciones de existencia y estado viven en `CheckOutEligibility.verify` (dominio, sin consultas); L16 las puede repetir con la habitación bloqueada sin crear `CheckOutValidationService`.
 - [ ] T018 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 
 ---
