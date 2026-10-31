@@ -75,6 +75,9 @@ backend/src/
 │   │   │   ├── DailyReservation.java
 │   │   │   ├── DailyReservationRoom.java
 │   │   │   ├── DailyReservationMessageLog.java
+│   │   │   ├── DailyReservationMessageType.java      # Enum DAILY_LIST / UPDATE
+│   │   │   ├── DailyReservationUpdateType.java       # Enum ADDED / UPDATED / REMOVED
+│   │   │   ├── DailyReservationIngestionOutcome.java # Enum APPLIED / DUPLICATE / OUTDATED_DAY / OUTDATED_SEQUENCE
 │   │   │   ├── ReservationConflictQuery.java         # Value Object (roomId, startDate, endDate)
 │   │   │   ├── ReservationConflictResult.java        # Resultado de cruce (hasConflict, conflicts)
 │   │   │   ├── ArrivalGroup.java                     # Reserva del día con pendingRooms, totalRooms y rooms (ArrivalItemSummary) (T020)
@@ -106,7 +109,12 @@ backend/src/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   └── amqp/
-│       │   │       └── DailyReservationRabbitListener.java # Listener m1.reservas.diarias.queue
+│       │   │       ├── DailyReservationRabbitListener.java # Listener m1.reservas.diarias.queue
+│       │   │       ├── InvalidDailyReservationMessageException.java # Mensaje inválido: a la DLQ sin reintento
+│       │   │       └── dto/
+│       │   │           ├── DailyReservationListMessage.java
+│       │   │           ├── DailyReservationUpdateMessage.java
+│       │   │           └── ReservationPayload.java   # Reserva, habitaciones y titular
 │       │   └── out/
 │       │       ├── persistence/
 │       │       │   ├── entity/
@@ -114,7 +122,11 @@ backend/src/
 │       │       │   │   ├── DailyReservationRoomJpaEntity.java
 │       │       │   │   └── DailyReservationMessageLogJpaEntity.java
 │       │       │   ├── repository/
-│       │       │   │   └── DailyReservationRepository.java # Búsquedas por referencia, documento y nombre (T018)
+│       │       │   │   ├── SpringDataDailyReservationJpaRepository.java # Búsquedas por referencia, documento y nombre (T018)
+│       │       │   │   ├── SpringDataDailyReservationRoomJpaRepository.java
+│       │       │   │   └── SpringDataDailyReservationMessageLogJpaRepository.java
+│       │       │   ├── mapper/
+│       │       │   │   └── DailyReservationMapper.java
 │       │       │   └── adapter/
 │       │       │       └── DailyReservationRepositoryAdapter.java
 │       │       └── rest/

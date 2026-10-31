@@ -128,7 +128,8 @@ backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   └── model/
-│   │       └── CleaningTask.java                 # Definido en el plan base; aquí se implementa con start, ensureClosableBy y close
+│   │       ├── CleaningTask.java                 # Definido en el plan base; aquí se implementa con start, ensureClosableBy y close
+│   │       └── CleaningTaskOutcome.java          # Enum Completed / DamageReported / Released; countsAsCleaning()
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -147,7 +148,11 @@ backend/src/
 │           │   └── dto/StartCleaningRequest.java   # {roomId}; las fechas del cliente se ignoran
 │           └── out/persistence/
 │               ├── entity/CleaningTaskJpaEntity.java
-│               └── adapter/CleaningTaskRepositoryAdapter.java
+│               ├── mapper/CleaningTaskMapper.java
+│               ├── repository/SpringDataCleaningTaskJpaRepository.java # Incluye la última limpieza por lotes
+│               └── adapter/
+│                   ├── CleaningTaskRepositoryAdapter.java
+│                   └── ConstraintViolations.java   # Compartido con RoomRepositoryAdapter: qué índice único rechazó la escritura
 └── main/resources/db/migration/
     └── (sin migración propia: `cleaning_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/

@@ -304,9 +304,9 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 | Tipo | Qué cubre | Archivo |
 | --- | --- | --- |
-| Contrato | Query params enviados, headers y mapeo de `SettlementSummary` contra WireMock | `infrastructure/rest/SettlementModule3ContractTest.java` |
+| Contrato | Query params enviados, headers y mapeo de `SettlementSummary` contra WireMock | `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java` |
 | Unitario | No alteración de montos; composición de `nights` y `source`; traducción de errores del adaptador | `application/service/SettlementQueryServiceTest.java`, `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java` |
-| Integración | Escenarios DIRECTA y OTA; timeout y 4xx → `UNAVAILABLE`; ausencia de efectos secundarios | `infrastructure/rest/*IntegrationTest.java` |
+| Integración | Escenarios DIRECTA y OTA; timeout y 4xx → `UNAVAILABLE`; ausencia de efectos secundarios | `infrastructure/adapters/in/web/SettlementQueryIntegrationTest.java`, `infrastructure/adapters/out/rest/SettlementCircuitBreakerIntegrationTest.java` |
 | Frontend | Render de pasos 2 y 3 en estados `AVAILABLE` y `UNAVAILABLE`; sin campos de captura de pago | `frontend/src/test/settlement/*.test.tsx` |
 | Rendimiento | p95 < 800 ms y respuesta controlada < 3 s ante falla | T027 |
 
@@ -342,11 +342,11 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ### Tests for User Story 1
 
-- [x] T007 [P] [US1] Contract test del adaptador contra WireMock (solo los query params `reservationRef` y `roomId`, headers, mapeo de `breakdown` a `SettlementSummary` con conversión de texto a `BigDecimal`) en `infrastructure/rest/SettlementModule3ContractTest.java`
+- [x] T007 [P] [US1] Contract test del adaptador contra WireMock (solo los query params `reservationRef` y `roomId`, headers, mapeo de `breakdown` a `SettlementSummary` con conversión de texto a `BigDecimal`) en `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java`
   - Hecho (L13): en `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java` (la carpeta de los adaptadores REST del proyecto): solo `reservationRef` y `roomId`, sin `X-User`, y el desglose OTA y directo como `BigDecimal` con la escala recibida.
-- [x] T008 [P] [US1] Test unitario de no alteración: montos de salida idénticos a Módulo 3 y ausencia de consumos locales, en `application/SettlementQueryServiceTest.java`
+- [x] T008 [P] [US1] Test unitario de no alteración: montos de salida idénticos a Módulo 3 y ausencia de consumos locales, en `application/service/SettlementQueryServiceTest.java`
   - Hecho (L14): `SettlementQueryServiceTest` (los montos son las mismas instancias de `BigDecimal` que entrega Módulo 3).
-- [x] T009 [P] [US1] Test de integración de los escenarios 1 y 2 (DIRECTA con `otaCommissionPercentage` null, comisión `"0.00"` e ingreso neto = hospedaje; OTA con comisión) en `infrastructure/rest/SettlementQueryIntegrationTest.java`
+- [x] T009 [P] [US1] Test de integración de los escenarios 1 y 2 (DIRECTA con `otaCommissionPercentage` null, comisión `"0.00"` e ingreso neto = hospedaje; OTA con comisión) en `infrastructure/adapters/in/web/SettlementQueryIntegrationTest.java`
   - Hecho (L14): `infrastructure/adapters/in/web/SettlementQueryIntegrationTest.java`, con PostgreSQL real y Módulo 3 en WireMock.
 
 ### Implementation for User Story 1
@@ -379,9 +379,9 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ### Tests for User Story 2
 
-- [x] T019 [P] [US2] Test de integración de timeout (respuesta con retraso > 3 s) → `UNAVAILABLE` / `TIMEOUT` en `infrastructure/rest/SettlementUnavailabilityIntegrationTest.java`
+- [x] T019 [P] [US2] Test de integración de timeout (respuesta con retraso > 3 s) → `UNAVAILABLE` / `TIMEOUT` en `infrastructure/adapters/in/web/SettlementQueryIntegrationTest.java`
   - Hecho: `SettlementRestAdapterTest` en el adaptador (L13) y `SettlementQueryIntegrationTest` de punta a punta (`200 UNAVAILABLE` + `TIMEOUT`, L14).
-- [x] T020 [P] [US2] Test unitario del adaptador: regla general (cualquier no 2xx con `ApiError` → causa = `errorCode`, p. ej. 400 `INVALID_QUERY_PARAMS`, 404 `RESERVATION_NOT_FOUND`/`QUOTE_NOT_FOUND`, 409 `MISSING_COMMISSION`/`INVALID_COMMISSION`, 422 `UNEXPECTED_ERROR`, 424 `MODULE2_UNAVAILABLE`; sin `ApiError` → `HTTP_ERROR`) y errores de red/tiempo a su causa, en `infrastructure/rest/SettlementRestAdapterTest.java`
+- [x] T020 [P] [US2] Test unitario del adaptador: regla general (cualquier no 2xx con `ApiError` → causa = `errorCode`, p. ej. 400 `INVALID_QUERY_PARAMS`, 404 `RESERVATION_NOT_FOUND`/`QUOTE_NOT_FOUND`, 409 `MISSING_COMMISSION`/`INVALID_COMMISSION`, 422 `UNEXPECTED_ERROR`, 424 `MODULE2_UNAVAILABLE`; sin `ApiError` → `HTTP_ERROR`) y errores de red/tiempo a su causa, en `infrastructure/adapters/out/rest/SettlementRestAdapterTest.java`
   - Hecho (L13): `SettlementRestAdapterTest`, con todos los códigos de la tabla, un 5xx con `ApiError` y respuestas sin `ApiError`.
 - [x] T021 [P] [US2] Test de no efectos secundarios: tras `UNAVAILABLE` no se invoca ningún repositorio de escritura (Mockito `verifyNoInteractions`)
   - Hecho (L14): `SettlementQueryServiceTest` (tras la falla solo hubo `findById`, con `verifyNoMoreInteractions`).
