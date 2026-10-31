@@ -598,7 +598,7 @@ backend/
     │   │       │       │   │   ├── OutboxNotificationJpaEntity.java
     │   │       │       │   │   └── UserAccountJpaEntity.java
     │   │       │       │   ├── repository/                   # Spring Data JPA Repositories y consultas
-    │   │       │       │   │   ├── CleaningTaskJpaRepository.java # Spring Data sobre CleaningTaskJpaEntity; última limpieza por lotes (MAX(end_date_time) … GROUP BY room_id); solo la usa CleaningTaskRepositoryAdapter
+    │   │       │       │   │   ├── SpringDataCleaningTaskJpaRepository.java # Spring Data sobre CleaningTaskJpaEntity; última limpieza por lotes (MAX(end_date_time) … GROUP BY room_id); solo la usa CleaningTaskRepositoryAdapter
     │   │       │       │   │   ├── DailyReservationRepository.java # Búsquedas de la copia local por referencia, documento y nombre
     │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications); solo la usa RoomRepositoryAdapter
     │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account; solo la usa RoomStateHistoryRepositoryAdapter
@@ -626,6 +626,7 @@ backend/
     │   │       │       │       ├── DailyReservationRepositoryAdapter.java # Implementa DailyReservationRepositoryPort
     │   │       │       │       ├── RoomDecommissionRepositoryAdapter.java # Implementa RoomDecommissionRepositoryPort
     │   │       │       │       ├── CleaningTaskRepositoryAdapter.java # Implementa CleaningTaskRepositoryPort
+    │   │       │       │       ├── ConstraintViolations.java # Nombre de la restricción o índice único que rechazó una escritura; lo usan RoomRepositoryAdapter y CleaningTaskRepositoryAdapter
     │   │       │       │       ├── ReparationTaskRepositoryAdapter.java # Implementa ReparationTaskRepositoryPort
     │   │       │       │       ├── DamageReportRepositoryAdapter.java # Implementa DamageReportRepositoryPort
     │   │       │       │       ├── TechnicalBlockReportRepositoryAdapter.java # Implementa TechnicalBlockReportRepositoryPort
