@@ -143,7 +143,8 @@ backend/src/
 │   └── infrastructure/
 │       └── adapters/
 │           ├── in/web/
-│           │   └── CleaningController.java
+│           │   ├── CleaningController.java
+│           │   └── dto/StartCleaningRequest.java   # {roomId}; las fechas del cliente se ignoran
 │           └── out/persistence/
 │               ├── entity/CleaningTaskJpaEntity.java
 │               └── adapter/CleaningTaskRepositoryAdapter.java

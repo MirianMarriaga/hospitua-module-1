@@ -82,8 +82,7 @@ backend/src/
 │   │   └── exception/
 │   │       ├── ReservationNotFoundException.java
 │   │       ├── ReservationConflictException.java   # 409 RESERVATION_CONFLICT (T029)
-│   │       ├── ExternalModule2UnavailableException.java
-│   │       └── InvalidReservationQueryException.java
+│   │       └── ExternalModule2UnavailableException.java   # También para un 400 de Módulo 2; un rango invertido es error de programación
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
