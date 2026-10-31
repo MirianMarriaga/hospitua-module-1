@@ -383,16 +383,16 @@ frontend/src/
   - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Hecho `ReceptionDashboardKpis` (L10); `arrivalsToday` nulo se omite del JSON por la misma configuración.
 - [x] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
   - Hecho (L10): `RoomRepositoryPort.countByStatus(RoomStatus)`.
-- [x] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
-  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los conteos `countActiveWithExpectedCheckoutOn(today)` y `countActiveWithExpectedCheckoutBefore(today)`, en lugar de devolver las listas.
-  - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
-  - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
-  - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
+- [x] T006 Implementar en `StayRepositoryPort` las consultas de salidas activas:
+  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los dos conteos, en lugar de devolver las listas de salidas de hoy y vencidas.
+  - Conteo de salidas de hoy: `countActiveWithExpectedCheckoutOn(LocalDate date)`.
+  - Conteo de salidas vencidas: `countActiveWithExpectedCheckoutBefore(LocalDate date)`.
+  - Búsqueda por nombre, documento, código o habitación: `searchActiveDepartures(LocalDate today, String normalizedQuery)`.
 - [x] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
-  - Avance (L08): hechos `searchPendingArrivals(LocalDate, String)` e `isDailyListReceived(LocalDate)`. Hecho (L10) `countPendingArrivalRooms(LocalDate)`, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
-  - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
-  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T020).
-  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
+  - Avance (L08): hechas la búsqueda y la comprobación de la lista del día. Hecho (L10) el conteo, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
+  - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRooms(LocalDate operationalDate)`.
+  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivals(LocalDate operationalDate, String normalizedQuery)`, expuesta por `SearchDailyReservationsUseCase.searchPendingArrivals(String query)` (`plan-consultar-reservas.md`, T020).
+  - Lista del día recibida: `isDailyListReceived(LocalDate operationalDate)` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
 
 ---
 

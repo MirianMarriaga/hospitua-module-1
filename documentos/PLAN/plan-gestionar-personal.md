@@ -347,7 +347,7 @@ backend/src/main/
 │       │   │   ├── web/StaffController.java       # /api/staff
 │       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T022)
 │       │   └── out/
-│       │       ├── persistence/repository/UserAccountJpaRepository.java   # Plan base (T022)
+│       │       ├── persistence/repository/SpringDataUserAccountJpaRepository.java   # Plan base (T022)
 │       │       ├── persistence/adapter/StaffAccountRepositoryAdapter.java   # Plan base (T022)
 │       │       └── security/BCryptPasswordEncoderAdapter.java   # Plan base (T022)
 │       └── config/
@@ -380,7 +380,7 @@ frontend/src/
 - [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007 y T020) la tabla `user_account` con `password_hash`, `area`, `active`, `version` y las columnas de registro, edición y desactivación (`created_at`, `created_by`, `updated_at`, `updated_by`, `deactivated_at`, `deactivated_by`).
 - [ ] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T022).
 - [ ] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T022) y que `LoginService` (plan base, T020) use el mismo puerto.
-- [ ] T005 [P] Verificar `StaffAccountRepositoryPort`, `UserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
+- [ ] T005 [P] Verificar `StaffAccountRepositoryPort`, `SpringDataUserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
 - [ ] T006 [P] Registrar en `GlobalExceptionHandler` `STAFF_NOT_FOUND`, `ACCOUNT_INACTIVE`, `CANNOT_DEACTIVATE_SELF` y `LAST_ADMINISTRATOR`, y verificar que `USERNAME_ALREADY_EXISTS` y la violación de la clave primaria de `user_account` ya están mapeados (plan base, T022).
 
 ---

@@ -456,7 +456,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ### Implementation for User Story 2
 
-- [x] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutValidationService.java`.
+- [x] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutEligibility.verify` (dominio).
   - Hecho (L15/L16): las validaciones de existencia y estado viven en `CheckOutEligibility.verify` (dominio, sin consultas); el Paso 1 las aplica con lo que leyó y el registro las repite con la habitación bloqueada. No hizo falta `CheckOutValidationService`.
 - [ ] T018 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 

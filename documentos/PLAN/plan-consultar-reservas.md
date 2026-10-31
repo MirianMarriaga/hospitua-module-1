@@ -330,7 +330,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 **Goal**: Mantener la copia local de llegadas del día sincronizada a través de `m1.reservas.diarias.queue` a las 00:00 y con actualizaciones continuas, apartando y liberando las habitaciones con los puertos `MarkRoomReservedUseCase` y `MarkRoomAvailableUseCase` en la misma transacción.
 
-**Independent Test**: Publicar un mensaje `DailyReservationList` simulado a las 00:00 por `m1.reservas.diarias.queue` (`reserva.lista-del-dia`), verificar la purga de registros anteriores, persistencia en `daily_reservation` y `daily_reservation_room`, descarte de duplicados por `messageId`, apartados `Available → Reserved` por `MarkRoomReservedUseCase` (con `reserved_by_reservation_ref`) y liberaciones a `Available` por `MarkRoomAvailableUseCase` en `REMOVED` solo de habitaciones `Reserved` por esa reserva.
+**Independent Test**: Publicar un mensaje `DailyReservationListMessage` simulado a las 00:00 por `m1.reservas.diarias.queue` (`reserva.lista-del-dia`), verificar la purga de registros anteriores, persistencia en `daily_reservation` y `daily_reservation_room`, descarte de duplicados por `messageId`, apartados `Available → Reserved` por `MarkRoomReservedUseCase` (con `reserved_by_reservation_ref`) y liberaciones a `Available` por `MarkRoomAvailableUseCase` en `REMOVED` solo de habitaciones `Reserved` por esa reserva.
 
 ### Tests for User Story 1
 
@@ -380,7 +380,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 ### Implementation for User Story 2
 
-- [x] T018 [P] [US2] Implementar consultas de búsqueda optimizadas en `DailyReservationRepository` (búsqueda por referencia, documento y nombre).
+- [x] T018 [P] [US2] Implementar consultas de búsqueda optimizadas en `SpringDataDailyReservationJpaRepository` (búsqueda por referencia, documento y nombre).
 - [x] T019 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
 - [x] T020 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `PendingArrivalsDto searchPendingArrivals(String query)` (`listAvailable` y la lista de `ArrivalGroup` en `groups`): cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
   - Hecho (L08): `searchPendingArrivals(String query)` devuelve `PendingArrivalsDto` (`listAvailable` y `groups`), no solo la lista, para que el controlador no consulte aparte si llegó la lista del día (FR-011). Una habitación que no está en el inventario se omite, como en la ingesta.

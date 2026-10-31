@@ -329,7 +329,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
   - Hecho (L13): `SettlementRequest` (con `of(stay)`), `SettlementSummary`, `SettlementAvailabilityStatus` y `ExternalModule3UnavailableException` (con `unavailableCause()`; error `MODULE_3_UNAVAILABLE`, que no llega al recepcionista). Se agregó el enum `SettlementType` (`INFORMATIVE`, `FINAL`).
 - [x] T005 Definir la interfaz del puerto de entrada `QuerySettlementUseCase` en `application/ports/in/` y del puerto de salida `SettlementRestQueryPort` para `GET /api/settlements` en `application/ports/out/` (regla 1 del plan base).
   - Hecho: `SettlementRestQueryPort` (L13) y `QuerySettlementUseCase.querySettlement(UUID stayId)` (L14).
-- [x] T006 Implementar los DTOs de aplicación `SettlementQueryCommand` y `SettlementResponseDto` en `application/dto/`.
+- [x] T006 Implementar el DTO de aplicación `SettlementResponseDto` en `application/dto/`.
   - Hecho (L14): `SettlementResponseDto` con `available(...)` y `unavailable(cause)`. Sin `SettlementQueryCommand`: llevaría solo el `stayId`, así que el caso de uso recibe el `UUID` (YAGNI).
 
 ---
