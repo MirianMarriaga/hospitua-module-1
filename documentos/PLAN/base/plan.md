@@ -244,6 +244,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `INVALID_DATE_RANGE` | 400 | `InvalidDateRangeException`, con `details.rule` | `plan-consultar-informacion-mantenimientos.md` (T001); la reutilizan *Programar bloqueo técnico* y *Consultar historial de estados* | El de la regla, en la tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md` |
 | `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T029); la reutilizan *Programar bloqueo técnico* y *Dar de baja* | Lo define el plan del endpoint |
 | `MODULE_2_UNAVAILABLE` | 424 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
+| `MODULE_3_UNAVAILABLE` | 424 | `ExternalModule3UnavailableException`, con `unavailableCause` | `plan-consultar-liquidacion.md` | No llega al cliente: la consulta de la liquidación la convierte en `200` con `status: UNAVAILABLE` |
 | `UNEXPECTED_ERROR` | 422 | Cualquier excepción no controlada (`GlobalExceptionHandler`, regla 7) | Plan base | "Ocurrió un error inesperado. Referencia: {correlationId}" |
 
 ---
@@ -357,7 +358,7 @@ backend/
     │   │   │       ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
     │   │   │       ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
     │   │   │       ├── ExternalModule2UnavailableException.java # 424 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
-    │   │   │       ├── ExternalModule3UnavailableException.java # Módulo 3 no responde (plan-consultar-liquidacion.md)
+    │   │   │       ├── ExternalModule3UnavailableException.java # MODULE_3_UNAVAILABLE; la liquidación responde 200 UNAVAILABLE (plan-consultar-liquidacion.md)
     │   │   │       ├── GuestCountMismatchException.java      # Huéspedes distintos a los de la reserva (plan-registrar-check-in.md)
     │   │   │       ├── RoomCapacityExceededException.java    # Supera la capacidad máxima (plan-registrar-check-in.md)
     │   │   │       ├── DuplicateGuestDocumentException.java  # Documento repetido entre huéspedes (plan-registrar-check-in.md)

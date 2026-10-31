@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
@@ -41,6 +42,9 @@ public class SettlementRestAdapter implements SettlementRestQueryPort {
 
     static final String SETTLEMENTS_PATH = "/api/settlements";
     static final String CIRCUIT_BREAKER = "module3";
+
+    /** Forma de los códigos del contrato; otro texto no se copia a la respuesta ni al log. */
+    private static final Pattern ERROR_CODE = Pattern.compile("[A-Z0-9_]{1,50}");
 
     private final RestClient restClient;
 
@@ -113,15 +117,17 @@ public class SettlementRestAdapter implements SettlementRestQueryPort {
         return new ExternalModule3UnavailableException(cause, ex);
     }
 
-    /** {@code errorCode} del {@code ApiError} de Módulo 3, o {@code HTTP_ERROR} si la respuesta no lo trae. */
+    /**
+     * {@code errorCode} del {@code ApiError} de Módulo 3, o {@code HTTP_ERROR} si la respuesta no lo trae o no tiene la
+     * forma de un código.
+     */
     private static String errorCode(RestClientResponseException ex) {
         try {
             Module3Error error = ex.getResponseBodyAs(Module3Error.class);
-            return error == null
-                            || error.errorCode() == null
-                            || error.errorCode().isBlank()
-                    ? HTTP_ERROR
+            String code = error == null || error.errorCode() == null
+                    ? ""
                     : error.errorCode().strip();
+            return ERROR_CODE.matcher(code).matches() ? code : HTTP_ERROR;
         } catch (RuntimeException unreadable) {
             return HTTP_ERROR;
         }

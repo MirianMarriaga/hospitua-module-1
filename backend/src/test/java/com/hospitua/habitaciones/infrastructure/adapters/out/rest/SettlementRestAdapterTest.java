@@ -176,6 +176,16 @@ class SettlementRestAdapterTest {
     }
 
     @ParameterizedTest(name = "{0}")
+    @ValueSource(
+            strings = {"", "BAD\\nCODE", "no-es-un-codigo", "CODIGO_DEMASIADO_LARGO_PARA_SER_UNA_CAUSA_DE_MODULO_3_X"})
+    @DisplayName("T020/T022: un errorCode vacío o que no tiene la forma de un código da HTTP_ERROR")
+    void malformedErrorCode_isHttpError(String errorCode) {
+        stubSettlement(404, "{\"errorCode\":\"" + errorCode + "\",\"message\":\"x\"}");
+
+        assertThat(causeOf(adapter)).isEqualTo("HTTP_ERROR");
+    }
+
+    @ParameterizedTest(name = "{0}")
     @ValueSource(ints = {500, 502, 404})
     @DisplayName("T020/T022: una respuesta no 2xx sin ApiError da HTTP_ERROR")
     void nonApiError_isHttpError(int status) {

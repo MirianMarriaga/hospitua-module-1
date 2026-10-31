@@ -217,7 +217,7 @@ Host: modulo3.sistema.local
 
 **Headers de respuesta**: `Content-Type: application/json`, `Cache-Control: no-store`.
 
-**Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista). Regla general: cualquier respuesta no 2xx con cuerpo `ApiError` → `UNAVAILABLE` con causa = `errorCode`; sin cuerpo `ApiError` → causa `HTTP_ERROR`; timeout de lectura → `TIMEOUT`; error de red o de conexión → `CONNECTION_ERROR`; liquidación ilegible → `INVALID_RESPONSE`; circuito abierto → `CIRCUIT_OPEN`. Códigos que devuelve Módulo 3:
+**Errores de Módulo 3 y su traducción en Módulo 1** (nunca se propaga una excepción técnica al recepcionista). Regla general: cualquier respuesta no 2xx con cuerpo `ApiError` → `UNAVAILABLE` con causa = `errorCode`; sin cuerpo `ApiError`, o con un `errorCode` que no tiene la forma de un código (`[A-Z0-9_]`, hasta 50 caracteres) → causa `HTTP_ERROR`; timeout de lectura → `TIMEOUT`; error de red o de conexión → `CONNECTION_ERROR`; liquidación ilegible → `INVALID_RESPONSE`; circuito abierto → `CIRCUIT_OPEN`. Códigos que devuelve Módulo 3:
 
 | Código | Caso | Excepción en Módulo 1 | Resultado en Módulo 1 |
 | --- | --- | --- | --- |
