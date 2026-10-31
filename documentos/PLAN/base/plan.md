@@ -717,6 +717,7 @@ backend/
         │       ├── CheckInExecutionServiceTest.java
         │       ├── CheckInValidationServiceTest.java
         │       ├── CheckOutExecutionServiceTest.java
+        │       ├── CleaningPanelQueryServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DepartureSearchServiceTest.java
@@ -763,6 +764,7 @@ backend/
         │   │   │       ├── CheckInValidationIntegrationTest.java      # plan-registrar-check-in.md
         │   │   │       ├── CheckOutActiveStayIntegrationTest.java     # plan-registrar-check-out.md
         │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
+        │   │   │       ├── CleaningPanelIntegrationTest.java          # plan-consultar-panel-limpieza.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
