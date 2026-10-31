@@ -353,8 +353,10 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar la cola `m2.habitacion.checkout.queue` y su binding con routing key `habitacion.checkout`, y la publicación con la routing key `facturacion.checkout` para Módulo 3 con `mandatory = true` (plan base, T011 y T012).
+- [x] T001 Verificar los componentes transversales de persistencia y colas en [PLAN/base/plan.md](base/plan.md).
+  - Hecho (cierre de R7): persistencia (`Stay`, `RoomGuest`, `outbox_notification`) y colas del plan base, ejercitadas por `CheckOutRegistrationIntegrationTest`.
+- [x] T002 Verificar la cola `m2.habitacion.checkout.queue` y su binding con routing key `habitacion.checkout`, y la publicación con la routing key `facturacion.checkout` para Módulo 3 con `mandatory = true` (plan base, T011 y T012).
+  - Hecho (cierre de R7): `RabbitTopologyIntegrationTest` (la cola `m2.habitacion.checkout.queue` recibe `habitacion.checkout`; `facturacion.checkout` sin cola se devuelve con `mandatory = true`).
 
 ---
 

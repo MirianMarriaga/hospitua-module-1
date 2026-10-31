@@ -36,6 +36,17 @@ class StayTest {
         assertThatThrownBy(() -> closed.checkOut(CHECK_IN.plusDays(2))).isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    @DisplayName("Dos estancias son la misma si tienen el mismo id, aunque cambie su checkOutDate")
+    void equality_isById() {
+        Stay active = stay(null);
+        Stay closed = active.checkOut(CHECK_IN.plusDays(2));
+
+        assertThat(closed).isEqualTo(active).hasSameHashCodeAs(active);
+        assertThat(active.equals(active)).isTrue();
+        assertThat(stay(null)).isNotEqualTo(active).isNotEqualTo("otra cosa");
+    }
+
     private static Stay stay(LocalDate checkOutDate) {
         return new Stay(
                 UUID.randomUUID(),

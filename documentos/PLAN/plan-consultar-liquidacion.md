@@ -314,7 +314,8 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar los componentes transversales de comunicación REST, Resilience4j y WireMock en [PLAN/base/plan.md](base/plan.md).
+- [x] T001 Verificar los componentes transversales de comunicación REST, Resilience4j y WireMock en [PLAN/base/plan.md](base/plan.md).
+  - Hecho (cierre de R7): `RestClientConfig`/`Module3Properties`, Resilience4j (`resilience4j-spring-boot4` + aspectj) y WireMock están en el plan base (T013, T014) y los usan `SettlementRestAdapterTest` y `SettlementCircuitBreakerIntegrationTest`.
 - [x] T002 Verificar `Module3Properties` (`hospitua.module3.*`: `base-url` y `read-timeout` de `3s`) y `RestClientConfig` (plan base, T013), y crear el `RestClient` hacia Módulo 3 (`GET /api/settlements`) que usa `SettlementRestAdapter`.
   - Hecho (L13): `Module3Properties` y `module3RestClient` ya existían (plan base, T013); `SettlementRestAdapter` usa ese cliente.
 - [x] T003 Configurar el entorno de pruebas con WireMock y `MockRestServiceServer` para simular las respuestas del contrato `GET /api/settlements` de Módulo 3.
@@ -404,8 +405,10 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 ## Phase 5: Polish de esta feature
 
 - [ ] T027 [P] Prueba de rendimiento: p95 < 800 ms normal y respuesta controlada < 3 s ante falla (SC-002, SC-003)
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido). La respuesta controlada < 3 s la da el read-timeout de 3 s, probado en `SettlementQueryIntegrationTest` (T019).
 - [ ] T028 [P] Tests de componentes React en `frontend/src/test/settlement/` (estados `AVAILABLE` y `UNAVAILABLE`)
-- [ ] T029 Agregar referencia cruzada en `spec-registrar-check-out.md` y `plan-registrar-check-out.md`
+- [x] T029 Agregar referencia cruzada en `spec-registrar-check-out.md` y `plan-registrar-check-out.md`
+  - Hecho (cierre de R7): `plan-registrar-check-out.md` (Summary, "Structure Decision" y "Endpoints REST internos") y FR-005 de `spec-registrar-check-out.md` ya remiten a esta feature.
 
 ---
 
