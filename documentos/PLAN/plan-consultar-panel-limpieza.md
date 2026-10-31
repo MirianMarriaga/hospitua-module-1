@@ -63,7 +63,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `activeTask` | object \| null | Tarea activa del miembro; si no es nula, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | `null` |
+| `activeTask` | object (se omite si no hay) | Tarea activa del miembro; si viene, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | |
 | `activeTask.taskId` | UUID | Tarea abierta del miembro | `"c0ffee00-…"` |
 | `activeTask.startDateTime` | string | Inicio de labores | `"2026-10-08T09:15:00-05:00"` |
 | `activeTask.room` | object | La habitación de la tarea, con los mismos campos de un ítem de `rooms[]` | |
@@ -72,13 +72,12 @@ Accept: application/json
 | `rooms[].roomNumber` | string | Número de habitación | `"101"` |
 | `rooms[].categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"DOBLE"` |
 | `rooms[].status` | string | `PendingCleaning` o `Available` | `"PendingCleaning"` |
-| `rooms[].lastCleaningDateTime` | string \| null | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; nulo si no existe (el frontend muestra "Sin registro", FR-004) | `"2026-10-07T16:40:00-05:00"` |
+| `rooms[].lastCleaningDateTime` | string (se omite si no hay) | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; se omite si no existe (el frontend muestra "Sin registro", FR-004) | `"2026-10-07T16:40:00-05:00"` |
 
 **Body (JSON):**
 
 ```json
 {
-  "activeTask": null,
   "rooms": [
     {
       "roomId": "3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60",
@@ -91,14 +90,13 @@ Accept: application/json
       "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
       "roomNumber": "102",
       "categoryRoom": "SENCILLA",
-      "status": "Available",
-      "lastCleaningDateTime": null
+      "status": "Available"
     }
   ]
 }
 ```
 
-Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones pendientes de limpieza ni disponibles"; una búsqueda sin coincidencias la detecta el frontend y muestra "No se encontró la habitación X" (FR-008).
+Los campos nulos no se envían (`default-property-inclusion: non_null` del plan base): sin tarea no viaja `activeTask`, y una habitación sin limpiezas no lleva `lastCleaningDateTime`. Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones pendientes de limpieza ni disponibles"; una búsqueda sin coincidencias la detecta el frontend y muestra "No se encontró la habitación X" (FR-008).
 
 ### Respuestas de error
 
