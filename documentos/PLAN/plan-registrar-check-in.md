@@ -97,9 +97,8 @@ backend/src/
 │   │   │   ├── CheckInExecutionService.java
 │   │   │   └── CheckInValidationService.java
 │   │   └── dto/
-│   │       ├── CheckInValidationResponse.java
-│   │       ├── RegisterCheckInCommand.java
-│   │       ├── GuestInputDto.java
+│   │       ├── CheckInValidationDto.java            # Respuesta del Paso 1 (Endpoint 1)
+│   │       ├── RegisterCheckInCommand.java          # Con el record anidado GuestInput (un ocupante)
 │   │       ├── CheckInMessagePayload.java
 │   │       ├── GuestMessageDto.java
 │   │       └── CheckInResultDto.java
@@ -218,7 +217,7 @@ GET /api/check-in/validate?reservationRef=RSV-8D02E5A4&roomId=1a2b3c4d-5e6f-4a7b
 | `reservationRef` | string | Sí | Referencia que entrega el botón "Check-in" del panel de recepción (FR-003) |
 | `roomId` | UUID | Sí | Habitación seleccionada en el panel |
 
-Valida solo contra la copia local (`DailyReservationRepositoryPort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationResponse`):
+Valida solo contra la copia local (`DailyReservationRepositoryPort`) y el inventario, sin llamar a Módulo 2 (FR-003). Respuesta `200 OK` (`CheckInValidationDto`):
 
 ```json
 {
@@ -281,7 +280,7 @@ Content-Type: application/json
 }
 ```
 
-`guests[]` lleva solo a los ocupantes reales de la habitación: el titular va con `isReservationGuest = true` únicamente si se aloja; si no se aloja, no se envía y sus datos solo quedan en `Stay`. Cada elemento de `guests[]` (`GuestInputDto`) tiene los campos del Contrato 1 más `isReservationGuest` (FR-007): `birthDate` obligatoria para todos y anterior a hoy, `documentType` uno de `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`, y `originPlace`/`destinationPlace` obligatorios solo si `nationality ≠ Colombia` (FR-006, FR-009). El servidor repite las validaciones del Paso 1.
+`guests[]` lleva solo a los ocupantes reales de la habitación: el titular va con `isReservationGuest = true` únicamente si se aloja; si no se aloja, no se envía y sus datos solo quedan en `Stay`. Cada elemento de `guests[]` (`RegisterCheckInRequest.GuestRequest`, que el controlador convierte en `RegisterCheckInCommand.GuestInput`) tiene los campos del Contrato 1 más `isReservationGuest` (FR-007): `birthDate` obligatoria para todos y anterior a hoy, `documentType` uno de `RC`, `TI`, `CC`, `CE`, `PAS` o `NIT`, y `originPlace`/`destinationPlace` obligatorios solo si `nationality ≠ Colombia` (FR-006, FR-009). El servidor repite las validaciones del Paso 1.
 
 Respuesta `201 Created` (`CheckInResultDto`):
 

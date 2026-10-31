@@ -195,11 +195,13 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   │   └── ReleaseCleaningTaskOnDeactivationUseCase.java
 │   ├── service/
 │   │   ├── CompleteCleaningService.java
-│   │   └── ReleaseCleaningTaskService.java          # Implementa los dos puertos de liberación
+│   │   ├── ReleaseCleaningTaskService.java          # Implementa los dos puertos de liberación
+│   │   └── LockedCleaningTaskLoader.java            # Pasos 1 a 4 compartidos: roomId, bloqueo, tarea fresca y dueño
 │   └── dto/
 │       └── CompleteCleaningCommand.java
 └── infrastructure/adapters/in/web/
-    └── CleaningController.java                    # Se agregan los 2 endpoints de este plan
+    ├── CleaningController.java                    # Se agregan los 2 endpoints de este plan
+    └── dto/CompleteCleaningRequest.java           # {damageDescription} opcional, máximo 500
 frontend/src/
 ├── pages/limpieza/
 │   ├── ActiveCleaningTaskPage.tsx
@@ -222,8 +224,11 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 - [ ] T001 Verificar los puertos que invoca este plan: `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`, T002), `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`, T003), `MarkPendingCleaningUseCase` con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003) `ReportDamageUseCase` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T012) y `ApplyScheduledTechnicalBlocksUseCase.applyForRoom` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T021).
-- [ ] T002 [P] Verificar las excepciones de tareas del plan base (T019): `TaskNotOwnedException` (403), `TaskNotFoundException` (404), y `TaskAlreadyClosedException` (409).
-- [ ] T003 [P] Verificar que `CleaningTaskRepositoryPort` tenga `save`, `findById`, `findRoomIdByTaskId` y `findOpenByMember` (`plan-marcar-habitacion-en-limpieza.md`, T002), que la entidad `CleaningTask` tenga `ensureClosableBy` y `close` (mismo plan), verificar `RoomRepositoryPort.lockById` (plan base, T008) y que `DailyReservationRepositoryPort` tenga `findPendingArrivalReservationRef` (`plan-consultar-reservas.md`, T007 y T011).
+  - Avance (L21): existen todos menos `applyForRoom`, que llega con su plan (T021, paso 6 del orden del plan base).
+- [x] T002 [P] Verificar las excepciones de tareas del plan base (T019): `TaskNotOwnedException` (403), `TaskNotFoundException` (404), y `TaskAlreadyClosedException` (409).
+  - Hecho (L21): existen. Los mensajes son los de las tablas de este plan: `CleaningTask.ensureClosableBy` lanza `TASK_NOT_OWNED` con "Esta habitación la está limpiando otro compañero." y los servicios lanzan `TASK_NOT_FOUND` con "No encontramos esta limpieza. Vuelve al panel.".
+- [x] T003 [P] Verificar que `CleaningTaskRepositoryPort` tenga `save`, `findById`, `findRoomIdByTaskId` y `findOpenByMember` (`plan-marcar-habitacion-en-limpieza.md`, T002), que la entidad `CleaningTask` tenga `ensureClosableBy` y `close` (mismo plan), verificar `RoomRepositoryPort.lockById` (plan base, T008) y que `DailyReservationRepositoryPort` tenga `findPendingArrivalReservationRef` (`plan-consultar-reservas.md`, T007 y T011).
+  - Hecho (L21): existen todos.
 
 ---
 
@@ -235,14 +240,20 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `CompleteCleaningServiceTest`: fin sin llegada pendiente deja la habitación en `Available` vía `MarkRoomAvailableUseCase` y la tarea con `outcome = Completed` (HU-1 esc. 1; FR-003, FR-004, FR-015).
-- [ ] T005 [P] [US1] Unit test: rechazo con `TASK_NOT_OWNED` si la tarea es de otro miembro (HU-1 esc. 2; FR-002, FR-005).
+- [x] T004 [P] [US1] Unit test en `CompleteCleaningServiceTest`: fin sin llegada pendiente deja la habitación en `Available` vía `MarkRoomAvailableUseCase` y la tarea con `outcome = Completed` (HU-1 esc. 1; FR-003, FR-004, FR-015).
+  - Hecho (L21): `CompleteCleaningServiceTest` (T004–T007 y T009, la tarea inexistente o cerrada y la descripción en blanco como "sin daño").
+- [x] T005 [P] [US1] Unit test: rechazo con `TASK_NOT_OWNED` si la tarea es de otro miembro (HU-1 esc. 2; FR-002, FR-005).
 - [ ] T006 [P] [US1] Unit test: con una llegada pendiente hoy, la habitación termina en `Reserved` vía `MarkRoomReservedUseCase`; si la reserva del día ya tiene `Stay` para esa habitación, no hay llegada pendiente y termina en `Available`. Sin daño ni llegada pendiente invoca `applyForRoom`; con llegada pendiente o con daño no lo invoca (HU-1 esc. 3 y 7; FR-010, FR-020).
-- [ ] T007 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la habitación tenga una llegada pendiente hoy, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 4 y 6; caso límite 2; FR-011, FR-015, FR-019).
-- [ ] T008 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: cierra con `outcome = Released`, invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el miembro como `actorId`, no verifica llegadas ni daño y rechaza tareas de otros miembros (HU-1 esc. 5; FR-013).
-- [ ] T009 [P] [US1] Unit test con `Clock` fijo: `endDateTime` es la marca de la primera transición del flujo (igual al inicio del periodo `Available` o `PendingCleaning`) (FR-007; SC-001).
-- [ ] T010 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-016).
-- [ ] T011 [US1] Integration test: un fallo forzado en `ReportDamageUseCase` revierte todo y deja la habitación en `InCleaning` con la tarea activa (FR-011, FR-017).
+  - Avance (L21): hecho el camino de la llegada pendiente. Que la reserva ya tenga `Stay` lo resuelve `findPendingArrivalReservationRef` (`DailyReservationRepositoryAdapterTest`). Faltan los casos de `applyForRoom`, que se agregan cuando exista (T021 de `plan-programar-bloqueo-tecnico-para-habitacion.md`).
+- [x] T007 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la habitación tenga una llegada pendiente hoy, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 4 y 6; caso límite 2; FR-011, FR-015, FR-019).
+- [x] T008 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: cierra con `outcome = Released`, invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el miembro como `actorId`, no verifica llegadas ni daño y rechaza tareas de otros miembros (HU-1 esc. 5; FR-013).
+  - Hecho (L21): `ReleaseCleaningTaskServiceTest`; el servicio no tiene dependencias de llegadas ni de daño.
+- [x] T009 [P] [US1] Unit test con `Clock` fijo: `endDateTime` es la marca de la primera transición del flujo (igual al inicio del periodo `Available` o `PendingCleaning`) (FR-007; SC-001).
+  - Hecho (L21): en `CompleteCleaningServiceTest` y `ReleaseCleaningTaskServiceTest`; con la marca en UTC, la llegada se busca en la fecha de Bogotá.
+- [x] T010 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-016).
+  - Hecho (L21): en `CompleteCleaningIntegrationTest`, con dos hilos sobre los casos de uso.
+- [x] T011 [US1] Integration test: un fallo forzado en `ReportDamageUseCase` revierte todo y deja la habitación en `InCleaning` con la tarea activa (FR-011, FR-017).
+  - Hecho (L21): en `CompleteCleaningIntegrationTest`; la falla es una descripción de 501 caracteres que `ReportDamageUseCase` rechaza después de que la habitación ya pasó a `Available`.
 - [ ] T012 [US1] Integration test: los periodos en `room_state_history` quedan registrados en cada camino, sin duplicados (FR-012; FR-009 de *Marcar Habitación Inhabilitada por Reparaciones*):
 
   | Camino | Periodo 1 | Periodo 2 |
@@ -254,9 +265,12 @@ No aplica: usa la infraestructura del plan base.
   | Liberar tarea | `PendingCleaning` (`RELEASE_CLEANING_TASK`, actor = miembro) | — |
 
   En los caminos de dos periodos, el periodo `Available` dura lo que separa ambas transiciones (cero con el reloj fijo de las pruebas) y es válido.
+  - Avance (L21): hechos en `CompleteCleaningIntegrationTest` todos los caminos menos el del mantenimiento programado, que necesita `applyForRoom` (T021 de `plan-programar-bloqueo-tecnico-para-habitacion.md`). En cada camino la tarea termina con la marca del primer periodo tras la limpieza.
 - [ ] T013 [P] [US1] Component test en `ActiveCleaningTaskPage`: solo muestra "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación tiene el campo opcional de daño (máximo 500), advierte la inhabilitación si se escribe un daño y cancelar no envía nada; tras éxito redirige al panel; si `GET /api/cleaning/panel` devuelve `activeTask` nulo, redirige al panel (FR-006, FR-013, FR-018).
-- [ ] T014 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el Administrador como `actorId` y cierra la tarea con `outcome = Released` sin validar el dueño; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (HU-1 esc. 8; FR-014).
-- [ ] T015 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la habitación en `PendingCleaning`, la tarea con `outcome = Released` y el periodo con actor = Administrador; si la transacción falla después, todo se revierte (HU-1 esc. 8; FR-014).
+- [x] T014 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el Administrador como `actorId` y cierra la tarea con `outcome = Released` sin validar el dueño; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (HU-1 esc. 8; FR-014).
+  - Hecho (L21): `ReleaseCleaningTaskServiceTest`.
+- [x] T015 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la habitación en `PendingCleaning`, la tarea con `outcome = Released` y el periodo con actor = Administrador; si la transacción falla después, todo se revierte (HU-1 esc. 8; FR-014).
+  - Hecho (L21): en `CompleteCleaningIntegrationTest`.
 
 ### Implementation for User Story 1
 
@@ -271,10 +285,13 @@ No aplica: usa la infraestructura del plan base.
      - Si no hay daño: si la habitación tiene una llegada pendiente hoy (ver *Llegada pendiente* en el diccionario; consultada con `DailyReservationRepositoryPort.findPendingArrivalReservationRef`), invocar `MarkRoomReservedUseCase` con esa `reservationRef` y `trigger = CLEANING_END`, y aceptar su resultado sin revertir (con la habitación bloqueada y en `Available`, siempre es `RESERVED`); si no la tiene, invocar `ApplyScheduledTechnicalBlocksUseCase.applyForRoom(roomId, hoy)`, que aplica el mantenimiento programado que contiene hoy si existe; se une a la transacción y vuelve a bloquear la fila sin esperar (regla 13) (FR-020; regla 6 de la máquina de estados). Asignar `outcome = Completed`.
   6. Cerrar la tarea con `task.close(outcome, markAvailableResult.transitionDateTime())` y guardarla (FR-007, FR-008).
   - Cada transición registra su periodo a través de `TransitionRoomStateUseCase` (regla 8 del plan base); este servicio no invoca `RoomStateHistoryRecorder`.
-- [ ] T017 [US1] Implementar `ReleaseCleaningTaskService`, un servicio compartido por el endpoint de liberar y por el puerto de desactivación (FR-013, FR-014, FR-016, FR-017):
+  - Avance (L21): `CompleteCleaningService`, sin la rama de `applyForRoom`, que se conecta con T021 de `plan-programar-bloqueo-tecnico-para-habitacion.md`: sin daño ni llegada pendiente la habitación queda en `Available`. "Hoy" es la fecha de la marca de `Available` en la zona del `Clock`. Los pasos 1 a 4 los comparte con la liberación en `LockedCleaningTaskLoader`.
+- [x] T017 [US1] Implementar `ReleaseCleaningTaskService`, un servicio compartido por el endpoint de liberar y por el puerto de desactivación (FR-013, FR-014, FR-016, FR-017):
   - Endpoint (`ReleaseCleaningTaskUseCase`, `@Transactional`): los pasos 1 a 4 de T016 (`findRoomIdByTaskId`, `lockById`, releer la tarea, `ensureClosableBy`); invocar `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el miembro como `actorId`; cerrar con `task.close(Released, MarkPendingCleaningResult.transitionDateTime)`.
   - Desactivación (`ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(memberId, actorId)`, `@Transactional(propagation = MANDATORY)`): `findOpenByMember(memberId)`; si no hay tarea, no hace nada. Si la hay, `lockById(roomId)` y releer la tarea; si ya está cerrada, no hace nada (no lanza excepción); si sigue abierta, invocar `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el Administrador como `actorId`, y `task.close(Released, marca de la transición)`. No valida el dueño.
-- [ ] T018 [US1] Agregar a `CleaningController` los endpoints `POST /api/cleaning/tasks/{taskId}/complete` y `POST /api/cleaning/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-006).
+  - Hecho (L21): `ReleaseCleaningTaskService`. En la desactivación, tras el bloqueo vuelve a buscar la tarea abierta del miembro en la base (`findOpenByMember`), porque la primera lectura quedó en el contexto de persistencia y no se refresca.
+- [x] T018 [US1] Agregar a `CleaningController` los endpoints `POST /api/cleaning/tasks/{taskId}/complete` y `POST /api/cleaning/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-006).
+  - Hecho (L21): con `CompleteCleaningRequest` (cuerpo opcional, `@Size(max = 500)`); `CompleteCleaningIntegrationTest` cubre los 204 y los errores de las dos tablas.
 - [ ] T019 [US1] Construir en el frontend `ActiveCleaningTaskPage.tsx`, que toma sus datos de `GET /api/cleaning/panel` (`activeTask` con la fila del panel) al cargar, tras iniciar una tarea o al recargar, y redirige al panel si `activeTask` es nulo (habitación con el formato del panel y botones "Confirmar fin" y "Liberar tarea"), `ConfirmCleaningEndDialog.tsx` ("¿Está seguro que desea finalizar la limpieza de la habitación X?", campo "Describir daño encontrado" opcional de máximo 500 caracteres y advertencia de inhabilitación) y `ReleaseCleaningTaskDialog.tsx` ("¿Está seguro que desea liberar la limpieza de la habitación X?"); al terminar, redirigir al panel (FR-001, FR-006, FR-013, FR-018).
 - [ ] T020 [US1] Mostrar los errores de los endpoints con el texto de las tablas de este plan según el `errorCode` (el `message` de la respuesta es solo un texto de respaldo) y, ante fallos de red, la sugerencia de reintentar (FR-017).
 

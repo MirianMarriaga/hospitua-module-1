@@ -87,9 +87,9 @@ backend/src/
 │           ├── MarkPendingCleaningCommand.java
 │           └── MarkPendingCleaningResult.java
 └── test/java/com/hospitua/habitaciones/
-    ├── application/
+    ├── application/service/
     │   └── MarkPendingCleaningServiceTest.java        # Prueba parametrizada origen × sourceFlow (T004)
-    └── infrastructure/persistence/
+    └── infrastructure/adapters/out/persistence/
         └── MarkPendingCleaningIntegrationTest.java    # Rollback de la transacción del invocador (T005)
 ```
 

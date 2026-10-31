@@ -319,6 +319,8 @@ backend/src/
 │   │       ├── ReceptionDashboardKpis.java
 │   │       ├── ArrivalGroup.java                         # Definido en plan-consultar-reservas.md (T020); groups[]
 │   │       ├── ArrivalItemSummary.java                   # groups[].rooms[]
+│   │       ├── ArrivalNotice.java                        # Aviso de una fila de Llegadas según el estado de la habitación
+│   │       ├── ArrivalNoticeType.java                    # Enum UNAVAILABLE / PENDING_ASSIGNMENT
 │   │       └── DepartureSummary.java
 │   ├── application/
 │   │   ├── ports/
@@ -333,12 +335,11 @@ backend/src/
 │   │   ├── service/
 │   │   │   ├── ReceptionPanelQueryService.java       # Consolida los 4 KPIs
 │   │   │   ├── DailyReservationSearchService.java    # Definido en plan-consultar-reservas.md; llegadas (1 fila por habitación)
-│   │   │   └── DepartureSearchService.java           # Búsqueda local de salidas
-│   │   └── dto/
-│   │       ├── ReceptionDashboardKpisDto.java
-│   │       ├── ArrivalGroupDto.java
-│   │       ├── ArrivalItemSummaryDto.java
-│   │       └── DepartureSummaryDto.java
+│   │   │   ├── DepartureSearchService.java           # Búsqueda local de salidas
+│   │   │   └── SearchQuery.java                      # Texto de búsqueda normalizado de Llegadas y Salidas
+│   │   └── dto/                                      # Los KPI, las llegadas y las salidas se serializan desde el dominio
+│   │       ├── PendingArrivalsDto.java               # Definido en plan-consultar-reservas.md; listAvailable y groups
+│   │       └── DeparturesDto.java                    # stays de GET /api/reception/departures
 │   └── infrastructure/
 │       ├── adapters/
 │       │   ├── in/
@@ -346,10 +347,14 @@ backend/src/
 │       │   │       └── ReceptionPanelController.java
 │       │   └── out/
 │       │       └── persistence/
+│       │           ├── repository/
+│       │           │   ├── SpringDataStayJpaRepository.java # Consultas de Salidas y KPI
+│       │           │   └── DepartureRow.java       # Proyección de una salida
 │       │           └── adapter/
 │       │               ├── RoomRepositoryAdapter.java
 │       │               ├── StayRepositoryAdapter.java
-│       │               └── DailyReservationRepositoryAdapter.java
+│       │               ├── DailyReservationRepositoryAdapter.java
+│       │               └── LikePatterns.java       # Escapa % y _ de los LIKE de las búsquedas
 frontend/src/
 ├── pages/panel/
 │   ├── ReceptionPanel.tsx
@@ -374,20 +379,20 @@ frontend/src/
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [x] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroupDto` (campos de `groups[]`, a partir de `ArrivalGroup` de `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
+- [x] T004 Implementar los modelos de dominio y DTOs para el resumen del panel: `ReceptionDashboardKpis`, `ArrivalGroup` (campos de `groups[]`, definido en `plan-consultar-reservas.md`), `ArrivalItemSummary` (campos de `groups[].rooms[]` en `GET /api/reception/arrivals`, con `notice` de tipo `UNAVAILABLE` o `PENDING_ASSIGNMENT`), `DepartureSummary` (campos de `stays[]`).
   - Avance (L08): hechos `ArrivalGroup`, `ArrivalItemSummary` y `ArrivalNotice` en el dominio, que el endpoint serializa directamente, sin `ArrivalGroupDto` ni `ArrivalItemSummaryDto` aparte; `notice` se omite cuando es nulo, por `default-property-inclusion: non_null`. Hecho `DepartureSummary` (L09), también serializado directamente. Hecho `ReceptionDashboardKpis` (L10); `arrivalsToday` nulo se omite del JSON por la misma configuración.
 - [x] T005 Implementar en `RoomRepositoryPort` la consulta de agregación `countByStatus(RoomStatus.Occupied)`.
   - Hecho (L10): `RoomRepositoryPort.countByStatus(RoomStatus)`.
-- [x] T006 Implementar en `StayRepositoryPort` las consultas de búsqueda de salidas activas:
-  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los conteos `countActiveWithExpectedCheckoutOn(today)` y `countActiveWithExpectedCheckoutBefore(today)`, en lugar de devolver las listas.
-  - `findActiveStaysWithExpectedCheckout(LocalDate date)` (Salidas de hoy).
-  - `findActiveStaysWithOverdueCheckout(LocalDate date)` (Salidas vencidas).
-  - `searchActiveDepartures(String query)` (búsqueda por nombre, documento, código o habitación).
+- [x] T006 Implementar en `StayRepositoryPort` las consultas de salidas activas:
+  - Avance (L09): hecha `searchActiveDepartures(LocalDate today, String normalizedQuery)`, que con `query` nulo da las salidas de hoy y las vencidas en una sola consulta, con la habitación y el conteo de `RoomGuest`. Hechos (L10) los dos conteos, en lugar de devolver las listas de salidas de hoy y vencidas.
+  - Conteo de salidas de hoy: `countActiveWithExpectedCheckoutOn(LocalDate date)`.
+  - Conteo de salidas vencidas: `countActiveWithExpectedCheckoutBefore(LocalDate date)`.
+  - Búsqueda por nombre, documento, código o habitación: `searchActiveDepartures(LocalDate today, String normalizedQuery)`.
 - [x] T007 Implementar en `DailyReservationRepositoryPort` las consultas locales:
-  - Avance (L08): hechos `searchPendingArrivals(LocalDate, String)` e `isDailyListReceived(LocalDate)`. Hecho (L10) `countPendingArrivalRooms(LocalDate)`, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
-  - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRoomsToday()`.
-  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivalRooms(String query)`, expuesta por `SearchDailyReservationsUseCase` (`plan-consultar-reservas.md`, T020).
-  - Lista del día recibida: `isTodayListReceived()` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
+  - Avance (L08): hechas la búsqueda y la comprobación de la lista del día. Hecho (L10) el conteo, que cuenta solo las habitaciones que existen en el inventario, como las filas de Llegadas.
+  - Conteo de habitaciones pendientes de llegada: `countPendingArrivalRooms(LocalDate operationalDate)`.
+  - Búsqueda de habitaciones pendientes agrupadas por reserva: `searchPendingArrivals(LocalDate operationalDate, String normalizedQuery)`, expuesta por `SearchDailyReservationsUseCase.searchPendingArrivals(String query)` (`plan-consultar-reservas.md`, T020).
+  - Lista del día recibida: `isDailyListReceived(LocalDate operationalDate)` sobre `daily_reservation_message_log` (`message_type` = `reserva.lista-del-dia` y `operational_date` = hoy, columna e índice del plan base) (FR-011).
 
 ---
 
@@ -400,7 +405,7 @@ frontend/src/
 ### Tests for User Story 1
 
 - [x] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
-- [x] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `ArrivalGroupDto` con sus `ArrivalItemSummaryDto` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
+- [x] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `PendingArrivalsDto` con sus `ArrivalGroup` y `ArrivalItemSummary` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
 - [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-008; SC-004).
 
 ### Implementation for User Story 1
@@ -420,7 +425,7 @@ frontend/src/
 ### Tests for User Story 2
 
 - [x] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
-- [x] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DepartureSummaryDto` con estancias activas locales, primero las vencidas (FR-004, FR-007).
+- [x] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DeparturesDto` con las `DepartureSummary` de las estancias activas locales, primero las vencidas (FR-004, FR-007).
 - [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
 
 ### Implementation for User Story 2

@@ -63,7 +63,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `activeTask` | object \| null | Tarea activa del miembro; si no es nula, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | `null` |
+| `activeTask` | object (se omite si no hay) | Tarea activa del miembro; si viene, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | |
 | `activeTask.taskId` | UUID | Tarea abierta del miembro | `"c0ffee00-…"` |
 | `activeTask.startDateTime` | string | Inicio de labores | `"2026-10-08T09:15:00-05:00"` |
 | `activeTask.room` | object | La habitación de la tarea, con los mismos campos de un ítem de `rooms[]` | |
@@ -72,13 +72,12 @@ Accept: application/json
 | `rooms[].roomNumber` | string | Número de habitación | `"101"` |
 | `rooms[].categoryRoom` | string | Código del tipo: `SENCILLA`, `DOBLE`, `SUITE` o `BOUTIQUE` (la interfaz muestra Sencilla, Doble, Suite o Boutique) | `"DOBLE"` |
 | `rooms[].status` | string | `PendingCleaning` o `Available` | `"PendingCleaning"` |
-| `rooms[].lastCleaningDateTime` | string \| null | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; nulo si no existe (el frontend muestra "Sin registro", FR-004) | `"2026-10-07T16:40:00-05:00"` |
+| `rooms[].lastCleaningDateTime` | string (se omite si no hay) | `EndDateTime` de la última `CleaningTask` con `outcome` `Completed` o `DamageReported`; se omite si no existe (el frontend muestra "Sin registro", FR-004) | `"2026-10-07T16:40:00-05:00"` |
 
 **Body (JSON):**
 
 ```json
 {
-  "activeTask": null,
   "rooms": [
     {
       "roomId": "3f1c2a9e-5b7d-4c1e-9a0f-1b2c3d4e5f60",
@@ -91,14 +90,13 @@ Accept: application/json
       "roomId": "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d",
       "roomNumber": "102",
       "categoryRoom": "SENCILLA",
-      "status": "Available",
-      "lastCleaningDateTime": null
+      "status": "Available"
     }
   ]
 }
 ```
 
-Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones pendientes de limpieza ni disponibles"; una búsqueda sin coincidencias la detecta el frontend y muestra "No se encontró la habitación X" (FR-008).
+Los campos nulos no se envían (`default-property-inclusion: non_null` del plan base): sin tarea no viaja `activeTask`, y una habitación sin limpiezas no lleva `lastCleaningDateTime`. Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones pendientes de limpieza ni disponibles"; una búsqueda sin coincidencias la detecta el frontend y muestra "No se encontró la habitación X" (FR-008).
 
 ### Respuestas de error
 
@@ -162,8 +160,10 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan `CleaningTaskRepositoryPort` con `findOpenByMember` y `findLastCleaningEndByRoomIds` (`plan-marcar-habitacion-en-limpieza.md`, T002), `CleaningController` (`plan-marcar-habitacion-en-limpieza.md`, T004) y `RoomRepositoryPort.findByStatusIn(Set<RoomStatus>)` con orden natural (plan base, T008).
-- [ ] T002 [P] Implementar `CleaningPanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetCleaningPanelUseCase`.
+- [x] T001 Verificar que existan `CleaningTaskRepositoryPort` con `findOpenByMember` y `findLastCleaningEndByRoomIds` (`plan-marcar-habitacion-en-limpieza.md`, T002), `CleaningController` (`plan-marcar-habitacion-en-limpieza.md`, T004) y `RoomRepositoryPort.findByStatusIn(Set<RoomStatus>)` con orden natural (plan base, T008).
+  - Hecho (L19): los tres existen; `findLastCleaningEndByRoomIds` recibe los resultados que cuentan (`CleaningTaskOutcome.countsAsCleaning()`).
+- [x] T002 [P] Implementar `CleaningPanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetCleaningPanelUseCase`.
+  - Hecho (L19): `CleaningPanelDto` con los records anidados `ActiveTaskDto` y `CleaningRoomDto` (el ítem de `rooms`, que también usa `activeTask.room`), y `GetCleaningPanelUseCase.getPanel(String memberId)`. Por `default-property-inclusion: non_null`, sin tarea `activeTask` no viaja en el JSON y una habitación sin limpiezas no lleva `lastCleaningDateTime`; el frontend toma la ausencia como `null`.
 
 ---
 
@@ -175,18 +175,21 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Unit test en `CleaningPanelQueryServiceTest`: lista solo `PendingCleaning` y `Available`, primero las pendientes y cada grupo en el orden del puerto (orden natural del plan base, T008) (HU-1 esc. 1; FR-002, FR-006).
-- [ ] T004 [P] [US1] Unit test: `lastCleaningDateTime` toma la última tarea `Completed` o `DamageReported` de la consulta por lotes, ignora las `Released` y es nulo sin registro (HU-1 esc. 3; FR-004).
-- [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId`, `startDateTime` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 6; FR-001; SC-003).
+- [x] T003 [P] [US1] Unit test en `CleaningPanelQueryServiceTest`: lista solo `PendingCleaning` y `Available`, primero las pendientes y cada grupo en el orden del puerto (orden natural del plan base, T008) (HU-1 esc. 1; FR-002, FR-006).
+- [x] T004 [P] [US1] Unit test: `lastCleaningDateTime` toma la última tarea `Completed` o `DamageReported` de la consulta por lotes, ignora las `Released` y es nulo sin registro (HU-1 esc. 3; FR-004).
+- [x] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId`, `startDateTime` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 6; FR-001; SC-003).
+  - Hecho (L19): `CleaningPanelQueryServiceTest` (T003–T005 y el panel vacío). T004 comprueba que la consulta por lotes es una sola, con todas las habitaciones y con `countsAsCleaning()`, que no incluye `Released`; que la consulta ignore las `Released` lo prueba `CleaningTaskRepositoryAdapterTest` (L17).
 - [ ] T006 [P] [US1] Component test en `CleaningPanelPage` con la API simulada: botones por estado, "Sin registro", conteo por estado calculado sobre la lista, búsqueda por número exacto y al vaciarla vuelve el listado completo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTask` y nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito, si se rechaza muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel, y ante un fallo de red sugiere reintentar (HU-1 esc. 2, 4, 5 y 7; FR-003, FR-005, FR-007, FR-008, FR-009, FR-010; *Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa con su fila, filtro de estados, agrupación (primero `PendingCleaning`) sobre el orden del puerto y última limpieza con una sola llamada a `findLastCleaningEndByRoomIds` para todas las habitaciones (FR-001 a FR-006, FR-011).
-- [ ] T008 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
+- [x] T007 [US1] Implementar `CleaningPanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa con su fila, filtro de estados, agrupación (primero `PendingCleaning`) sobre el orden del puerto y última limpieza con una sola llamada a `findLastCleaningEndByRoomIds` para todas las habitaciones (FR-001 a FR-006, FR-011).
+  - Hecho (L19): `CleaningPanelQueryService`. Con tarea abierta no consulta el listado; la fila de su habitación lleva también su última limpieza.
+- [x] T008 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
+  - Hecho (L19): `CleaningPanelIntegrationTest` cubre el listado (sin `InCleaning` ni `Occupied`, pendientes primero, última limpieza con offset `-05:00` y sin contar la `Released` posterior), la tarea activa y el 400 `CURRENT_USER_REQUIRED`.
 - [ ] T009 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
 - [ ] T010 [US1] Conectar las acciones y la actualización:
-  - "Iniciar limpieza": este plan es dueño de toda su interfaz. Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
+  - "Iniciar limpieza": este plan es dueño de toda su interfaz (FR-005 y FR-010 de *Marcar Habitación en Limpieza*). Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
   - "Reportar daño": abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T014).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
 
@@ -197,7 +200,9 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T011 Prueba de rendimiento, etiquetada según la convención de pruebas de rendimiento de la estrategia de testing del plan base (fuera del CI por defecto): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
-- [ ] T012 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
+- [x] T012 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
+  - Hecho (L19): en `CleaningPanelIntegrationTest`, con un Check-In y un Check-Out reales (`POST /api/check-in` y `POST /api/check-out`).
 
 ---
 

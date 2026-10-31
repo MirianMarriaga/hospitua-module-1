@@ -128,7 +128,8 @@ backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   └── model/
-│   │       └── CleaningTask.java                 # Definido en el plan base; aquí se implementa con start, ensureClosableBy y close
+│   │       ├── CleaningTask.java                 # Definido en el plan base; aquí se implementa con start, ensureClosableBy y close
+│   │       └── CleaningTaskOutcome.java          # Enum Completed / DamageReported / Released; countsAsCleaning()
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -143,10 +144,15 @@ backend/src/
 │   └── infrastructure/
 │       └── adapters/
 │           ├── in/web/
-│           │   └── CleaningController.java
+│           │   ├── CleaningController.java
+│           │   └── dto/StartCleaningRequest.java   # {roomId}; las fechas del cliente se ignoran
 │           └── out/persistence/
 │               ├── entity/CleaningTaskJpaEntity.java
-│               └── adapter/CleaningTaskRepositoryAdapter.java
+│               ├── mapper/CleaningTaskMapper.java
+│               ├── repository/SpringDataCleaningTaskJpaRepository.java # Incluye la última limpieza por lotes
+│               └── adapter/
+│                   ├── CleaningTaskRepositoryAdapter.java
+│                   └── ConstraintViolations.java   # Compartido con RoomRepositoryAdapter: qué índice único rechazó la escritura
 └── main/resources/db/migration/
     └── (sin migración propia: `cleaning_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
 frontend/src/
@@ -166,8 +172,10 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `cleaning_task` con sus índices únicos parciales (respaldo de integridad) y el índice parcial de última limpieza existan (plan base, T017), y verificar `RoomRepositoryPort.lockById` (plan base, T008) (FR-004, FR-007; reglas 9 y 13 del plan base).
-- [ ] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`:
+- [x] T001 Verificar que la tabla `cleaning_task` con sus índices únicos parciales (respaldo de integridad) y el índice parcial de última limpieza existan (plan base, T017), y verificar `RoomRepositoryPort.lockById` (plan base, T008) (FR-004, FR-007; reglas 9 y 13 del plan base).
+  - Hecho (L17): la migración V3 ya tenía `uk_cleaning_task_open_by_member`, `uk_cleaning_task_open_by_room` e `idx_cleaning_task_last_cleaning`, y `lockById` existe desde el plan base; `CleaningTaskRepositoryAdapterTest` comprueba los dos índices únicos.
+- [x] T002 [P] Implementar `CleaningTask` (dominio), `CleaningTaskJpaEntity`, `CleaningTaskRepositoryPort` y `CleaningTaskRepositoryAdapter`:
+  - Hecho (L17): `CleaningTask` y `CleaningTaskOutcome` (`countsAsCleaning()` devuelve `Completed` y `DamageReported`); el constructor exige fecha de fin y resultado juntos, como el `CHECK` de V3, y `close` rechaza también una tarea ya cerrada. `findLastCleaningEndByRoomIds` no consulta si no recibe habitaciones o resultados. La búsqueda del nombre de la restricción violada pasó a `ConstraintViolations`, que comparte con `RoomRepositoryAdapter`.
   - Dominio, con las reglas de la tarea:
     - `static CleaningTask start(roomId, memberId, startDateTime)`.
     - `void ensureClosableBy(memberId)`: lanza `TaskNotOwnedException` si la tarea no es del miembro y después `TaskAlreadyClosedException` si ya está cerrada, en ese orden.
@@ -186,8 +194,10 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
   - El adaptador guarda con `saveAndFlush` y traduce la violación de cada índice único a `ActiveTaskExistsException` (miembro) o `RoomTaskExistsException` (habitación).
 
   El cierre y la última limpieza los usan `plan-confirmar-fin-de-limpieza.md` y `plan-consultar-panel-limpieza.md`.
-- [ ] T003 [P] Verificar en `GlobalExceptionHandler` que las excepciones de los códigos comunes `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` estén registradas (plan base, T009 y T019); la traducción de los índices la hace el adaptador (T002).
-- [ ] T004 [P] Crear `CleaningController` (`@RestController`, `@RequestMapping("/api/cleaning")`) sin endpoints, para que `plan-consultar-panel-limpieza.md` y `plan-confirmar-fin-de-limpieza.md` le agreguen los suyos aunque este plan termine después de ellos.
+- [x] T003 [P] Verificar en `GlobalExceptionHandler` que las excepciones de los códigos comunes `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` estén registradas (plan base, T009 y T019); la traducción de los índices la hace el adaptador (T002).
+  - Hecho (L17): `GlobalExceptionHandler` atiende toda `DomainException` por su `DomainError`, así que `ROOM_INVALID_STATE`, `ACTIVE_TASK_EXISTS`, `ROOM_TASK_EXISTS` y `ROOM_NOT_FOUND` ya responden con su código; no hizo falta un `@ExceptionHandler` nuevo.
+- [x] T004 [P] Crear `CleaningController` (`@RestController`, `@RequestMapping("/api/cleaning")`) sin endpoints, para que `plan-consultar-panel-limpieza.md` y `plan-confirmar-fin-de-limpieza.md` le agreguen los suyos aunque este plan termine después de ellos.
+  - Hecho (L18): `CleaningController` se creó junto con su primer endpoint (T013).
 
 ---
 
@@ -199,22 +209,31 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Unit test en `StartCleaningServiceTest`: inicio desde `PendingCleaning` crea la tarea y transiciona a `InCleaning` (HU-1 esc. 1; FR-002, FR-003, FR-008).
-- [ ] T006 [P] [US1] Unit test: inicio desde `Available` sin exigir check-out previo (HU-1 esc. 2).
-- [ ] T007 [P] [US1] Unit test: rechazo desde cualquier otro estado con `ROOM_INVALID_STATE` y el estado actual (HU-1 esc. 3; FR-003).
-- [ ] T008 [P] [US1] Unit test: rechazo con `ACTIVE_TASK_EXISTS` si el miembro ya tiene una tarea abierta (HU-1 esc. 4; FR-007).
-- [ ] T009 [P] [US1] Unit test con `Clock` fijo: el servicio pasa a `CleaningTask.start` la marca que devuelve la transición, sin tomar fechas del cliente (FR-006, FR-008; caso límite 3; SC-001).
-- [ ] T010 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409 ROOM_INVALID_STATE` con `currentStatus = InCleaning` (FR-004; caso límite 1).
-- [ ] T011 [US1] Integration test: un fallo forzado al guardar el registro del historial revierte la transición y la tarea (FR-009).
+- [x] T005 [P] [US1] Unit test en `StartCleaningServiceTest`: inicio desde `PendingCleaning` crea la tarea y transiciona a `InCleaning` (HU-1 esc. 1; FR-002, FR-003, FR-008).
+  - Hecho (L18): `StartCleaningServiceTest`, con el orden bloqueo → tarea del miembro → transición → guardado.
+- [x] T006 [P] [US1] Unit test: inicio desde `Available` sin exigir check-out previo (HU-1 esc. 2).
+  - Hecho (L18): `StartCleaningServiceTest` y `StartCleaningIntegrationTest`, que además envía una fecha y comprueba que se ignora.
+- [x] T007 [P] [US1] Unit test: rechazo desde cualquier otro estado con `ROOM_INVALID_STATE` y el estado actual (HU-1 esc. 3; FR-003).
+  - Hecho (L18): unitario e integración (`409` con `currentStatus` y el mensaje del plan).
+- [x] T008 [P] [US1] Unit test: rechazo con `ACTIVE_TASK_EXISTS` si el miembro ya tiene una tarea abierta (HU-1 esc. 4; FR-007).
+  - Hecho (L18): unitario e integración; no se llama a la transición y la habitación no cambia.
+- [x] T009 [P] [US1] Unit test con `Clock` fijo: el servicio pasa a `CleaningTask.start` la marca que devuelve la transición, sin tomar fechas del cliente (FR-006, FR-008; caso límite 3; SC-001).
+  - Hecho (L18): `StartCleaningServiceTest` comprueba que la tarea recibe la marca que devuelve la transición; la integración, que coincide con el inicio del periodo en `room_state_history`.
+- [x] T010 [US1] Integration test con Testcontainers: dos miembros inician la misma habitación a la vez; solo uno tiene éxito y el otro recibe `409 ROOM_INVALID_STATE` con `currentStatus = InCleaning` (FR-004; caso límite 1).
+  - Hecho (L18): `StartCleaningIntegrationTest` lanza los dos inicios en paralelo contra el caso de uso: uno crea la tarea y el otro recibe `ROOM_INVALID_STATE` con `InCleaning`.
+- [x] T011 [US1] Integration test: un fallo forzado al guardar el registro del historial revierte la transición y la tarea (FR-009).
+  - Hecho (L18): el fallo se fuerza en el guardado de la tarea, la última escritura de la transacción (una tarea abierta previa hace saltar el índice único por habitación), en vez de en el historial: así no hace falta reemplazar un bean; la habitación sigue `PendingCleaning` y no queda ningún periodo en `room_state_history`.
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implementar `StartCleaningService` (`@Transactional`) (FR-001 a FR-004, FR-006, FR-007, FR-008, FR-009):
+- [x] T012 [US1] Implementar `StartCleaningService` (`@Transactional`) (FR-001 a FR-004, FR-006, FR-007, FR-008, FR-009):
+  - Hecho (L18): `StartCleaningService`. La transición valida el estado; el servicio solo vuelve a lanzar su `InvalidRoomTransitionException` con el mensaje del plan ("La habitación está {estado}; ahora no se puede limpiar.") y el mismo `currentStatus`, y `ACTIVE_TASK_EXISTS` lleva el texto de la tabla.
   - Bloquear la habitación con `RoomRepositoryPort.lockById(roomId)` como primera carga de la transacción (regla 13 del plan base); si no existe, `RoomNotFoundException` (`ROOM_NOT_FOUND`).
   - Rechazar si el miembro tiene una tarea abierta (`findOpenByMember`; `ActiveTaskExistsException`, `ACTIVE_TASK_EXISTS`).
   - Invocar `TransitionRoomStateUseCase.transition(roomId, InCleaning, miembro, START_CLEANING, null)`, que registra el periodo en `room_state_history` (FR-008) y lanza `InvalidRoomTransitionException` (`ROOM_INVALID_STATE` con `currentStatus`) si la habitación no está en `PendingCleaning` ni `Available`; el servicio no repite esa validación.
   - Crear la tarea con `CleaningTask.start(roomId, miembro, marca)`, usando la marca del periodo que devuelve la transición (FR-006, FR-008), y guardarla con `save` (devuelve `{taskId}`).
-- [ ] T013 [US1] Agregar a `CleaningController` (T004) el endpoint `POST /api/cleaning/tasks`, tomando como miembro al usuario actual y respondiendo `201 {taskId}`.
+- [x] T013 [US1] Agregar a `CleaningController` (T004) el endpoint `POST /api/cleaning/tasks`, tomando como miembro al usuario actual y respondiendo `201 {taskId}`.
+  - Hecho (L18): `POST /api/cleaning/tasks` con `StartCleaningRequest` (`roomId` obligatorio); el miembro sale de `X-User` y responde `201 {taskId}`.
 
 **Checkpoint**: El Personal de limpieza puede iniciar limpiezas desde el panel (`plan-consultar-panel-limpieza.md`, dueño de la interfaz de la acción); la vista de tarea activa a la que se redirige se completa con `plan-confirmar-fin-de-limpieza.md`.
 

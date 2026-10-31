@@ -93,7 +93,7 @@ Content-Type: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` en el cuerpo; `InvalidDamageDescriptionException` (`details.field = damageDescription`) cuando el fin de limpieza con daño llama al puerto sin pasar por el controlador | Descripción nula, vacía, solo espacios o de más de 500 caracteres (FR-003, HU-1 esc. 2, caso límite 2) | "La descripción del daño es obligatoria (máximo 500 caracteres)." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` (`lockById` no encuentra la habitación) | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available`, incluido el reporte que llega segundo tras el bloqueo y la encuentra en `DisabledForRepairs` (FR-002, FR-005, HU-1 esc. 3, caso límite 1) | "La habitación está {estado}; ahora no se puede reportar un daño en ella." |
 
@@ -203,7 +203,8 @@ backend/src/
 │   │   ├── model/
 │   │   │   └── DamageReport.java                 # Declarada en el árbol del plan base; aquí se define e implementa
 │   │   └── exception/
-│   │       └── DamageReportNotFoundException.java # 404 DAMAGE_REPORT_NOT_FOUND
+│   │       ├── DamageReportNotFoundException.java # 404 DAMAGE_REPORT_NOT_FOUND
+│   │       └── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -220,9 +221,12 @@ backend/src/
 │   │       └── DamageReportViewDto.java
 │   └── infrastructure/adapters/
 │       ├── in/web/
-│       │   └── DamageReportController.java
+│       │   ├── DamageReportController.java
+│       │   └── dto/ReportDamageRequest.java        # {damageDescription}; las fechas del cliente se ignoran
 │       └── out/persistence/
 │           ├── entity/DamageReportJpaEntity.java
+│           ├── mapper/DamageReportMapper.java
+│           ├── repository/SpringDataDamageReportJpaRepository.java # Último reporte, uno o por lotes
 │           └── adapter/DamageReportRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `damage_report` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
@@ -246,12 +250,15 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `damage_report` y su índice por `(room_id, report_date_time DESC)` existan (plan base, T017), verificar `RoomRepositoryPort.lockById` (plan base, T008; regla 13) y que `StaffAccountRepositoryPort` tenga `findByUsername` (plan base, T022) y exista `MaintenanceNoticePublisher` (plan base, T024).
-- [ ] T002 [P] Implementar `DamageReport` (dominio, sin métodos de modificación), `DamageReportJpaEntity`, `DamageReportRepositoryPort` y su adaptador JPA (FR-010). El puerto solo inserta y consulta el último reporte:
+- [x] T001 Verificar que la tabla `damage_report` y su índice por `(room_id, report_date_time DESC)` existan (plan base, T017), verificar `RoomRepositoryPort.lockById` (plan base, T008; regla 13) y que `StaffAccountRepositoryPort` tenga `findByUsername` (plan base, T022) y exista `MaintenanceNoticePublisher` (plan base, T024).
+  - Hecho (L20): todo existe; `CleaningMaintenanceSchemaTest` ya cubre la tabla y el índice.
+- [x] T002 [P] Implementar `DamageReport` (dominio, sin métodos de modificación), `DamageReportJpaEntity`, `DamageReportRepositoryPort` y su adaptador JPA (FR-010). El puerto solo inserta y consulta el último reporte:
   - `DamageReport save(DamageReport)`;
   - `Optional<DamageReport> findLatestByRoom(UUID roomId)`: "Ver informe" y el aviso `CANCELLED` de `plan-confirmar-reparacion-finalizada.md`;
   - `Map<UUID, DamageReport> findLatestByRoomIds(Collection<UUID> roomIds)`: el último reporte de cada habitación, para el aviso diario de las 00:00 de `plan-programar-bloqueo-tecnico-para-habitacion.md`.
-- [ ] T003 [P] Registrar en `GlobalExceptionHandler` el código `DAMAGE_REPORT_NOT_FOUND` (`DamageReportNotFoundException`) y la validación de la descripción como `VALIDATION_ERROR`.
+  - Hecho (L20): `DamageReport` (inmutable; la descripción se guarda sin espacios en los extremos), `DamageReportJpaEntity`, `DamageReportMapper`, `SpringDataDamageReportJpaRepository` y `DamageReportRepositoryAdapter`, que guarda con `saveAndFlush` para que una falla de la base salga del caso de uso antes de encolar el aviso. Pruebas: `DamageReportTest` y `DamageReportRepositoryAdapterTest`.
+- [x] T003 [P] Registrar en `GlobalExceptionHandler` el código `DAMAGE_REPORT_NOT_FOUND` (`DamageReportNotFoundException`) y la validación de la descripción como `VALIDATION_ERROR`.
+  - Hecho (L20): `GlobalExceptionHandler` atiende cualquier `DomainException` por su categoría, así que bastó agregar `DAMAGE_REPORT_NOT_FOUND` (`NOT_FOUND`) a `DomainError`. La descripción se valida en el cuerpo (`@NotBlank`, `@Size(max = 500)`) y otra vez en el dominio con `InvalidDamageDescriptionException` (`VALIDATION_ERROR`, `details.field = damageDescription`), porque el fin de limpieza con daño llama al puerto sin pasar por el controlador.
 
 ---
 
@@ -263,23 +270,30 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `ReportDamageServiceTest`: reporte válido transiciona a `DisabledForRepairs`, crea el reporte con el usuario actual como autor y fecha del servidor, y publica el aviso `SCHEDULED` con `maintenanceId` = id del reporte, `categoryRoom` de la habitación y `startDate` = `endDate` = fecha del reporte (HU-1 esc. 1; FR-004, FR-008, FR-013).
-- [ ] T005 [P] [US1] Unit test: descripción nula, vacía, solo espacios o de más de 500 caracteres se rechaza sin cambios (HU-1 esc. 2; FR-003; caso límite 2).
-- [ ] T006 [P] [US1] Unit test: rechazo desde cualquier estado distinto de `Available`, con el estado actual (HU-1 esc. 3; FR-002).
-- [ ] T007 [P] [US1] Unit test con `Clock` fijo: `reportDateTime` coincide con el inicio del periodo en `room_state_history` y se ignora cualquier fecha del cliente (FR-008, FR-009, FR-011; caso límite 4; SC-003).
-- [ ] T008 [US1] Integration test con Testcontainers: dos reportes simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `409 ROOM_INVALID_STATE` con `currentStatus = DisabledForRepairs` (FR-005; caso límite 1).
-- [ ] T009 [US1] Integration test: un fallo forzado al guardar el reporte revierte la transición; invocado desde una transacción externa, el rollback abarca también la de ese flujo; en ambos casos no queda ningún aviso de mantenimiento en `outbox_notification` (FR-012, FR-013; SC-002).
-- [ ] T010 [P] [US1] Unit test en `DamageReportQueryServiceTest`: "Ver informe" devuelve el reporte más reciente con descripción, autor y fecha; `authorName` es el `full_name` de la cuenta del autor o, si la cuenta no existe, su `username` (FR-006, FR-007; responde `DAMAGE_REPORT_NOT_FOUND` si la habitación no está en `DisabledForRepairs`).
+- [x] T004 [P] [US1] Unit test en `ReportDamageServiceTest`: reporte válido transiciona a `DisabledForRepairs`, crea el reporte con el usuario actual como autor y fecha del servidor, y publica el aviso `SCHEDULED` con `maintenanceId` = id del reporte, `categoryRoom` de la habitación y `startDate` = `endDate` = fecha del reporte (HU-1 esc. 1; FR-004, FR-008, FR-013).
+  - Hecho (L20): `ReportDamageServiceTest` (T004–T007, la habitación inexistente, `CONFIRM_CLEANING_END` y el comando que solo admite los dos flujos).
+- [x] T005 [P] [US1] Unit test: descripción nula, vacía, solo espacios o de más de 500 caracteres se rechaza sin cambios (HU-1 esc. 2; FR-003; caso límite 2).
+- [x] T006 [P] [US1] Unit test: rechazo desde cualquier estado distinto de `Available`, con el estado actual (HU-1 esc. 3; FR-002).
+- [x] T007 [P] [US1] Unit test con `Clock` fijo: `reportDateTime` coincide con el inicio del periodo en `room_state_history` y se ignora cualquier fecha del cliente (FR-008, FR-009, FR-011; caso límite 4; SC-003).
+  - Hecho (L20): la fecha del aviso es la de Bogotá aunque la marca llegue en UTC. Que la fecha del cliente se ignore lo prueba `DamageReportIntegrationTest`.
+- [x] T008 [US1] Integration test con Testcontainers: dos reportes simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `409 ROOM_INVALID_STATE` con `currentStatus = DisabledForRepairs` (FR-005; caso límite 1).
+  - Hecho (L20): en `DamageReportIntegrationTest`, con dos hilos sobre el caso de uso.
+- [x] T009 [US1] Integration test: un fallo forzado al guardar el reporte revierte la transición; invocado desde una transacción externa, el rollback abarca también la de ese flujo; en ambos casos no queda ningún aviso de mantenimiento en `outbox_notification` (FR-012, FR-013; SC-002).
+  - Hecho (L20): en `DamageReportIntegrationTest`; la falla se fuerza con un `author_id` de más de 100 caracteres. En la transacción externa, un primer reporte que sí se guardó también se revierte, con su aviso.
+- [x] T010 [P] [US1] Unit test en `DamageReportQueryServiceTest`: "Ver informe" devuelve el reporte más reciente con descripción, autor y fecha; `authorName` es el `full_name` de la cuenta del autor o, si la cuenta no existe, su `username` (FR-006, FR-007; responde `DAMAGE_REPORT_NOT_FOUND` si la habitación no está en `DisabledForRepairs`).
+  - Hecho (L20): `DamageReportQueryServiceTest`.
 - [ ] T011 [P] [US1] Component test en `DamageReportDialog`: la descripción es obligatoria, contador de 500 caracteres, botón de confirmar deshabilitado si no es válida y conservación del texto ante un error (FR-001, FR-003, FR-012).
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implementar `ReportDamageService` (`@Transactional`, propagación `REQUIRED`) (FR-002 a FR-005, FR-008, FR-009, FR-011 a FR-013):
+- [x] T012 [US1] Implementar `ReportDamageService` (`@Transactional`, propagación `REQUIRED`) (FR-002 a FR-005, FR-008, FR-009, FR-011 a FR-013):
   - Bloquear la habitación con `RoomRepositoryPort.lockById(roomId)` como primera carga de la transacción (regla 13 del plan base); si no existe, `RoomNotFoundException` (`ROOM_NOT_FOUND`). Invocado desde *Confirmar Fin de Limpieza de Habitación*, vuelve a bloquear la fila de esa transacción sin esperar.
   - Validar la descripción y que la habitación esté en `Available`.
   - Invocar `TransitionRoomStateUseCase.transition(roomId, DisabledForRepairs, autor, sourceFlow, null)` con `sourceFlow = REPORT_DAMAGE`, o `CONFIRM_CLEANING_END` cuando el comando viene de ese flujo; crear el `DamageReport` usando como `reportDateTime` la marca de tiempo del periodo que devuelve la transición (FR-008, FR-009, FR-011).
   - Publicar el aviso con `MaintenanceNoticePublisher.publishScheduled(reporte.id(), habitación, fecha del reporte, fecha del reporte)` (plan base, T024), en la misma transacción, también cuando lo invoca *Confirmar Fin de Limpieza de Habitación* (FR-014).
-- [ ] T013 [US1] Implementar `DamageReportQueryService`, que obtiene `authorName` con `StaffAccountRepositoryPort.findByUsername(authorId)` (el `username` si la cuenta no existe), y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (paneles de limpieza y mantenimiento) y `GET /api/rooms/{roomId}/damage-reports/latest` (panel de mantenimiento) (FR-001, FR-006).
+  - Hecho (L20): `ReportDamageService`. La descripción se valida antes de `lockById`, así un texto inválido no bloquea la fila; el estado lo valida la transición, y el servicio le pone el mensaje del plan. La fecha del aviso es la de la marca del reporte en la zona del `Clock`.
+- [x] T013 [US1] Implementar `DamageReportQueryService`, que obtiene `authorName` con `StaffAccountRepositoryPort.findByUsername(authorId)` (el `username` si la cuenta no existe), y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (paneles de limpieza y mantenimiento) y `GET /api/rooms/{roomId}/damage-reports/latest` (panel de mantenimiento) (FR-001, FR-006).
+  - Hecho (L20): `DamageReportQueryService` y `DamageReportController`; `DamageReportIntegrationTest` cubre los dos endpoints y sus errores.
 - [ ] T014 [US1] Construir `DamageReportDialog.tsx`, que abren los paneles de limpieza y de mantenimiento (`plan-consultar-panel-limpieza.md` y `plan-consultar-panel-mantenimiento.md` son dueños del botón y de refrescar el panel al terminar) (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.tsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007).
 
 **Checkpoint**: El reporte de daño funciona desde el panel de limpieza y queda disponible para el panel de mantenimiento y para *Confirmar Fin de Limpieza de Habitación*.
@@ -289,6 +303,7 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T015 Integration test: tras el reporte, en la consulta siguiente, la habitación ya no aparece en `GET /api/cleaning/panel` y aparece con `DisabledForRepairs` en `GET /api/maintenance/panel` (FR-004; el plazo de 60 segundos lo cubre la actualización periódica del panel de mantenimiento).
+  - Avance (L20): hecha la parte del panel de limpieza en `DamageReportIntegrationTest`. Falta la de `GET /api/maintenance/panel`, que se hace con ese panel.
 
 ---
 
