@@ -55,7 +55,7 @@ public class CleaningTask {
      */
     public void ensureClosableBy(String memberId) {
         if (!cleaningStaffMemberId.equals(memberId)) {
-            throw new TaskNotOwnedException();
+            throw new TaskNotOwnedException("Esta habitación la está limpiando otro compañero.");
         }
         if (!isOpen()) {
             throw new TaskAlreadyClosedException();

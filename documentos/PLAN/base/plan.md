@@ -478,6 +478,7 @@ backend/
     │   │   │   │   ├── StartCleaningService.java
     │   │   │   │   ├── CompleteCleaningService.java
     │   │   │   │   ├── ReleaseCleaningTaskService.java
+    │   │   │   │   ├── LockedCleaningTaskLoader.java   # Pasos compartidos de confirmar y liberar: bloqueo de la habitación y tarea fresca (plan-confirmar-fin-de-limpieza.md)
     │   │   │   │   ├── MaintenancePanelQueryService.java
     │   │   │   │   ├── StartRepairService.java
     │   │   │   │   ├── CompleteRepairService.java
@@ -589,7 +590,8 @@ backend/
     │   │       │   │   │   │   ├── RegisterCheckInRequest.java   # POST /api/check-in
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
-    │   │       │   │   │   │   └── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
+    │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
+    │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
     │   │       │   │   │   ├── ErrorCategoryStatus.java      # ErrorCategory → código HTTP (T009)
@@ -721,6 +723,7 @@ backend/
         │       ├── CheckInValidationServiceTest.java
         │       ├── CheckOutExecutionServiceTest.java
         │       ├── CleaningPanelQueryServiceTest.java
+        │       ├── CompleteCleaningServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DamageReportQueryServiceTest.java
@@ -733,6 +736,7 @@ backend/
         │       ├── ReceptionPanelQueryServiceTest.java
         │       ├── RegisterRoomServiceTest.java
         │       ├── RegisterStaffAccountServiceTest.java
+        │       ├── ReleaseCleaningTaskServiceTest.java
         │       ├── ReportDamageServiceTest.java
         │       ├── RoomInventoryQueryServiceTest.java
         │       ├── RoomReservationConflictServiceTest.java
@@ -771,6 +775,7 @@ backend/
         │   │   │       ├── CheckOutActiveStayIntegrationTest.java     # plan-registrar-check-out.md
         │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
         │   │   │       ├── CleaningPanelIntegrationTest.java          # plan-consultar-panel-limpieza.md
+        │   │   │       ├── CompleteCleaningIntegrationTest.java       # plan-confirmar-fin-de-limpieza.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
