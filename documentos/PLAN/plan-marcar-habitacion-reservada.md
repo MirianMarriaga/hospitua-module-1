@@ -196,7 +196,8 @@ No aplica: usa la infraestructura del plan base.
 
 - [x] T014 [US2] Verificar con el dueño de `plan-confirmar-fin-de-limpieza.md` (T016) que invoque el puerto con `CLEANING_END` solo si no se reportó daño y la habitación tiene una llegada pendiente hoy (FR-004).
   - Hecho (L21): `CompleteCleaningServiceTest` (con daño no consulta llegadas ni invoca el puerto) y `CompleteCleaningIntegrationTest` (llegada pendiente → `Reserved` con `MARK_RESERVED`; con daño y llegada → `DisabledForRepairs`).
-- [ ] T015 [US2] Verificar que existan las pruebas de los flujos que usan este puerto, que viven en los planes de esos flujos: `plan-registrar-check-in.md` (T014: check-in desde `Reserved`, esc. 2, FR-010), `plan-consultar-reservas.md` (T010: apartados y liberaciones de la ingesta, FR-009) y `plan-consultar-panel-recepcion.md` (T009: alerta operativa sin mensajes a Módulo 2, esc. 7 y 8, FR-012, SC-006).
+- [x] T015 [US2] Verificar que existan las pruebas de los flujos que usan este puerto, que viven en los planes de esos flujos: `plan-registrar-check-in.md` (T014: check-in desde `Reserved`, esc. 2, FR-010), `plan-consultar-reservas.md` (T010: apartados y liberaciones de la ingesta, FR-009) y `plan-consultar-panel-recepcion.md` (T009: alerta operativa sin mensajes a Módulo 2, esc. 7 y 8, FR-012, SC-006).
+  - Hecho (cierre de R8): existen las tres. Check-In T014 en `CheckInRegistrationIntegrationTest`; reservas T010 en `DailyReservationRabbitListenerIntegrationTest`; recepción T009 en `ReceptionArrivalsIntegrationTest`.
 
 **Checkpoint**: El caso de uso es idempotente y no sobrescribe estados físicos.
 
@@ -205,8 +206,11 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T016 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
+  - Pendiente (L38): se revisa cuando existan *Editar habitación* y la reactivación (R9).
 - [ ] T017 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
+  - Pendiente (L38): se revisa cuando existan los trabajos diarios de mantenimiento (L26).
 - [ ] T018 Medir en la prueba de integración T006 que cada invocación tome menos de 200 ms (NFR-001; SC-001).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 
 ---
 

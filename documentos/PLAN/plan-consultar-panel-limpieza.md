@@ -189,7 +189,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
   - Hecho (L19): `CleaningPanelIntegrationTest` cubre el listado (sin `InCleaning` ni `Occupied`, pendientes primero, última limpieza con offset `-05:00` y sin contar la `Released` posterior), la tarea activa y el 400 `CURRENT_USER_REQUIRED`.
 - [ ] T009 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
 - [ ] T010 [US1] Conectar las acciones y la actualización:
-  - "Iniciar limpieza": este plan es dueño de toda su interfaz. Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
+  - "Iniciar limpieza": este plan es dueño de toda su interfaz (FR-005 y FR-010 de *Marcar Habitación en Limpieza*). Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
   - "Reportar daño": abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T014).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
 
@@ -200,6 +200,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T011 Prueba de rendimiento, etiquetada según la convención de pruebas de rendimiento de la estrategia de testing del plan base (fuera del CI por defecto): con 500 habitaciones y un historial realista de `cleaning_task` (por ejemplo, un año de tareas), `GET /api/cleaning/panel` responde en menos de 2 segundos (SC-001).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 - [x] T012 Integration test: una habitación que pasa a `PendingCleaning` por un check-out aparece en la siguiente consulta del panel (SC-002). Es la única prueba de "aparece en el panel o el inventario" de los planes de limpieza.
   - Hecho (L19): en `CleaningPanelIntegrationTest`, con un Check-In y un Check-Out reales (`POST /api/check-in` y `POST /api/check-out`).
 

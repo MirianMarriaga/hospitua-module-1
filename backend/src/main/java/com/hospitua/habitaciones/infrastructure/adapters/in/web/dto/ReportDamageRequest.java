@@ -2,6 +2,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 
 import com.hospitua.habitaciones.application.dto.ReportDamageCommand;
 import com.hospitua.habitaciones.domain.exception.InvalidDamageDescriptionException;
+import com.hospitua.habitaciones.domain.model.DamageReport;
 import com.hospitua.habitaciones.domain.model.SourceFlow;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -13,7 +14,7 @@ import java.util.UUID;
  */
 public record ReportDamageRequest(
         @NotBlank(message = InvalidDamageDescriptionException.MESSAGE)
-        @Size(max = 500, message = InvalidDamageDescriptionException.MESSAGE)
+        @Size(max = DamageReport.MAX_DESCRIPTION_LENGTH, message = InvalidDamageDescriptionException.MESSAGE)
         String damageDescription) {
 
     public ReportDamageCommand toCommand(UUID roomId, String authorId) {
