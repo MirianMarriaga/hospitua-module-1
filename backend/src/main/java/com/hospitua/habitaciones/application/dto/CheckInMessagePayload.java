@@ -1,7 +1,7 @@
 package com.hospitua.habitaciones.application.dto;
 
-import com.hospitua.habitaciones.domain.model.CheckInGuest;
 import com.hospitua.habitaciones.domain.model.MovementType;
+import com.hospitua.habitaciones.domain.model.RoomGuest;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -28,36 +28,12 @@ public record CheckInMessagePayload(
 
     /** Ingreso ({@code ENTRY}) con todos los ocupantes; {@code movementDate} es la fecha del Check-In. */
     public static CheckInMessagePayload entry(
-            String reservationRef, UUID roomId, LocalDate checkInDate, List<CheckInGuest> guests) {
+            String reservationRef, UUID roomId, LocalDate checkInDate, List<RoomGuest> guests) {
         return new CheckInMessagePayload(
                 reservationRef,
                 roomId,
                 MovementType.ENTRY,
                 checkInDate,
                 guests.stream().map(GuestMessageDto::of).toList());
-    }
-
-    /** Huésped del mensaje (Contrato 1, campos de {@code guests[]}). */
-    public record GuestMessageDto(
-            String firstName,
-            String lastName,
-            String documentType,
-            String documentNumber,
-            LocalDate birthDate,
-            String nationality,
-            String originPlace,
-            String destinationPlace) {
-
-        static GuestMessageDto of(CheckInGuest guest) {
-            return new GuestMessageDto(
-                    guest.firstName(),
-                    guest.lastName(),
-                    guest.documentType(),
-                    guest.documentNumber(),
-                    guest.birthDate(),
-                    guest.nationality(),
-                    guest.originPlace(),
-                    guest.destinationPlace());
-        }
     }
 }

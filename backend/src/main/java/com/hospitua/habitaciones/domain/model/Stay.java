@@ -100,6 +100,35 @@ public class Stay {
         return version;
     }
 
+    /** Una estancia sigue activa hasta que el Check-Out le pone {@code checkOutDate}. */
+    public boolean isActive() {
+        return checkOutDate == null;
+    }
+
+    /**
+     * La misma estancia cerrada en {@code date}; conserva {@code version} para que el guardado detecte un cambio
+     * simultáneo (regla 13 del plan base).
+     */
+    public Stay checkOut(LocalDate date) {
+        if (!isActive()) {
+            throw new IllegalStateException("La estancia " + id + " ya tiene Check-Out");
+        }
+        Objects.requireNonNull(date, "La fecha del Check-Out no puede ser nula");
+        return new Stay(
+                id,
+                reservationRef,
+                roomId,
+                source,
+                checkInDate,
+                date,
+                expectedCheckinDate,
+                expectedCheckoutDate,
+                titularFirstName,
+                titularLastName,
+                titularDocumentNumber,
+                version);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

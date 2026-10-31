@@ -24,7 +24,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 - **Storage**: PostgreSQL 16+
 - **Build Tool**: Maven 3.9+
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, colas durables, Dead-Letter Exchange)
-- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer, WireMock (contratos con Módulo 2 y Módulo 3), ArchUnit (reglas 1 y 8)
+- **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer, WireMock (contratos con Módulo 2 y Módulo 3), ArchUnit (reglas 1 y 8), JaCoCo (cobertura, solo reporte)
 - **Target Platform**: Servidor Linux/Windows + Navegador Web moderno
 - **Project Type**: Web Application monorepo estructurado (`backend/` + `frontend/`)
 - **API**: REST JSON, con errores en el formato `ApiError` (sección "Formato Estándar de Error")
@@ -56,6 +56,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
 | Pruebas de contrato REST | WireMock (junto con `MockRestServiceServer`) | Simular Módulo 2 y Módulo 3 con respuestas, errores y retrasos reales sobre HTTP en las pruebas de contrato |
 | Formato de código | Spotless con palantir-java-format (`./mvnw spotless:apply`; `verify` falla si el código no está formateado) | Formato uniforme sin discusiones en las revisiones |
+| Cobertura de pruebas | JaCoCo (`jacoco-maven-plugin` 0.8.13): `prepare-agent` y `report` en `verify`, reporte en `target/site/jacoco`; solo reporte, sin umbral que haga fallar el build | Medir la cobertura de unitarias e integración juntas al cerrar cada rama |
 
 ---
 
@@ -244,6 +245,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `INVALID_DATE_RANGE` | 400 | `InvalidDateRangeException`, con `details.rule` | `plan-consultar-informacion-mantenimientos.md` (T001); la reutilizan *Programar bloqueo técnico* y *Consultar historial de estados* | El de la regla, en la tabla "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md` |
 | `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T029); la reutilizan *Programar bloqueo técnico* y *Dar de baja* | Lo define el plan del endpoint |
 | `MODULE_2_UNAVAILABLE` | 424 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
+| `MODULE_3_UNAVAILABLE` | 424 | `ExternalModule3UnavailableException`, con `unavailableCause` | `plan-consultar-liquidacion.md` | No llega al cliente: la consulta de la liquidación la convierte en `200` con `status: UNAVAILABLE` |
 | `UNEXPECTED_ERROR` | 422 | Cualquier excepción no controlada (`GlobalExceptionHandler`, regla 7) | Plan base | "Ocurrió un error inesperado. Referencia: {correlationId}" |
 
 ---
@@ -357,7 +359,7 @@ backend/
     │   │   │       ├── ReservationNotFoundException.java     # Reserva inexistente en la copia local (plan-consultar-reservas.md)
     │   │   │       ├── InvalidReservationQueryException.java # Consulta de reservas inválida (plan-consultar-reservas.md)
     │   │   │       ├── ExternalModule2UnavailableException.java # 424 MODULE_2_UNAVAILABLE (plan-consultar-reservas.md)
-    │   │   │       ├── ExternalModule3UnavailableException.java # Módulo 3 no responde (plan-consultar-liquidacion.md)
+    │   │   │       ├── ExternalModule3UnavailableException.java # MODULE_3_UNAVAILABLE; la liquidación responde 200 UNAVAILABLE (plan-consultar-liquidacion.md)
     │   │   │       ├── GuestCountMismatchException.java      # Huéspedes distintos a los de la reserva (plan-registrar-check-in.md)
     │   │   │       ├── RoomCapacityExceededException.java    # Supera la capacidad máxima (plan-registrar-check-in.md)
     │   │   │       ├── DuplicateGuestDocumentException.java  # Documento repetido entre huéspedes (plan-registrar-check-in.md)
@@ -1037,6 +1039,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 
 - **Regla del Boy Scout**: cada cambio deja el archivo que toca mejor que como estaba (nombres, imports, duplicación pequeña), sin mezclar refactorizaciones grandes con funcionalidad. Spotless formatea en cada `verify` (T004).
 - **Validación continua**: se prueba desde la primera tarea y en todas las capas, según "Estrategia de Testing Base": unitarias del dominio y los servicios, integración con Testcontainers, contrato con WireMock. El pipeline de CI (T025) ejecuta `./mvnw verify` en cada pull request; las pruebas `@Tag("performance")` se ejecutan aparte.
+- **Cierre de rama**: antes del PR a `develop`, con el último lote subido: merge de `develop`, suite en orden normal e invertido, cobertura con JaCoCo de las clases que tocó la rama (`domain` y `application` ≥ 90 % de líneas y ≥ 80 % de ramas; `infrastructure` ≥ 75 % de líneas; lo que quede debajo lleva prueba o justificación), consistencia de tareas, spec y contratos, código sin uso y una prueba de humo de punta a punta del flujo de la rama.
 - **Principio de menor sorpresa (POLA)**: cada endpoint se comporta como dice su plan y como el resto de la API: convenciones de nombres de la regla 1, respuestas `201`/`204`/`200` ("Convención de respuestas"), errores `ApiError` con `errorCode` del catálogo, usuario actual por `X-User`, fechas sin hora y timestamps con desfase `-05:00`.
 
 ## Estrategia de Testing Base
@@ -1088,6 +1091,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 - [x] T013 [P] Configurar `RestClientConfig` con los timeouts de la regla 5 y las propiedades `Module2Properties` (`hospitua.module2.base-url`, `connect-timeout` = `1s`, `read-timeout` = `2s`) y `Module3Properties` (`hospitua.module3.base-url`, `connect-timeout` = `1s`, `read-timeout` = `3s`), con los timeouts como `Duration`, tal como ya están en `application.yml`. Los adaptadores los implementan sus planes, porque dependen de modelos que esos planes definen: `Module2ReservationConflictRestAdapter` en `plan-consultar-reservas.md` (T026) y `SettlementRestAdapter` en `plan-consultar-liquidacion.md` (T010)
 - [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
   - [x] Agregar WireMock a la infraestructura de pruebas (dependencia de test `org.wiremock:wiremock-standalone` 3.13.2) para los contratos con Módulo 2 y Módulo 3
+  - [x] Agregar JaCoCo (`jacoco-maven-plugin` 0.8.13, solo reporte) para el cierre de rama (agregado en el cierre de R7, check-out)
 - [ ] T015 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [x] T016 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryRepositoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogRepositoryPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [x] T017 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9); en `cleaning_task`, los dos `CHECK` y el índice parcial de última limpieza del modelo de datos (el predicado repite los outcomes de `CleaningTaskOutcome.countsAsCleaning()`, lo que se anota en un comentario de la migración); en `reparation_task` y `technical_block_report`, sin columna `version`, los `CHECK` y los índices parciales del modelo de datos. La migración no carga datos: los datos sintéticos de limpieza y mantenimiento, incluidas las habitaciones en `DisabledForRepairs` o `TechnicalBlock` junto con su `damage_report` o su informe `Applied`, van en `classpath:db/dev-data`, que `application.yml` solo añade en el perfil `dev` (las pruebas con Testcontainers no los cargan). Esos datos respetan las invariantes: cada `DisabledForRepairs` tiene su `DamageReport`, cada `TechnicalBlock` tiene exactamente un informe `Applied` y las tareas abiertas solo existen sobre `InCleaning`, `DisabledForRepairs` o `TechnicalBlock`. En operación, sus registros solo los crean los casos de uso: `cleaning_task`, *Marcar habitación en limpieza*; `damage_report`, *Marcar habitación inhabilitada por reparaciones*; `reparation_task`, *Confirmar fin de reparación* (al iniciar reparaciones); y `technical_block_report`, *Programar bloqueo técnico*. Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas

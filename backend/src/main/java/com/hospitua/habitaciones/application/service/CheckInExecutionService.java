@@ -84,8 +84,9 @@ public class CheckInExecutionService implements RegisterCheckInUseCase {
                 reservation.guestLastName(),
                 reservation.guestDocumentNumber(),
                 0));
-        roomGuestRepository.saveAll(
-                guests.stream().map(guest -> toRoomGuest(stay.getId(), guest)).toList());
+        List<RoomGuest> roomGuests =
+                guests.stream().map(guest -> toRoomGuest(stay.getId(), guest)).toList();
+        roomGuestRepository.saveAll(roomGuests);
         transitionRoomStateUseCase.transition(
                 command.roomId(),
                 RoomStatus.Occupied,
@@ -100,7 +101,7 @@ public class CheckInExecutionService implements RegisterCheckInUseCase {
         outbox.enqueue(
                 ROUTING_KEY,
                 EVENT_TYPE,
-                CheckInMessagePayload.entry(reservation.reservationRef(), command.roomId(), today, guests));
+                CheckInMessagePayload.entry(reservation.reservationRef(), command.roomId(), today, roomGuests));
 
         return new CheckInResultDto(
                 stay.getId(),

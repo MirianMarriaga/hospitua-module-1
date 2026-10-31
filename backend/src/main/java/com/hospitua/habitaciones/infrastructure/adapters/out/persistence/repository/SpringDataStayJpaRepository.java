@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.reposi
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.StayJpaEntity;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,6 +26,8 @@ public interface SpringDataStayJpaRepository extends JpaRepository<StayJpaEntity
     List<DepartureRow> findActiveDepartures(@Param("date") LocalDate date);
 
     boolean existsByReservationRefAndRoomId(String reservationRef, UUID roomId);
+
+    Optional<StayJpaEntity> findByReservationRefAndRoomId(String reservationRef, UUID roomId);
 
     long countByCheckOutDateIsNullAndExpectedCheckoutDate(LocalDate date);
 

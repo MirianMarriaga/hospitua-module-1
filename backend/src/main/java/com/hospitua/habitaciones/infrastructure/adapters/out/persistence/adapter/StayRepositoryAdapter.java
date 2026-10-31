@@ -48,6 +48,13 @@ public class StayRepositoryAdapter implements StayRepositoryPort {
     }
 
     @Override
+    public Optional<Stay> findByReservationRefAndRoomId(String reservationRef, UUID roomId) {
+        return stayJpaRepository
+                .findByReservationRefAndRoomId(reservationRef, roomId)
+                .map(stayMapper::toDomain);
+    }
+
+    @Override
     public List<DepartureSummary> searchActiveDepartures(LocalDate today, String normalizedQuery) {
         // Una sola consulta: la estancia, su habitación y el conteo de huéspedes
         List<DepartureRow> rows = normalizedQuery == null
