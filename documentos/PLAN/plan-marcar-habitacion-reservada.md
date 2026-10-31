@@ -125,9 +125,9 @@ backend/src/
 │           ├── MarkRoomReservedCommand.java
 │           └── MarkRoomReservedResult.java
 └── test/java/com/hospitua/habitaciones/
-    ├── application/
+    ├── application/service/
     │   └── MarkRoomReservedServiceTest.java
-    └── infrastructure/persistence/
+    └── infrastructure/adapters/out/persistence/
         └── MarkRoomReservedIntegrationTest.java
 ```
 

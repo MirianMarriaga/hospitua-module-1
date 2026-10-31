@@ -707,14 +707,111 @@ backend/
     │       │   ├── V4__room_inventory_indexes.sql            # plan-consultar-inventario-habitaciones.md
     │       │   └── V5__room_state_history_indexes.sql        # plan-consultar-historial-de-estados.md
     │       └── db/dev-data/                                  # Datos sintéticos de limpieza y mantenimiento; solo perfil dev (T017)
-    └── test/java/com/hospitua/habitaciones/
-        ├── architecture/                                     # ArchUnit: reglas 1 (capas y nombres) y 8
-        ├── domain/                                           # Pruebas unitarias de modelo y reglas de negocio
-        ├── application/                                      # Pruebas unitarias de servicios de aplicación (Mocks)
-        └── infrastructure/                                   # Pruebas de integración con Testcontainers
-            ├── persistence/                                  # Pruebas JPA contra PostgreSQL real
-            ├── messaging/                                    # Pruebas AMQP contra RabbitMQ real
-            └── rest/                                         # Pruebas con MockRestServiceServer y contratos con Módulo 2 y Módulo 3
+    └── test/java/com/hospitua/habitaciones/                  # Unitarias sin comentario: prueban la clase del mismo nombre;
+                                                              # las demás nombran su plan dueño. Integración con Testcontainers.
+        ├── application/
+        │   ├── dto/
+        │   │   └── PagedResultDtoTest.java
+        │   └── service/
+        │       ├── ActiveStayQueryServiceTest.java
+        │       ├── CheckInExecutionServiceTest.java
+        │       ├── CheckInValidationServiceTest.java
+        │       ├── CheckOutExecutionServiceTest.java
+        │       ├── DailyReservationIngestionServiceTest.java
+        │       ├── DailyReservationSearchServiceTest.java
+        │       ├── DepartureSearchServiceTest.java
+        │       ├── LoginServiceTest.java
+        │       ├── MaintenanceNoticePublisherTest.java
+        │       ├── MarkPendingCleaningServiceTest.java
+        │       ├── MarkRoomAvailableServiceTest.java
+        │       ├── MarkRoomReservedServiceTest.java
+        │       ├── ReceptionPanelQueryServiceTest.java
+        │       ├── RegisterRoomServiceTest.java
+        │       ├── RegisterStaffAccountServiceTest.java
+        │       ├── RoomInventoryQueryServiceTest.java
+        │       ├── RoomReservationConflictServiceTest.java
+        │       ├── RoomStateHistoryQueryServiceTest.java
+        │       ├── RoomStateTransitionServiceTest.java
+        │       ├── SettlementQueryServiceTest.java
+        │       └── StartCleaningServiceTest.java
+        ├── architecture/
+        │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
+        ├── domain/
+        │   ├── exception/
+        │   │   └── CheckInExceptionsTest.java                         # plan-registrar-check-in.md
+        │   └── model/
+        │       ├── ArrivalNoticeTest.java
+        │       ├── CheckInEligibilityTest.java
+        │       ├── CheckInGuestTest.java
+        │       ├── CheckOutEligibilityTest.java
+        │       ├── CleaningTaskTest.java
+        │       ├── DailyReservationTest.java
+        │       ├── DepartureSummaryTest.java
+        │       ├── ReservationConflictQueryTest.java
+        │       ├── RoomTest.java
+        │       ├── SourceFlowTest.java
+        │       ├── StaffAccountTest.java
+        │       └── StayTest.java
+        ├── infrastructure/
+        │   ├── adapters/
+        │   │   ├── in/
+        │   │   │   ├── amqp/
+        │   │   │   │   └── DailyReservationRabbitListenerIntegrationTest.java # plan-consultar-reservas.md
+        │   │   │   └── web/
+        │   │   │       ├── AuthControllerTest.java
+        │   │   │       ├── CheckInRegistrationIntegrationTest.java    # plan-registrar-check-in.md
+        │   │   │       ├── CheckInValidationIntegrationTest.java      # plan-registrar-check-in.md
+        │   │   │       ├── CheckOutActiveStayIntegrationTest.java     # plan-registrar-check-out.md
+        │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
+        │   │   │       ├── CurrentUserResolverTest.java
+        │   │   │       ├── GlobalExceptionHandlerTest.java
+        │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
+        │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
+        │   │   │       ├── ReceptionDeparturesIntegrationTest.java    # plan-consultar-panel-recepcion.md
+        │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md
+        │   │   │       ├── RoomControllerTest.java
+        │   │   │       ├── RoomStateHistoryControllerTest.java
+        │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
+        │   │   │       └── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   └── out/
+        │   │       ├── messaging/
+        │   │       │   ├── serializer/
+        │   │       │   │   └── OutboxMessageSerializerTest.java
+        │   │       │   ├── MaintenanceNoticeIntegrationTest.java      # Plan base
+        │   │       │   ├── OutboxBackoffPolicyTest.java
+        │   │       │   └── OutboxSerializerRegistryTest.java
+        │   │       ├── persistence/
+        │   │       │   ├── CleaningMaintenanceSchemaTest.java         # Plan base
+        │   │       │   ├── CleaningTaskRepositoryAdapterTest.java
+        │   │       │   ├── DailyReservationRepositoryAdapterTest.java
+        │   │       │   ├── FlywayMigrationAndSchemaTest.java          # Plan base
+        │   │       │   ├── MarkPendingCleaningIntegrationTest.java    # plan-marcar-pendiente-a-limpieza.md
+        │   │       │   ├── MarkRoomAvailableIntegrationTest.java      # plan-marcar-habitacion-como-disponible.md
+        │   │       │   ├── MarkRoomReservedIntegrationTest.java       # plan-marcar-habitacion-reservada.md
+        │   │       │   ├── OutboxTransactionalIntegrationTest.java    # Plan base
+        │   │       │   ├── RegisterRoomIntegrationTest.java           # plan-registrar-habitacion.md
+        │   │       │   ├── RoomInventoryIntegrationTest.java          # plan-consultar-inventario-habitaciones.md
+        │   │       │   ├── RoomRepositoryAdapterTest.java
+        │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md
+        │   │       │   ├── RoomStateTransitionIntegrationTest.java    # Plan base (T010, T016)
+        │   │       │   ├── StaffAccountIntegrationTest.java           # Plan base
+        │   │       │   └── StayAndGuestRepositoryAdapterTest.java     # Plan base
+        │   │       └── rest/
+        │   │           ├── Module2ReservationConflictRestAdapterTest.java
+        │   │           ├── Module3OutagePredicateTest.java
+        │   │           ├── SettlementCircuitBreakerIntegrationTest.java # plan-consultar-liquidacion.md
+        │   │           └── SettlementRestAdapterTest.java
+        │   └── config/
+        │       ├── ApplicationConfigurationProfilesTest.java          # Plan base
+        │       ├── ClockConfigTest.java
+        │       ├── DailyReservationRetryPropertiesTest.java
+        │       ├── MaintenancePropertiesTest.java
+        │       ├── RabbitTopologyIntegrationTest.java                 # Plan base
+        │       ├── RestClientTimeoutWireMockTest.java                 # Plan base
+        │       └── StaffBootstrapPropertiesTest.java
+        ├── HabitacionesApplicationTests.java                          # Plan base
+        ├── TestcontainersConfiguration.java                           # Plan base
+        └── TestHabitacionesApplication.java                           # Plan base
 
 frontend/
 ├── package.json
