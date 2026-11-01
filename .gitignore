@@ -9,3 +9,5 @@ Thumbs.db
 
 # Variables de entorno locales
 .env
+skills-lock.json
+.agents
