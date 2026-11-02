@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 class GlobalExceptionHandlerTest {
 
@@ -54,6 +56,16 @@ class GlobalExceptionHandlerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(new TestController())
                 .setControllerAdvice(handler)
                 .build();
+    }
+
+    @Test
+    @DisplayName("Una ruta sin endpoint (NoResourceFoundException, p. ej. /favicon.ico) responde 404 NOT_FOUND, no 422")
+    void shouldHandleNoResourceFoundException() throws Exception {
+        mockMvc.perform(get("/test/no-resource"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode", is("NOT_FOUND")))
+                .andExpect(jsonPath("$.message", is("No existe el recurso solicitado.")))
+                .andExpect(jsonPath("$.path", is("/test/no-resource")));
     }
 
     @Test
@@ -289,6 +301,11 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/test/not-readable")
         void testNotReadable(@RequestBody SampleDateDto dto) {}
+
+        @GetMapping("/test/no-resource")
+        void testNoResource() throws NoResourceFoundException {
+            throw new NoResourceFoundException(HttpMethod.GET, "/favicon.ico", "favicon.ico");
+        }
 
         @GetMapping("/test/room-not-found")
         void testRoomNotFound() {

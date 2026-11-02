@@ -18,6 +18,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Traduce toda excepción al esquema {@link ApiError} (regla 7): nunca responde HTTP 500.
@@ -69,6 +70,17 @@ public class GlobalExceptionHandler {
                         "La habitación acaba de cambiar. Vuelve a intentarlo.",
                         request,
                         Map.of()));
+    }
+
+    /**
+     * Ruta sin endpoint (p. ej. el {@code /favicon.ico} que pide el navegador): 404 NOT_FOUND, sin registrarla como error
+     * del sistema.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
+        log.debug("Ruta sin endpoint: {}", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errors.create("NOT_FOUND", "No existe el recurso solicitado.", request, Map.of()));
     }
 
     /** Cualquier otra falla: 422 UNEXPECTED_ERROR, con el identificador de correlación solo en el log y el mensaje. */

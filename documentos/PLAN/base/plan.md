@@ -246,6 +246,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `RESERVATION_CONFLICT` | 409 | `ReservationConflictException`, con `details.reservations` | `plan-consultar-reservas.md` (T029); la reutilizan *Programar bloqueo técnico* y *Dar de baja* | Lo define el plan del endpoint |
 | `MODULE_2_UNAVAILABLE` | 424 | `ExternalModule2UnavailableException` | `plan-consultar-reservas.md` | Lo define el plan del endpoint |
 | `MODULE_3_UNAVAILABLE` | 424 | `ExternalModule3UnavailableException`, con `unavailableCause` | `plan-consultar-liquidacion.md` | No llega al cliente: la consulta de la liquidación la convierte en `200` con `status: UNAVAILABLE` |
+| `NOT_FOUND` | 404 | `NoResourceFoundException`: una ruta que no corresponde a ningún endpoint (p. ej. el `/favicon.ico` que pide el navegador). No se registra como error del sistema | Spring MVC | "No existe el recurso solicitado." |
 | `UNEXPECTED_ERROR` | 422 | Cualquier excepción no controlada (`GlobalExceptionHandler`, regla 7) | Plan base | "Ocurrió un error inesperado. Referencia: {correlationId}" |
 
 ---
