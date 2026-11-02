@@ -7,6 +7,7 @@ import com.hospitua.habitaciones.domain.exception.DomainError;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomDataException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class RoomTest {
 
@@ -191,5 +193,122 @@ class RoomTest {
                 status,
                 status == RoomStatus.Reserved ? "RES-INIT" : null,
                 0);
+    }
+
+    // Editar habitación (plan-editar-habitacion.md T002, T005, T008, T016)
+
+    @Test
+    @DisplayName("applyChanges cambia solo lo distinto, normaliza número y tarifa, y no toca id, estado ni version")
+    void applyChanges_returnsOnlyChangedAttributes() {
+        Room room = editable();
+
+        List<RoomAttributeChange> changes = room.applyChanges(
+                " 110a ", new BigDecimal("1"), "SENCILLA", new BigDecimal("2"), new BigDecimal("195000"));
+
+        assertThat(changes)
+                .containsExactly(
+                        new RoomAttributeChange("roomNumber", "101", "110A"),
+                        new RoomAttributeChange("baseRate", new BigDecimal("180000.00"), new BigDecimal("195000.00")));
+        assertThat(room.getRoomNumber()).isEqualTo("110A");
+        assertThat(room.getBaseRate()).isEqualByComparingTo("195000");
+        assertThat(room.getFloor()).isEqualTo(1);
+        assertThat(room.getStatus()).isEqualTo(RoomStatus.Available);
+        assertThat(room.getVersion()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("applyChanges con los mismos valores o con nulos no cambia nada; la tarifa se compara por valor")
+    void applyChanges_sameValues_noChanges() {
+        Room room = editable();
+
+        assertThat(room.applyChanges(
+                        "101", new BigDecimal("1.0"), "SENCILLA", new BigDecimal("2"), new BigDecimal("180000")))
+                .isEmpty();
+        assertThat(room.applyChanges(null, null, null, null, null)).isEmpty();
+        assertThat(room.getBaseRate()).isEqualTo(new BigDecimal("180000.00"));
+    }
+
+    @Test
+    @DisplayName("applyChanges informa piso, categoría y capacidad con sus valores anteriores y nuevos")
+    void applyChanges_floorCategoryCapacity() {
+        Room room = editable();
+
+        assertThat(room.applyChanges(null, new BigDecimal("3"), "SUITE", new BigDecimal("4"), null))
+                .containsExactly(
+                        new RoomAttributeChange("floor", 1, 3),
+                        new RoomAttributeChange("categoryRoom", "SENCILLA", "SUITE"),
+                        new RoomAttributeChange("maxCapacity", 2, 4));
+        assertThat(room.getCategoryRoom()).isEqualTo(RoomCategory.SUITE);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            delimiter = '|',
+            value = {
+                "'   '|     |         |  |          |roomNumber|El número de habitación es obligatorio.",
+                "ABCDEFGHIJK|     |         |  |          |roomNumber|El número de habitación debe tener máximo 10 caracteres.",
+                "           |0    |         |  |          |floor|El piso debe ser un número entero mayor a 0.",
+                "           |1.5  |         |  |          |floor|El piso debe ser un número entero mayor a 0.",
+                "           |     |PREMIUM  |  |          |categoryRoom|Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique.",
+                "           |     |         |0 |          |maxCapacity|La capacidad máxima debe ser un número entero mayor a 0.",
+                "           |     |         |  |0         |baseRate|La tarifa base debe ser mayor a 0 y tener máximo dos decimales.",
+                "           |     |         |  |10.555    |baseRate|La tarifa base debe ser mayor a 0 y tener máximo dos decimales.",
+                "           |     |         |  |1E+10     |baseRate|La tarifa base debe ser mayor a 0 y tener máximo dos decimales."
+            })
+    @DisplayName("T016: un valor inválido se rechaza con su campo y la habitación queda igual")
+    void applyChanges_invalidValue_leavesRoomUnchanged(
+            String number,
+            BigDecimal floor,
+            String category,
+            BigDecimal capacity,
+            BigDecimal rate,
+            String field,
+            String message) {
+        Room room = editable();
+
+        assertThatThrownBy(() -> room.applyChanges(number, floor, category, capacity, rate))
+                .isInstanceOfSatisfying(InvalidRoomDataException.class, ex -> {
+                    assertThat(ex.error()).isEqualTo(DomainError.VALIDATION_ERROR);
+                    assertThat(ex.getMessage()).isEqualTo(message);
+                    assertThat(ex.details()).containsEntry("field", field);
+                });
+        assertThat(room.getRoomNumber()).isEqualTo("101");
+        assertThat(room.getFloor()).isEqualTo(1);
+        assertThat(room.getCategoryRoom()).isEqualTo(RoomCategory.SENCILLA);
+        assertThat(room.getMaxCapacity()).isEqualTo(2);
+        assertThat(room.getBaseRate()).isEqualTo(new BigDecimal("180000.00"));
+    }
+
+    @Test
+    @DisplayName("La tarifa admite hasta 10 dígitos enteros (NUMERIC(12,2)), con decimales o en notación científica")
+    void applyChanges_baseRateUpperBound() {
+        Room room = editable();
+
+        assertThat(room.applyChanges(null, null, null, null, new BigDecimal("9999999999.99")))
+                .hasSize(1);
+        assertThat(room.applyChanges(null, null, null, null, new BigDecimal("2E+5")))
+                .containsExactly(new RoomAttributeChange(
+                        "baseRate", new BigDecimal("9999999999.99"), new BigDecimal("200000.00")));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sencilla", "Sencilla", " SENCILLA"})
+    @DisplayName("La categoría debe ser exactamente un valor del catálogo")
+    void applyChanges_categoryMustMatchCatalog(String category) {
+        assertThatThrownBy(() -> editable().applyChanges(null, null, category, null, null))
+                .isInstanceOf(InvalidRoomDataException.class);
+    }
+
+    private static Room editable() {
+        return new Room(
+                UUID.randomUUID(),
+                "101",
+                1,
+                RoomCategory.SENCILLA,
+                2,
+                new BigDecimal("180000.00"),
+                RoomStatus.Available,
+                null,
+                4);
     }
 }

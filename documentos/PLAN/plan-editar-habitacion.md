@@ -63,7 +63,7 @@ Content-Type: application/json
 | --- | --- | --- | --- | --- | --- |
 | `roomId` | path | UUID | Sí | Habitación a editar | `9b2e7c1a-4d3f-4e8a-b1c2-3d4e5f607182` |
 
-**Body (JSON):** `version` es obligatoria. Los atributos son opcionales: el frontend envía los valores del formulario y el servidor compara con los actuales para saber qué cambió (FR-006). Las reglas son las de `POST /api/rooms` (FR-005); `roomNumber` no puede quedar vacío.
+**Body (JSON):** `version` es obligatoria. Los atributos son opcionales (uno ausente o nulo se conserva): el frontend envía los valores del formulario y el servidor compara con los actuales para saber qué cambió (FR-006). El piso y la capacidad se aceptan como número decimal para rechazar uno no entero con el mensaje de su regla; un tipo JSON equivocado (por ejemplo, texto en `floor`) es un cuerpo ilegible y responde `VALIDATION_ERROR` con el mensaje genérico. Las reglas son las de `POST /api/rooms` (FR-005); `roomNumber` no puede quedar vacío.
 
 ```json
 {
@@ -119,15 +119,17 @@ Con `changed: false` el frontend muestra "No se modificó ningún dato" y no hay
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Tarifa menor o igual a 0, o con más de dos decimales (esc. 11) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Capacidad menor o igual a 0 (esc. 12) | "La capacidad máxima debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Número vacío (caso borde 2) | "El número de habitación es obligatorio." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Número de más de 10 caracteres, sin contar los espacios de los extremos (*Registrar habitación* FR-014) | "El número de habitación debe tener máximo 10 caracteres." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Piso no entero o menor o igual a 0 (FR-005, caso borde 6) | "El piso debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Tipo fuera del catálogo (esc. 10) | "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Tarifa menor o igual a 0, con más de dos decimales o con más de 10 dígitos enteros, lo que admite `NUMERIC(12,2)` (esc. 11) | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." |
+| 400 | `VALIDATION_ERROR` | `InvalidRoomDataException` (las reglas las aplica `Room.applyChanges` después de comprobar el estado; `details.field` indica el campo) | Capacidad menor o igual a 0 (esc. 12) | "La capacidad máxima debe ser un número entero mayor a 0." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta `version` (`details.field = version`) | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 3) | "No se encontró ninguna habitación con ese identificador." |
-| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9) | "La habitación no está disponible para edición (estado actual: {estado})." |
+| 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9); se comprueba antes que los datos | "La habitación no está disponible para edición (estado actual: {estado})." |
 | 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Otra habitación, activa o inactiva, ya tiene ese número (FR-009, esc. 13) | "Ya existe una habitación con el número {número} (aunque esté inactiva)." |
-| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otra edición cambió la habitación después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
+| 409 | `CONCURRENT_UPDATE` | `ConcurrentRoomUpdateException`: la `version` enviada no es la actual, comprobado con la fila bloqueada (`ObjectOptimisticLockingFailureException` queda como respaldo del `@Version` de JPA) | Otra edición, o cualquier cambio de la habitación, ocurrió después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 
 ```json
 {
@@ -163,18 +165,24 @@ documentos/
 ```text
 backend/src/main/java/com/hospitua/habitaciones/
 ├── domain/
-│   └── model/
-│       └── RoomAttributeChange.java               # Value Object: campo, valor anterior y valor nuevo
+│   ├── model/
+│   │   ├── Room.java                              # Se agrega applyChanges(...), con las reglas compartidas con register
+│   │   └── RoomAttributeChange.java               # Value Object: campo, valor anterior y valor nuevo
+│   └── exception/
+│       └── ConcurrentRoomUpdateException.java     # 409 CONCURRENT_UPDATE: la version del formulario ya no es la actual
 ├── application/
 │   ├── ports/in/
 │   │   └── EditRoomUseCase.java
+│   ├── ports/out/
+│   │   └── RoomRepositoryPort.java                # Se agrega update(Room): saveAndFlush y traducción del número repetido
 │   ├── service/
 │   │   └── EditRoomService.java
 │   └── dto/
 │       ├── EditRoomCommand.java
 │       └── EditRoomResultDto.java
 └── infrastructure/adapters/in/web/
-    └── RoomController.java                        # Se agrega PATCH /api/rooms/{roomId}
+    ├── RoomController.java                        # Se agrega PATCH /api/rooms/{roomId}
+    └── dto/EditRoomRequest.java                   # version obligatoria; los atributos los valida el dominio
 frontend/src/
 ├── pages/administracion/
 │   ├── EditRoomPage.tsx                           # Formulario precargado
@@ -195,9 +203,12 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T016) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
-- [ ] T002 [P] Mover a `Room` las validaciones de piso, tipo, capacidad y tarifa, si `plan-registrar-habitacion.md` las dejó en el servicio, e implementar `Room.applyChanges(...)` con `RoomAttributeChange`.
-- [ ] T003 [P] Verificar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE` (catálogo del plan base, T009).
+- [x] T001 Verificar que `room_audit_log` y su puerto `RoomAuditLogRepositoryPort` estén disponibles (plan base, T007 y T016) y que exista `RoomNumberAlreadyExistsException` (`plan-registrar-habitacion.md`, T002).
+  - Hecho (L33): existen `room_audit_log`, `RoomAuditLogRepositoryPort` (la hora la pone el adaptador con `Clock`) y `RoomNumberAlreadyExistsException`, a la que se agrega `whenEditing(número)` con el texto de esta tabla.
+- [x] T002 [P] Mover a `Room` las validaciones de piso, tipo, capacidad y tarifa, si `plan-registrar-habitacion.md` las dejó en el servicio, e implementar `Room.applyChanges(...)` con `RoomAttributeChange`.
+  - Hecho (L33): las reglas de `Room.register` pasan a validadores privados que comparte `applyChanges`. `applyChanges` recibe los valores del formulario (nulo = sin cambio), normaliza el número y la tarifa (dos decimales, comparada por valor), aplica solo lo distinto y devuelve los `RoomAttributeChange`; si un valor es inválido, la habitación queda igual.
+- [x] T003 [P] Verificar en `GlobalExceptionHandler` el mapeo del bloqueo optimista de `room.version` a `409 CONCURRENT_UPDATE` (catálogo del plan base, T009).
+  - Hecho (L33): el `409` de la edición lo produce `ConcurrentRoomUpdateException` (nuevo `DomainError.CONCURRENT_UPDATE`) con el texto de esta tabla; `GlobalExceptionHandler` sigue traduciendo `ObjectOptimisticLockingFailureException` como respaldo.
 
 ---
 
@@ -209,22 +220,29 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `EditRoomServiceTest`: editar tarifa, tipo o capacidad persiste solo ese campo y la habitación sigue `Available` (esc. 1 a 3; FR-006).
-- [ ] T005 [P] [US1] Unit test: cambiar el número a uno libre conserva el UUID y los demás atributos (esc. 4; FR-001, FR-009).
-- [ ] T006 [P] [US1] Unit test: la respuesta lista cada campo modificado con su valor anterior y nuevo, y el evento `ROOM_EDITED` guarda lo mismo con el Administrador y la hora de `Clock` (esc. 5; FR-007, FR-008).
-- [ ] T007 [P] [US1] Unit test: sin cambios devuelve `changed: false` y no persiste ni audita (esc. 6; FR-010).
-- [ ] T008 [P] [US1] Unit test: conservar el propio número o cambiar solo el piso no genera conflicto de duplicidad (casos borde 1 y 6).
+- [x] T004 [P] [US1] Unit test en `EditRoomServiceTest`: editar tarifa, tipo o capacidad persiste solo ese campo y la habitación sigue `Available` (esc. 1 a 3; FR-006).
+  - Hecho (L33): en `EditRoomServiceTest` y, por HTTP, en `EditRoomIntegrationTest`.
+- [x] T005 [P] [US1] Unit test: cambiar el número a uno libre conserva el UUID y los demás atributos (esc. 4; FR-001, FR-009).
+  - Hecho (L33): en `EditRoomServiceTest` y `EditRoomIntegrationTest`.
+- [x] T006 [P] [US1] Unit test: la respuesta lista cada campo modificado con su valor anterior y nuevo, y el evento `ROOM_EDITED` guarda lo mismo con el Administrador y la hora de `Clock` (esc. 5; FR-007, FR-008).
+  - Hecho (L33): en `EditRoomServiceTest` (`details.changes` con campo, valor anterior y nuevo, y el Administrador); `EditRoomIntegrationTest` lo comprueba en `room_audit_log`.
+- [x] T007 [P] [US1] Unit test: sin cambios devuelve `changed: false` y no persiste ni audita (esc. 6; FR-010).
+  - Hecho (L33): en `EditRoomServiceTest` y `EditRoomIntegrationTest` (la `version` no cambia).
+- [x] T008 [P] [US1] Unit test: conservar el propio número o cambiar solo el piso no genera conflicto de duplicidad (casos borde 1 y 6).
+  - Hecho (L33): en `EditRoomServiceTest`: sin cambio de número no se consulta la unicidad.
 - [ ] T009 [P] [US1] Component test en `EditRoomPage` y `EditRoomConfirmation`: el formulario llega precargado, el UUID no es editable, la confirmación muestra "Antes / Ahora" por cada dato modificado y los datos actualizados, sin fecha ni usuario, y "Sin cambios" muestra el aviso (esc. 5 y 6; FR-007, FR-010).
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `EditRoomService` (`@Transactional`) (FR-001 a FR-010):
+- [x] T010 [US1] Implementar `EditRoomService` (`@Transactional`) (FR-001 a FR-010):
   - Cargar la habitación y comparar su `version` con la del comando.
   - Validar que esté en `Available`.
   - Calcular los cambios con `Room.applyChanges(...)`; si no hay, devolver `changed: false` sin persistir.
   - Validar la unicidad del número nuevo en todo el inventario, sin contar la propia habitación.
   - Persistir y registrar `ROOM_EDITED` en `room_audit_log` con los cambios en `details`, el Administrador como `actor_id` y la hora de `Clock` como `event_date_time`.
-- [ ] T011 [US1] Agregar a `RoomController` el endpoint `PATCH /api/rooms/{roomId}`.
+  - Hecho (L33): `EditRoomService` bloquea la fila (`lockById`, regla 13 del plan base) para que dos ediciones con la misma `version` queden en fila; luego compara la `version`, exige `Available`, aplica los cambios, valida el número nuevo, guarda con `RoomRepositoryPort.update` (escribe de inmediato y traduce el índice único del número) y registra `ROOM_EDITED`. La habitación inexistente responde el texto de la tabla, distinto del general del catálogo.
+- [x] T011 [US1] Agregar a `RoomController` el endpoint `PATCH /api/rooms/{roomId}`.
+  - Hecho (L33): `EditRoomRequest` → `EditRoomCommand`, con el Administrador de `X-User`; responde 200 con `EditRoomResultDto`.
 - [ ] T012 [US1] Construir en el frontend `EditRoomPage.tsx` (formulario precargado con `GET /api/rooms/inventory/{roomId}`) y `EditRoomConfirmation.tsx` ("Antes / Ahora" y datos actualizados) (FR-001, FR-007).
 
 **Checkpoint**: El Administrador puede editar habitaciones disponibles con trazabilidad.
@@ -239,12 +257,14 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Unit test: rechazo en `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive`, con el estado actual en `details` (esc. 7 a 9; FR-002 a FR-004; SC-002).
+- [x] T013 [P] [US2] Unit test: rechazo en `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive`, con el estado actual en `details` (esc. 7 a 9; FR-002 a FR-004; SC-002).
+  - Hecho (L33): en `EditRoomServiceTest` (con datos inválidos en la misma petición, para comprobar que el estado va primero).
 - [ ] T014 [P] [US2] Component test: el error muestra el estado en español.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Lanzar `InvalidRoomTransitionException` o una excepción de estado equivalente con `currentStatus`, traducida a `409 ROOM_INVALID_STATE`, antes de cualquier validación de datos (FR-002, FR-004).
+- [x] T015 [US2] Lanzar `InvalidRoomTransitionException` o una excepción de estado equivalente con `currentStatus`, traducida a `409 ROOM_INVALID_STATE`, antes de cualquier validación de datos (FR-002, FR-004).
+  - Hecho (L33): `EditRoomRequest` solo valida la `version`, así que el estado se comprueba antes que cualquier regla de los atributos.
 
 **Checkpoint**: Ninguna habitación comprometida puede editarse.
 
@@ -258,9 +278,12 @@ No aplica: usa la infraestructura del plan base.
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Unit test: rechazo de tipo fuera del catálogo, tarifa menor o igual a 0, capacidad menor o igual a 0, piso inválido y número vacío, sin modificar la habitación (esc. 10 a 12, caso borde 2; FR-005; SC-003).
-- [ ] T017 [P] [US3] Unit test: rechazo con `ROOM_NUMBER_ALREADY_EXISTS` si otra habitación, incluida una `Inactive`, ya tiene el número (esc. 13; FR-009; SC-006).
-- [ ] T018 [US3] Integration test con Testcontainers: dos ediciones simultáneas con la misma `version`; la primera se guarda y la segunda recibe `409 CONCURRENT_UPDATE` (caso borde "Ediciones simultáneas").
+- [x] T016 [P] [US3] Unit test: rechazo de tipo fuera del catálogo, tarifa menor o igual a 0, capacidad menor o igual a 0, piso inválido y número vacío, sin modificar la habitación (esc. 10 a 12, caso borde 2; FR-005; SC-003).
+  - Hecho (L33): las reglas en `RoomTest` (la habitación queda igual) y en `EditRoomServiceTest`; por HTTP, los cinco mensajes en `EditRoomIntegrationTest`.
+- [x] T017 [P] [US3] Unit test: rechazo con `ROOM_NUMBER_ALREADY_EXISTS` si otra habitación, incluida una `Inactive`, ya tiene el número (esc. 13; FR-009; SC-006).
+  - Hecho (L33): en `EditRoomServiceTest` y, contra el número de la habitación inactiva 104 de la semilla, en `EditRoomIntegrationTest`.
+- [x] T018 [US3] Integration test con Testcontainers: dos ediciones simultáneas con la misma `version`; la primera se guarda y la segunda recibe `409 CONCURRENT_UPDATE` (caso borde "Ediciones simultáneas").
+  - Hecho (L33): en `EditRoomIntegrationTest`, con dos hilos sobre `EditRoomUseCase`: gracias al bloqueo de la fila, la segunda ve la `version` nueva y recibe `ConcurrentRoomUpdateException`.
 
 ### Implementation for User Story 3
 
@@ -272,7 +295,8 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T020 Integration test: tras una edición exitosa, `GET /api/rooms/inventory?roomNumber=…` refleja los valores nuevos de inmediato (SC-004).
+- [x] T020 Integration test: tras una edición exitosa, `GET /api/rooms/inventory?roomNumber=…` refleja los valores nuevos de inmediato (SC-004).
+  - Hecho (L33): en `EditRoomIntegrationTest`.
 
 ---
 
