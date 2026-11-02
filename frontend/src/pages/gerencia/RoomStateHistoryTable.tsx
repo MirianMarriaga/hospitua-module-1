@@ -47,7 +47,9 @@ export function RoomStateHistoryTable({ periods }: { periods: RoomStatePeriod[] 
                 {period.endDateTime ? (
                   formatTimestamp(period.endDateTime)
                 ) : (
-                  <span className="font-semibold text-state-green">En curso</span>
+                  <span className="inline-flex items-center rounded-full bg-state-blue-bg px-2.5 py-0.5 text-xs font-semibold text-primary-dark">
+                    En curso
+                  </span>
                 )}
               </TableCell>
               <TableCell>

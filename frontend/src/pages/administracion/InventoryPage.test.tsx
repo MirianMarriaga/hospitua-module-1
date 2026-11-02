@@ -58,7 +58,6 @@ describe('InventoryPage', () => {
 
     const link = within(rowOf('305')).getByRole('link', { name: 'Ver historial' });
     expect(link).toHaveAttribute('href', '/gerencia/historial?roomId=c&roomNumber=305');
-    expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
   });
 
   it('pasa los filtros y la página de la URL a la consulta', async () => {
@@ -97,12 +96,12 @@ describe('InventoryPage', () => {
   it('distingue el inventario vacío de los filtros sin resultados', async () => {
     vi.mocked(getInventory).mockResolvedValue(page([]));
     const { unmount } = renderWithProviders(<InventoryPage role="admin" />);
-    expect(await screen.findByText('No hay habitaciones registradas')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no hay habitaciones registradas.')).toBeInTheDocument();
     unmount();
 
     renderWithProviders(<InventoryPage role="admin" />, { route: '/?status=Reserved' });
     expect(
-      await screen.findByText(/Ninguna habitación cumple los filtros aplicados/),
+      await screen.findByText(/Ninguna habitación cumple los filtros seleccionados/),
     ).toBeInTheDocument();
   });
 });

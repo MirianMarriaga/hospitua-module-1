@@ -6,6 +6,22 @@ import { DOCUMENT_TYPES } from '@/lib/labels';
 
 export const COLOMBIA = 'Colombia';
 
+export const COUNTRIES = [
+  'Colombia',
+  'Estados Unidos',
+  'Venezuela',
+  'México',
+  'Argentina',
+  'Brasil',
+  'Ecuador',
+  'Perú',
+  'España',
+  'Francia',
+  'Alemania',
+] as const;
+
+export type Country = (typeof COUNTRIES)[number];
+
 /** Mismo criterio que `CheckInGuest` del backend: extranjero si la nacionalidad no es Colombia. */
 export function isForeigner(nationality: string): boolean {
   const value = nationality.trim();

@@ -39,7 +39,7 @@ describe('ReceptionPanel', () => {
   it('agrupa las llegadas por reserva y muestra los avisos de estado', async () => {
     renderWithProviders(<ReceptionPanel />);
 
-    const tags = await screen.findAllByText('RES-10482');
+    const tags = await screen.findAllByText('Reserva de 2 habitaciones');
     expect(tags.length).toBe(2);
     expect(screen.getAllByText('1 de 2 pendientes').length).toBe(2);
     expect(screen.getByText('No disponible: Bloqueo técnico')).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('ReceptionPanel', () => {
 
     expect(
       await screen.findByText(
-        'Lista de llegadas no disponible. Esperando sincronización de Módulo 2.',
+        'Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde.',
       ),
     ).toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe('ReceptionPanel', () => {
 
   it('aplica la búsqueda al dejar de escribir y la comparte entre pestañas', async () => {
     renderWithProviders(<ReceptionPanel />);
-    await screen.findAllByText('RES-10482');
+    await screen.findAllByText('Reserva de 2 habitaciones');
 
     await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar reservas' }), 'gonz');
     await waitFor(() => expect(getArrivals).toHaveBeenLastCalledWith('gonz'));

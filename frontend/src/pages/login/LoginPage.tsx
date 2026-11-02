@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 
 import { login } from '@/api/authService';
+import hospituaLogo from '@/assets/icono-hospitua-grande.png';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -56,8 +57,18 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper-dim">
-      <header className="flex h-16 items-center bg-navy px-6 text-white">
-        <span className="text-base font-bold tracking-tight">Hotel Hospitua</span>
+      <header className="flex h-16 items-center bg-[#152B4D] px-6 text-white">
+        <div className="flex items-center gap-3.5">
+          <img
+            src={hospituaLogo}
+            alt="Hotel Hospitua"
+            className="size-12 shrink-0 rounded-[10px] object-contain shadow-sm"
+          />
+          <div>
+            <div className="text-base font-bold leading-tight">Hotel Hospitua</div>
+            <div className="text-xs text-[#9db2d8]">Acceso al sistema</div>
+          </div>
+        </div>
       </header>
       <main className="flex flex-1 items-center justify-center p-6">
         <Card className="w-full max-w-sm">

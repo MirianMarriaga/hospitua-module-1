@@ -1,6 +1,6 @@
 import { ChevronDown, LogOut } from 'lucide-react';
 
-import hospituaLogo from '@/assets/icono-hospitua.png';
+import hospituaLogo from '@/assets/icono-hospitua-grande.png';
 import { Button } from '@/components/ui/button';
 import { initials } from '@/lib/format';
 import { STAFF_AREA_LABELS, STAFF_ROLE_LABELS } from '@/lib/labels';
@@ -10,11 +10,11 @@ import type { Session } from '@/stores/sessionStore';
 export function Header({ session, onLogout }: { session: Session; onLogout: () => void }) {
   return (
     <header className="flex h-16 items-center justify-between bg-[#152B4D] px-6 text-white">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3.5">
         <img
           src={hospituaLogo}
           alt="Hotel Hospitua"
-          className="size-9 shrink-0 rounded-[9px] object-cover"
+          className="size-12 shrink-0 rounded-[10px] object-contain shadow-sm"
         />
         <div>
           <div className="text-base font-bold leading-tight">Hotel Hospitua</div>
@@ -23,7 +23,7 @@ export function Header({ session, onLogout }: { session: Session; onLogout: () =
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3" aria-label="Usuario actual">
-          <span className="flex size-9 items-center justify-center rounded-full bg-[#33507f] text-[13px] font-semibold text-white">
+          <span className="flex size-10 items-center justify-center rounded-full bg-[#33507f] text-[13.5px] font-semibold text-white">
             {initials(session.fullName)}
           </span>
           <div className="leading-tight">

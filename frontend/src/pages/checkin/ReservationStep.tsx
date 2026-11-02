@@ -35,7 +35,6 @@ export function ReservationStep({ reservationRef, roomId, onContinue }: Reservat
         {validation.isError && <ErrorAlert message={checkInErrorMessage(validation.error)} />}
         {validation.data && (
           <dl className="grid gap-5 sm:grid-cols-3">
-            <InfoItem label="Código de reserva">{validation.data.reservationRef}</InfoItem>
             <InfoItem label="Huésped principal">
               {validation.data.holder.firstName} {validation.data.holder.lastName}
             </InfoItem>

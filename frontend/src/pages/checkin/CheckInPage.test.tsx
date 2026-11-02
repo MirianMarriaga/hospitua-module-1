@@ -33,8 +33,7 @@ async function fillSecondGuest(nationality = 'Colombia') {
   await userEvent.type(within(second).getByLabelText('Apellidos'), 'Pérez');
   await userEvent.type(within(second).getByLabelText('Número de documento'), '79888777');
   const country = within(second).getByLabelText('Nacionalidad');
-  await userEvent.clear(country);
-  await userEvent.type(country, nationality);
+  await userEvent.selectOptions(country, nationality);
   setDate(second, '1988-02-14');
 }
 
@@ -92,7 +91,7 @@ describe('CheckInPage', () => {
     setDate(guestBlock(1), '2999-01-01');
     await fillSecondGuest('Argentina');
     expect(
-      within(guestBlock(2)).getByText('Registro migratorio: huésped extranjero'),
+      within(guestBlock(2)).getByText('Datos de control migratorio'),
     ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));

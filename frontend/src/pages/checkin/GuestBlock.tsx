@@ -7,8 +7,10 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import { formatDate, todayInBogota } from '@/lib/format';
 import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES } from '@/lib/labels';
 import {
+  COUNTRIES,
   emptyGuest,
   holderGuest,
   isForeigner,
@@ -105,7 +107,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
                 <NativeSelect {...field} disabled={locked}>
                   {DOCUMENT_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {DOCUMENT_TYPE_LABELS[type]}
+                      {type} — {DOCUMENT_TYPE_LABELS[type]}
                     </option>
                   ))}
                 </NativeSelect>
@@ -134,7 +136,27 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
             <FormItem>
               <FormLabel>Nacionalidad</FormLabel>
               <FormControl>
-                <Input readOnly={locked} {...field} />
+                <NativeSelect
+                  {...field}
+                  disabled={locked}
+                  onChange={(e) => {
+                    const newCountry = e.target.value;
+                    field.onChange(newCountry);
+                    if (newCountry === 'Colombia') {
+                      form.setValue(`guests.${index}.originPlace`, '');
+                      form.setValue(`guests.${index}.destinationPlace`, '');
+                    }
+                  }}
+                >
+                  {field.value && !(COUNTRIES as readonly string[]).includes(field.value) && (
+                    <option value={field.value}>{field.value}</option>
+                  )}
+                  {COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </NativeSelect>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -157,7 +179,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
       {foreigner && (
         <div className="grid gap-4 rounded-lg bg-state-amber-bg/60 p-4 sm:grid-cols-2">
           <p className="text-xs font-semibold text-state-amber sm:col-span-2">
-            Registro migratorio: huésped extranjero
+            Datos de control migratorio
           </p>
           <FormField
             control={form.control}
@@ -166,7 +188,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
               <FormItem>
                 <FormLabel>Lugar de procedencia</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input placeholder="Ej. Miami, EE. UU." {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -179,12 +201,24 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
               <FormItem>
                 <FormLabel>Lugar de destino</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input placeholder="Ej. Cartagena, Colombia" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-medium text-text-lo">Movimiento</Label>
+            <Input value="Entrada" readOnly className="bg-paper text-text-lo cursor-not-allowed" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-medium text-text-lo">Fecha de registro</Label>
+            <Input
+              value={formatDate(todayInBogota())}
+              readOnly
+              className="bg-paper text-text-lo cursor-not-allowed"
+            />
+          </div>
         </div>
       )}
     </fieldset>

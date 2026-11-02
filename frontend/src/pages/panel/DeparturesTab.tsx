@@ -17,32 +17,30 @@ function checkOutLink(reservationRef: string, roomId: string): string {
 function DepartureRow({ stay }: { stay: DepartureStay }) {
   return (
     <tr className="border-b border-line hover:bg-[#FAFAF7]">
-      <td className="px-4 py-3 align-middle">
+      <td className="px-4 py-3.5 align-middle">
         <div className="font-sans text-[20px] font-semibold text-text-hi">{stay.roomNumber}</div>
       </td>
-      <td className="px-4 py-3 align-middle">
+      <td className="px-4 py-3.5 align-middle">
         <div className="font-semibold text-text-hi">
           {stay.titularFirstName} {stay.titularLastName}
         </div>
-        <div className="mt-0.5 text-[13px] text-text-lo">
-          {stay.reservationRef} · {stay.titularDocumentNumber}
-        </div>
+        <div className="mt-0.5 text-[13px] text-text-lo">{stay.titularDocumentNumber}</div>
       </td>
-      <td className="px-4 py-3 align-middle tabular-nums text-text-hi">
+      <td className="px-4 py-3.5 align-middle tabular-nums text-text-hi">
         {formatDate(stay.checkInDate)}
       </td>
-      <td className="px-4 py-3 align-middle tabular-nums">
+      <td className="px-4 py-3.5 align-middle tabular-nums">
         <div className={cn(stay.overdue ? 'font-semibold text-due' : 'text-text-hi')}>
           {formatDate(stay.expectedCheckoutDate)}
         </div>
         {stay.overdue && <div className="mt-0.5 text-[13px] font-medium text-due">Vencida</div>}
       </td>
-      <td className="px-4 py-3 align-middle tabular-nums text-text-hi">{stay.guestCount}</td>
-      <td className="px-4 py-3 align-middle text-text-hi">{categoryLabel(stay.categoryRoom)}</td>
-      <td className="px-4 py-3 align-middle">
+      <td className="px-4 py-3.5 align-middle tabular-nums text-text-hi">{stay.guestCount}</td>
+      <td className="px-4 py-3.5 align-middle text-text-hi">{categoryLabel(stay.categoryRoom)}</td>
+      <td className="px-4 py-3.5 align-middle">
         <span className="font-semibold text-text-hi">{sourceLabel(stay.source)}</span>
       </td>
-      <td className="px-4 py-3 text-right align-middle">
+      <td className="px-4 py-3.5 text-right align-middle">
         <Button
           size="sm"
           asChild
@@ -77,28 +75,28 @@ export function DeparturesTab({ query }: { query: string }) {
       <table className="table-stacked w-full border-collapse">
         <thead>
           <tr className="border-b border-line">
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Hab.
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Huésped titular
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Fecha entrada
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Fecha salida
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Personas
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Tipo habitación
             </th>
-            <th className="px-4 py-2.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
+            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
               Fuente
             </th>
-            <th className="px-4 py-2.5">
+            <th className="px-4 py-3.5">
               <span className="sr-only">Acciones</span>
             </th>
           </tr>

@@ -9,14 +9,14 @@ export function ReceptionSearchBar() {
   return (
     <div className="relative w-full">
       <Search
-        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-text-lo"
+        className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-text-lo"
         aria-hidden
       />
       <input
         type="search"
         aria-label="Buscar reservas"
         placeholder="Buscar por huésped, documento o referencia de reserva…"
-        className="w-full rounded-md border border-line bg-paper-dim py-2 pr-3.5 pl-10 text-[14.5px] text-text-hi placeholder:text-text-lo focus:border-primary focus:outline-none"
+        className="w-full rounded-md border border-line bg-paper-dim py-2.5 pr-4 pl-11 text-[14.5px] text-text-hi placeholder:text-text-lo focus:border-primary focus:outline-none"
         maxLength={SEARCH_MAX_LENGTH}
         value={search.text}
         onChange={(event) => search.setText(event.target.value)}

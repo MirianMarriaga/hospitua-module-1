@@ -30,15 +30,21 @@ export function AreaLayout({ area }: { area: StaffArea }) {
     logout();
   }
 
+  const isReception = area === 'RECEPCION';
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header session={session} onLogout={handleLogout} />
       <div className="flex flex-1">
-        <Sidebar items={AREA_NAVIGATION[area]} />
+        {!isReception && <Sidebar items={AREA_NAVIGATION[area]} />}
         <main
           className={cn(
             'flex-1 overflow-x-auto',
-            location.pathname !== '/recepcion' && 'p-6 lg:p-8',
+            isReception
+              ? location.pathname === '/recepcion'
+                ? ''
+                : 'mx-auto w-full max-w-[1180px] px-6 py-8'
+              : 'p-6 lg:p-8',
           )}
         >
           <Outlet />

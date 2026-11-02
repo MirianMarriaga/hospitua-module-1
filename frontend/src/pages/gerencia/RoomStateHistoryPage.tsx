@@ -47,7 +47,7 @@ export function RoomStateHistoryPage() {
     <>
       <PageHeader
         title="Historial de estados"
-        subtitle="Periodos de cada estado de las habitaciones, con su responsable y flujo de origen."
+        subtitle="Consulta por cuánto tiempo estuvo cada habitación en cada estado."
       />
       <Card className="overflow-hidden">
         <RoomStateHistoryFilters rangeError={rangeError} />

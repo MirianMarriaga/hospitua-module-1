@@ -14,8 +14,13 @@ interface KpiCardProps {
 function KpiCard({ label, value, icon, due = false }: KpiCardProps) {
   const isOverdueAlert = due && value !== undefined && value > 0;
   return (
-    <div className={cn('flex items-center gap-3.5 rounded-[10px] border border-line bg-paper p-[14px_16px]', due && 'due')}>
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#EAF1FF] text-primary">
+    <div
+      className={cn(
+        'flex items-center gap-4 rounded-[10px] border border-line bg-paper p-4 sm:p-5',
+        due && 'due',
+      )}
+    >
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#EAF1FF] text-primary">
         {icon}
       </div>
       <div>
@@ -38,28 +43,28 @@ export function KpiCards({ kpis }: { kpis?: ReceptionKpis }) {
   return (
     <section
       aria-label="Indicadores del día"
-      className="grid grid-cols-2 gap-3 min-[900px]:grid-cols-4"
+      className="grid grid-cols-2 gap-3.5 min-[900px]:grid-cols-4"
     >
       <KpiCard
         label="Llegadas de hoy"
         value={kpis?.arrivalsToday}
-        icon={<Users className="size-[22px]" aria-hidden />}
+        icon={<Users className="size-6" aria-hidden />}
       />
       <KpiCard
         label="Salidas de hoy"
         value={kpis?.departuresToday}
-        icon={<LogOut className="size-[22px]" aria-hidden />}
+        icon={<LogOut className="size-6" aria-hidden />}
       />
       <KpiCard
         label="Salidas vencidas"
         value={kpis?.overdueDepartures}
-        icon={<Calendar className="size-[22px]" aria-hidden />}
+        icon={<Calendar className="size-6" aria-hidden />}
         due
       />
       <KpiCard
         label="Habitaciones ocupadas"
         value={kpis?.occupiedRooms}
-        icon={<BedDouble className="size-[22px]" aria-hidden />}
+        icon={<BedDouble className="size-6" aria-hidden />}
       />
     </section>
   );

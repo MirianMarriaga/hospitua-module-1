@@ -51,13 +51,13 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
 
   const emptyMessage = hasActiveFilters(searchParams) ? (
     <>
-      Ninguna habitación cumple los filtros aplicados.{' '}
+      Ninguna habitación cumple los filtros seleccionados.{' '}
       <Button variant="link" className="h-auto p-0" onClick={clearFilters}>
         Limpiar filtros
       </Button>
     </>
   ) : (
-    'No hay habitaciones registradas'
+    'Todavía no hay habitaciones registradas.'
   );
 
   return (
@@ -66,8 +66,8 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
         title="Inventario de habitaciones"
         subtitle={
           role === 'admin'
-            ? 'Consulta y gestiona las habitaciones del hotel.'
-            : 'Consulta el estado actual de las habitaciones del hotel.'
+            ? 'Registra, edita, da de baja o reactiva habitaciones del hotel.'
+            : 'Consulta el inventario completo del hotel y el estado actual de cada habitación.'
         }
         actions={
           role === 'admin' && (
@@ -87,10 +87,14 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
             <ErrorAlert message={errorMessage(query.error, INVENTORY_ERRORS)} />
           </div>
         )}
-        {query.isPending && <p className="p-6 text-sm text-text-lo">Cargando habitaciones…</p>}
+        {query.isPending && <p className="p-6 text-sm text-text-lo">Cargando inventario…</p>}
         {query.data && (
           <>
-            <RoomInventoryTable rooms={query.data.items} role={role} emptyMessage={emptyMessage} />
+            <RoomInventoryTable
+              rooms={query.data.items}
+              role={role}
+              emptyMessage={emptyMessage}
+            />
             <Pagination
               page={query.data.page}
               size={query.data.size}

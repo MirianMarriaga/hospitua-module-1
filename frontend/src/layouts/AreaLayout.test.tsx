@@ -44,10 +44,19 @@ describe('AreaLayout', () => {
     expect(screen.getByText('Ana Ramírez')).toBeInTheDocument();
     expect(screen.getByText('Recepcionista')).toBeInTheDocument();
     expect(screen.getByText('AR')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Panel de recepción' })).toBeInTheDocument();
+    // Recepción no tiene barra lateral
+    expect(screen.queryByRole('link', { name: 'Panel de recepción' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Salir/ }));
     expect(useSessionStore.getState().session).toBeNull();
     expect(screen.getByTestId('location')).toHaveTextContent('login');
+  });
+
+  it('para administración sí muestra el menú del Sidebar', () => {
+    useSessionStore.setState({
+      session: { username: 'admin', fullName: 'Laura Méndez', area: 'ADMINISTRACION' },
+    });
+    renderWithProviders(<AreaLayout area="ADMINISTRACION" />, { route: '/' });
+    expect(screen.getByRole('link', { name: 'Inventario' })).toBeInTheDocument();
   });
 });
