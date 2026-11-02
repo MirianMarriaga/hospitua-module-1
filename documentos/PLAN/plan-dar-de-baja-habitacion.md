@@ -92,7 +92,7 @@ Content-Type: application/json
 | `categoryRoom` | string | Categoría (tipo) | `"SUITE"` |
 | `status` | string | `Inactive` (FR-006) | `"Inactive"` |
 | `reasonCategory` | string | Categoría del motivo | `"FLOOR_CLOSURE"` |
-| `reasonDetail` | string \| null | Detalle, si existe | `"Cierre del piso 3…"` |
+| `reasonDetail` | string | Detalle, si existe; se omite cuando no hay detalle | `"Cierre del piso 3…"` |
 | `decommissionDateTime` | string | Fecha y hora de la baja, generada por el servidor (FR-007) | `"2026-10-09T15:00:00-05:00"` |
 
 **Body (JSON):**
@@ -118,9 +118,9 @@ El resultado indica que la habitación ya no aparece entre las habitaciones disp
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta la categoría o no es válida (FR-008, caso borde "Motivo sin categoría") | "Selecciona el motivo de la baja." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Categoría `OTHER` con detalle vacío o solo espacios (FR-008, caso borde "Otro sin descripción") | "Escribe el motivo de la baja." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Detalle de más de 500 caracteres (FR-008, caso borde "Detalle demasiado largo") | "El detalle admite máximo 500 caracteres." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (la categoría llega como texto y se valida contra el catálogo, para responder este mensaje también con un valor desconocido) | Falta la categoría o no es válida (FR-008, caso borde "Motivo sin categoría") | "Selecciona el motivo de la baja." |
+| 400 | `VALIDATION_ERROR` | `InvalidDecommissionReasonException` (el dominio exige el detalle con `OTHER`, `details.field = reasonDetail`) | Categoría `OTHER` con detalle vacío o solo espacios (FR-008, caso borde "Otro sin descripción") | "Escribe el motivo de la baja." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (mide el texto recibido; el dominio repite la regla con `InvalidDecommissionReasonException`) | Detalle de más de 500 caracteres (FR-008, caso borde "Detalle demasiado largo") | "El detalle admite máximo 500 caracteres." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available`, antes de la consulta o al ejecutar la baja (FR-003, esc. 2) | "No es posible dar de baja la habitación: está en estado {estado} y debe estar Disponible." (con `Occupied`: "La habitación tiene un huésped activo; debe estar Disponible para darla de baja.") |
 | 409 | `RESERVATION_CONFLICT` | `ReservationConflictException` | Módulo 2 devolvió al menos una reserva vigente desde hoy (FR-004, esc. 3); `details.reservations` lista `reservationRef`, `startDate`, `endDate` y `status` de cada una | "La habitación tiene reservas vigentes. Deben reasignarse antes de darla de baja." |
@@ -173,6 +173,7 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   │   ├── RoomDecommission.java
 │   │   └── DecommissionReason.java                # Enum: PERMANENT_REMODELING, FLOOR_CLOSURE, ADMINISTRATIVE_DECISION, OTHER
 │   └── exception/
+│       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR: detalle obligatorio con OTHER o de más de 500 caracteres
 │       └── ReservationConflictException.java      # 409 RESERVATION_CONFLICT; definida en plan-consultar-reservas.md (T029)
 ├── application/
 │   ├── ports/
@@ -188,9 +189,12 @@ backend/src/main/java/com/hospitua/habitaciones/
 │       └── RoomDecommissionDto.java
 └── infrastructure/adapters/
     ├── in/web/
-    │   └── RoomController.java                    # Se agrega POST /api/rooms/{roomId}/decommission
+    │   ├── RoomController.java                    # Se agrega POST /api/rooms/{roomId}/decommission
+    │   └── dto/DecommissionRoomRequest.java       # Categoría como texto del catálogo y detalle de máximo 500 caracteres
     └── out/persistence/
         ├── entity/RoomDecommissionJpaEntity.java
+        ├── mapper/RoomDecommissionMapper.java
+        ├── repository/SpringDataRoomDecommissionJpaRepository.java
         └── adapter/RoomDecommissionRepositoryAdapter.java
 frontend/src/
 ├── pages/administracion/
@@ -213,10 +217,14 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar la tabla `room_decommission` en la migración inicial (plan base, T007).
-- [ ] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T027), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
-- [ ] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `RoomDecommissionRepositoryAdapter` sobre la tabla `room_decommission` del plan base.
-- [ ] T004 [P] Verificar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations` (`ReservationConflictException` de `plan-consultar-reservas.md`, T029).
+- [x] T001 Verificar la tabla `room_decommission` en la migración inicial (plan base, T007).
+  - Hecho (L31): `room_decommission` existe en `V1__init_schema.sql` con todas las columnas del modelo; la semilla `V2__seed_rooms.sql` trae las bajas de las habitaciones 104 y 204.
+- [x] T002 [P] Verificar `CheckRoomReservationConflictsUseCase.checkDecommissionConflict` y `ExternalModule2UnavailableException` (`plan-consultar-reservas.md`, T008 y T027), y que el resultado incluya `reservationRef`, `startDate`, `endDate` y `status` de cada reserva (según el contrato acordado con Módulo 2 en `plan-consultar-reservas.md`, FR-007); este plan solo depende del puerto.
+  - Hecho (L31): existen (L24). `ReservationConflictResult.ConflictingReservation` trae `reservationRef`, `status`, `startDate` y `endDate`, que `ReservationConflictException` lista en `details.reservations`.
+- [x] T003 [P] Implementar `RoomDecommission`, `DecommissionReason`, el puerto `RoomDecommissionRepositoryPort`, `RoomDecommissionJpaEntity` y `RoomDecommissionRepositoryAdapter` sobre la tabla `room_decommission` del plan base.
+  - Hecho (L31): `RoomDecommission` (fábrica `decommission` y `normalizeDetail`, que recorta el detalle y aplica las reglas de FR-008), `DecommissionReason` (`requiresDetail()` solo en `OTHER`), el puerto con `save` (la consulta de la baja vigente la agrega `plan-marcar-habitacion-como-disponible.md`), `RoomDecommissionJpaEntity`, `RoomDecommissionMapper`, `SpringDataRoomDecommissionJpaRepository` y el adaptador, que guarda con `saveAndFlush` para que una falla salga dentro del caso de uso.
+- [x] T004 [P] Verificar en `GlobalExceptionHandler` `409 RESERVATION_CONFLICT` con `details.reservations` (`ReservationConflictException` de `plan-consultar-reservas.md`, T029).
+  - Hecho (L31): `GlobalExceptionHandler` atiende toda `DomainException` por su categoría; `DecommissionRoomIntegrationTest` comprueba el 409 con `details.reservations`.
 
 ---
 
@@ -234,14 +242,22 @@ En los dos últimos casos la habitación sigue `Available`.
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Unit test en `DecommissionRoomServiceTest`: sin reservas bloqueantes, la habitación pasa a `Inactive` vía `TransitionRoomStateUseCase` con `DECOMMISSION_ROOM`, se crea `RoomDecommission` con motivo, Administrador y hora de `Clock` (esc. 1; FR-006, FR-007, FR-011; SC-004).
-- [ ] T006 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en los 7 estados distintos de `Available`, sin consultar a Módulo 2 (esc. 2; FR-003; SC-002).
-- [ ] T007 [P] [US1] Unit test: invoca `checkDecommissionConflict` con el `roomId`; cualquier reserva devuelta rechaza la baja con todas las reservas en conflicto y la habitación sigue `Available` (esc. 3; FR-002, FR-004; SC-005).
-- [ ] T008 [P] [US1] Unit test: una reserva vigente con `startDate` dentro de los próximos 365 días, aunque sea a varios meses, rechaza la baja (FR-004).
-- [ ] T009 [P] [US1] Unit test: con `ExternalModule2UnavailableException` la operación se cancela sin cambios y responde `424`; repetir la petición con el mismo motivo vuelve a verificar (FR-004, FR-009, caso borde "Fallo de Módulo 2").
-- [ ] T010 [P] [US1] Unit test: rechazo sin categoría, con `OTHER` y detalle vacío o solo espacios, y con detalle de más de 500 caracteres; con otra categoría el detalle es opcional (FR-008, casos borde de motivo).
-- [ ] T011 [US1] Integration test con Testcontainers y `MockRestServiceServer`: si la habitación cambia de estado mientras Módulo 2 responde, la transacción de la baja lo detecta al bloquear la fila, responde `409 ROOM_INVALID_STATE` y no crea `RoomDecommission` (regla 13 del plan base).
-- [ ] T012 [US1] Integration test: un fallo forzado al registrar `RoomDecommission` revierte la transición y el periodo del historial; la habitación sigue `Available` (caso borde 3).
+- [x] T005 [P] [US1] Unit test en `DecommissionRoomServiceTest`: sin reservas bloqueantes, la habitación pasa a `Inactive` vía `TransitionRoomStateUseCase` con `DECOMMISSION_ROOM`, se crea `RoomDecommission` con motivo, Administrador y hora de `Clock` (esc. 1; FR-006, FR-007, FR-011; SC-004).
+  - Hecho (L31): en `DecommissionRoomServiceTest`. La fecha de la baja es la marca del periodo `Inactive` que devuelve la transición, que toma la hora del `Clock`.
+- [x] T006 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en los 7 estados distintos de `Available`, sin consultar a Módulo 2 (esc. 2; FR-003; SC-002).
+  - Hecho (L31): en `DecommissionRoomServiceTest`, con los textos de la tabla de errores (el de `Occupied` aparte).
+- [x] T007 [P] [US1] Unit test: invoca `checkDecommissionConflict` con el `roomId`; cualquier reserva devuelta rechaza la baja con todas las reservas en conflicto y la habitación sigue `Available` (esc. 3; FR-002, FR-004; SC-005).
+  - Hecho (L31): en `DecommissionRoomServiceTest` y, por HTTP, en `DecommissionRoomIntegrationTest`.
+- [x] T008 [P] [US1] Unit test: una reserva vigente con `startDate` dentro de los próximos 365 días, aunque sea a varios meses, rechaza la baja (FR-004).
+  - Hecho (L31): en `DecommissionRoomServiceTest` (una reserva a 300 días).
+- [x] T009 [P] [US1] Unit test: con `ExternalModule2UnavailableException` la operación se cancela sin cambios y responde `424`; repetir la petición con el mismo motivo vuelve a verificar (FR-004, FR-009, caso borde "Fallo de Módulo 2").
+  - Hecho (L31): en `DecommissionRoomServiceTest` y, por HTTP (Módulo 2 responde 503), en `DecommissionRoomIntegrationTest`.
+- [x] T010 [P] [US1] Unit test: rechazo sin categoría, con `OTHER` y detalle vacío o solo espacios, y con detalle de más de 500 caracteres; con otra categoría el detalle es opcional (FR-008, casos borde de motivo).
+  - Hecho (L31): las reglas del detalle en `RoomDecommissionTest`; por HTTP, los tres mensajes en `DecommissionRoomIntegrationTest`, sin consultar a Módulo 2.
+- [x] T011 [US1] Integration test con Testcontainers y `MockRestServiceServer`: si la habitación cambia de estado mientras Módulo 2 responde, la transacción de la baja lo detecta al bloquear la fila, responde `409 ROOM_INVALID_STATE` y no crea `RoomDecommission` (regla 13 del plan base).
+  - Hecho (L31): en `DecommissionRoomIntegrationTest`, con Módulo 2 en WireMock (no `MockRestServiceServer`): la respuesta se demora y, mientras tanto, otra transacción pasa la habitación a `InCleaning`.
+- [x] T012 [US1] Integration test: un fallo forzado al registrar `RoomDecommission` revierte la transición y el periodo del historial; la habitación sigue `Available` (caso borde 3).
+  - Hecho (L31): en `DecommissionRoomIntegrationTest`, con un espía de `RoomDecommissionRepositoryPort` que falla al guardar.
 - [ ] T013 [P] [US1] Component test en `DecommissionRoomPage`:
   - El paso del motivo muestra número, piso, tipo y estado.
   - "Otro" exige texto y el contador limita a 500 caracteres.
@@ -253,11 +269,13 @@ En los dos últimos casos la habitación sigue `Available`.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implementar `DecommissionRoomService` (FR-001 a FR-011):
+- [x] T015 [US1] Implementar `DecommissionRoomService` (FR-001 a FR-011):
   - Validar el motivo y que la habitación exista y esté `Available`.
   - Fuera de transacción, invocar `checkDecommissionConflict(roomId)`; si devuelve alguna reserva, lanzar `ReservationConflictException` con la lista.
   - En una transacción (`@Transactional`) que abre un bean de aplicación aparte, `RoomDecommissionRegistration`, invocado por el servicio después de la consulta a Módulo 2 (no un método `@Transactional` del mismo servicio: la autoinvocación no pasa por el proxy de Spring y no abriría la transacción): bloquear la fila de `room` con `SELECT … FOR UPDATE` y volver a validar `Available` (regla 13 del plan base); invocar `TransitionRoomStateUseCase.transition(roomId, Inactive, administratorId, DECOMMISSION_ROOM, null)`; crear `RoomDecommission`.
-- [ ] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission` (FR-001).
+  - Hecho (L31): `DecommissionRoomService` (sin `@Transactional`) valida el detalle antes de leer la habitación, rechaza fuera de `Available` sin llamar a Módulo 2 y luego invoca `RoomDecommissionRegistration`. Si la habitación cambió mientras Módulo 2 respondía, la transición a `Inactive` lo detecta con la fila bloqueada y responde el segundo `ROOM_INVALID_STATE` de la tabla.
+- [x] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission` (FR-001).
+  - Hecho (L31): `DecommissionRoomRequest` → `DecommissionRoomCommand`, con el Administrador de `X-User`; responde 200 con `RoomDecommissionDto`.
 - [ ] T017 [US1] Construir en el frontend `DecommissionRoomPage.tsx` con los cuatro pasos y `ReservationConflictList.tsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
 
 **Checkpoint**: La baja funciona de forma independiente; la reactivación queda para `plan-marcar-habitacion-como-disponible.md`.
@@ -266,8 +284,10 @@ En los dos últimos casos la habitación sigue `Available`.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Integration test: una habitación dada de baja no aparece en `GET /api/rooms/inventory?status=Available` y sí en `GET /api/rooms/inventory?status=Inactive` (SC-003).
-- [ ] T019 Integration test con `MockRestServiceServer`: la petición a Módulo 2 lleva `dateFrom` = hoy y `dateTo` = hoy + 365 (un rango de 366 días, que Módulo 2 acepta sin `DATE_RANGE_TOO_LARGE`); una reserva dentro del rango impide la baja y una que empieza después no llega en la respuesta ni la impide (FR-002; caso borde "Reservas posteriores al horizonte").
+- [x] T018 Integration test: una habitación dada de baja no aparece en `GET /api/rooms/inventory?status=Available` y sí en `GET /api/rooms/inventory?status=Inactive` (SC-003).
+  - Hecho (L31): en `DecommissionRoomIntegrationTest`.
+- [x] T019 Integration test con `MockRestServiceServer`: la petición a Módulo 2 lleva `dateFrom` = hoy y `dateTo` = hoy + 365 (un rango de 366 días, que Módulo 2 acepta sin `DATE_RANGE_TOO_LARGE`); una reserva dentro del rango impide la baja y una que empieza después no llega en la respuesta ni la impide (FR-002; caso borde "Reservas posteriores al horizonte").
+  - Hecho (L31): en `DecommissionRoomIntegrationTest`, con Módulo 2 en WireMock (no `MockRestServiceServer`), igual que T011 (`dateFrom` = hoy y `dateTo` = hoy + 365). Que una reserva posterior no llegue en la respuesta depende de Módulo 2; Módulo 1 bloquea con cualquier reserva que reciba (T007).
 
 ---
 

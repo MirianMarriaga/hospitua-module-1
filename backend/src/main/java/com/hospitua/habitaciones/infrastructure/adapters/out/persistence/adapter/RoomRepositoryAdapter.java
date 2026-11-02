@@ -67,6 +67,18 @@ public class RoomRepositoryAdapter implements RoomRepositoryPort {
     }
 
     @Override
+    public Room update(Room room) {
+        try {
+            return roomMapper.toDomain(roomJpaRepository.saveAndFlush(roomMapper.toEntity(room)));
+        } catch (DataIntegrityViolationException ex) {
+            if (ConstraintViolations.violates(ex, ROOM_NUMBER_UNIQUE)) {
+                throw RoomNumberAlreadyExistsException.whenEditing(room.getRoomNumber());
+            }
+            throw ex;
+        }
+    }
+
+    @Override
     public boolean existsByRoomNumber(String roomNumber) {
         return roomJpaRepository.existsByRoomNumber(roomNumber);
     }

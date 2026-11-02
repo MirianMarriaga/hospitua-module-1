@@ -20,6 +20,10 @@ import com.hospitua.habitaciones.application.dto.RoomDto;
 import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.application.dto.RoomInventorySort;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCase;
+import com.hospitua.habitaciones.application.ports.in.DecommissionRoomUseCase;
+import com.hospitua.habitaciones.application.ports.in.EditRoomUseCase;
+import com.hospitua.habitaciones.application.ports.in.GetRoomDecommissionUseCase;
+import com.hospitua.habitaciones.application.ports.in.ReactivateRoomUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterRoomUseCase;
 import com.hospitua.habitaciones.domain.exception.CurrentUserRequiredException;
 import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
@@ -61,8 +65,14 @@ class RoomControllerTest {
         when(currentUserResolver.resolve("lmendez")).thenReturn("lmendez");
         Clock clock = Clock.fixed(Instant.parse("2026-10-09T15:05:00Z"), ZoneId.of("America/Bogota"));
 
-        mockMvc = MockMvcBuilders.standaloneSetup(
-                        new RoomController(registerRoomUseCase, consultRoomInventoryUseCase, currentUserResolver))
+        mockMvc = MockMvcBuilders.standaloneSetup(new RoomController(
+                        registerRoomUseCase,
+                        consultRoomInventoryUseCase,
+                        Mockito.mock(DecommissionRoomUseCase.class),
+                        Mockito.mock(GetRoomDecommissionUseCase.class),
+                        Mockito.mock(ReactivateRoomUseCase.class),
+                        Mockito.mock(EditRoomUseCase.class),
+                        currentUserResolver))
                 .setControllerAdvice(new GlobalExceptionHandler(new ApiErrorFactory(clock)))
                 .build();
     }

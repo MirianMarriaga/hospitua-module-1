@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hospitua.habitaciones.TestcontainersConfiguration;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
+import com.hospitua.habitaciones.domain.exception.RoomNumberAlreadyExistsException;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
@@ -215,5 +216,43 @@ class RoomRepositoryAdapterTest {
 
         assertThatThrownBy(() -> roomRepositoryPort.save(staleUpdate))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+    }
+
+    @Test
+    @DisplayName("update guarda de inmediato y traduce el número de otra habitación al error de la edición")
+    void update_duplicateNumber_isRoomNumberAlreadyExists() {
+        String takenNumber = "U" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        roomRepositoryPort.insert(room(takenNumber));
+        Room edited = roomRepositoryPort.insert(
+                room("U" + UUID.randomUUID().toString().substring(0, 8).toUpperCase()));
+        Room renamed = new Room(
+                edited.getId(),
+                takenNumber,
+                edited.getFloor(),
+                edited.getCategoryRoom(),
+                edited.getMaxCapacity(),
+                edited.getBaseRate(),
+                edited.getStatus(),
+                null,
+                edited.getVersion());
+
+        assertThatThrownBy(() -> roomRepositoryPort.update(renamed))
+                .isInstanceOf(RoomNumberAlreadyExistsException.class)
+                .hasMessage("Ya existe una habitación con el número " + takenNumber + " (aunque esté inactiva).");
+        assertThat(roomRepositoryPort.findById(edited.getId()).orElseThrow().getRoomNumber())
+                .isEqualTo(edited.getRoomNumber());
+    }
+
+    private static Room room(String number) {
+        return new Room(
+                UUID.randomUUID(),
+                number,
+                8,
+                RoomCategory.DOBLE,
+                2,
+                new BigDecimal("150000.00"),
+                RoomStatus.Available,
+                null,
+                0);
     }
 }
