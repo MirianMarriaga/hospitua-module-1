@@ -365,6 +365,7 @@ backend/
     │   │   │       ├── RoomTaskExistsException.java          # La habitación ya tiene una tarea abierta de otro miembro (409 ROOM_TASK_EXISTS)
     │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción del daño, también desde el fin de limpieza con daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR del detalle del motivo de la baja (plan-dar-de-baja-habitacion.md)
     │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
     │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
@@ -591,6 +592,7 @@ backend/
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
+    │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
@@ -637,6 +639,7 @@ backend/
     │   │       │       │   │   ├── SpringDataRoomAuditLogJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomGuestJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomJpaRepository.java # Incluye el bloqueo PESSIMISTIC_WRITE de lockById (regla 13)
+    │   │       │       │   │   ├── SpringDataRoomDecommissionJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomStateHistoryJpaRepository.java
     │   │       │       │   │   ├── SpringDataStayJpaRepository.java # Incluye las consultas de Salidas y los KPI
     │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications); solo la usa RoomRepositoryAdapter
@@ -727,6 +730,7 @@ backend/
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DamageReportQueryServiceTest.java
+        │       ├── DecommissionRoomServiceTest.java
         │       ├── DepartureSearchServiceTest.java
         │       ├── LoginServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
@@ -759,6 +763,7 @@ backend/
         │       ├── DamageReportTest.java
         │       ├── DepartureSummaryTest.java
         │       ├── ReservationConflictQueryTest.java
+        │       ├── RoomDecommissionTest.java
         │       ├── RoomTest.java
         │       ├── SourceFlowTest.java
         │       ├── StaffAccountTest.java
@@ -778,6 +783,7 @@ backend/
         │   │   │       ├── CompleteCleaningIntegrationTest.java       # plan-confirmar-fin-de-limpieza.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
+        │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md

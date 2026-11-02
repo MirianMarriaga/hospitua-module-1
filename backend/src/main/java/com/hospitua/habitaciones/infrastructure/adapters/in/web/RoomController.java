@@ -2,10 +2,13 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
 import com.hospitua.habitaciones.application.dto.Module2RoomDto;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
+import com.hospitua.habitaciones.application.dto.RoomDecommissionDto;
 import com.hospitua.habitaciones.application.dto.RoomDto;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCase;
+import com.hospitua.habitaciones.application.ports.in.DecommissionRoomUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterRoomUseCase;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
+import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.DecommissionRoomRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.RegisterRoomRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.RoomInventoryQuery;
 import jakarta.validation.Valid;
@@ -27,8 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Controlador REST de habitaciones: registro (plan-registrar-habitacion.md) e inventario
  * (plan-consultar-inventario-habitaciones.md). Las vistas usan {@code /inventory} (incluye las Inactive); Módulo 2 usa
- * {@code /api/rooms} y {@code /api/rooms/{roomId}}, solo con habitaciones vendibles. La edición y la baja se agregan
- * en sus planes.
+ * {@code /api/rooms} y {@code /api/rooms/{roomId}}, solo con habitaciones vendibles. La baja es de
+ * plan-dar-de-baja-habitacion.md; la edición se agrega en su plan.
  */
 @RestController
 @RequestMapping("/api/rooms")
@@ -37,6 +40,7 @@ public class RoomController {
 
     private final RegisterRoomUseCase registerRoomUseCase;
     private final ConsultRoomInventoryUseCase consultRoomInventoryUseCase;
+    private final DecommissionRoomUseCase decommissionRoomUseCase;
     private final CurrentUserResolver currentUserResolver;
 
     /** Registra una habitación en Available y abre su primer periodo en el historial (201). */
@@ -47,6 +51,19 @@ public class RoomController {
         String administratorId = currentUserResolver.resolve(xUser);
         RoomDto room = registerRoomUseCase.register(request.toCommand(administratorId));
         return ResponseEntity.status(HttpStatus.CREATED).body(room);
+    }
+
+    /**
+     * Dar de baja: verifica con Módulo 2 que no haya reservas vigentes y deja la habitación Inactive (200). "Reintentar"
+     * repite la misma petición (FR-009).
+     */
+    @PostMapping("/{roomId}/decommission")
+    public RoomDecommissionDto decommission(
+            @PathVariable UUID roomId,
+            @RequestHeader(value = "X-User", required = false) String xUser,
+            @Valid @RequestBody DecommissionRoomRequest request) {
+        String administratorId = currentUserResolver.resolve(xUser);
+        return decommissionRoomUseCase.decommission(request.toCommand(roomId, administratorId));
     }
 
     /** Inventario de las vistas del Gerente y del Administrador, con filtros, orden y paginación (incluye Inactive). */
