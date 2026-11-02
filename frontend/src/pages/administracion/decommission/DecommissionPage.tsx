@@ -103,7 +103,9 @@ export function DecommissionPage() {
             <CardTitle>Habitación no encontrada</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-text-lo">No existe ninguna habitación con ese identificador.</p>
+            <p className="text-sm text-text-lo">
+              No existe ninguna habitación con ese identificador.
+            </p>
           </CardContent>
           <CardFooter>
             <Button asChild>
@@ -196,11 +198,7 @@ export function DecommissionPage() {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild aria-label="Volver">
           <Link
-            to={
-              step === 2
-                ? '#'
-                : '/administracion/inventario'
-            }
+            to={step === 2 ? '#' : '/administracion/inventario'}
             onClick={(ev) => {
               if (step === 2) {
                 ev.preventDefault();
@@ -214,7 +212,8 @@ export function DecommissionPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink">Dar de baja habitación</h1>
           <p className="text-sm text-text-lo">
-            La habitación dejará de estar disponible para nuevas estancias. Su historial se conserva.
+            La habitación dejará de estar disponible para nuevas estancias. Su historial se
+            conserva.
           </p>
         </div>
       </div>
@@ -240,7 +239,11 @@ export function DecommissionPage() {
               status={room.status}
             />
 
-            <form id="decommission-reason-form" onSubmit={handleContinueToConfirm} className="space-y-4 pt-2">
+            <form
+              id="decommission-reason-form"
+              onSubmit={handleContinueToConfirm}
+              className="space-y-4 pt-2"
+            >
               <div className="max-w-md space-y-1.5">
                 <label htmlFor="reasonCategory" className="text-sm font-semibold text-ink">
                   Motivo de la baja <span className="text-red-500">*</span>
@@ -293,9 +296,7 @@ export function DecommissionPage() {
                   }}
                   className={errors.reasonDetail ? 'border-due' : ''}
                 />
-                {errors.reasonDetail && (
-                  <p className="text-xs text-due">{errors.reasonDetail}</p>
-                )}
+                {errors.reasonDetail && <p className="text-xs text-due">{errors.reasonDetail}</p>}
                 <p className="text-xs text-text-lo">Máximo 500 caracteres.</p>
               </div>
             </form>
@@ -340,7 +341,7 @@ export function DecommissionPage() {
               )}
             </dl>
 
-            <Alert variant="danger">
+            <Alert variant="destructive">
               La habitación pasará a estado <b>Inactiva</b> y dejará de aparecer entre las
               habitaciones disponibles. Antes de aplicar la baja se comprobará que no tenga reservas
               vigentes en los próximos 365 días.
@@ -350,7 +351,7 @@ export function DecommissionPage() {
             <Button variant="outline" onClick={() => setStep(1)}>
               Atrás
             </Button>
-            <Button variant="danger" onClick={handleConfirmDecommission}>
+            <Button variant="destructive" onClick={handleConfirmDecommission}>
               Confirmar baja
             </Button>
           </CardFooter>
@@ -454,9 +455,9 @@ function DecommissionErrorResult({
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert variant="warning">
-            La habitación tiene{' '}
-            {count === 1 ? 'una reserva vigente' : `${count} reservas vigentes`}. Reasígnalas a
-            otra habitación y vuelve a intentar la baja. La habitación sigue disponible.
+            La habitación tiene {count === 1 ? 'una reserva vigente' : `${count} reservas vigentes`}
+            . Reasígnalas a otra habitación y vuelve a intentar la baja. La habitación sigue
+            disponible.
           </Alert>
           <ReservationConflictList reservations={reservations} />
         </CardContent>

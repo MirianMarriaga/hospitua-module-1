@@ -49,9 +49,6 @@ function page(items: Room[], meta: Partial<PagedResult<Room>> = {}): PagedResult
     size: 10,
     totalElements: items.length,
     totalPages: 1,
-    first: true,
-    last: true,
-    empty: items.length === 0,
     ...meta,
   };
 }

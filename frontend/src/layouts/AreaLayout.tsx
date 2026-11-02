@@ -40,7 +40,9 @@ export function AreaLayout({ area }: { area: StaffArea }) {
         <main
           className={cn(
             'flex-1 overflow-x-auto',
-            isReception && location.pathname !== '/recepcion' && 'mx-auto w-full max-w-[1180px] px-6 py-8',
+            isReception &&
+              location.pathname !== '/recepcion' &&
+              'mx-auto w-full max-w-[1180px] px-6 py-8',
           )}
         >
           <Outlet />

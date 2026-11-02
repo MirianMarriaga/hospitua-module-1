@@ -13,12 +13,7 @@ export interface Room {
 }
 
 export type InventorySort =
-  | 'roomNumber'
-  | 'floor'
-  | 'categoryRoom'
-  | 'maxCapacity'
-  | 'baseRate'
-  | 'status';
+  'roomNumber' | 'floor' | 'categoryRoom' | 'maxCapacity' | 'baseRate' | 'status';
 
 export interface InventoryFilters {
   roomNumber?: string;
@@ -54,10 +49,7 @@ export function registerRoom(request: RegisterRoomRequest): Promise<Room> {
 }
 
 export type DecommissionReason =
-  | 'PERMANENT_REMODELING'
-  | 'FLOOR_CLOSURE'
-  | 'ADMINISTRATIVE_DECISION'
-  | 'OTHER';
+  'PERMANENT_REMODELING' | 'FLOOR_CLOSURE' | 'ADMINISTRATIVE_DECISION' | 'OTHER';
 
 export interface DecommissionRoomRequest {
   reasonCategory: DecommissionReason;
@@ -149,10 +141,13 @@ export function reactivateRoom(
   roomId: string,
   request: ReactivateRoomRequest,
 ): Promise<ReactivationResultDto> {
-  return apiRequest<ReactivationResultDto>(`/api/rooms/${encodeURIComponent(roomId)}/reactivation`, {
-    method: 'POST',
-    body: request,
-  });
+  return apiRequest<ReactivationResultDto>(
+    `/api/rooms/${encodeURIComponent(roomId)}/reactivation`,
+    {
+      method: 'POST',
+      body: request,
+    },
+  );
 }
 
 export function editRoom(roomId: string, request: EditRoomRequest): Promise<EditRoomResultDto> {

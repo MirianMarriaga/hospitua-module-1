@@ -136,11 +136,7 @@ describe('EditRoomPage', () => {
       path: '/administracion/habitaciones/:roomId/editar',
     });
 
-    expect(
-      await screen.findByText('No se puede editar la habitación 101'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Solo se pueden editar habitaciones disponibles/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('No se puede editar la habitación 101')).toBeInTheDocument();
+    expect(screen.getByText(/Solo se pueden editar habitaciones disponibles/)).toBeInTheDocument();
   });
 });

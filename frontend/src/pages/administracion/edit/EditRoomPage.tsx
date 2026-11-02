@@ -4,12 +4,7 @@ import { ArrowLeft, CircleCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
-import {
-  editRoom,
-  getRoom,
-  type EditRoomRequest,
-  type Room,
-} from '@/api/roomService';
+import { editRoom, getRoom, type EditRoomRequest, type Room } from '@/api/roomService';
 import { type RoomCategory, type RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
@@ -28,11 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatMoney, formatPeople } from '@/lib/format';
-import {
-  ROOM_CATEGORIES,
-  ROOM_CATEGORY_LABELS,
-  ROOM_STATUS_LABELS,
-} from '@/lib/labels';
+import { ROOM_CATEGORIES, ROOM_CATEGORY_LABELS, ROOM_STATUS_LABELS } from '@/lib/labels';
 
 const FIELD_LABELS: Record<string, string> = {
   roomNumber: 'Número de habitación',
@@ -317,9 +308,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-ink">
-              Editar habitación {room.roomNumber}
-            </h1>
+            <h1 className="text-2xl font-bold text-ink">Editar habitación {room.roomNumber}</h1>
             <p className="text-sm text-text-lo">
               Modifica los datos que necesites; los demás se conservan.
             </p>
@@ -345,9 +334,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
               </Alert>
             )}
 
-            {noChangesNotice && (
-              <Alert variant="info">No has modificado ningún dato.</Alert>
-            )}
+            {noChangesNotice && <Alert variant="info">No has modificado ningún dato.</Alert>}
 
             {editMutation.isError && !concurrentError && (
               <EditRoomErrorAlert error={editMutation.error} />
@@ -448,9 +435,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
                   }}
                   className={fieldErrors.baseRate ? 'border-due' : ''}
                 />
-                {fieldErrors.baseRate && (
-                  <p className="text-xs text-due">{fieldErrors.baseRate}</p>
-                )}
+                {fieldErrors.baseRate && <p className="text-xs text-due">{fieldErrors.baseRate}</p>}
               </div>
             </div>
           </CardContent>
@@ -473,12 +458,11 @@ function EditRoomErrorAlert({ error }: { error: unknown }) {
   if (error instanceof ApiRequestError) {
     if (error.errorCode === 'ROOM_INVALID_STATE') {
       const currentStatus = error.details?.currentStatus as RoomStatus | undefined;
-      const statusLabel = currentStatus
-        ? ROOM_STATUS_LABELS[currentStatus] ?? currentStatus
-        : '';
+      const statusLabel = currentStatus ? (ROOM_STATUS_LABELS[currentStatus] ?? currentStatus) : '';
       return (
         <Alert variant="warning">
-          La habitación no está disponible para edición{statusLabel ? ` (estado actual: ${statusLabel})` : ''}.
+          La habitación no está disponible para edición
+          {statusLabel ? ` (estado actual: ${statusLabel})` : ''}.
         </Alert>
       );
     }

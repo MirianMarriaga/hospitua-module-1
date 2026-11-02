@@ -52,9 +52,7 @@ describe('ReactivationPage', () => {
       path: '/administracion/habitaciones/:roomId/reactivacion',
     });
 
-    expect(
-      await screen.findByText('¿Reactivar la habitación 204?'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('¿Reactivar la habitación 204?')).toBeInTheDocument();
     expect(screen.getByText('Decisión administrativa')).toBeInTheDocument();
     expect(screen.getByText('Ajuste operativo temporal')).toBeInTheDocument();
 
@@ -86,9 +84,7 @@ describe('ReactivationPage', () => {
 
     expect(await screen.findByText('Habitación 204 disponible')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'La habitación ya había sido reactivada; no fue necesario hacer cambios.',
-      ),
+      screen.getByText('La habitación ya había sido reactivada; no fue necesario hacer cambios.'),
     ).toBeInTheDocument();
   });
 
@@ -129,4 +125,3 @@ describe('ReactivationPage', () => {
     ).toBeInTheDocument();
   });
 });
-

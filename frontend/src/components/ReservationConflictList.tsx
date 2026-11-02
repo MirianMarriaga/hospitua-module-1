@@ -35,13 +35,11 @@ export function ReservationConflictList({ reservations }: ReservationConflictLis
         <TableBody>
           {reservations.map((reservation) => (
             <TableRow key={reservation.reservationRef}>
-              <TableCell className="font-semibold text-ink">
-                {reservation.reservationRef}
-              </TableCell>
+              <TableCell className="font-semibold text-ink">{reservation.reservationRef}</TableCell>
               <TableCell>{formatDate(reservation.startDate)}</TableCell>
               <TableCell>{formatDate(reservation.endDate)}</TableCell>
               <TableCell>
-                <Badge variant="outline" className="border-brand/30 bg-brand/10 text-brand">
+                <Badge className="border-brand/30 bg-brand/10 text-brand">
                   {RESERVATION_STATUS_LABELS[reservation.status] ?? reservation.status}
                 </Badge>
               </TableCell>
@@ -52,4 +50,3 @@ export function ReservationConflictList({ reservations }: ReservationConflictLis
     </div>
   );
 }
-

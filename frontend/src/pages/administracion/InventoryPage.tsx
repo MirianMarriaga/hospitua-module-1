@@ -100,6 +100,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
                 page={query.data.page}
                 size={query.data.size}
                 totalElements={query.data.totalElements}
+                totalPages={query.data.totalPages}
                 onPageChange={goToPage}
               />
             </>

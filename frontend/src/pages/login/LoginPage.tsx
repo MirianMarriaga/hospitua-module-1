@@ -167,11 +167,7 @@ export function LoginPage() {
                       </FormItem>
                     )}
                   />
-                  <Button
-                    type="submit"
-                    className="mt-2 w-full"
-                    disabled={mutation.isPending}
-                  >
+                  <Button type="submit" className="mt-2 w-full" disabled={mutation.isPending}>
                     {mutation.isPending ? 'Ingresando…' : 'Ingresar'}
                   </Button>
                 </form>

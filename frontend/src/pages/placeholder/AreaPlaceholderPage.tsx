@@ -14,7 +14,9 @@ export function AreaPlaceholderPage({ title }: { title: string }) {
             <Construction className="mt-1 size-6 text-text-lo" aria-hidden />
             <div>
               <h2 className="text-lg font-bold text-ink">{title}</h2>
-              <p className="mt-1 text-sm text-text-lo">Esta sección estará disponible próximamente.</p>
+              <p className="mt-1 text-sm text-text-lo">
+                Esta sección estará disponible próximamente.
+              </p>
             </div>
           </CardContent>
         </Card>

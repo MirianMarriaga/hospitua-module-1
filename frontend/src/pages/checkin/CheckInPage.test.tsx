@@ -90,9 +90,7 @@ describe('CheckInPage', () => {
     await goToGuests();
     setDate(guestBlock(1), '2999-01-01');
     await fillSecondGuest('Argentina');
-    expect(
-      within(guestBlock(2)).getByText('Datos de control migratorio'),
-    ).toBeInTheDocument();
+    expect(within(guestBlock(2)).getByText('Datos de control migratorio')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 

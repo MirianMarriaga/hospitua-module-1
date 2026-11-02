@@ -3,11 +3,7 @@ import { ArrowLeft, CircleCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
-import {
-  getRoomDecommission,
-  reactivateRoom,
-  type ReactivateRoomRequest,
-} from '@/api/roomService';
+import { getRoomDecommission, reactivateRoom, type ReactivateRoomRequest } from '@/api/roomService';
 import { type RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
@@ -16,11 +12,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate } from '@/lib/format';
-import {
-  DECOMMISSION_REASON_LABELS,
-  ROOM_CATEGORY_LABELS,
-  ROOM_STATUS_LABELS,
-} from '@/lib/labels';
+import { DECOMMISSION_REASON_LABELS, ROOM_CATEGORY_LABELS, ROOM_STATUS_LABELS } from '@/lib/labels';
 
 function RoomSummaryBox({
   roomNumber,
@@ -85,7 +77,9 @@ export function ReactivationPage() {
             <CardTitle>Habitación no encontrada</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-text-lo">No existe ninguna habitación con ese identificador.</p>
+            <p className="text-sm text-text-lo">
+              No existe ninguna habitación con ese identificador.
+            </p>
           </CardContent>
           <CardFooter>
             <Button asChild>
@@ -268,13 +262,7 @@ export function ReactivationPage() {
   );
 }
 
-function ReactivationErrorAlert({
-  error,
-  roomNumber,
-}: {
-  error: unknown;
-  roomNumber: string;
-}) {
+function ReactivationErrorAlert({ error, roomNumber }: { error: unknown; roomNumber: string }) {
   const isApiError = error instanceof ApiRequestError;
   const errorCode = isApiError ? error.errorCode : '';
   const details = isApiError ? error.details : {};

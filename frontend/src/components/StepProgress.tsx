@@ -52,4 +52,3 @@ export function StepProgress({ steps, currentStep }: StepProgressProps) {
     </div>
   );
 }
-

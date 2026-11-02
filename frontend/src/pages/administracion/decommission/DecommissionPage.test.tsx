@@ -3,12 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError } from '@/api/apiClient';
-import {
-  decommissionRoom,
-  getRoom,
-  type Room,
-  type RoomDecommissionDto,
-} from '@/api/roomService';
+import { decommissionRoom, getRoom, type Room, type RoomDecommissionDto } from '@/api/roomService';
 import { DecommissionPage } from '@/pages/administracion/decommission/DecommissionPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
@@ -90,7 +85,9 @@ describe('DecommissionPage', () => {
 
     // Paso 4: resultado exitoso
     expect(await screen.findByText('Habitación 101 dada de baja')).toBeInTheDocument();
-    expect(screen.getByText('Ya no aparece entre las habitaciones disponibles.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ya no aparece entre las habitaciones disponibles.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver al inventario' })).toBeInTheDocument();
   });
 

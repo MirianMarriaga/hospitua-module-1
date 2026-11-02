@@ -34,18 +34,12 @@ export function AppRoutes() {
       <Route element={<AreaLayout area="ADMINISTRACION" />}>
         <Route path="/administracion/inventario" element={<InventoryPage role="admin" />} />
         <Route path="/administracion/habitaciones/nueva" element={<RegisterRoomPage />} />
-        <Route
-          path="/administracion/habitaciones/:roomId/baja"
-          element={<DecommissionPage />}
-        />
+        <Route path="/administracion/habitaciones/:roomId/baja" element={<DecommissionPage />} />
         <Route
           path="/administracion/habitaciones/:roomId/reactivacion"
           element={<ReactivationPage />}
         />
-        <Route
-          path="/administracion/habitaciones/:roomId/editar"
-          element={<EditRoomPage />}
-        />
+        <Route path="/administracion/habitaciones/:roomId/editar" element={<EditRoomPage />} />
       </Route>
 
       <Route element={<AreaLayout area="GERENCIA" />}>

@@ -79,13 +79,9 @@ export function ReceptionPanel() {
           </div>
 
           <div className="p-4">
-            <ReceptionSearchBar query={query} tab={tab} />
+            <ReceptionSearchBar />
             <div className="mt-4">
-              {tab === 'llegadas' ? (
-                <ArrivalsTab query={query} />
-              ) : (
-                <DeparturesTab query={query} />
-              )}
+              {tab === 'llegadas' ? <ArrivalsTab query={query} /> : <DeparturesTab query={query} />}
             </div>
           </div>
         </div>
