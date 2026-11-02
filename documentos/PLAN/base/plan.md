@@ -649,6 +649,7 @@ backend/
     │   │       │       │   │   ├── SpringDataRoomDecommissionJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomStateHistoryJpaRepository.java
     │   │       │       │   │   ├── SpringDataStayJpaRepository.java # Incluye las consultas de Salidas y los KPI
+    │   │       │       │   │   ├── SpringDataTechnicalBlockReportJpaRepository.java # Cruces, Applied/primer Scheduled por habitación y caducidad
     │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications); solo la usa RoomRepositoryAdapter
     │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account; solo la usa RoomStateHistoryRepositoryAdapter
     │   │       │       │   │   └── SpringDataUserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (T022)
@@ -778,7 +779,8 @@ backend/
         │       ├── RoomTest.java
         │       ├── SourceFlowTest.java
         │       ├── StaffAccountTest.java
-        │       └── StayTest.java
+        │       ├── StayTest.java
+        │       └── TechnicalBlockReportTest.java
         ├── infrastructure/
         │   ├── adapters/
         │   │   ├── in/
@@ -830,7 +832,8 @@ backend/
         │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md
         │   │       │   ├── RoomStateTransitionIntegrationTest.java    # Plan base (T010, T016)
         │   │       │   ├── StaffAccountIntegrationTest.java           # Plan base
-        │   │       │   └── StayAndGuestRepositoryAdapterTest.java     # Plan base
+        │   │       │   ├── StayAndGuestRepositoryAdapterTest.java     # Plan base
+        │   │       │   └── TechnicalBlockReportRepositoryAdapterTest.java
         │   │       └── rest/
         │   │           ├── Module2ReservationConflictRestAdapterTest.java
         │   │           ├── Module3OutagePredicateTest.java

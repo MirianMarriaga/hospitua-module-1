@@ -223,7 +223,8 @@ backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   ├── model/
-│   │   │   └── TechnicalBlockReport.java          # Declarado en el árbol del plan base; aquí se define e implementa
+│   │   │   ├── TechnicalBlockReport.java          # Declarado en el árbol del plan base; aquí se define e implementa
+│   │   │   └── TechnicalBlockStatus.java          # Scheduled, Applied, Completed, Expired (ACTIVE: los dos primeros)
 │   │   └── exception/
 │   │       ├── ReservationConflictException.java   # Definida en plan-consultar-reservas.md (T029); aquí se reutiliza
 │   │       ├── MaintenanceConflictException.java
@@ -254,6 +255,8 @@ backend/src/
 │       │   │   └── TechnicalBlockScheduler.java   # Solo dispara runDaily y el aviso diario
 │       │   └── out/persistence/
 │       │       ├── entity/TechnicalBlockReportJpaEntity.java
+│       │       ├── mapper/TechnicalBlockReportMapper.java
+│       │       ├── repository/SpringDataTechnicalBlockReportJpaRepository.java
 │       │       └── adapter/TechnicalBlockReportRepositoryAdapter.java
 │       └── config/
 │           └── MaintenanceProperties.java         # Definido en el plan base (T019)
@@ -273,19 +276,24 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar los límites `hospitua.maintenance.max-range-days` (90) y `max-advance-days` (365) de `MaintenanceProperties` y el bean `MaintenanceLimits` (record de `domain/model`) que expone (plan base, T019) (FR-014).
+- [x] T001 Verificar los límites `hospitua.maintenance.max-range-days` (90) y `max-advance-days` (365) de `MaintenanceProperties` y el bean `MaintenanceLimits` (record de `domain/model`) que expone (plan base, T019) (FR-014).
+  - Hecho (L22): `MaintenanceProperties` (90 y 365 por defecto, `@Positive`) y el bean `MaintenanceLimits` de `MaintenanceConfig`.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 Verificar que la tabla `technical_block_report` exista sin columna `version`, con sus índices por `(room_id, status)`, parcial de `Scheduled` por `technical_block_start_date` y único parcial de `Applied` por `room_id`, y sus `CHECK` de fechas y de `status` (plan base, T017); que `RoomRepositoryPort` tenga `lockById` (plan base, T008); que `StaffAccountRepositoryPort` tenga `findByUsername` (plan base, T022); que exista `MaintenanceNoticePublisher` (plan base, T024), y que `DamageReportRepositoryPort` tenga `findLatestByRoomIds(Collection<UUID>)` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) (FR-008, FR-010, FR-019, FR-020).
-- [ ] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`; `Completed` y `Expired` son definitivos, sin transiciones de salida; sin edición de campos; con el método `covers(LocalDate)`: el rango `[inicio, fin estimado]` contiene el día, que usan la programación con inicio hoy, `runDaily` y `applyForRoom`, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA (sin `version`: todas sus escrituras ocurren con la fila de la habitación bloqueada, regla 13 del plan base), `TechnicalBlockReportRepositoryPort` y su adaptador (FR-017). El puerto:
+- [x] T002 Verificar que la tabla `technical_block_report` exista sin columna `version`, con sus índices por `(room_id, status)`, parcial de `Scheduled` por `technical_block_start_date` y único parcial de `Applied` por `room_id`, y sus `CHECK` de fechas y de `status` (plan base, T017); que `RoomRepositoryPort` tenga `lockById` (plan base, T008); que `StaffAccountRepositoryPort` tenga `findByUsername` (plan base, T022); que exista `MaintenanceNoticePublisher` (plan base, T024), y que `DamageReportRepositoryPort` tenga `findLatestByRoomIds(Collection<UUID>)` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`) (FR-008, FR-010, FR-019, FR-020).
+  - Hecho (L22): existen la tabla con sus índices y `CHECK` (V3), `lockById`, `StaffAccountRepositoryPort.findByUsername`, `MaintenanceNoticePublisher` y `DamageReportRepositoryPort.findLatestByRoomIds`.
+- [x] T003 [P] Implementar `TechnicalBlockReport` (dominio, con transiciones de estado `Scheduled` → `Applied` → `Completed` y `Scheduled` → `Expired`; `Completed` y `Expired` son definitivos, sin transiciones de salida; sin edición de campos; con el método `covers(LocalDate)`: el rango `[inicio, fin estimado]` contiene el día, que usan la programación con inicio hoy, `runDaily` y `applyForRoom`, y con el método `isOverdue(today)`: `Applied` con fecha estimada de fin anterior a `today`), su entidad JPA (sin `version`: todas sus escrituras ocurren con la fila de la habitación bloqueada, regla 13 del plan base), `TechnicalBlockReportRepositoryPort` y su adaptador (FR-017). El puerto:
   - `List<TechnicalBlockReport> findActiveOverlapping(UUID roomId, LocalDate from, LocalDate to)`: informes `Scheduled` o `Applied` de la habitación con `technical_block_start_date <= to` y `estimated_technical_block_end_date >= from`, ordenados por inicio (la usa `plan-consultar-informacion-mantenimientos.md`, FR-010 de su spec).
   - `Map<UUID, TechnicalBlockReport> findAppliedByRoomIds(Collection<UUID>)` y `Map<UUID, TechnicalBlockReport> findEarliestScheduledByRoomIds(Collection<UUID>)`: el informe `Applied` y el `Scheduled` de inicio más temprano de cada habitación (las usan `plan-consultar-panel-mantenimiento.md` para `overdue` y `maintenance`, `plan-consultar-informacion-mantenimientos.md` para FR-014 de su spec y el aviso diario de este plan, T025; "Ver informe" y `plan-confirmar-reparacion-finalizada.md`, para pasar el informe a `Completed`, las llaman con un solo id).
   - `List<UUID> findRoomIdsWithScheduledCovering(LocalDate today)` e `int expireScheduledEndedBefore(LocalDate today)` (un solo `UPDATE … WHERE status = 'Scheduled' AND estimated_technical_block_end_date < :today`): las usa `runDaily`.
+  - Hecho (L22): `TechnicalBlockReport` (estado mutable con `apply`, `complete` y `expire`; una transición inválida es `IllegalStateException`), `TechnicalBlockStatus` (con `ACTIVE`), la entidad, `TechnicalBlockReportMapper`, `SpringDataTechnicalBlockReportJpaRepository` y el adaptador. El `Applied` y el primer `Scheduled` de cada habitación salen de una sola consulta ordenada por inicio; `save` usa `saveAndFlush`, así un segundo `Applied` en la habitación falla dentro del caso de uso (índice único parcial).
 - [ ] T004 [P] Registrar en `GlobalExceptionHandler` los códigos `MAINTENANCE_CONFLICT` y `TECHNICAL_BLOCK_NOT_FOUND` (`TechnicalBlockNotFoundException`), y verificar `INVALID_DATE_RANGE` (`plan-consultar-informacion-mantenimientos.md`, T001) y `RESERVATION_CONFLICT` (`plan-consultar-reservas.md`, T029).
-- [ ] T005 Verificar que la ingesta de la lista diaria publique `DailyReservationListIngestedEvent` dentro de su transacción (`plan-consultar-reservas.md`, T012; regla 10 del plan base).
+  - Avance (L22): `INVALID_DATE_RANGE` y `RESERVATION_CONFLICT` existen. `MaintenanceConflictException` se crea en L25, su primer consumidor, porque arma `details.conflicts` con `MaintenanceConflict` (`plan-consultar-informacion-mantenimientos.md` T001, L23); `TechnicalBlockNotFoundException`, en L26, con `GET …/technical-blocks/current`.
+- [x] T005 Verificar que la ingesta de la lista diaria publique `DailyReservationListIngestedEvent` dentro de su transacción (`plan-consultar-reservas.md`, T012; regla 10 del plan base).
+  - Hecho (L22): `DailyReservationIngestionService` publica `DailyReservationListIngestedEvent` dentro de la transacción de la lista de las 00:00 (`plan-consultar-reservas.md` T012).
 
 ---
 
