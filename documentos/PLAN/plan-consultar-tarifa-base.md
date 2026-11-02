@@ -110,7 +110,7 @@ Accept: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto |
 | --- | --- | --- | --- | --- |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a una habitación registrada (FR-004). Acordado con Módulo 3: no lo reintenta ni lo cuenta como fallo | "No se encontró la habitación." |
-| 400 | `VALIDATION_ERROR` | `MissingServletRequestParameterException`, `MethodArgumentTypeMismatchException` o `ConstraintViolationException` | Falta `date`, o no tiene formato de fecha o no existe en el calendario (ej. 2026-02-31) | "La fecha debe tener un formato válido (AAAA-MM-DD)." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`: `date` llega como texto en `RoomBaseRateQuery`, que lo valida como fecha ISO existente, para responder este mensaje con `details.field = date` en los tres casos | Falta `date`, o no tiene formato de fecha o no existe en el calendario (ej. 2026-02-31) | "La fecha debe tener un formato válido (AAAA-MM-DD)." |
 
 ```json
 {
@@ -162,7 +162,8 @@ backend/src/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   └── web/
-│       │   │       └── RoomBaseRateController.java
+│       │   │       ├── RoomBaseRateController.java
+│       │   │       └── dto/RoomBaseRateQuery.java       # date como texto: falta, formato y día inexistente → un solo mensaje
 │       │   └── out/
 │       │       └── persistence/
 │       │           └── adapter/
@@ -173,15 +174,19 @@ backend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar la configuración del repositorio `RoomRepositoryPort` en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`) (catálogo del plan base, T009).
+- [x] T001 Verificar la configuración del repositorio `RoomRepositoryPort` en [PLAN/base/plan.md](base/plan.md).
+  - Hecho (L34): `RoomRepositoryPort.findById`, sin bloqueo.
+- [x] T002 Verificar el registro de `RoomNotFoundException` en `GlobalExceptionHandler` con mapeo a HTTP 404 (`ApiError`) (catálogo del plan base, T009).
+  - Hecho (L34): `RoomNotFoundException` → 404 `ROOM_NOT_FOUND` por su categoría.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T003 Implementar el DTO de salida `RoomBaseRateResponseDto` con los atributos: `roomId`, `date`, `baseRate` (`String` construido con `baseRate.setScale(2).toPlainString()`, porque los DTO de aplicación no usan anotaciones de Jackson, regla 1 del plan base), `currency` (constante `"COP"`).
-- [ ] T004 Definir la interfaz del puerto de entrada `GetRoomBaseRateUseCase`.
+- [x] T003 Implementar el DTO de salida `RoomBaseRateResponseDto` con los atributos: `roomId`, `date`, `baseRate` (`String` construido con `baseRate.setScale(2).toPlainString()`, porque los DTO de aplicación no usan anotaciones de Jackson, regla 1 del plan base), `currency` (constante `"COP"`).
+  - Hecho (L34): `RoomBaseRateResponseDto.of(room, date)`, con `setScale(2, RoundingMode.UNNECESSARY)` (la columna ya tiene dos decimales) y `CURRENCY = "COP"`.
+- [x] T004 Definir la interfaz del puerto de entrada `GetRoomBaseRateUseCase`.
+  - Hecho (L34).
 
 ---
 
@@ -193,14 +198,19 @@ backend/src/
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Unit test para `RoomBaseRateQueryService` comprobando la recuperación de la habitación y el mapeo exacto a `RoomBaseRateResponseDto`.
-- [ ] T006 [P] [US1] Verificar que la consulta de una habitación existente retorna HTTP 200 con los cuatro atributos correctos (`roomId`, `date` igual al de la petición, `baseRate` como texto, `currency = "COP"`) y sin ningún otro campo, y que fechas distintas devuelven la misma `baseRate`.
-- [ ] T007 [P] [US1] Unit test verificando que la consulta puede ejecutarse sobre habitaciones en cualquiera de los 8 estados canónicos sin alterar su estado.
+- [x] T005 [P] [US1] Unit test para `RoomBaseRateQueryService` comprobando la recuperación de la habitación y el mapeo exacto a `RoomBaseRateResponseDto`.
+  - Hecho (L34): en `RoomBaseRateQueryServiceTest`.
+- [x] T006 [P] [US1] Verificar que la consulta de una habitación existente retorna HTTP 200 con los cuatro atributos correctos (`roomId`, `date` igual al de la petición, `baseRate` como texto, `currency = "COP"`) y sin ningún otro campo, y que fechas distintas devuelven la misma `baseRate`.
+  - Hecho (L34): en `RoomBaseRateIntegrationTest`, con comparación estricta del JSON (sin campos de más) y dos fechas distintas.
+- [x] T007 [P] [US1] Unit test verificando que la consulta puede ejecutarse sobre habitaciones en cualquiera de los 8 estados canónicos sin alterar su estado.
+  - Hecho (L34): en `RoomBaseRateQueryServiceTest` (solo `findById`); por HTTP, con la habitación `Inactive` 104 de la semilla.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Implementar el método de consulta de tarifa base en el servicio de aplicación, garantizando que la operación es de solo lectura y no altera el estado de la habitación.
-- [ ] T009 [P] [US1] Implementar en `RoomBaseRateController.java` el endpoint `GET /api/rooms/{roomId}/base-rate?date=YYYY-MM-DD` (`date` obligatorio; falta o inválido → 400 `VALIDATION_ERROR`).
+- [x] T008 [P] [US1] Implementar el método de consulta de tarifa base en el servicio de aplicación, garantizando que la operación es de solo lectura y no altera el estado de la habitación.
+  - Hecho (L34): `RoomBaseRateQueryService` (`@Transactional(readOnly = true)`).
+- [x] T009 [P] [US1] Implementar en `RoomBaseRateController.java` el endpoint `GET /api/rooms/{roomId}/base-rate?date=YYYY-MM-DD` (`date` obligatorio; falta o inválido → 400 `VALIDATION_ERROR`).
+  - Hecho (L34): `RoomBaseRateController`, sin `X-User` (lo consume Módulo 3).
 
 ---
 
@@ -212,20 +222,26 @@ backend/src/
 
 ### Tests for User Story 2
 
-- [ ] T010 [P] [US2] Unit test para `RoomBaseRateQueryService` arrojando `RoomNotFoundException` ante ID no existente.
-- [ ] T011 [P] [US2] Integration test para `GET /api/rooms/{randomUUID}/base-rate?date=YYYY-MM-DD` verificando status 404 y estructura `ApiError`.
-- [ ] T012 [P] [US2] Integration test: sin `date`, con formato distinto de AAAA-MM-DD y con `2026-02-31`, la respuesta es `400 VALIDATION_ERROR` con `details.field = date` (escenario 4).
+- [x] T010 [P] [US2] Unit test para `RoomBaseRateQueryService` arrojando `RoomNotFoundException` ante ID no existente.
+  - Hecho (L34): en `RoomBaseRateQueryServiceTest`.
+- [x] T011 [P] [US2] Integration test para `GET /api/rooms/{randomUUID}/base-rate?date=YYYY-MM-DD` verificando status 404 y estructura `ApiError`.
+  - Hecho (L34): en `RoomBaseRateIntegrationTest`.
+- [x] T012 [P] [US2] Integration test: sin `date`, con formato distinto de AAAA-MM-DD y con `2026-02-31`, la respuesta es `400 VALIDATION_ERROR` con `details.field = date` (escenario 4).
+  - Hecho (L34): en `RoomBaseRateIntegrationTest` (sin `date`, vacío, otros formatos, mes 13 y `2026-02-31`).
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Incorporar validación de existencia en `RoomBaseRateQueryService` con lanzamiento de `RoomNotFoundException`.
+- [x] T013 [P] [US2] Incorporar validación de existencia en `RoomBaseRateQueryService` con lanzamiento de `RoomNotFoundException`.
+  - Hecho (L34).
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T014 Validar que `baseRate` (`BigDecimal`) se serializa como texto con exactamente dos decimales (p. ej. `"250000.00"`).
-- [ ] T015 Asegurar que la operación no genere registros en la bitácora de auditoría de cambios de estado ni altere el historial de habitaciones.
+- [x] T014 Validar que `baseRate` (`BigDecimal`) se serializa como texto con exactamente dos decimales (p. ej. `"250000.00"`).
+  - Hecho (L34): `"320000.00"` en `RoomBaseRateIntegrationTest`.
+- [x] T015 Asegurar que la operación no genere registros en la bitácora de auditoría de cambios de estado ni altere el historial de habitaciones.
+  - Hecho (L34): `RoomBaseRateIntegrationTest` comprueba que no cambian `room_state_history`, `room_audit_log` ni el estado.
 
 ---
 

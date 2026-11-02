@@ -472,7 +472,7 @@ backend/
     │   │   │   │   ├── ActiveStayQueryService.java           # Paso 1 del check-out
     │   │   │   │   ├── CheckOutExecutionService.java         # Salida y pase a limpieza
     │   │   │   │   ├── SettlementQueryService.java           # Consulta reactiva síncrona REST GET a Módulo 3
-    │   │   │   │   ├── RoomBaseRateQueryService.java         # Consulta reactiva de tarifa base
+    │   │   │   │   ├── RoomBaseRateQueryService.java         # Tarifa base para Módulo 3, solo lectura (plan-consultar-tarifa-base.md)
     │   │   │   │   ├── RoomStateTransitionService.java       # Evalúa máquina de estados interna de 8 estados
     │   │   │   │   ├── RoomStateHistoryRecorder.java         # Registra los periodos del historial (T016)
     │   │   │   │   ├── MarkRoomAvailableService.java
@@ -599,6 +599,7 @@ backend/
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
     │   │       │   │   │   │   ├── EditRoomRequest.java          # PATCH /api/rooms/{roomId}
+    │   │       │   │   │   │   ├── RoomBaseRateQuery.java        # date de GET /api/rooms/{roomId}/base-rate (Módulo 3)
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
@@ -750,6 +751,7 @@ backend/
         │       ├── RegisterStaffAccountServiceTest.java
         │       ├── ReleaseCleaningTaskServiceTest.java
         │       ├── ReportDamageServiceTest.java
+        │       ├── RoomBaseRateQueryServiceTest.java
         │       ├── RoomDecommissionQueryServiceTest.java
         │       ├── RoomInventoryQueryServiceTest.java
         │       ├── RoomReservationConflictServiceTest.java
@@ -800,6 +802,7 @@ backend/
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionDeparturesIntegrationTest.java    # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md
+        │   │   │       ├── RoomBaseRateIntegrationTest.java           # plan-consultar-tarifa-base.md
         │   │   │       ├── RoomControllerTest.java
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
