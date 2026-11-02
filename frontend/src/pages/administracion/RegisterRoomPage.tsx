@@ -51,13 +51,15 @@ export function RegisterRoomPage() {
 
   if (mutation.isSuccess) {
     return (
-      <RegisterRoomSuccess
-        room={mutation.data}
-        onRegisterAnother={() => {
-          form.reset(EMPTY_ROOM);
-          mutation.reset();
-        }}
-      />
+      <div className="p-6 lg:p-8">
+        <RegisterRoomSuccess
+          room={mutation.data}
+          onRegisterAnother={() => {
+            form.reset(EMPTY_ROOM);
+            mutation.reset();
+          }}
+        />
+      </div>
     );
   }
 
@@ -65,7 +67,7 @@ export function RegisterRoomPage() {
     mutation.isError && errorCodeOf(mutation.error) !== 'ROOM_NUMBER_ALREADY_EXISTS';
 
   return (
-    <>
+    <div className="p-6 lg:p-8">
       <PageHeader
         title="Registrar habitación"
         subtitle="La habitación quedará disponible en el inventario apenas se registre."
@@ -109,6 +111,7 @@ export function RegisterRoomPage() {
                   )}
                 />
               </fieldset>
+
               <fieldset className="grid gap-4 sm:grid-cols-3">
                 <legend className="mb-3 text-sm font-bold text-ink">Categorización y tarifa</legend>
                 <FormField
@@ -171,6 +174,6 @@ export function RegisterRoomPage() {
           </Card>
         </form>
       </Form>
-    </>
+    </div>
   );
 }

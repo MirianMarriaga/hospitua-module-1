@@ -27,7 +27,7 @@ export const UNEXPECTED_ERROR = 'UNEXPECTED_ERROR';
 type QueryValue = string | number | boolean | null | undefined;
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   params?: Record<string, QueryValue>;
   body?: unknown;
   signal?: AbortSignal;
@@ -83,21 +83,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       signal,
     });
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') {
-      throw cause;
-    }
-    throw new ApiRequestError(0, NETWORK_ERROR, 'Sin conexión con el servidor');
+    throw new ApiRequestError(0, NETWORK_ERROR, 'No hay conexión con el servidor.', { cause });
   }
 
-  if (!response.ok) {
-    const error = await readApiError(response);
-    if (error.errorCode === 'CURRENT_USER_REQUIRED') {
-      useSessionStore.getState().expire();
+  if (response.ok) {
+    if (response.status === 204) {
+      return undefined as T;
     }
-    throw error;
+    return (await response.json()) as T;
   }
-  if (response.status === 204) {
-    return undefined as T;
+
+  const error = await readApiError(response);
+  if (error.errorCode === 'CURRENT_USER_REQUIRED') {
+    useSessionStore.getState().expire();
   }
-  return (await response.json()) as T;
+  throw error;
 }

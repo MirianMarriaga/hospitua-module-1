@@ -90,4 +90,25 @@ describe('LoginPage', () => {
     renderLogin();
     expect(screen.getByText('Tu sesión terminó. Inicia sesión de nuevo.')).toBeInTheDocument();
   });
+
+  it('permite alternar la visibilidad de la contraseña con el botón de ojo', async () => {
+    renderLogin();
+    const passwordInput = screen.getByLabelText('Contraseña');
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    const toggleButton = screen.getByRole('button', { name: 'Ver contraseña' });
+    await userEvent.click(toggleButton);
+
+    expect(passwordInput).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Ocultar contraseña' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('el panel con foto del hotel se oculta en pantallas menores a 900px', () => {
+    renderLogin();
+    expect(screen.getByAltText('Fachada de Hotel Hospitua', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Bienvenido al sistema de gestión hotelera')).toBeInTheDocument();
+  });
 });

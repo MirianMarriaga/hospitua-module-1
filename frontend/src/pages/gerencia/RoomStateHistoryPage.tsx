@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 
 import { getRoomStateHistory } from '@/api/historyService';
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHero } from '@/components/PageHero';
 import { Pagination } from '@/components/Pagination';
 import { Card } from '@/components/ui/card';
 import { errorCodeOf, errorMessage } from '@/lib/errorMessages';
@@ -26,7 +26,7 @@ export function RoomStateHistoryPage() {
   const invalidRange = hasInvalidRange(filters);
 
   const query = useQuery({
-    queryKey: ['room-state-history', filters, page],
+    queryKey: ['roomStateHistory', filters, page],
     queryFn: () => getRoomStateHistory(filters, page),
     placeholderData: keepPreviousData,
     enabled: !invalidRange,
@@ -44,34 +44,35 @@ export function RoomStateHistoryPage() {
   }
 
   return (
-    <>
-      <PageHeader
+    <div>
+      <PageHero
         title="Historial de estados"
         subtitle="Consulta por cuánto tiempo estuvo cada habitación en cada estado."
       />
-      <Card className="overflow-hidden">
-        <RoomStateHistoryFilters rangeError={rangeError} />
-        {query.isError && !backendRangeError && (
-          <div className="p-4">
-            <ErrorAlert message={errorMessage(query.error, HISTORY_ERRORS)} />
-          </div>
-        )}
-        {!invalidRange && query.isPending && (
-          <p className="p-6 text-sm text-text-lo">Cargando historial…</p>
-        )}
-        {!rangeError && query.data && (
-          <>
-            <RoomStateHistoryTable periods={query.data.items} />
-            <Pagination
-              page={query.data.page}
-              size={query.data.size}
-              totalElements={query.data.totalElements}
-              totalPages={query.data.totalPages}
-              onPageChange={goToPage}
-            />
-          </>
-        )}
-      </Card>
-    </>
+      <div className="p-6 lg:p-8 space-y-6">
+        <Card className="overflow-hidden">
+          <RoomStateHistoryFilters rangeError={rangeError} />
+          {query.isError && !backendRangeError && (
+            <div className="p-4">
+              <ErrorAlert message={errorMessage(query.error, HISTORY_ERRORS)} />
+            </div>
+          )}
+          {!invalidRange && query.isPending && (
+            <p className="p-6 text-sm text-text-lo">Cargando historial…</p>
+          )}
+          {query.data && (
+            <>
+              <RoomStateHistoryTable periods={query.data.items} />
+              <Pagination
+                page={query.data.page}
+                size={query.data.size}
+                totalElements={query.data.totalElements}
+                onPageChange={goToPage}
+              />
+            </>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 }

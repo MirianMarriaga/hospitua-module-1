@@ -16,9 +16,7 @@ import { ROOM_CATEGORY_LABELS } from '@/lib/labels';
 
 export type InventoryRole = 'admin' | 'manager';
 
-const PHASE_5_HINT = 'Disponible cuando se habilite la gestión de habitaciones.';
-
-/** Acciones de la fila: el Administrador según el estado (Fase 5, deshabilitadas) y el Gerente "Ver historial". */
+/** Acciones de la fila: el Administrador según el estado y el Gerente "Ver historial". */
 function RowActions({ room, role }: { room: Room; role: InventoryRole }) {
   if (role === 'manager') {
     const params = new URLSearchParams({ roomId: room.roomId, roomNumber: room.roomNumber });
@@ -31,19 +29,21 @@ function RowActions({ room, role }: { room: Room; role: InventoryRole }) {
   if (room.status === 'Available') {
     return (
       <>
-        <Button size="sm" disabled title={PHASE_5_HINT}>
-          Editar
+        <Button asChild size="sm" variant="outline">
+          <Link to={`/administracion/habitaciones/${room.roomId}/editar`}>Editar</Link>
         </Button>
-        <Button size="sm" variant="ink" disabled title={PHASE_5_HINT}>
-          Dar de baja
+        <Button asChild size="sm" variant="ink">
+          <Link to={`/administracion/habitaciones/${room.roomId}/baja`}>Dar de baja</Link>
         </Button>
       </>
     );
   }
   if (room.status === 'Inactive') {
     return (
-      <Button size="sm" disabled title={PHASE_5_HINT}>
-        Marcar como disponible
+      <Button asChild size="sm">
+        <Link to={`/administracion/habitaciones/${room.roomId}/reactivacion`}>
+          Marcar como disponible
+        </Link>
       </Button>
     );
   }

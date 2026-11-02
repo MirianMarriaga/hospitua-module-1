@@ -2,7 +2,10 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { AreaLayout } from '@/layouts/AreaLayout';
 import { homeOf } from '@/layouts/areaNavigation';
+import { DecommissionPage } from '@/pages/administracion/decommission/DecommissionPage';
+import { EditRoomPage } from '@/pages/administracion/edit/EditRoomPage';
 import { InventoryPage } from '@/pages/administracion/InventoryPage';
+import { ReactivationPage } from '@/pages/administracion/reactivation/ReactivationPage';
 import { RegisterRoomPage } from '@/pages/administracion/RegisterRoomPage';
 import { CheckInPage } from '@/pages/checkin/CheckInPage';
 import { CheckOutPage } from '@/pages/checkout/CheckOutPage';
@@ -31,6 +34,18 @@ export function AppRoutes() {
       <Route element={<AreaLayout area="ADMINISTRACION" />}>
         <Route path="/administracion/inventario" element={<InventoryPage role="admin" />} />
         <Route path="/administracion/habitaciones/nueva" element={<RegisterRoomPage />} />
+        <Route
+          path="/administracion/habitaciones/:roomId/baja"
+          element={<DecommissionPage />}
+        />
+        <Route
+          path="/administracion/habitaciones/:roomId/reactivacion"
+          element={<ReactivationPage />}
+        />
+        <Route
+          path="/administracion/habitaciones/:roomId/editar"
+          element={<EditRoomPage />}
+        />
       </Route>
 
       <Route element={<AreaLayout area="GERENCIA" />}>

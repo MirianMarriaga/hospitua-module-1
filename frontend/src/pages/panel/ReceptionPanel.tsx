@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 
 import { getReceptionKpis } from '@/api/receptionService';
-import hotelHeroImg from '@/assets/PM-Fachada_Portohorizonte-3_1_Hero_3.jpg';
+import { PageHero } from '@/components/PageHero';
 import { cn } from '@/lib/utils';
 import { ArrivalsTab } from '@/pages/panel/ArrivalsTab';
 import { DeparturesTab } from '@/pages/panel/DeparturesTab';
@@ -42,28 +42,10 @@ export function ReceptionPanel() {
 
   return (
     <div className="min-h-full">
-      {/* Banda hero con imagen del hotel y degradado para legibilidad */}
-      <section
-        aria-label="Encabezado del panel"
-        className="relative min-h-[140px] w-full overflow-hidden border-b border-line bg-[#152B4D]"
-      >
-        <img
-          src={hotelHeroImg}
-          alt="Fachada de Hotel Hospitua"
-          className="absolute inset-0 size-full object-cover object-[center_35%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0F1B33]/92 via-[#0F1B33]/72 to-[#0F1B33]/40" />
-        <div className="relative mx-auto flex min-h-[140px] max-w-[1180px] items-center justify-between px-6 py-6">
-          <div>
-            <h1 className="font-sans text-2xl font-bold tracking-tight text-white">
-              Bienvenida, {fullName}
-            </h1>
-            <div className="mt-1 text-sm text-slate-200">
-              Estancias · llegadas y salidas del día
-            </div>
-          </div>
-        </div>
-      </section>
+      <PageHero
+        title={`Bienvenida, ${fullName}`}
+        subtitle="Estancias · llegadas y salidas del día"
+      />
 
       {/* Contenido principal centrado a máx 1180 px */}
       <div className="mx-auto max-w-[1180px] space-y-5 px-6 py-6">
@@ -74,29 +56,37 @@ export function ReceptionPanel() {
             aria-label="Movimientos del día"
             className="flex gap-1 border-b border-line px-3 pt-1"
           >
-            {TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === item.id}
-                onClick={() => selectTab(item.id)}
-                className={cn(
-                  'cursor-pointer rounded-t-lg border-b-[3px] px-6 py-3.5 text-[17px] font-semibold transition-colors',
-                  tab === item.id
-                    ? 'border-primary bg-[#EAF1FF] text-primary'
-                    : 'border-transparent text-text-lo hover:bg-paper-dim',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
+            {TABS.map((item) => {
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectTab(item.id)}
+                  className={cn(
+                    'border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+                    active
+                      ? 'border-brand text-brand'
+                      : 'border-transparent text-text-lo hover:text-ink',
+                  )}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="border-b border-line p-3.5 sm:px-4 sm:py-3.5">
-            <ReceptionSearchBar />
-          </div>
-          <div role="tabpanel">
-            {tab === 'llegadas' ? <ArrivalsTab query={query} /> : <DeparturesTab query={query} />}
+
+          <div className="p-4">
+            <ReceptionSearchBar query={query} tab={tab} />
+            <div className="mt-4">
+              {tab === 'llegadas' ? (
+                <ArrivalsTab query={query} />
+              ) : (
+                <DeparturesTab query={query} />
+              )}
+            </div>
           </div>
         </div>
       </div>

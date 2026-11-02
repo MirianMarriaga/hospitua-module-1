@@ -1,3 +1,4 @@
+import type { DecommissionReason } from '@/api/roomService';
 import type { DocumentType, RoomCategory, RoomStatus, StaffArea } from '@/api/types';
 
 // Etiquetas en español (regla 12 del plan base). Coinciden con los displayName del backend.
@@ -23,6 +24,21 @@ export const ROOM_CATEGORY_LABELS: Record<RoomCategory, string> = {
 };
 
 export const ROOM_CATEGORIES = Object.keys(ROOM_CATEGORY_LABELS) as RoomCategory[];
+
+export const DECOMMISSION_REASON_LABELS: Record<DecommissionReason, string> = {
+  PERMANENT_REMODELING: 'Remodelación permanente',
+  FLOOR_CLOSURE: 'Cierre definitivo de piso',
+  ADMINISTRATIVE_DECISION: 'Decisión administrativa',
+  OTHER: 'Otro',
+};
+
+export const DECOMMISSION_REASONS = Object.keys(DECOMMISSION_REASON_LABELS) as DecommissionReason[];
+
+export const RESERVATION_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pendiente de confirmación',
+  ACTIVE: 'Confirmada',
+  IN_PROGRESS: 'En curso',
+};
 
 export const STAFF_AREA_LABELS: Record<StaffArea, string> = {
   RECEPCION: 'Recepción',

@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 
 import { getInventory } from '@/api/roomService';
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHero } from '@/components/PageHero';
 import { Pagination } from '@/components/Pagination';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -61,8 +61,8 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
   );
 
   return (
-    <>
-      <PageHeader
+    <div>
+      <PageHero
         title="Inventario de habitaciones"
         subtitle={
           role === 'admin'
@@ -80,31 +80,32 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
           )
         }
       />
-      <Card className="overflow-hidden">
-        <RoomInventoryFilters />
-        {query.isError && (
-          <div className="p-4">
-            <ErrorAlert message={errorMessage(query.error, INVENTORY_ERRORS)} />
-          </div>
-        )}
-        {query.isPending && <p className="p-6 text-sm text-text-lo">Cargando inventario…</p>}
-        {query.data && (
-          <>
-            <RoomInventoryTable
-              rooms={query.data.items}
-              role={role}
-              emptyMessage={emptyMessage}
-            />
-            <Pagination
-              page={query.data.page}
-              size={query.data.size}
-              totalElements={query.data.totalElements}
-              totalPages={query.data.totalPages}
-              onPageChange={goToPage}
-            />
-          </>
-        )}
-      </Card>
-    </>
+      <div className="p-6 lg:p-8 space-y-6">
+        <Card className="overflow-hidden">
+          <RoomInventoryFilters />
+          {query.isError && (
+            <div className="p-4">
+              <ErrorAlert message={errorMessage(query.error, INVENTORY_ERRORS)} />
+            </div>
+          )}
+          {query.isPending && <p className="p-6 text-sm text-text-lo">Cargando inventario…</p>}
+          {query.data && (
+            <>
+              <RoomInventoryTable
+                rooms={query.data.items}
+                role={role}
+                emptyMessage={emptyMessage}
+              />
+              <Pagination
+                page={query.data.page}
+                size={query.data.size}
+                totalElements={query.data.totalElements}
+                onPageChange={goToPage}
+              />
+            </>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 }

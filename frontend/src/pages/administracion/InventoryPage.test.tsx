@@ -2,21 +2,59 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getInventory } from '@/api/roomService';
+import { getInventory, type Room } from '@/api/roomService';
+import type { PagedResult } from '@/api/types';
 import { InventoryPage } from '@/pages/administracion/InventoryPage';
-import { page, room } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
-vi.mock('@/api/roomService', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/api/roomService')>()),
-  getInventory: vi.fn(),
-}));
+vi.mock('@/api/roomService', () => ({ getInventory: vi.fn() }));
 
-const ROOMS = [
-  room({ roomId: 'a', roomNumber: '101', status: 'Available' }),
-  room({ roomId: 'b', roomNumber: '204', status: 'Inactive', categoryRoom: 'BOUTIQUE', floor: 2 }),
-  room({ roomId: 'c', roomNumber: '305', status: 'Occupied', categoryRoom: 'SUITE', floor: 3 }),
+const ROOMS: Room[] = [
+  {
+    roomId: 'a',
+    roomNumber: '101',
+    floor: 1,
+    categoryRoom: 'SENCILLA',
+    maxCapacity: 1,
+    baseRate: 180000,
+    status: 'Available',
+    version: 1,
+  },
+  {
+    roomId: 'b',
+    roomNumber: '204',
+    floor: 2,
+    categoryRoom: 'BOUTIQUE',
+    maxCapacity: 2,
+    baseRate: 380000,
+    status: 'Inactive',
+    version: 1,
+  },
+  {
+    roomId: 'c',
+    roomNumber: '305',
+    floor: 3,
+    categoryRoom: 'SUITE',
+    maxCapacity: 4,
+    baseRate: 520000,
+    status: 'TechnicalBlock',
+    version: 1,
+  },
 ];
+
+function page(items: Room[], meta: Partial<PagedResult<Room>> = {}): PagedResult<Room> {
+  return {
+    items,
+    page: 1,
+    size: 10,
+    totalElements: items.length,
+    totalPages: 1,
+    first: true,
+    last: true,
+    empty: items.length === 0,
+    ...meta,
+  };
+}
 
 function rowOf(number: string) {
   return screen.getByRole('cell', { name: number }).closest('tr')!;
@@ -39,16 +77,22 @@ describe('InventoryPage', () => {
     expect(screen.queryByText('b')).not.toBeInTheDocument();
   });
 
-  it('el Administrador ve las acciones por estado, deshabilitadas hasta la Fase 5', async () => {
+  it('el Administrador ve las acciones habilitadas con enlaces según el estado', async () => {
     renderWithProviders(<InventoryPage role="admin" />);
     await screen.findByText('Mostrando 1–10 de 23');
 
-    expect(within(rowOf('101')).getByRole('button', { name: 'Editar' })).toBeDisabled();
-    expect(within(rowOf('101')).getByRole('button', { name: 'Dar de baja' })).toBeDisabled();
-    expect(
-      within(rowOf('204')).getByRole('button', { name: 'Marcar como disponible' }),
-    ).toBeDisabled();
-    expect(within(rowOf('305')).queryByRole('button')).not.toBeInTheDocument();
+    const editLink = within(rowOf('101')).getByRole('link', { name: 'Editar' });
+    expect(editLink).toHaveAttribute('href', '/administracion/habitaciones/a/editar');
+
+    const decommissionLink = within(rowOf('101')).getByRole('link', { name: 'Dar de baja' });
+    expect(decommissionLink).toHaveAttribute('href', '/administracion/habitaciones/a/baja');
+
+    const reactivateLink = within(rowOf('204')).getByRole('link', {
+      name: 'Marcar como disponible',
+    });
+    expect(reactivateLink).toHaveAttribute('href', '/administracion/habitaciones/b/reactivacion');
+
+    expect(within(rowOf('305')).queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Registrar habitación/ })).toBeInTheDocument();
   });
 
