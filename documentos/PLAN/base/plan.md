@@ -366,6 +366,7 @@ backend/
     │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción del daño, también desde el fin de limpieza con daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR del detalle del motivo de la baja (plan-dar-de-baja-habitacion.md)
+    │   │   │       ├── UnknownDecommissionException.java     # 400 VALIDATION_ERROR: la baja de la reactivación no es de esa habitación (plan-marcar-habitacion-como-disponible.md)
     │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
     │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
@@ -559,6 +560,7 @@ backend/
     │   │   │       ├── DecommissionRoomCommand.java
     │   │   │       ├── RoomDecommissionDto.java
     │   │   │       ├── RoomDecommissionInfoDto.java
+    │   │   │       ├── ReactivateRoomCommand.java
     │   │   │       ├── ReactivationResultDto.java
     │   │   │       ├── RegisterStaffAccountCommand.java      # Personal
     │   │   │       ├── EditStaffAccountCommand.java
@@ -593,6 +595,7 @@ backend/
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
+    │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
@@ -737,11 +740,13 @@ backend/
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java
         │       ├── MarkRoomReservedServiceTest.java
+        │       ├── ReactivateRoomServiceTest.java
         │       ├── ReceptionPanelQueryServiceTest.java
         │       ├── RegisterRoomServiceTest.java
         │       ├── RegisterStaffAccountServiceTest.java
         │       ├── ReleaseCleaningTaskServiceTest.java
         │       ├── ReportDamageServiceTest.java
+        │       ├── RoomDecommissionQueryServiceTest.java
         │       ├── RoomInventoryQueryServiceTest.java
         │       ├── RoomReservationConflictServiceTest.java
         │       ├── RoomStateHistoryQueryServiceTest.java
@@ -786,6 +791,7 @@ backend/
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
+        │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionDeparturesIntegrationTest.java    # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md

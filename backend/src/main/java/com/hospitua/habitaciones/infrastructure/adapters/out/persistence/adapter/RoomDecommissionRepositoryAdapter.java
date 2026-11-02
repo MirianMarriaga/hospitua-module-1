@@ -4,6 +4,8 @@ import com.hospitua.habitaciones.application.ports.out.RoomDecommissionRepositor
 import com.hospitua.habitaciones.domain.model.RoomDecommission;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.mapper.RoomDecommissionMapper;
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.repository.SpringDataRoomDecommissionJpaRepository;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -22,5 +24,17 @@ public class RoomDecommissionRepositoryAdapter implements RoomDecommissionReposi
     public RoomDecommission save(RoomDecommission decommission) {
         return decommissionMapper.toDomain(
                 decommissionJpaRepository.saveAndFlush(decommissionMapper.toEntity(decommission)));
+    }
+
+    @Override
+    public Optional<RoomDecommission> findById(UUID decommissionId) {
+        return decommissionJpaRepository.findById(decommissionId).map(decommissionMapper::toDomain);
+    }
+
+    @Override
+    public Optional<RoomDecommission> findCurrentByRoomId(UUID roomId) {
+        return decommissionJpaRepository
+                .findFirstByRoomIdAndReactivationDateTimeIsNullOrderByDecommissionDateTimeDesc(roomId)
+                .map(decommissionMapper::toDomain);
     }
 }

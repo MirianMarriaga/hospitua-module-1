@@ -61,6 +61,27 @@ public final class RoomDecommission {
                 null);
     }
 
+    /** Una baja revertida ya no es la vigente de su habitación (plan-marcar-habitacion-como-disponible.md, FR-010). */
+    public boolean isReactivated() {
+        return reactivationDateTime != null;
+    }
+
+    /** La misma baja, revertida por el Administrador con la marca del periodo {@code Available} del historial. */
+    public RoomDecommission reactivate(String administratorId, OffsetDateTime reactivationDateTime) {
+        if (isReactivated()) {
+            throw new IllegalStateException("La baja " + id + " ya fue revertida.");
+        }
+        return new RoomDecommission(
+                id,
+                roomId,
+                reasonCategory,
+                reasonDetail,
+                decommissionedBy,
+                decommissionDateTime,
+                Objects.requireNonNull(administratorId, "El Administrador no puede ser nulo"),
+                Objects.requireNonNull(reactivationDateTime, "La fecha de la reactivación no puede ser nula"));
+    }
+
     /**
      * Detalle sin espacios al inicio ni al final; vacío o solo espacios queda nulo. Es obligatorio con {@code OTHER} y
      * admite máximo 500 caracteres (FR-008).

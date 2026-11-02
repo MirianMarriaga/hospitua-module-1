@@ -88,6 +88,26 @@ class RoomDecommissionTest {
     }
 
     @Test
+    @DisplayName(
+            "Reactivar conserva la baja y agrega el Administrador y la marca; una baja revertida no se revierte dos veces")
+    void reactivate_marksDecommissionReverted() {
+        RoomDecommission decommission = RoomDecommission.decommission(
+                UUID.randomUUID(), DecommissionReason.FLOOR_CLOSURE, null, "lmendez", NOW);
+
+        RoomDecommission reactivated = decommission.reactivate("jperez", NOW.plusDays(2));
+
+        assertThat(decommission.isReactivated()).isFalse();
+        assertThat(reactivated.isReactivated()).isTrue();
+        assertThat(reactivated).isEqualTo(decommission);
+        assertThat(reactivated.getDecommissionedBy()).isEqualTo("lmendez");
+        assertThat(reactivated.getDecommissionDateTime()).isEqualTo(NOW);
+        assertThat(reactivated.getReactivatedBy()).isEqualTo("jperez");
+        assertThat(reactivated.getReactivationDateTime()).isEqualTo(NOW.plusDays(2));
+        assertThatThrownBy(() -> reactivated.reactivate("jperez", NOW.plusDays(3)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     @DisplayName("Solo OTHER exige el detalle")
     void requiresDetail_onlyOther() {
         assertThat(DecommissionReason.OTHER.requiresDetail()).isTrue();

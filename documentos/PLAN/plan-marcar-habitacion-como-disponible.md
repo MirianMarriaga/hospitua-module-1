@@ -99,7 +99,7 @@ Accept: application/json
 | `decommissionId` | UUID | Baja vigente. Toda habitación `Inactive` tiene una: la crea *Dar de baja habitación* o, en las habitaciones que la semilla carga inactivas, la semilla `V2__seed_rooms.sql` (plan base, T007) | `"7d6c…"` |
 | `decommissionDateTime` | string | Fecha de la baja | `"2026-10-09T15:00:00-05:00"` |
 | `reasonCategory` | string | Categoría del motivo | `"FLOOR_CLOSURE"` |
-| `reasonDetail` | string \| null | Detalle, si existe | `"Cierre del piso 3…"` |
+| `reasonDetail` | string | Detalle, si existe; se omite cuando la baja no lo tiene | `"Cierre del piso 3…"` |
 
 **Body (JSON):**
 
@@ -176,7 +176,7 @@ Content-Type: application/json
 | `roomNumber` | string | Número | `"305"` |
 | `floor` | integer | Piso | `3` |
 | `categoryRoom` | string | Categoría (tipo) | `"SUITE"` |
-| `status` | string | `Available` | `"Available"` |
+| `status` | string | `Available`. En un reintento (`alreadyReactivated: true`) es el estado actual, que puede ser otro si la habitación ya cambió después de reactivarse | `"Available"` |
 | `alreadyReactivated` | boolean | `true` si esa baja ya había sido revertida y no se hizo ningún cambio (FR-010, caso borde 2) | `false` |
 
 **Body (JSON):**
@@ -199,7 +199,8 @@ El resultado indica que la habitación ya puede recibir reservas y estancias; co
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta `decommissionId` o no tiene formato de UUID | "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (el campo llega como texto y se valida con el patrón de UUID, para responder este mensaje también con un formato inválido) | Falta `decommissionId` o no tiene formato de UUID | "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación." |
+| 400 | `VALIDATION_ERROR` | `UnknownDecommissionException` (`details.field = decommissionId`) | La habitación está `Inactive`, pero `decommissionId` no es una baja suya: la confirmación quedó desactualizada | "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 1) | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Inactive` y no es un reintento de la misma baja (esc. 3; FR-006) | "La habitación no está Inactiva (estado actual: {estado}); no es posible marcarla como disponible." |
 
@@ -250,13 +251,20 @@ backend/src/main/java/com/hospitua/habitaciones/
 │   │   ├── MarkRoomAvailableService.java
 │   │   ├── ReactivateRoomService.java
 │   │   └── RoomDecommissionQueryService.java
+│   ├── ports/out/
+│   │   └── RoomDecommissionRepositoryPort.java    # Se agregan findById y findCurrentByRoomId (plan-dar-de-baja-habitacion.md, T003)
 │   └── dto/
 │       ├── MarkRoomAvailableCommand.java
 │       ├── MarkRoomAvailableResult.java
+│       ├── ReactivateRoomCommand.java
 │       ├── RoomDecommissionInfoDto.java
 │       └── ReactivationResultDto.java
+├── domain/
+│   ├── model/RoomDecommission.java                # Se agregan isReactivated() y reactivate(...)
+│   └── exception/UnknownDecommissionException.java # 400 VALIDATION_ERROR: decommissionId que no es una baja de la habitación
 └── infrastructure/adapters/in/web/
-    └── RoomController.java                        # Se agregan GET /api/rooms/{roomId}/decommission y POST /api/rooms/{roomId}/reactivation
+    ├── RoomController.java                        # Se agregan GET /api/rooms/{roomId}/decommission y POST /api/rooms/{roomId}/reactivation
+    └── dto/ReactivateRoomRequest.java             # decommissionId como texto con patrón de UUID
 frontend/src/
 ├── pages/administracion/
 │   ├── ReactivateRoomDialog.tsx                   # Confirmación con datos de la habitación y de la baja
@@ -322,15 +330,21 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
 
 **Requisito previo**: `plan-dar-de-baja-habitacion.md` (Phase 2, T003: `RoomDecommission` y `RoomDecommissionRepositoryPort`). Esta fase se implementa en el paso 7 del orden del plan base, después de dar de baja; las Phases 2 y 3 van en el paso 3.
 
-- [ ] T010 [US1] Verificar la tabla `room_decommission` (plan base, T007) y `RoomDecommissionRepositoryPort` (`plan-dar-de-baja-habitacion.md`, T003).
+- [x] T010 [US1] Verificar la tabla `room_decommission` (plan base, T007) y `RoomDecommissionRepositoryPort` (`plan-dar-de-baja-habitacion.md`, T003).
+  - Hecho (L32): `room_decommission` (V1) y el puerto de L31, al que se agregan `findById` y `findCurrentByRoomId` (la baja sin revertir más reciente, por `idx_room_decommission_room_date`).
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Unit test en `ReactivateRoomServiceTest`: `Inactive` → `Available` vía el puerto con `MARK_AVAILABLE`, la baja queda con `reactivated_by` y `reactivation_date_time` y el periodo del historial queda con el Administrador como actor (esc. 1; FR-005, FR-008, FR-011; SC-004).
-- [ ] T012 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en `Available`, `Occupied`, `PendingCleaning`, `DisabledForRepairs` y `TechnicalBlock` (esc. 3; FR-006; SC-002).
-- [ ] T013 [P] [US1] Unit test: un reintento con el `decommissionId` de una baja ya revertida devuelve `alreadyReactivated: true` sin transición ni periodo nuevo (FR-010, caso borde 2).
-- [ ] T014 [P] [US1] Unit test en `RoomDecommissionQueryServiceTest`: devuelve la habitación con la fecha, la categoría y el detalle de su baja vigente; el detalle es nulo si la baja no lo tiene (esc. 2; FR-009).
-- [ ] T015 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
+- [x] T011 [P] [US1] Unit test en `ReactivateRoomServiceTest`: `Inactive` → `Available` vía el puerto con `MARK_AVAILABLE`, la baja queda con `reactivated_by` y `reactivation_date_time` y el periodo del historial queda con el Administrador como actor (esc. 1; FR-005, FR-008, FR-011; SC-004).
+  - Hecho (L32): en `ReactivateRoomServiceTest` (orden: bloqueo → baja → puerto → baja revertida); el periodo con el Administrador lo comprueba `ReactivateRoomIntegrationTest`.
+- [x] T012 [P] [US1] Unit test: rechazo con `ROOM_INVALID_STATE` en `Available`, `Occupied`, `PendingCleaning`, `DisabledForRepairs` y `TechnicalBlock` (esc. 3; FR-006; SC-002).
+  - Hecho (L32): en `ReactivateRoomServiceTest`, con el texto de la tabla de errores.
+- [x] T013 [P] [US1] Unit test: un reintento con el `decommissionId` de una baja ya revertida devuelve `alreadyReactivated: true` sin transición ni periodo nuevo (FR-010, caso borde 2).
+  - Hecho (L32): en `ReactivateRoomServiceTest` y, por HTTP, en `ReactivateRoomIntegrationTest`.
+- [x] T014 [P] [US1] Unit test en `RoomDecommissionQueryServiceTest`: devuelve la habitación con la fecha, la categoría y el detalle de su baja vigente; el detalle es nulo si la baja no lo tiene (esc. 2; FR-009).
+  - Hecho (L32): en `RoomDecommissionQueryServiceTest`; por HTTP, `ReactivateRoomIntegrationTest` comprueba la baja de la semilla y que `reasonDetail` se omite sin detalle.
+- [x] T015 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
+  - Hecho (L32): en `ReactivateRoomIntegrationTest`, con dos hilos sobre `ReactivateRoomUseCase`.
 - [ ] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
   - La confirmación muestra número, piso, tipo y estado, más la fecha, el motivo y el detalle de la baja (el detalle solo si existe).
   - Cancelar no envía nada.
@@ -339,8 +353,10 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
-- [ ] T018 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
+- [x] T017 [US1] Implementar `ReactivateRoomService` (`@Transactional`): bloquear la fila de `room` con `SELECT … FOR UPDATE` (regla 13 del plan base), resolver la idempotencia por `decommissionId`, invocar el puerto con `MARK_AVAILABLE` y marcar la baja como revertida (FR-002, FR-010).
+  - Hecho (L32): `ReactivateRoomService` bloquea la fila y recién después lee la baja, así la segunda de dos reactivaciones la encuentra revertida. Orden de las respuestas: baja ya revertida → `alreadyReactivated: true`; habitación fuera de `Inactive` → 409; baja ajena o inexistente → 400 (`UnknownDecommissionException`). La baja revertida guarda la marca del periodo `Available`.
+- [x] T018 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
+  - Hecho (L32): `GetRoomDecommissionUseCase` en `RoomDecommissionQueryService` (`readOnly`; una habitación `Inactive` sin baja es un dato inconsistente) y los dos endpoints en `RoomController`.
 - [ ] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
 
 **Checkpoint**: El Administrador puede revertir bajas.
@@ -350,7 +366,9 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms/inventory?status=Available` sin retraso (esc. 7; FR-007; SC-003).
+  - Avance (L32): hecho el flujo de la reactivación en `ReactivateRoomIntegrationTest`. Los otros dos flujos los cubren las pruebas de sus planes (`CompleteCleaningIntegrationTest` y la ingesta de reservas), sin consultar el inventario.
 - [ ] T021 Medir en las pruebas de integración que la transición con su periodo tome menos de 1 segundo (SC-001).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 
 ---
 

@@ -2,13 +2,18 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
 import com.hospitua.habitaciones.application.dto.Module2RoomDto;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
+import com.hospitua.habitaciones.application.dto.ReactivationResultDto;
 import com.hospitua.habitaciones.application.dto.RoomDecommissionDto;
+import com.hospitua.habitaciones.application.dto.RoomDecommissionInfoDto;
 import com.hospitua.habitaciones.application.dto.RoomDto;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCase;
 import com.hospitua.habitaciones.application.ports.in.DecommissionRoomUseCase;
+import com.hospitua.habitaciones.application.ports.in.GetRoomDecommissionUseCase;
+import com.hospitua.habitaciones.application.ports.in.ReactivateRoomUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterRoomUseCase;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.DecommissionRoomRequest;
+import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.ReactivateRoomRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.RegisterRoomRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.RoomInventoryQuery;
 import jakarta.validation.Valid;
@@ -31,7 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
  * Controlador REST de habitaciones: registro (plan-registrar-habitacion.md) e inventario
  * (plan-consultar-inventario-habitaciones.md). Las vistas usan {@code /inventory} (incluye las Inactive); Módulo 2 usa
  * {@code /api/rooms} y {@code /api/rooms/{roomId}}, solo con habitaciones vendibles. La baja es de
- * plan-dar-de-baja-habitacion.md; la edición se agrega en su plan.
+ * plan-dar-de-baja-habitacion.md y la reactivación de plan-marcar-habitacion-como-disponible.md; la edición se agrega
+ * en su plan.
  */
 @RestController
 @RequestMapping("/api/rooms")
@@ -41,6 +47,8 @@ public class RoomController {
     private final RegisterRoomUseCase registerRoomUseCase;
     private final ConsultRoomInventoryUseCase consultRoomInventoryUseCase;
     private final DecommissionRoomUseCase decommissionRoomUseCase;
+    private final GetRoomDecommissionUseCase getRoomDecommissionUseCase;
+    private final ReactivateRoomUseCase reactivateRoomUseCase;
     private final CurrentUserResolver currentUserResolver;
 
     /** Registra una habitación en Available y abre su primer periodo en el historial (201). */
@@ -64,6 +72,22 @@ public class RoomController {
             @Valid @RequestBody DecommissionRoomRequest request) {
         String administratorId = currentUserResolver.resolve(xUser);
         return decommissionRoomUseCase.decommission(request.toCommand(roomId, administratorId));
+    }
+
+    /** Confirmación de la reactivación: la habitación Inactive y su baja vigente (FR-009). */
+    @GetMapping("/{roomId}/decommission")
+    public RoomDecommissionInfoDto currentDecommission(@PathVariable UUID roomId) {
+        return getRoomDecommissionUseCase.getCurrent(roomId);
+    }
+
+    /** Reactivar: revierte la baja indicada y deja la habitación Available; un reintento no cambia nada (FR-010). */
+    @PostMapping("/{roomId}/reactivation")
+    public ReactivationResultDto reactivate(
+            @PathVariable UUID roomId,
+            @RequestHeader(value = "X-User", required = false) String xUser,
+            @Valid @RequestBody ReactivateRoomRequest request) {
+        String administratorId = currentUserResolver.resolve(xUser);
+        return reactivateRoomUseCase.reactivate(request.toCommand(roomId, administratorId));
     }
 
     /** Inventario de las vistas del Gerente y del Administrador, con filtros, orden y paginación (incluye Inactive). */
