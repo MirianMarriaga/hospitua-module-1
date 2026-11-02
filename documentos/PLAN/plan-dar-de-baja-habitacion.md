@@ -287,7 +287,7 @@ En los dos últimos casos la habitación sigue `Available`.
 - [x] T018 Integration test: una habitación dada de baja no aparece en `GET /api/rooms/inventory?status=Available` y sí en `GET /api/rooms/inventory?status=Inactive` (SC-003).
   - Hecho (L31): en `DecommissionRoomIntegrationTest`.
 - [x] T019 Integration test con `MockRestServiceServer`: la petición a Módulo 2 lleva `dateFrom` = hoy y `dateTo` = hoy + 365 (un rango de 366 días, que Módulo 2 acepta sin `DATE_RANGE_TOO_LARGE`); una reserva dentro del rango impide la baja y una que empieza después no llega en la respuesta ni la impide (FR-002; caso borde "Reservas posteriores al horizonte").
-  - Hecho (L31): en `DecommissionRoomIntegrationTest` (`dateFrom` = hoy y `dateTo` = hoy + 365). Que una reserva posterior no llegue en la respuesta depende de Módulo 2; Módulo 1 bloquea con cualquier reserva que reciba (T007).
+  - Hecho (L31): en `DecommissionRoomIntegrationTest`, con Módulo 2 en WireMock (no `MockRestServiceServer`), igual que T011 (`dateFrom` = hoy y `dateTo` = hoy + 365). Que una reserva posterior no llegue en la respuesta depende de Módulo 2; Módulo 1 bloquea con cualquier reserva que reciba (T007).
 
 ---
 

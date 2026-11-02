@@ -30,6 +30,12 @@ public interface RoomRepositoryPort {
      */
     Room insert(Room room);
 
+    /**
+     * Guarda los atributos editados de una habitación existente y escribe de inmediato, para que el número repetido de
+     * otra habitación dé {@code RoomNumberAlreadyExistsException} y una {@code version} vieja falle aquí, no al confirmar.
+     */
+    Room update(Room room);
+
     boolean existsByRoomNumber(String roomNumber);
 
     /**

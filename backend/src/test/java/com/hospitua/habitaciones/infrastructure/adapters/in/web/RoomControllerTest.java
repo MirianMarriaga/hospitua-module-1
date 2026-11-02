@@ -21,6 +21,7 @@ import com.hospitua.habitaciones.application.dto.RoomInventoryFilter;
 import com.hospitua.habitaciones.application.dto.RoomInventorySort;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCase;
 import com.hospitua.habitaciones.application.ports.in.DecommissionRoomUseCase;
+import com.hospitua.habitaciones.application.ports.in.EditRoomUseCase;
 import com.hospitua.habitaciones.application.ports.in.GetRoomDecommissionUseCase;
 import com.hospitua.habitaciones.application.ports.in.ReactivateRoomUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterRoomUseCase;
@@ -70,6 +71,7 @@ class RoomControllerTest {
                         Mockito.mock(DecommissionRoomUseCase.class),
                         Mockito.mock(GetRoomDecommissionUseCase.class),
                         Mockito.mock(ReactivateRoomUseCase.class),
+                        Mockito.mock(EditRoomUseCase.class),
                         currentUserResolver))
                 .setControllerAdvice(new GlobalExceptionHandler(new ApiErrorFactory(clock)))
                 .build();

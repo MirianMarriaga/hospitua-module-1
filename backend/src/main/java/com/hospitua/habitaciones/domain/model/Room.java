@@ -3,6 +3,10 @@ package com.hospitua.habitaciones.domain.model;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomDataException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -14,11 +18,11 @@ import java.util.UUID;
 public class Room {
 
     private final UUID id;
-    private final String roomNumber;
-    private final int floor;
-    private final RoomCategory categoryRoom;
-    private final int maxCapacity;
-    private final BigDecimal baseRate;
+    private String roomNumber;
+    private int floor;
+    private RoomCategory categoryRoom;
+    private int maxCapacity;
+    private BigDecimal baseRate;
     private RoomStatus status;
     private String reservedByReservationRef;
     private final int version;
@@ -60,41 +64,130 @@ public class Room {
      */
     public static Room register(
             String roomNumber, Integer floor, RoomCategory categoryRoom, Integer maxCapacity, BigDecimal baseRate) {
+        return new Room(
+                UUID.randomUUID(),
+                validRoomNumber(roomNumber),
+                validFloor(floor),
+                validCategory(categoryRoom),
+                validMaxCapacity(maxCapacity),
+                validBaseRate(baseRate),
+                RoomStatus.Available,
+                null,
+                0);
+    }
+
+    /**
+     * Editar habitación (plan-editar-habitacion.md T002): aplica los valores del formulario con las mismas reglas del
+     * registro (FR-005) y devuelve solo los atributos que cambiaron (FR-006); un valor nulo deja el atributo como está.
+     * El piso y la capacidad llegan como decimal para rechazar un valor no entero, y la categoría como texto del
+     * catálogo. No cambia el estado: que la habitación esté {@code Available} lo valida el servicio antes.
+     *
+     * @throws InvalidRoomDataException si un valor no cumple su regla; en ese caso la habitación queda igual
+     */
+    public List<RoomAttributeChange> applyChanges(
+            String newRoomNumber,
+            BigDecimal newFloor,
+            String newCategoryRoom,
+            BigDecimal newMaxCapacity,
+            BigDecimal newBaseRate) {
+        String number = newRoomNumber == null ? roomNumber : validRoomNumber(newRoomNumber);
+        int floorValue = newFloor == null ? floor : validFloor(wholeNumber(newFloor, "floor", FLOOR_RULE));
+        RoomCategory category = newCategoryRoom == null ? categoryRoom : categoryFromCatalog(newCategoryRoom);
+        int capacity = newMaxCapacity == null
+                ? maxCapacity
+                : validMaxCapacity(wholeNumber(newMaxCapacity, "maxCapacity", CAPACITY_RULE));
+        BigDecimal rate =
+                newBaseRate == null ? baseRate : validBaseRate(newBaseRate).setScale(2, RoundingMode.UNNECESSARY);
+
+        List<RoomAttributeChange> changes = new ArrayList<>();
+        if (!number.equals(roomNumber)) {
+            changes.add(new RoomAttributeChange("roomNumber", roomNumber, number));
+        }
+        if (floorValue != floor) {
+            changes.add(new RoomAttributeChange("floor", floor, floorValue));
+        }
+        if (category != categoryRoom) {
+            changes.add(new RoomAttributeChange("categoryRoom", categoryRoom.name(), category.name()));
+        }
+        if (capacity != maxCapacity) {
+            changes.add(new RoomAttributeChange("maxCapacity", maxCapacity, capacity));
+        }
+        if (rate.compareTo(baseRate) != 0) {
+            changes.add(new RoomAttributeChange("baseRate", baseRate, rate));
+        }
+        roomNumber = number;
+        floor = floorValue;
+        categoryRoom = category;
+        maxCapacity = capacity;
+        baseRate = rate.compareTo(baseRate) == 0 ? baseRate : rate;
+        return List.copyOf(changes);
+    }
+
+    private static final String ROOM_NUMBER_REQUIRED = "El número de habitación es obligatorio.";
+    private static final String FLOOR_RULE = "El piso debe ser un número entero mayor a 0.";
+    private static final String CATEGORY_RULE = "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique.";
+    private static final String CAPACITY_RULE = "La capacidad máxima debe ser un número entero mayor a 0.";
+    private static final String BASE_RATE_RULE = "La tarifa base debe ser mayor a 0 y tener máximo dos decimales.";
+
+    private static String validRoomNumber(String roomNumber) {
         if (roomNumber == null || roomNumber.isBlank()) {
-            throw new InvalidRoomDataException("roomNumber", "El número de habitación es obligatorio.");
+            throw new InvalidRoomDataException("roomNumber", ROOM_NUMBER_REQUIRED);
         }
         String normalizedNumber = normalizeRoomNumber(roomNumber);
         if (normalizedNumber.length() > MAX_ROOM_NUMBER_LENGTH) {
             throw new InvalidRoomDataException(
                     "roomNumber", "El número de habitación debe tener máximo 10 caracteres.");
         }
+        return normalizedNumber;
+    }
+
+    private static int validFloor(Integer floor) {
         if (floor == null || floor <= 0) {
-            throw new InvalidRoomDataException("floor", "El piso debe ser un número entero mayor a 0.");
+            throw new InvalidRoomDataException("floor", FLOOR_RULE);
         }
+        return floor;
+    }
+
+    private static RoomCategory validCategory(RoomCategory categoryRoom) {
         if (categoryRoom == null) {
-            throw new InvalidRoomDataException(
-                    "categoryRoom", "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique.");
+            throw new InvalidRoomDataException("categoryRoom", CATEGORY_RULE);
         }
+        return categoryRoom;
+    }
+
+    private static RoomCategory categoryFromCatalog(String categoryRoom) {
+        return Arrays.stream(RoomCategory.values())
+                .filter(category -> category.name().equals(categoryRoom))
+                .findFirst()
+                .orElseThrow(() -> new InvalidRoomDataException("categoryRoom", CATEGORY_RULE));
+    }
+
+    private static int validMaxCapacity(Integer maxCapacity) {
         if (maxCapacity == null || maxCapacity <= 0) {
-            throw new InvalidRoomDataException(
-                    "maxCapacity", "La capacidad máxima debe ser un número entero mayor a 0.");
+            throw new InvalidRoomDataException("maxCapacity", CAPACITY_RULE);
         }
-        if (baseRate == null
-                || baseRate.signum() <= 0
-                || baseRate.stripTrailingZeros().scale() > 2) {
-            throw new InvalidRoomDataException(
-                    "baseRate", "La tarifa base debe ser mayor a 0 y tener máximo dos decimales.");
+        return maxCapacity;
+    }
+
+    /** Mayor a 0, con máximo dos decimales y diez dígitos enteros: lo que cabe en {@code NUMERIC(12,2)}. */
+    private static BigDecimal validBaseRate(BigDecimal baseRate) {
+        BigDecimal normalized = baseRate == null ? null : baseRate.stripTrailingZeros();
+        if (normalized == null
+                || normalized.signum() <= 0
+                || normalized.scale() > 2
+                || normalized.precision() - normalized.scale() > 10) {
+            throw new InvalidRoomDataException("baseRate", BASE_RATE_RULE);
         }
-        return new Room(
-                UUID.randomUUID(),
-                normalizedNumber,
-                floor,
-                categoryRoom,
-                maxCapacity,
-                baseRate,
-                RoomStatus.Available,
-                null,
-                0);
+        return baseRate;
+    }
+
+    /** Un decimal sin parte fraccionaria y dentro del rango de {@code int}; si no, la regla del campo. */
+    private static Integer wholeNumber(BigDecimal value, String field, String rule) {
+        try {
+            return value.intValueExact();
+        } catch (ArithmeticException ex) {
+            throw new InvalidRoomDataException(field, rule);
+        }
     }
 
     /**
