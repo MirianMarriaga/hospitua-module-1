@@ -648,6 +648,7 @@ backend/
     │   │       │       │   │   ├── SpringDataDailyReservationRoomJpaRepository.java
     │   │       │       │   │   ├── SpringDataDailyReservationMessageLogJpaRepository.java
     │   │       │       │   │   ├── SpringDataOutboxNotificationJpaRepository.java
+    │   │       │       │   │   ├── SpringDataReparationTaskJpaRepository.java # Habitación de la tarea, tarea abierta por miembro y habitaciones con tarea abierta
     │   │       │       │   │   ├── SpringDataRoomAuditLogJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomGuestJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomJpaRepository.java # Incluye el bloqueo PESSIMISTIC_WRITE de lockById (regla 13)
@@ -786,6 +787,7 @@ backend/
         │       ├── DepartureSummaryTest.java
         │       ├── MaintenanceDateRangeTest.java
         │       ├── ReservationConflictQueryTest.java
+        │       ├── ReparationTaskTest.java
         │       ├── RoomDecommissionTest.java
         │       ├── RoomTest.java
         │       ├── SourceFlowTest.java
@@ -843,6 +845,7 @@ backend/
         │   │       │   ├── MarkRoomReservedIntegrationTest.java       # plan-marcar-habitacion-reservada.md
         │   │       │   ├── OutboxTransactionalIntegrationTest.java    # Plan base
         │   │       │   ├── RegisterRoomIntegrationTest.java           # plan-registrar-habitacion.md
+        │   │       │   ├── ReparationTaskRepositoryAdapterTest.java   # plan-confirmar-reparacion-finalizada.md
         │   │       │   ├── RoomInventoryIntegrationTest.java          # plan-consultar-inventario-habitaciones.md
         │   │       │   ├── RoomRepositoryAdapterTest.java
         │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md
