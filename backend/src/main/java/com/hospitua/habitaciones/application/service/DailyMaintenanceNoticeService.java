@@ -57,7 +57,9 @@ public class DailyMaintenanceNoticeService implements PublishDailyMaintenanceNot
                 blocked.stream().map(Room::getId).toList());
         for (Room room : blocked) {
             TechnicalBlockReport report = applied.get(room.getId());
-            if (report != null && report.isOverdue(today)) {
+            if (report == null) {
+                log.warn("Habitación {} en TechnicalBlock sin informe Applied; no se envía su aviso", room.getId());
+            } else if (report.isOverdue(today)) {
                 maintenanceNoticePublisher.publishScheduled(report.getId(), room, today, today);
             }
         }

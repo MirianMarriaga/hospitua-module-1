@@ -350,6 +350,7 @@ frontend/src/
   - Hecho (L26): `GetCurrentTechnicalBlockUseCase` y `GET …/current`, probado en `TechnicalBlockSchedulingIntegrationTest` (Scheduled más temprano, luego el Applied, 404 sin informe y habitación inexistente).
 - [ ] T024 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida, de `VALIDATION_ERROR` por campo según `details.field`, de `ROOM_INVALID_STATE` según `details.currentStatus` y de conflictos, éxito con el estado resultante según `status`) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-005, FR-010, FR-015).
 - [x] T025 [US1] Implementar `DailyMaintenanceNoticeService` (`@Transactional`, sin bloquear filas, porque `MaintenanceNoticePublisher` exige una transacción abierta) y su disparo a las 00:00 en `TechnicalBlockScheduler` (`@Scheduled(cron = "0 0 0 * * *", zone = "America/Bogota")`), separado de `runDaily` para que el aviso no salga dos veces al día: con `findByStatusIn` (plan base, T008), `findAppliedByRoomIds` con `isOverdue(today)` y `DamageReportRepositoryPort.findLatestByRoomIds` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`), publicar `publishScheduled(maintenanceId, habitación, today, today)` por cada habitación `DisabledForRepairs` (id del último `DamageReport`) y por cada informe `Applied` vencido (id del informe) (FR-020).
+  - Ajuste (revisión de L26): una habitación `TechnicalBlock` sin informe `Applied` (dato inconsistente) no recibe aviso, porque no hay `maintenanceId` que enviar, y deja un `log.warn`, como la `DisabledForRepairs` sin reporte de daño. Módulo 2 no la asigna igual: la consulta de mantenimientos la responde no disponible hoy (`plan-consultar-informacion-mantenimientos.md` T011).
 
 **Checkpoint**: Los mantenimientos preventivos se programan, se aplican en su fecha y caducan si no pueden aplicarse; el panel de mantenimiento muestra su rango y su informe.
 
@@ -358,6 +359,7 @@ frontend/src/
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T026 Prueba de rendimiento (etiquetada, fuera del CI por defecto; estrategia de testing del plan base): la programación válida completa (validación, consultas y registro) toma menos de 2 segundos con Módulo 2 simulado respondiendo en su tiempo normal (SC-001).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 
 ---
 

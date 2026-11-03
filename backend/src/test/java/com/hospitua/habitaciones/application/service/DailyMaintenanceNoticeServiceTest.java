@@ -57,20 +57,22 @@ class DailyMaintenanceNoticeServiceTest {
 
     @Test
     @DisplayName("T025: avisa hoy por cada DisabledForRepairs (id del último daño) y cada Applied vencido, no por el"
-            + " vigente ni por la reparación sin reporte")
+            + " vigente ni por la reparación o el bloqueo sin su informe")
     void publishesOnlyForRepairsAndOverdueBlocks() {
         Room repair = room(RoomStatus.DisabledForRepairs);
         Room repairWithoutReport = room(RoomStatus.DisabledForRepairs);
         Room overdue = room(RoomStatus.TechnicalBlock);
         Room current = room(RoomStatus.TechnicalBlock);
+        Room blockWithoutReport = room(RoomStatus.TechnicalBlock);
         when(roomRepository.findByStatusIn(EnumSet.of(RoomStatus.DisabledForRepairs, RoomStatus.TechnicalBlock)))
-                .thenReturn(List.of(repair, overdue, repairWithoutReport, current));
+                .thenReturn(List.of(repair, overdue, repairWithoutReport, current, blockWithoutReport));
         DamageReport damage = DamageReport.report(repair.getId(), "mtorres", "Ventana fisurada.", NOW);
         when(damageReportRepository.findLatestByRoomIds(List.of(repair.getId(), repairWithoutReport.getId())))
                 .thenReturn(Map.of(repair.getId(), damage));
         TechnicalBlockReport overdueReport = applied(overdue, TODAY.minusDays(1));
         TechnicalBlockReport currentReport = applied(current, TODAY);
-        when(reportRepository.findAppliedByRoomIds(List.of(overdue.getId(), current.getId())))
+        when(reportRepository.findAppliedByRoomIds(
+                        List.of(overdue.getId(), current.getId(), blockWithoutReport.getId())))
                 .thenReturn(Map.of(overdue.getId(), overdueReport, current.getId(), currentReport));
 
         service.publishDaily(TODAY);

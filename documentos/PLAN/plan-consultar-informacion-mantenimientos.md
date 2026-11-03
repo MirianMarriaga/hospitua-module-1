@@ -224,6 +224,7 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T013 Prueba de rendimiento (etiquetada, fuera del CI por defecto; estrategia de testing del plan base) con Testcontainers: la consulta responde en menos de 200 ms con un volumen de prueba de informes (SC-001).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 - [x] T014 Integration test: un `roomId` sin formato de UUID y una fecha inexistente (`2026-02-31`) responden `400 VALIDATION_ERROR` y la respuesta exitosa no contiene la justificación ni otros campos fuera de `roomId`, `available` y `conflicts` (FR-002, FR-013).
 - [x] T015 Integration test: un mantenimiento que termina el día anterior a la llegada no es cruce y la respuesta es `available = true` (esc. 5; FR-010).
 - [x] T016 Integration test: un mantenimiento que empieza el día de la salida no es cruce para la estadía, y el mismo rango consultado desde *Programar Bloqueo Técnico* (con su último día incluido) sí lo es (esc. 7; FR-003).
