@@ -751,6 +751,7 @@ backend/
         │       ├── EditRoomServiceTest.java
         │       ├── LoginServiceTest.java
         │       ├── MaintenanceAvailabilityServiceTest.java
+        │       ├── MaintenancePanelQueryServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java
@@ -816,6 +817,7 @@ backend/
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
+        │   │   │       ├── MaintenancePanelIntegrationTest.java       # plan-consultar-panel-mantenimiento.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
