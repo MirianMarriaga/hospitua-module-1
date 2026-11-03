@@ -242,7 +242,8 @@ backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   └── model/
-│   │       └── ReparationTask.java               # Declarada en el árbol del plan base; aquí se define e implementa con ensureClosableBy y close
+│   │       ├── ReparationTask.java               # Declarada en el árbol del plan base; aquí se define e implementa con ensureClosableBy y close
+│   │       └── ReparationTaskOutcome.java        # Enum Completed / Released
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -263,6 +264,8 @@ backend/src/
 │       │   └── MaintenanceController.java
 │       └── out/persistence/
 │           ├── entity/ReparationTaskJpaEntity.java
+│           ├── mapper/ReparationTaskMapper.java
+│           ├── repository/SpringDataReparationTaskJpaRepository.java # Habitación de la tarea, tarea abierta por miembro y habitaciones con tarea abierta
 │           └── adapter/ReparationTaskRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `reparation_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
@@ -298,6 +301,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 - [x] T003 [P] Verificar en `GlobalExceptionHandler` el registro de `RoomTaskExistsException` (`ROOM_TASK_EXISTS`) y `ActiveTaskExistsException` (`ACTIVE_TASK_EXISTS`) (catálogo del plan base, T019).
   - Hecho (L27): ya están registradas y probadas en `GlobalExceptionHandlerTest` desde R8 (limpieza).
 - [x] T004 [P] Crear `MaintenanceController` (`@RestController`, `@RequestMapping("/api/maintenance")`) sin endpoints, para que `plan-consultar-panel-mantenimiento.md` le agregue el suyo aunque este plan termine después.
+  - Hecho (L27).
 
 ---
 
@@ -344,6 +348,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 - [ ] T014 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro, también si la tarea ajena ya está cerrada (el dueño se valida antes que el cierre); rechazo `TASK_ALREADY_CLOSED` sobre una tarea propia ya cerrada (HU-1 esc. 2 y 3; FR-005, FR-014).
 - [ ] T015 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial, deja el informe en `Applied` y no publica avisos de mantenimiento (HU-1 esc. 4; FR-016, FR-019).
 - [ ] T016 [P] [US1] Unit test con `Clock` fijo: al confirmar, `endDateTime` es la marca del periodo `PendingCleaning` que devuelve `MarkPendingCleaningUseCase`; al liberar, la hora de `Clock` (FR-009). Unit test de `ReparationTask`: `close` con un fin anterior al inicio lanza `IllegalStateException` (FR-010; caso límite 4).
+  - Avance (L27): la parte de `ReparationTask` está en `ReparationTaskTest` (fin anterior al inicio → `IllegalStateException`; fin igual al inicio se acepta). Falta la de los servicios (L30).
 - [ ] T017 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-018).
 - [ ] T018 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe, y no deja ningún aviso de mantenimiento en `outbox_notification` (caso límite 3; FR-019).
 - [ ] T019 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel; si `GET /api/maintenance/panel` devuelve `activeTask` nulo, redirige al panel (FR-001, FR-004, FR-008, FR-016).
@@ -365,6 +370,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 - [ ] T023 [US1] Implementar `ReleaseRepairTaskService`, un servicio compartido por el endpoint de liberar y por el puerto de desactivación (FR-014, FR-016, FR-018); ninguno cambia el estado de la habitación:
   - Endpoint (`ReleaseRepairTaskUseCase`, `@Transactional`): los pasos 1 a 4 de T022 (`findRoomIdByTaskId`, `lockById`, releer la tarea, `ensureClosableBy`) y `task.close(Released, hora de Clock)`.
   - Desactivación (`ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)`, `@Transactional(propagation = MANDATORY)`, sin actor): `findOpenByMember(memberId)` (por miembro, sin filtrar por área); si no hay tarea, no hace nada. Si la hay, `lockById(roomId)` y releer la tarea; si ya está cerrada, no hace nada (no lanza excepción); si sigue abierta, `task.close(Released, hora de Clock)`. No valida el dueño, no escribe historial, deja el informe en `Applied` y no publica avisos.
+  - Nota (revisión de L27): en la desactivación, "releer la tarea" después del bloqueo es volver a llamar a `findOpenByMember(memberId)`, como en `ReleaseCleaningTaskService` (L21). `findById` devolvería la tarea que la primera lectura dejó en el contexto de persistencia, sin ver un cierre hecho mientras se esperaba el bloqueo; `findOpenByMember` filtra en la base y no la devuelve si ya se cerró. Además, como en L21, solo se libera si la tarea releída es la misma de la primera lectura (mismo id): si mientras tanto el miembro cerró esa tarea y abrió otra en otra habitación, esa otra no tiene su fila bloqueada y no se toca.
 - [ ] T024 [US1] Agregar a `MaintenanceController` `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-008).
 - [ ] T025 [US1] Construir `ActiveRepairTaskPage.tsx`, que toma sus datos de `GET /api/maintenance/panel` (`activeTask` con la fila del panel) y redirige al panel si `activeTask` es nulo (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-004, FR-005, FR-008, FR-016).
 

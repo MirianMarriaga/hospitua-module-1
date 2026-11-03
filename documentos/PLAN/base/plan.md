@@ -845,7 +845,7 @@ backend/
         │   │       │   ├── MarkRoomReservedIntegrationTest.java       # plan-marcar-habitacion-reservada.md
         │   │       │   ├── OutboxTransactionalIntegrationTest.java    # Plan base
         │   │       │   ├── RegisterRoomIntegrationTest.java           # plan-registrar-habitacion.md
-        │   │       │   ├── ReparationTaskRepositoryAdapterTest.java   # plan-confirmar-reparacion-finalizada.md
+        │   │       │   ├── ReparationTaskRepositoryAdapterTest.java
         │   │       │   ├── RoomInventoryIntegrationTest.java          # plan-consultar-inventario-habitaciones.md
         │   │       │   ├── RoomRepositoryAdapterTest.java
         │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md
