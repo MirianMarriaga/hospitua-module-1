@@ -13,6 +13,7 @@ import com.hospitua.habitaciones.domain.model.TechnicalBlockReport;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,14 @@ public class MaintenanceAvailabilityService implements ConsultMaintenanceAvailab
 
         List<MaintenanceConflict> conflicts = new ArrayList<>();
         if (range.includes(today) && unavailableToday(room, today)) {
-            // Va primero: ningún otro cruce empieza antes de hoy dentro de los días evaluados
             conflicts.add(MaintenanceConflict.onlyOn(today));
         }
         technicalBlockReportRepository.findActiveOverlapping(roomId, range.firstDay(), range.lastDay()).stream()
                 .map(MaintenanceConflict::of)
                 .forEach(conflicts::add);
+        // Ordenados por inicio (contrato con Módulo 2): un Scheduled que se cruza puede haber empezado antes de hoy,
+        // p. ej. uno que no se aplicó porque la habitación estaba en DisabledForRepairs; el orden es estable
+        conflicts.sort(Comparator.comparing(MaintenanceConflict::maintenanceStart));
         return MaintenanceAvailabilityDto.of(roomId, conflicts);
     }
 

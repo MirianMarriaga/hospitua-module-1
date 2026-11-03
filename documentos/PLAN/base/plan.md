@@ -743,7 +743,7 @@ backend/
         │       ├── DepartureSearchServiceTest.java
         │       ├── EditRoomServiceTest.java
         │       ├── LoginServiceTest.java
-        │       ├── MaintenanceAvailabilityServiceTest.java    # plan-consultar-informacion-mantenimientos.md
+        │       ├── MaintenanceAvailabilityServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java

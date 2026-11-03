@@ -103,13 +103,27 @@ class MaintenanceAvailabilityServiceTest {
     }
 
     @Test
-    @DisplayName("FR-014: hoy en DisabledForRepairs → cruce de un día en la fecha actual, antes de los demás")
+    @DisplayName("FR-014: hoy en DisabledForRepairs → cruce de un día en la fecha actual, junto a los demás por inicio")
     void disabledForRepairs_today() {
         givenRoom(RoomStatus.DisabledForRepairs);
         when(reportRepository.findActiveOverlapping(ROOM_ID, TODAY, day(4))).thenReturn(List.of(report(3, 5)));
 
         assertThat(service.consult(ROOM_ID, TODAY, day(4)).conflicts())
                 .containsExactly(new ConflictDto(TODAY, TODAY), new ConflictDto(day(3), day(5)));
+    }
+
+    @Test
+    @DisplayName("Orden por inicio: un Scheduled que empezó ayer va antes del cruce de hoy de FR-014")
+    void conflicts_sortedByStart_evenBeforeToday() {
+        givenRoom(RoomStatus.DisabledForRepairs);
+        when(reportRepository.findActiveOverlapping(ROOM_ID, TODAY, day(4)))
+                .thenReturn(List.of(report(-1, 1), report(3, 5)));
+
+        assertThat(service.consult(ROOM_ID, TODAY, day(4)).conflicts())
+                .containsExactly(
+                        new ConflictDto(day(-1), day(1)),
+                        new ConflictDto(TODAY, TODAY),
+                        new ConflictDto(day(3), day(5)));
     }
 
     @Test

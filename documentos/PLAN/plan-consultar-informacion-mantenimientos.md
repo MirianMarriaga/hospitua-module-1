@@ -74,7 +74,7 @@ Accept: application/json
 | --- | --- | --- | --- |
 | `roomId` | UUID | Habitación consultada | `"1a2b…"` |
 | `available` | boolean | `true` si ningún mantenimiento se cruza con los días evaluados; `false` si al menos uno se cruza. Solo se refiere a mantenimientos (FR-002) | `false` |
-| `conflicts` | array | Cruces ordenados por inicio; vacío si `available` es `true` (FR-002, FR-010, FR-014) | |
+| `conflicts` | array | Cruces ordenados por inicio, incluido el del día actual de FR-014 (un mantenimiento que se cruza puede haber empezado antes de hoy); vacío si `available` es `true` (FR-002, FR-010, FR-014) | |
 | `conflicts[].maintenanceStart` | string | Inicio del mantenimiento, o la fecha actual en el caso de FR-014 | `"2026-10-24"` |
 | `conflicts[].maintenanceEnd` | string | Fin estimado del mantenimiento, o la fecha actual en el caso de FR-014 | `"2026-10-28"` |
 
@@ -104,7 +104,7 @@ Accept: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`, `ConstraintViolationException` o `MethodArgumentTypeMismatchException` | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha o no existen en el calendario (ej. 2026-02-31) (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`: `MaintenanceAvailabilityQuery` recibe `roomId`, `startDate` y `endDate` como texto y los valida, así que el mensaje es el mismo en todos los casos y `details.field` indica el dato | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha o no existen en el calendario (ej. 2026-02-31) (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
 | 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Salida anterior a la llegada o rango que termina antes de hoy (FR-005 a FR-007, esc. 4, caso límite 3); `details.rule` indica la regla | Mensaje de la regla (tabla siguiente) |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a una habitación registrada (FR-012, caso límite 6) | "No se encontró la habitación." |
 
@@ -213,6 +213,7 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 
 - [x] T011 [US1] Implementar `MaintenanceAvailabilityService` (`@Transactional(readOnly = true)`): validar los días con `MaintenanceDateRange.forAvailability(today, firstDay, lastDay)` (`today` de `Clock`), verificar que la habitación exista, consultar los cruces y, si la habitación está hoy en `DisabledForRepairs` o en `TechnicalBlock` con el informe `Applied` vencido (`TechnicalBlockReport.isOverdue(today)`, `plan-programar-bloqueo-tecnico-para-habitacion.md` T003) y los días incluyen hoy, agregar el cruce de la fecha actual; devolver `available` y `conflicts` sin la justificación (FR-002 a FR-014).
   - Hecho (L23): un `Applied` vencido no aparece en `findActiveOverlapping` porque terminó antes de hoy y los días evaluados empiezan hoy o después. Una habitación en `TechnicalBlock` sin informe `Applied` (datos inconsistentes) también responde el cruce de hoy, para que Módulo 2 no la asigne, y deja un `log.warn` para corregir el dato.
+  - Ajuste (revisión de L23): los cruces se ordenan por inicio al final, porque un `Scheduled` que se cruza puede haber empezado antes de hoy (no se aplicó porque la habitación no estaba `Available`) y debe ir antes del cruce de hoy.
 - [x] T012 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenances`: validar el formato UUID de `roomId`, convertir llegada y salida en `firstDay = startDate` y `lastDay = endDate − 1` (o `startDate` si son el mismo día) y mapear los errores de la tabla (FR-001, FR-003, FR-009, FR-013).
   - Hecho (L23): `MaintenanceAvailabilityQuery` recibe `roomId` (de la ruta), `startDate` y `endDate` como texto y responde un solo mensaje por campo. La respuesta usa `MaintenanceAvailabilityDto.ConflictDto`, no el `MaintenanceConflict` del dominio, para que el contrato con Módulo 2 no cambie si cambia el dominio.
 
