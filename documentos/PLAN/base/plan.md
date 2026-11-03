@@ -600,6 +600,7 @@ backend/
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
     │   │       │   │   │   │   ├── EditRoomRequest.java          # PATCH /api/rooms/{roomId}
     │   │       │   │   │   │   ├── RoomBaseRateQuery.java        # date de GET /api/rooms/{roomId}/base-rate (Módulo 3)
+    │   │       │   │   │   │   ├── MaintenanceAvailabilityQuery.java # roomId, startDate y endDate de GET /api/rooms/{roomId}/maintenances (Módulo 2)
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
@@ -742,6 +743,7 @@ backend/
         │       ├── DepartureSearchServiceTest.java
         │       ├── EditRoomServiceTest.java
         │       ├── LoginServiceTest.java
+        │       ├── MaintenanceAvailabilityServiceTest.java    # plan-consultar-informacion-mantenimientos.md
         │       ├── MaintenanceNoticePublisherTest.java
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java
@@ -774,6 +776,7 @@ backend/
         │       ├── DailyReservationTest.java
         │       ├── DamageReportTest.java
         │       ├── DepartureSummaryTest.java
+        │       ├── MaintenanceDateRangeTest.java
         │       ├── ReservationConflictQueryTest.java
         │       ├── RoomDecommissionTest.java
         │       ├── RoomTest.java
@@ -799,6 +802,7 @@ backend/
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
+        │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
