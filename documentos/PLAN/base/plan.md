@@ -366,6 +366,7 @@ backend/
     │   │   │       ├── RoomTaskExistsException.java          # La habitación ya tiene una tarea abierta de otro miembro (409 ROOM_TASK_EXISTS)
     │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción del daño, también desde el fin de limpieza con daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │       ├── InvalidTechnicalBlockReasonException.java # 400 VALIDATION_ERROR de la justificación del bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR del detalle del motivo de la baja (plan-dar-de-baja-habitacion.md)
     │   │   │       ├── UnknownDecommissionException.java     # 400 VALIDATION_ERROR: la baja de la reactivación no es de esa habitación (plan-marcar-habitacion-como-disponible.md)
     │   │   │       ├── ConcurrentRoomUpdateException.java    # 409 CONCURRENT_UPDATE de la edición: la version del formulario ya no es la actual (plan-editar-habitacion.md)
@@ -425,6 +426,7 @@ backend/
     │   │   │   │   │   ├── ScheduleTechnicalBlockUseCase.java # Programar bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── ApplyScheduledTechnicalBlocksUseCase.java # runDaily(LocalDate today) y applyForRoom(UUID roomId, LocalDate today) (Regla 10; plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── GetCurrentTechnicalBlockUseCase.java # "Ver informe" del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │   │   │   ├── PublishDailyMaintenanceNoticesUseCase.java # publishDaily(LocalDate today): aviso diario de las 00:00 (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── ConsultMaintenanceAvailabilityUseCase.java # Cruces con mantenimientos (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   │   ├── ConsultRoomInventoryUseCase.java  # Inventario de habitaciones (plan-consultar-inventario-habitaciones.md)
     │   │   │   │   │   ├── ConsultRoomStateHistoryUseCase.java # Historial de estados (plan-consultar-historial-de-estados.md)
@@ -492,6 +494,7 @@ backend/
     │   │   │   │   ├── ScheduleTechnicalBlockService.java
     │   │   │   │   ├── TechnicalBlockRegistration.java       # Bean @Transactional de Programar: bloquea, revalida y registra (Regla 13)
     │   │   │   │   ├── ApplyScheduledTechnicalBlocksService.java # runDaily sin transacción; applyForRoom REQUIRED con lockById (Regla 10)
+    │   │   │   │   ├── ScheduledTechnicalBlockApplier.java   # Bean @Transactional de applyForRoom: cada habitación de runDaily en su transacción
     │   │   │   │   ├── DailyMaintenanceNoticeService.java    # Aviso diario SCHEDULED de las 00:00 ("Convenciones de Mensajería")
     │   │   │   │   ├── TechnicalBlockQueryService.java
     │   │   │   │   ├── MaintenanceAvailabilityService.java
@@ -599,7 +602,9 @@ backend/
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
     │   │       │   │   │   │   ├── EditRoomRequest.java          # PATCH /api/rooms/{roomId}
+    │   │       │   │   │   │   ├── ScheduleTechnicalBlockRequest.java # POST /api/rooms/{roomId}/technical-blocks
     │   │       │   │   │   │   ├── RoomBaseRateQuery.java        # date de GET /api/rooms/{roomId}/base-rate (Módulo 3)
+    │   │       │   │   │   │   ├── MaintenanceAvailabilityQuery.java # roomId, startDate y endDate de GET /api/rooms/{roomId}/maintenances (Módulo 2)
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
     │   │       │   │   │   ├── ApiError.java                 # Cuerpo estándar de error (errorCode, message, timestamp, path, details) (T009)
     │   │       │   │   │   ├── ApiErrorFactory.java          # Arma el ApiError con Clock y la ruta (T009)
@@ -649,6 +654,7 @@ backend/
     │   │       │       │   │   ├── SpringDataRoomDecommissionJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomStateHistoryJpaRepository.java
     │   │       │       │   │   ├── SpringDataStayJpaRepository.java # Incluye las consultas de Salidas y los KPI
+    │   │       │       │   │   ├── SpringDataTechnicalBlockReportJpaRepository.java # Cruces, Applied/primer Scheduled por habitación y caducidad
     │   │       │       │   │   ├── RoomInventorySpecifications.java # Filtros dinámicos del inventario (JPA Specifications); solo la usa RoomRepositoryAdapter
     │   │       │       │   │   ├── RoomStateHistoryQueryRepository.java # Consulta del historial con join a room y a user_account; solo la usa RoomStateHistoryRepositoryAdapter
     │   │       │       │   │   └── SpringDataUserAccountJpaRepository.java # Spring Data sobre UserAccountJpaEntity (T022)
@@ -729,11 +735,13 @@ backend/
         │   │   └── PagedResultDtoTest.java
         │   └── service/
         │       ├── ActiveStayQueryServiceTest.java
+        │       ├── ApplyScheduledTechnicalBlocksServiceTest.java
         │       ├── CheckInExecutionServiceTest.java
         │       ├── CheckInValidationServiceTest.java
         │       ├── CheckOutExecutionServiceTest.java
         │       ├── CleaningPanelQueryServiceTest.java
         │       ├── CompleteCleaningServiceTest.java
+        │       ├── DailyMaintenanceNoticeServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DamageReportQueryServiceTest.java
@@ -741,6 +749,7 @@ backend/
         │       ├── DepartureSearchServiceTest.java
         │       ├── EditRoomServiceTest.java
         │       ├── LoginServiceTest.java
+        │       ├── MaintenanceAvailabilityServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java
@@ -757,8 +766,10 @@ backend/
         │       ├── RoomReservationConflictServiceTest.java
         │       ├── RoomStateHistoryQueryServiceTest.java
         │       ├── RoomStateTransitionServiceTest.java
+        │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
-        │       └── StartCleaningServiceTest.java
+        │       ├── StartCleaningServiceTest.java
+        │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
         │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
         ├── domain/
@@ -773,17 +784,22 @@ backend/
         │       ├── DailyReservationTest.java
         │       ├── DamageReportTest.java
         │       ├── DepartureSummaryTest.java
+        │       ├── MaintenanceDateRangeTest.java
         │       ├── ReservationConflictQueryTest.java
         │       ├── RoomDecommissionTest.java
         │       ├── RoomTest.java
         │       ├── SourceFlowTest.java
         │       ├── StaffAccountTest.java
-        │       └── StayTest.java
+        │       ├── StayTest.java
+        │       └── TechnicalBlockReportTest.java
         ├── infrastructure/
         │   ├── adapters/
         │   │   ├── in/
         │   │   │   ├── amqp/
         │   │   │   │   └── DailyReservationRabbitListenerIntegrationTest.java # plan-consultar-reservas.md
+        │   │   │   ├── scheduling/
+        │   │   │   │   ├── TechnicalBlockSchedulerIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
+        │   │   │   │   └── TechnicalBlockSchedulerTest.java
         │   │   │   └── web/
         │   │   │       ├── AuthControllerTest.java
         │   │   │       ├── CheckInRegistrationIntegrationTest.java    # plan-registrar-check-in.md
@@ -797,6 +813,7 @@ backend/
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
+        │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
@@ -806,7 +823,8 @@ backend/
         │   │   │       ├── RoomControllerTest.java
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
-        │   │   │       └── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       ├── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       └── TechnicalBlockSchedulingIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
         │   │   └── out/
         │   │       ├── messaging/
         │   │       │   ├── serializer/
@@ -830,7 +848,8 @@ backend/
         │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md
         │   │       │   ├── RoomStateTransitionIntegrationTest.java    # Plan base (T010, T016)
         │   │       │   ├── StaffAccountIntegrationTest.java           # Plan base
-        │   │       │   └── StayAndGuestRepositoryAdapterTest.java     # Plan base
+        │   │       │   ├── StayAndGuestRepositoryAdapterTest.java     # Plan base
+        │   │       │   └── TechnicalBlockReportRepositoryAdapterTest.java
         │   │       └── rest/
         │   │           ├── Module2ReservationConflictRestAdapterTest.java
         │   │           ├── Module3OutagePredicateTest.java

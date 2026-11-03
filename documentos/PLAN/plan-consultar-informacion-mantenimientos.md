@@ -74,7 +74,7 @@ Accept: application/json
 | --- | --- | --- | --- |
 | `roomId` | UUID | Habitación consultada | `"1a2b…"` |
 | `available` | boolean | `true` si ningún mantenimiento se cruza con los días evaluados; `false` si al menos uno se cruza. Solo se refiere a mantenimientos (FR-002) | `false` |
-| `conflicts` | array | Cruces ordenados por inicio; vacío si `available` es `true` (FR-002, FR-010, FR-014) | |
+| `conflicts` | array | Cruces ordenados por inicio, incluido el del día actual de FR-014 (un mantenimiento que se cruza puede haber empezado antes de hoy); vacío si `available` es `true` (FR-002, FR-010, FR-014) | |
 | `conflicts[].maintenanceStart` | string | Inicio del mantenimiento, o la fecha actual en el caso de FR-014 | `"2026-10-24"` |
 | `conflicts[].maintenanceEnd` | string | Fin estimado del mantenimiento, o la fecha actual en el caso de FR-014 | `"2026-10-28"` |
 
@@ -104,7 +104,7 @@ Accept: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`, `ConstraintViolationException` o `MethodArgumentTypeMismatchException` | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha o no existen en el calendario (ej. 2026-02-31) (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException`: `MaintenanceAvailabilityQuery` recibe `roomId`, `startDate` y `endDate` como texto y los valida, así que el mensaje es el mismo en todos los casos y `details.field` indica el dato | `roomId` sin formato de UUID, o falta `startDate` o `endDate`, o no tienen formato de fecha o no existen en el calendario (ej. 2026-02-31) (FR-005, FR-013) | "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." |
 | 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | Salida anterior a la llegada o rango que termina antes de hoy (FR-005 a FR-007, esc. 4, caso límite 3); `details.rule` indica la regla | Mensaje de la regla (tabla siguiente) |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | El `roomId` no corresponde a una habitación registrada (FR-012, caso límite 6) | "No se encontró la habitación." |
 
@@ -170,7 +170,7 @@ backend/src/main/java/com/hospitua/habitaciones/
     └── MaintenanceAvailabilityController.java     # Convierte llegada y salida en días evaluados
 ```
 
-**Structure Decision**: El puerto trabaja siempre con días inclusivos (`firstDay`, `lastDay`). El controlador REST convierte la estadía de Módulo 2 en `firstDay = startDate` y `lastDay = max(startDate, endDate − 1)`; *Programar Bloqueo Técnico para Habitación* llama al puerto con su inicio y su fin estimado. El puerto es `MaintenanceAvailabilityDto consult(UUID roomId, LocalDate firstDay, LocalDate lastDay)`. La validación de fechas es lógica pura del objeto de valor `MaintenanceDateRange`, con dos fábricas que reciben `LocalDate today` (no `Clock`): `forAvailability(today, firstDay, lastDay)` (esta consulta: rechaza rangos que terminan antes de hoy, recorta el inicio a hoy y no aplica límites) y `forScheduling(today, limits, startDate, endDate)` (bloqueo técnico: rechaza inicios anteriores a hoy y aplica los límites de `MaintenanceLimits`, record de `domain/model` que expone `MaintenanceProperties`, así que el dominio no depende de la aplicación ni de la infraestructura). No tiene frontend propio.
+**Structure Decision**: El puerto trabaja siempre con días inclusivos (`firstDay`, `lastDay`). El controlador REST convierte la estadía de Módulo 2 en `firstDay = startDate` y `lastDay = endDate − 1` (o `startDate` si la salida es el mismo día de la llegada); con una salida anterior a la llegada, `lastDay` queda antes de `firstDay` y la consulta responde `END_BEFORE_START`, que `max(startDate, endDate − 1)` ocultaría; *Programar Bloqueo Técnico para Habitación* llama al puerto con su inicio y su fin estimado. El puerto es `MaintenanceAvailabilityDto consult(UUID roomId, LocalDate firstDay, LocalDate lastDay)`. La validación de fechas es lógica pura del objeto de valor `MaintenanceDateRange`, con dos fábricas que reciben `LocalDate today` (no `Clock`): `forAvailability(today, firstDay, lastDay)` (esta consulta: rechaza rangos que terminan antes de hoy, recorta el inicio a hoy y no aplica límites) y `forScheduling(today, limits, startDate, endDate)` (bloqueo técnico: rechaza inicios anteriores a hoy y aplica los límites de `MaintenanceLimits`, record de `domain/model` que expone `MaintenanceProperties`, así que el dominio no depende de la aplicación ni de la infraestructura). No tiene frontend propio.
 
 ---
 
@@ -184,9 +184,12 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 
 **Requisito previo**: la Phase 2 de `plan-programar-bloqueo-tecnico-para-habitacion.md` (T003: `TechnicalBlockReport` con `isOverdue(today)` y `TechnicalBlockReportRepositoryPort`), que usan T003 y T011 de este plan.
 
-- [ ] T001 Implementar `MaintenanceDateRange`, `MaintenanceConflict` e `InvalidDateRangeException` (con `rule`: `END_BEFORE_START`, `RANGE_IN_PAST`, `START_IN_PAST`, `RANGE_TOO_LONG`, `START_TOO_FAR`, `FROM_AFTER_TO`); las fábricas reciben `LocalDate today` (FR-005 a FR-008). `FROM_AFTER_TO` la usa *Consultar historial de estados*.
-- [ ] T002 Implementar las dos fábricas de `MaintenanceDateRange`: `forAvailability(today, firstDay, lastDay)` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `forScheduling(today, limits, startDate, endDate)` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceLimits`; plan base T019) (FR-007, FR-008).
-- [ ] T003 [P] Verificar que `TechnicalBlockReportRepositoryPort` tenga `findActiveOverlapping(UUID roomId, LocalDate from, LocalDate to)` (informes `Scheduled` o `Applied` de la habitación que se cruzan con los días, ordenados por inicio) y `findAppliedByRoomIds(Collection<UUID>)`, que se llama con un solo id para el informe `Applied` vigente (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) (FR-010, FR-014).
+- [x] T001 Implementar `MaintenanceDateRange`, `MaintenanceConflict` e `InvalidDateRangeException` (con `rule`: `END_BEFORE_START`, `RANGE_IN_PAST`, `START_IN_PAST`, `RANGE_TOO_LONG`, `START_TOO_FAR`, `FROM_AFTER_TO`); las fábricas reciben `LocalDate today` (FR-005 a FR-008). `FROM_AFTER_TO` la usa *Consultar historial de estados*.
+  - Hecho (L23): `MaintenanceDateRange` (record con `includes`), `MaintenanceConflict` (con `of(informe)` y `onlyOn(día)`) y las fábricas de `InvalidDateRangeException` para las seis reglas, con `rule()`.
+- [x] T002 Implementar las dos fábricas de `MaintenanceDateRange`: `forAvailability(today, firstDay, lastDay)` para esta consulta (sin límites, recorte a hoy y rechazo de rangos pasados) y `forScheduling(today, limits, startDate, endDate)` para *Programar Bloqueo Técnico para Habitación* (rechazo de inicios pasados y límites de `MaintenanceLimits`; plan base T019) (FR-007, FR-008).
+  - Hecho (L23): la duración es `fin − inicio` y la antelación `inicio − hoy`, en días (FR-014 de `spec-programar-bloqueo-tecnico-para-habitacion.md`); `forScheduling` revisa en orden `END_BEFORE_START`, `START_IN_PAST`, `RANGE_TOO_LONG` y `START_TOO_FAR`.
+- [x] T003 [P] Verificar que `TechnicalBlockReportRepositoryPort` tenga `findActiveOverlapping(UUID roomId, LocalDate from, LocalDate to)` (informes `Scheduled` o `Applied` de la habitación que se cruzan con los días, ordenados por inicio) y `findAppliedByRoomIds(Collection<UUID>)`, que se llama con un solo id para el informe `Applied` vigente (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003) (FR-010, FR-014).
+  - Hecho (L23): los dos métodos existen desde L22.
 
 ---
 
@@ -198,18 +201,21 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Unit test en `MaintenanceAvailabilityServiceTest`: sin mantenimientos que se crucen responde `available = true` y `conflicts` vacío (esc. 1 y 2; FR-002, FR-003).
-- [ ] T005 [P] [US1] Unit test: un informe `Scheduled` del 24 al 28 de octubre hace no disponible la estadía del 22 al 26 y lo devuelve en `conflicts`; con dos cruces se devuelven ambos ordenados por inicio (esc. 3; FR-002, FR-010).
-- [ ] T006 [P] [US1] Unit test con `Clock` fijo: un informe `Applied` vencido no bloquea fechas futuras; los informes `Completed` y `Expired` no generan cruce; el estado `DisabledForRepairs` no bloquea fechas futuras, pero un informe `Scheduled` de esa habitación sí (esc. 6; FR-010; casos límite 4, 5 y 7).
-- [ ] T007 [P] [US1] Unit test en `MaintenanceDateRangeTest` con `today` fijo, fábrica `forAvailability`: fin anterior al inicio y rango que termina antes de hoy se rechazan con su regla; un rango que empieza antes de hoy se evalúa desde hoy; inicio igual al fin es válido; rangos de más de 90 días o que inician a más de 365 días son válidos (esc. 4; FR-005 a FR-008; casos límite 2 y 3).
-- [ ] T008 [P] [US1] Unit test: las validaciones fallidas no consultan el repositorio (FR-009, SC-002).
-- [ ] T009 [P] [US1] Unit test: `roomId` inexistente lanza `ROOM_NOT_FOUND` sin evaluar mantenimientos (FR-012; caso límite 6).
-- [ ] T010 [US1] Integration test: el endpoint no modifica datos ni escribe en `room_state_history` (FR-004, FR-011).
+- [x] T004 [P] [US1] Unit test en `MaintenanceAvailabilityServiceTest`: sin mantenimientos que se crucen responde `available = true` y `conflicts` vacío (esc. 1 y 2; FR-002, FR-003).
+- [x] T005 [P] [US1] Unit test: un informe `Scheduled` del 24 al 28 de octubre hace no disponible la estadía del 22 al 26 y lo devuelve en `conflicts`; con dos cruces se devuelven ambos ordenados por inicio (esc. 3; FR-002, FR-010).
+- [x] T006 [P] [US1] Unit test con `Clock` fijo: un informe `Applied` vencido no bloquea fechas futuras; los informes `Completed` y `Expired` no generan cruce; el estado `DisabledForRepairs` no bloquea fechas futuras, pero un informe `Scheduled` de esa habitación sí (esc. 6; FR-010; casos límite 4, 5 y 7).
+- [x] T007 [P] [US1] Unit test en `MaintenanceDateRangeTest` con `today` fijo, fábrica `forAvailability`: fin anterior al inicio y rango que termina antes de hoy se rechazan con su regla; un rango que empieza antes de hoy se evalúa desde hoy; inicio igual al fin es válido; rangos de más de 90 días o que inician a más de 365 días son válidos (esc. 4; FR-005 a FR-008; casos límite 2 y 3).
+- [x] T008 [P] [US1] Unit test: las validaciones fallidas no consultan el repositorio (FR-009, SC-002).
+- [x] T009 [P] [US1] Unit test: `roomId` inexistente lanza `ROOM_NOT_FOUND` sin evaluar mantenimientos (FR-012; caso límite 6).
+- [x] T010 [US1] Integration test: el endpoint no modifica datos ni escribe en `room_state_history` (FR-004, FR-011).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implementar `MaintenanceAvailabilityService` (`@Transactional(readOnly = true)`): validar los días con `MaintenanceDateRange.forAvailability(today, firstDay, lastDay)` (`today` de `Clock`), verificar que la habitación exista, consultar los cruces y, si la habitación está hoy en `DisabledForRepairs` o en `TechnicalBlock` con el informe `Applied` vencido (`TechnicalBlockReport.isOverdue(today)`, `plan-programar-bloqueo-tecnico-para-habitacion.md` T003) y los días incluyen hoy, agregar el cruce de la fecha actual; devolver `available` y `conflicts` sin la justificación (FR-002 a FR-014).
-- [ ] T012 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenances`: validar el formato UUID de `roomId`, convertir llegada y salida en `firstDay = startDate` y `lastDay = max(startDate, endDate − 1)` y mapear los errores de la tabla (FR-001, FR-003, FR-009, FR-013).
+- [x] T011 [US1] Implementar `MaintenanceAvailabilityService` (`@Transactional(readOnly = true)`): validar los días con `MaintenanceDateRange.forAvailability(today, firstDay, lastDay)` (`today` de `Clock`), verificar que la habitación exista, consultar los cruces y, si la habitación está hoy en `DisabledForRepairs` o en `TechnicalBlock` con el informe `Applied` vencido (`TechnicalBlockReport.isOverdue(today)`, `plan-programar-bloqueo-tecnico-para-habitacion.md` T003) y los días incluyen hoy, agregar el cruce de la fecha actual; devolver `available` y `conflicts` sin la justificación (FR-002 a FR-014).
+  - Hecho (L23): un `Applied` vencido no aparece en `findActiveOverlapping` porque terminó antes de hoy y los días evaluados empiezan hoy o después. Una habitación en `TechnicalBlock` sin informe `Applied` (datos inconsistentes) también responde el cruce de hoy, para que Módulo 2 no la asigne, y deja un `log.warn` para corregir el dato.
+  - Ajuste (revisión de L23): los cruces se ordenan por inicio al final, porque un `Scheduled` que se cruza puede haber empezado antes de hoy (no se aplicó porque la habitación no estaba `Available`) y debe ir antes del cruce de hoy.
+- [x] T012 [US1] Implementar `MaintenanceAvailabilityController` con `GET /api/rooms/{roomId}/maintenances`: validar el formato UUID de `roomId`, convertir llegada y salida en `firstDay = startDate` y `lastDay = endDate − 1` (o `startDate` si son el mismo día) y mapear los errores de la tabla (FR-001, FR-003, FR-009, FR-013).
+  - Hecho (L23): `MaintenanceAvailabilityQuery` recibe `roomId` (de la ruta), `startDate` y `endDate` como texto y responde un solo mensaje por campo. La respuesta usa `MaintenanceAvailabilityDto.ConflictDto`, no el `MaintenanceConflict` del dominio, para que el contrato con Módulo 2 no cambie si cambia el dominio.
 
 **Checkpoint**: Módulo 2 y *Programar Bloqueo Técnico para Habitación* pueden verificar la disponibilidad frente a mantenimientos y conocer las fechas de cada cruce.
 
@@ -218,11 +224,13 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T013 Prueba de rendimiento (etiquetada, fuera del CI por defecto; estrategia de testing del plan base) con Testcontainers: la consulta responde en menos de 200 ms con un volumen de prueba de informes (SC-001).
-- [ ] T014 Integration test: un `roomId` sin formato de UUID y una fecha inexistente (`2026-02-31`) responden `400 VALIDATION_ERROR` y la respuesta exitosa no contiene la justificación ni otros campos fuera de `roomId`, `available` y `conflicts` (FR-002, FR-013).
-- [ ] T015 Integration test: un mantenimiento que termina el día anterior a la llegada no es cruce y la respuesta es `available = true` (esc. 5; FR-010).
-- [ ] T016 Integration test: un mantenimiento que empieza el día de la salida no es cruce para la estadía, y el mismo rango consultado desde *Programar Bloqueo Técnico* (con su último día incluido) sí lo es (esc. 7; FR-003).
-- [ ] T017 Integration test con `Clock` fijo: una habitación en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, con llegada hoy, responde `available = false` con un cruce de inicio y fin en la fecha actual; con llegada mañana responde `available = true` (esc. 8; FR-014).
-- [ ] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-007 de `spec-programar-bloqueo-tecnico-para-habitacion.md`).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
+- [x] T014 Integration test: un `roomId` sin formato de UUID y una fecha inexistente (`2026-02-31`) responden `400 VALIDATION_ERROR` y la respuesta exitosa no contiene la justificación ni otros campos fuera de `roomId`, `available` y `conflicts` (FR-002, FR-013).
+- [x] T015 Integration test: un mantenimiento que termina el día anterior a la llegada no es cruce y la respuesta es `available = true` (esc. 5; FR-010).
+- [x] T016 Integration test: un mantenimiento que empieza el día de la salida no es cruce para la estadía, y el mismo rango consultado desde *Programar Bloqueo Técnico* (con su último día incluido) sí lo es (esc. 7; FR-003).
+- [x] T017 Integration test con `Clock` fijo: una habitación en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, con llegada hoy, responde `available = false` con un cruce de inicio y fin en la fecha actual; con llegada mañana responde `available = true` (esc. 8; FR-014).
+- [x] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-007 de `spec-programar-bloqueo-tecnico-para-habitacion.md`).
+  - Hecho (L25): en `TechnicalBlockSchedulingIntegrationTest` (`futureStart_scheduled`).
 
 ---
 

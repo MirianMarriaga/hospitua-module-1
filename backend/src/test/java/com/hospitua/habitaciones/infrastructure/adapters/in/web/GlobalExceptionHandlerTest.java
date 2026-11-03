@@ -10,8 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hospitua.habitaciones.domain.exception.ExternalModule2UnavailableException;
 import com.hospitua.habitaciones.domain.exception.InvalidRoomTransitionException;
+import com.hospitua.habitaciones.domain.exception.MaintenanceConflictException;
 import com.hospitua.habitaciones.domain.exception.ReservationConflictException;
 import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
+import com.hospitua.habitaciones.domain.exception.TechnicalBlockNotFoundException;
+import com.hospitua.habitaciones.domain.model.MaintenanceConflict;
 import com.hospitua.habitaciones.domain.model.ReservationConflictResult.ConflictingReservation;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import jakarta.validation.ConstraintViolation;
@@ -254,6 +257,32 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("MaintenanceConflictException traduce a MAINTENANCE_CONFLICT (409) con details.conflicts")
+    void shouldHandleMaintenanceConflictException() throws Exception {
+        mockMvc.perform(get("/test/maintenance-conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode", is("MAINTENANCE_CONFLICT")))
+                .andExpect(jsonPath(
+                        "$.message",
+                        is("Ya hay un mantenimiento programado o en curso del 24-10-2026 al 28-10-2026."
+                                + " Elige otras fechas.")))
+                .andExpect(jsonPath("$.details.conflicts[0].maintenanceStart", is("2026-10-24")))
+                .andExpect(jsonPath("$.details.conflicts[0].maintenanceEnd", is("2026-10-28")))
+                .andExpect(jsonPath("$.details.conflicts[1].maintenanceStart", is("2026-11-02")));
+    }
+
+    @Test
+    @DisplayName("TechnicalBlockNotFoundException traduce a TECHNICAL_BLOCK_NOT_FOUND (404)")
+    void shouldHandleTechnicalBlockNotFoundException() throws Exception {
+        mockMvc.perform(get("/test/technical-block-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode", is("TECHNICAL_BLOCK_NOT_FOUND")))
+                .andExpect(
+                        jsonPath("$.message", is("Esta habitación no tiene un mantenimiento programado ni en curso.")))
+                .andExpect(jsonPath("$.path", is("/test/technical-block-not-found")));
+    }
+
+    @Test
     @DisplayName("ExternalModule2UnavailableException traduce a MODULE_2_UNAVAILABLE (424, regla \"siempre 4xx\")")
     void shouldHandleExternalModule2UnavailableException() throws Exception {
         mockMvc.perform(get("/test/module2-unavailable"))
@@ -369,6 +398,18 @@ class GlobalExceptionHandlerTest {
                     "La habitación tiene reservas vigentes.",
                     List.of(new ConflictingReservation(
                             "RES-10502", "ACTIVE", LocalDate.of(2026, 10, 24), LocalDate.of(2026, 10, 27))));
+        }
+
+        @GetMapping("/test/maintenance-conflict")
+        void testMaintenanceConflict() {
+            throw new MaintenanceConflictException(List.of(
+                    new MaintenanceConflict(LocalDate.of(2026, 10, 24), LocalDate.of(2026, 10, 28)),
+                    new MaintenanceConflict(LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 3))));
+        }
+
+        @GetMapping("/test/technical-block-not-found")
+        void testTechnicalBlockNotFound() {
+            throw new TechnicalBlockNotFoundException();
         }
 
         @GetMapping("/test/module2-unavailable")

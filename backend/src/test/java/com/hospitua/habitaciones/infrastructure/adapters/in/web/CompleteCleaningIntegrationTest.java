@@ -16,6 +16,7 @@ import com.hospitua.habitaciones.application.ports.out.CleaningTaskRepositoryPor
 import com.hospitua.habitaciones.application.ports.out.DailyReservationRepositoryPort;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
 import com.hospitua.habitaciones.application.ports.out.StaffAccountRepositoryPort;
+import com.hospitua.habitaciones.application.ports.out.TechnicalBlockReportRepositoryPort;
 import com.hospitua.habitaciones.domain.exception.InvalidDamageDescriptionException;
 import com.hospitua.habitaciones.domain.exception.TaskAlreadyClosedException;
 import com.hospitua.habitaciones.domain.model.CleaningTask;
@@ -27,6 +28,8 @@ import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import com.hospitua.habitaciones.domain.model.StaffAccount;
 import com.hospitua.habitaciones.domain.model.StaffArea;
+import com.hospitua.habitaciones.domain.model.TechnicalBlockReport;
+import com.hospitua.habitaciones.domain.model.TechnicalBlockStatus;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -100,6 +103,9 @@ class CompleteCleaningIntegrationTest {
     private DailyReservationRepositoryPort reservationRepository;
 
     @Autowired
+    private TechnicalBlockReportRepositoryPort technicalBlockReportRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -163,6 +169,45 @@ class CompleteCleaningIntegrationTest {
                         tuple("Available", "InCleaning", "CONFIRM_CLEANING_END", member, null, false),
                         tuple("Reserved", "Available", "MARK_RESERVED", null, ref, true));
         assertTaskClosed(CleaningTaskOutcome.Completed, "Available");
+    }
+
+    @Test
+    @DisplayName("T012 y FR-020: con un mantenimiento programado que contiene hoy pasa por Available y queda en"
+            + " TechnicalBlock, con el informe Applied y el periodo sin actor")
+    void complete_appliesScheduledTechnicalBlock() throws Exception {
+        TechnicalBlockReport report = scheduledCoveringToday();
+
+        complete(member, null).andExpect(status().isNoContent());
+
+        assertRoom(RoomStatus.TechnicalBlock);
+        assertThat(periodsAfterCleaning())
+                .containsExactly(
+                        tuple("Available", "InCleaning", "CONFIRM_CLEANING_END", member, null, false),
+                        tuple("TechnicalBlock", "Available", "TECHNICAL_BLOCK", null, null, true));
+        assertThat(technicalBlockReportRepository
+                        .findAppliedByRoomIds(List.of(room.getId()))
+                        .get(room.getId())
+                        .getId())
+                .isEqualTo(report.getId());
+        assertTaskClosed(CleaningTaskOutcome.Completed, "Available");
+    }
+
+    @Test
+    @DisplayName("Regla 6: con llegada pendiente hoy queda Reserved aunque tenga un mantenimiento que contiene hoy")
+    void complete_pendingArrivalWinsOverScheduledBlock() throws Exception {
+        String ref = pendingArrivalToday();
+        TechnicalBlockReport report = scheduledCoveringToday();
+
+        complete(member, null).andExpect(status().isNoContent());
+
+        assertRoom(RoomStatus.Reserved);
+        assertThat(roomRepository.findById(room.getId()).orElseThrow().getReservedByReservationRef())
+                .isEqualTo(ref);
+        assertThat(technicalBlockReportRepository
+                        .findEarliestScheduledByRoomIds(List.of(room.getId()))
+                        .get(room.getId()))
+                .extracting(TechnicalBlockReport::getId, TechnicalBlockReport::getStatus)
+                .containsExactly(report.getId(), TechnicalBlockStatus.Scheduled);
     }
 
     @Test
@@ -336,6 +381,18 @@ class CompleteCleaningIntegrationTest {
     private ResultActions release(String xUser) throws Exception {
         return mockMvc.perform(
                 post("/api/cleaning/tasks/{taskId}/release", taskId).header("X-User", xUser));
+    }
+
+    /** Informe Scheduled de la habitación de la prueba que empezó ayer y termina mañana. */
+    private TechnicalBlockReport scheduledCoveringToday() {
+        LocalDate today = LocalDate.now(clock);
+        return technicalBlockReportRepository.save(TechnicalBlockReport.schedule(
+                room.getId(),
+                "mtorres",
+                "Cambio preventivo del aire acondicionado.",
+                today.minusDays(1),
+                today.plusDays(1),
+                OffsetDateTime.now(clock)));
     }
 
     /** Reserva de hoy en la copia local, sin estancia, con la habitación de la prueba. */
