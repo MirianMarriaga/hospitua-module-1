@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './assets/variables.css';
+
+/* Tokens de las vistas prototipo (documentos/vistas/). */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: var(--ink);
+  --color-navy: #152b4d;
+  --color-navy-2: #1c3a63;
+  --color-paper: var(--paper);
+  --color-paper-dim: var(--paper-dim);
+  --color-primary: var(--primary);
+  --color-primary-dark: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+  --color-due: var(--due);
+  --color-line: var(--line);
+  --color-text-lo: var(--text-lo);
+  --color-text-hi: var(--text-hi);
+
+  --color-state-green: #16a34a;
+  --color-state-green-bg: #e7f7ee;
+  --color-state-blue: #1d4ed8;
+  --color-state-blue-bg: #eaf1ff;
+  --color-state-amber: #b45309;
+  --color-state-amber-bg: #fff7e6;
+  --color-state-red: #dc2626;
+  --color-state-red-bg: #fee2e2;
+  --color-state-purple: #7c3aed;
+  --color-state-purple-bg: #f3ecfe;
+  --color-state-orange: #c2410c;
+  --color-state-orange-bg: #ffedd5;
+  --color-state-crimson: #9f1239;
+  --color-state-crimson-bg: #ffe4e6;
+  --color-state-gray: #6b7280;
+  --color-state-gray-bg: #f1f5f9;
+
+  /* Nombres que usan los componentes de shadcn/ui. */
+  --color-background: var(--color-paper-dim);
+  --color-foreground: var(--color-text-hi);
+  --color-card: var(--color-paper);
+  --color-card-foreground: var(--color-text-hi);
+  --color-muted: var(--color-paper-dim);
+  --color-muted-foreground: var(--color-text-lo);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-primary);
+  --color-destructive: var(--color-due);
+  --color-secondary: var(--color-paper-dim);
+  --color-secondary-foreground: var(--color-ink);
+
+  --radius-card: 12px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}
+
+/* Tabla apilada en pantallas angostas (< 900 px) del prototipo */
+@media (max-width: 900px) {
+  .table-stacked,
+  .table-stacked thead,
+  .table-stacked tbody,
+  .table-stacked tr,
+  .table-stacked td,
+  .table-stacked th {
+    display: block;
+  }
+  .table-stacked thead {
+    display: none;
+  }
+  .table-stacked tbody tr {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .table-stacked td {
+    border: none;
+    padding: 3px 0;
+  }
+}
