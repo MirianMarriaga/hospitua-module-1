@@ -58,8 +58,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 /**
- * {@code POST /api/rooms/{roomId}/technical-blocks} y {@code runDaily} sobre la aplicación completa, PostgreSQL real y
- * Módulo 2 en WireMock (plan-programar-bloqueo-tecnico-para-habitacion.md T013, T014 y casos de T006 a T012 y T015; T018
+ * {@code POST /api/rooms/{roomId}/technical-blocks}, {@code GET …/current} y {@code runDaily} sobre la aplicación completa, PostgreSQL real y
+ * Módulo 2 en WireMock (plan-programar-bloqueo-tecnico-para-habitacion.md T013, T014, T023 y casos de T006 a T012 y T015; T018
  * de plan-consultar-informacion-mantenimientos.md). El worker del Outbox está apagado en el perfil de pruebas, así que
  * el aviso se revisa en {@code outbox_notification}. El espía del repositorio de informes (T013) le da a esta clase su
  * propio contexto; la base es compartida y cada prueba crea sus habitaciones.
@@ -345,6 +345,47 @@ class TechnicalBlockSchedulingIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT status FROM room WHERE id = ?", String.class, occupied))
                 .isEqualTo("Occupied");
         assertThat(reportStatus(ended)).isEqualTo("Expired");
+    }
+
+    @Test
+    @DisplayName("T023: Ver informe devuelve el Scheduled más temprano con el nombre del responsable, luego el Applied;"
+            + " sin informe responde 404 TECHNICAL_BLOCK_NOT_FOUND")
+    void currentTechnicalBlock() throws Exception {
+        current()
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("TECHNICAL_BLOCK_NOT_FOUND"))
+                .andExpect(jsonPath("$.message")
+                        .value("Esta habitación no tiene un mantenimiento programado ni en curso."));
+        givenModule2Returns(NO_RESERVATIONS);
+        LocalDate start = today.plusDays(60);
+        schedule(member, body("Segundo mantenimiento.", start.plusDays(10), start.plusDays(11)))
+                .andExpect(status().isCreated());
+        schedule(member, body(REASON, start, start.plusDays(2))).andExpect(status().isCreated());
+
+        current()
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reason").value(REASON))
+                .andExpect(jsonPath("$.responsibleName").value("Personal de mantenimiento"))
+                .andExpect(jsonPath("$.startDate").value(start.toString()))
+                .andExpect(
+                        jsonPath("$.estimatedEndDate").value(start.plusDays(2).toString()))
+                .andExpect(jsonPath("$.roomNumber").exists())
+                .andExpect(jsonPath("$.reportDateTime").exists());
+
+        schedule(member, body("Arreglo urgente.", today, today)).andExpect(status().isCreated());
+        current()
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reason").value("Arreglo urgente."))
+                .andExpect(jsonPath("$.startDate").value(today.toString()));
+
+        roomId = UUID.randomUUID();
+        current()
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("ROOM_NOT_FOUND"));
+    }
+
+    private ResultActions current() throws Exception {
+        return mockMvc.perform(MockMvcRequestBuilders.get("/api/rooms/{roomId}/technical-blocks/current", roomId));
     }
 
     private ResultActions schedule(String xUser, String body) throws Exception {

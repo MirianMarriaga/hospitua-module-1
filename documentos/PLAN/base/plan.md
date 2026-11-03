@@ -426,6 +426,7 @@ backend/
     │   │   │   │   │   ├── ScheduleTechnicalBlockUseCase.java # Programar bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── ApplyScheduledTechnicalBlocksUseCase.java # runDaily(LocalDate today) y applyForRoom(UUID roomId, LocalDate today) (Regla 10; plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── GetCurrentTechnicalBlockUseCase.java # "Ver informe" del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
+    │   │   │   │   │   ├── PublishDailyMaintenanceNoticesUseCase.java # publishDaily(LocalDate today): aviso diario de las 00:00 (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │   │   │   ├── ConsultMaintenanceAvailabilityUseCase.java # Cruces con mantenimientos (plan-consultar-informacion-mantenimientos.md)
     │   │   │   │   │   ├── ConsultRoomInventoryUseCase.java  # Inventario de habitaciones (plan-consultar-inventario-habitaciones.md)
     │   │   │   │   │   ├── ConsultRoomStateHistoryUseCase.java # Historial de estados (plan-consultar-historial-de-estados.md)
@@ -740,6 +741,7 @@ backend/
         │       ├── CheckOutExecutionServiceTest.java
         │       ├── CleaningPanelQueryServiceTest.java
         │       ├── CompleteCleaningServiceTest.java
+        │       ├── DailyMaintenanceNoticeServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DamageReportQueryServiceTest.java
@@ -766,7 +768,8 @@ backend/
         │       ├── RoomStateTransitionServiceTest.java
         │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
-        │       └── StartCleaningServiceTest.java
+        │       ├── StartCleaningServiceTest.java
+        │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
         │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
         ├── domain/
@@ -794,6 +797,9 @@ backend/
         │   │   ├── in/
         │   │   │   ├── amqp/
         │   │   │   │   └── DailyReservationRabbitListenerIntegrationTest.java # plan-consultar-reservas.md
+        │   │   │   ├── scheduling/
+        │   │   │   │   ├── TechnicalBlockSchedulerIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
+        │   │   │   │   └── TechnicalBlockSchedulerTest.java
         │   │   │   └── web/
         │   │   │       ├── AuthControllerTest.java
         │   │   │       ├── CheckInRegistrationIntegrationTest.java    # plan-registrar-check-in.md
