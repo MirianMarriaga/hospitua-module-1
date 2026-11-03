@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.domain.model;
 
+import com.hospitua.habitaciones.domain.exception.InvalidTechnicalBlockReasonException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -11,6 +12,8 @@ import java.util.UUID;
  * {@code Completed} o {@code Scheduled} → {@code Expired}. El rango {@code [inicio, fin estimado]} es inclusivo.
  */
 public final class TechnicalBlockReport {
+
+    public static final int MAX_REASON_LENGTH = 500;
 
     private final UUID id;
     private final UUID roomId;
@@ -61,6 +64,20 @@ public final class TechnicalBlockReport {
                 estimatedEndDate,
                 reportDateTime,
                 TechnicalBlockStatus.Scheduled);
+    }
+
+    /**
+     * Justificación técnica sin espacios al inicio ni al final; obligatoria y de máximo 500 caracteres (FR-005, caso
+     * límite 3).
+     *
+     * @throws InvalidTechnicalBlockReasonException si es nula, vacía, solo espacios o demasiado larga
+     */
+    public static String normalizeReason(String reason) {
+        String normalized = reason == null ? "" : reason.strip();
+        if (normalized.isEmpty() || normalized.length() > MAX_REASON_LENGTH) {
+            throw new InvalidTechnicalBlockReasonException();
+        }
+        return normalized;
     }
 
     /** El rango del mantenimiento contiene el día (programación con inicio hoy, trabajo diario y fin de limpieza). */

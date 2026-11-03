@@ -223,8 +223,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar los puertos que invoca este plan: `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`, T002), `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`, T003), `MarkPendingCleaningUseCase` con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003) `ReportDamageUseCase` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T012) y `ApplyScheduledTechnicalBlocksUseCase.applyForRoom` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T021).
+- [x] T001 Verificar los puertos que invoca este plan: `MarkRoomAvailableUseCase` (`plan-marcar-habitacion-como-disponible.md`, T002), `MarkRoomReservedUseCase` (`plan-marcar-habitacion-reservada.md`, T003), `MarkPendingCleaningUseCase` con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003) `ReportDamageUseCase` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T012) y `ApplyScheduledTechnicalBlocksUseCase.applyForRoom` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T021).
   - Avance (L21): existen todos menos `applyForRoom`, que llega con su plan (T021, paso 6 del orden del plan base).
+  - Hecho (L25): `ApplyScheduledTechnicalBlocksUseCase.applyForRoom` ya existe.
 - [x] T002 [P] Verificar las excepciones de tareas del plan base (T019): `TaskNotOwnedException` (403), `TaskNotFoundException` (404), y `TaskAlreadyClosedException` (409).
   - Hecho (L21): existen. Los mensajes son los de las tablas de este plan: `CleaningTask.ensureClosableBy` lanza `TASK_NOT_OWNED` con "Esta habitación la está limpiando otro compañero." y los servicios lanzan `TASK_NOT_FOUND` con "No encontramos esta limpieza. Vuelve al panel.".
 - [x] T003 [P] Verificar que `CleaningTaskRepositoryPort` tenga `save`, `findById`, `findRoomIdByTaskId` y `findOpenByMember` (`plan-marcar-habitacion-en-limpieza.md`, T002), que la entidad `CleaningTask` tenga `ensureClosableBy` y `close` (mismo plan), verificar `RoomRepositoryPort.lockById` (plan base, T008) y que `DailyReservationRepositoryPort` tenga `findPendingArrivalReservationRef` (`plan-consultar-reservas.md`, T007 y T011).
@@ -243,8 +244,9 @@ No aplica: usa la infraestructura del plan base.
 - [x] T004 [P] [US1] Unit test en `CompleteCleaningServiceTest`: fin sin llegada pendiente deja la habitación en `Available` vía `MarkRoomAvailableUseCase` y la tarea con `outcome = Completed` (HU-1 esc. 1; FR-003, FR-004, FR-015).
   - Hecho (L21): `CompleteCleaningServiceTest` (T004–T007 y T009, la tarea inexistente o cerrada y la descripción en blanco como "sin daño").
 - [x] T005 [P] [US1] Unit test: rechazo con `TASK_NOT_OWNED` si la tarea es de otro miembro (HU-1 esc. 2; FR-002, FR-005).
-- [ ] T006 [P] [US1] Unit test: con una llegada pendiente hoy, la habitación termina en `Reserved` vía `MarkRoomReservedUseCase`; si la reserva del día ya tiene `Stay` para esa habitación, no hay llegada pendiente y termina en `Available`. Sin daño ni llegada pendiente invoca `applyForRoom`; con llegada pendiente o con daño no lo invoca (HU-1 esc. 3 y 7; FR-010, FR-020).
+- [x] T006 [P] [US1] Unit test: con una llegada pendiente hoy, la habitación termina en `Reserved` vía `MarkRoomReservedUseCase`; si la reserva del día ya tiene `Stay` para esa habitación, no hay llegada pendiente y termina en `Available`. Sin daño ni llegada pendiente invoca `applyForRoom`; con llegada pendiente o con daño no lo invoca (HU-1 esc. 3 y 7; FR-010, FR-020).
   - Avance (L21): hecho el camino de la llegada pendiente. Que la reserva ya tenga `Stay` lo resuelve `findPendingArrivalReservationRef` (`DailyReservationRepositoryAdapterTest`). Faltan los casos de `applyForRoom`, que se agregan cuando exista (T021 de `plan-programar-bloqueo-tecnico-para-habitacion.md`).
+  - Hecho (L25): sin daño ni llegada pendiente invoca `applyForRoom` con la fecha de la marca de `Available`; con llegada o con daño no lo invoca (`CompleteCleaningServiceTest`).
 - [x] T007 [P] [US1] Unit test: con descripción de daño, invoca `ReportDamageUseCase`, la habitación termina en `DisabledForRepairs` y `outcome = DamageReported`; aunque la habitación tenga una llegada pendiente hoy, no se invoca `MarkRoomReservedUseCase` (HU-1 esc. 4 y 6; caso límite 2; FR-011, FR-015, FR-019).
 - [x] T008 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: cierra con `outcome = Released`, invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el miembro como `actorId`, no verifica llegadas ni daño y rechaza tareas de otros miembros (HU-1 esc. 5; FR-013).
   - Hecho (L21): `ReleaseCleaningTaskServiceTest`; el servicio no tiene dependencias de llegadas ni de daño.
@@ -254,7 +256,8 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L21): en `CompleteCleaningIntegrationTest`, con dos hilos sobre los casos de uso.
 - [x] T011 [US1] Integration test: un fallo forzado en `ReportDamageUseCase` revierte todo y deja la habitación en `InCleaning` con la tarea activa (FR-011, FR-017).
   - Hecho (L21): en `CompleteCleaningIntegrationTest`; la falla es una descripción de 501 caracteres que `ReportDamageUseCase` rechaza después de que la habitación ya pasó a `Available`.
-- [ ] T012 [US1] Integration test: los periodos en `room_state_history` quedan registrados en cada camino, sin duplicados (FR-012; FR-009 de *Marcar Habitación Inhabilitada por Reparaciones*):
+- [x] T012 [US1] Integration test: los periodos en `room_state_history` quedan registrados en cada camino, sin duplicados (FR-012; FR-009 de *Marcar Habitación Inhabilitada por Reparaciones*):
+  - Hecho (L25): el camino del mantenimiento programado (`Available` y después `TechnicalBlock` con actor nulo, informe `Applied`) y la prioridad de la llegada pendiente sobre él (regla 6), en `CompleteCleaningIntegrationTest`.
 
   | Camino | Periodo 1 | Periodo 2 |
   | --- | --- | --- |
@@ -274,7 +277,8 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implementar `CompleteCleaningService` (`@Transactional`) (FR-002 a FR-005, FR-007 a FR-012, FR-015, FR-017, FR-020), en este orden:
+- [x] T016 [US1] Implementar `CompleteCleaningService` (`@Transactional`) (FR-002 a FR-005, FR-007 a FR-012, FR-015, FR-017, FR-020), en este orden:
+  - Hecho (L25): conectada la rama de `applyForRoom`.
   1. Leer solo el `roomId` de la tarea con `CleaningTaskRepositoryPort.findRoomIdByTaskId`; si no existe, `TaskNotFoundException`.
   2. Bloquear la fila con `RoomRepositoryPort.lockById(roomId)` (regla 13 del plan base), que es la primera carga de la habitación en la transacción, antes de consultar la copia local, para que un `ADDED` simultáneo no deje la llegada sin apartar.
   3. Releer la tarea completa con `findById`, ya fresca tras el bloqueo.

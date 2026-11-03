@@ -366,6 +366,7 @@ backend/
     │   │   │       ├── RoomTaskExistsException.java          # La habitación ya tiene una tarea abierta de otro miembro (409 ROOM_TASK_EXISTS)
     │   │   │       ├── DamageReportNotFoundException.java    # 404 DAMAGE_REPORT_NOT_FOUND (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   │   │       ├── InvalidDamageDescriptionException.java # 400 VALIDATION_ERROR de la descripción del daño, también desde el fin de limpieza con daño (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
+    │   │   │       ├── InvalidTechnicalBlockReasonException.java # 400 VALIDATION_ERROR de la justificación del bloqueo técnico (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR del detalle del motivo de la baja (plan-dar-de-baja-habitacion.md)
     │   │   │       ├── UnknownDecommissionException.java     # 400 VALIDATION_ERROR: la baja de la reactivación no es de esa habitación (plan-marcar-habitacion-como-disponible.md)
     │   │   │       ├── ConcurrentRoomUpdateException.java    # 409 CONCURRENT_UPDATE de la edición: la version del formulario ya no es la actual (plan-editar-habitacion.md)
@@ -492,6 +493,7 @@ backend/
     │   │   │   │   ├── ScheduleTechnicalBlockService.java
     │   │   │   │   ├── TechnicalBlockRegistration.java       # Bean @Transactional de Programar: bloquea, revalida y registra (Regla 13)
     │   │   │   │   ├── ApplyScheduledTechnicalBlocksService.java # runDaily sin transacción; applyForRoom REQUIRED con lockById (Regla 10)
+    │   │   │   │   ├── ScheduledTechnicalBlockApplier.java   # Bean @Transactional de applyForRoom: cada habitación de runDaily en su transacción
     │   │   │   │   ├── DailyMaintenanceNoticeService.java    # Aviso diario SCHEDULED de las 00:00 ("Convenciones de Mensajería")
     │   │   │   │   ├── TechnicalBlockQueryService.java
     │   │   │   │   ├── MaintenanceAvailabilityService.java
@@ -599,6 +601,7 @@ backend/
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
     │   │       │   │   │   │   ├── EditRoomRequest.java          # PATCH /api/rooms/{roomId}
+    │   │       │   │   │   │   ├── ScheduleTechnicalBlockRequest.java # POST /api/rooms/{roomId}/technical-blocks
     │   │       │   │   │   │   ├── RoomBaseRateQuery.java        # date de GET /api/rooms/{roomId}/base-rate (Módulo 3)
     │   │       │   │   │   │   ├── MaintenanceAvailabilityQuery.java # roomId, startDate y endDate de GET /api/rooms/{roomId}/maintenances (Módulo 2)
     │   │       │   │   │   │   └── CompleteCleaningRequest.java  # POST /api/cleaning/tasks/{taskId}/complete (daño opcional)
@@ -731,6 +734,7 @@ backend/
         │   │   └── PagedResultDtoTest.java
         │   └── service/
         │       ├── ActiveStayQueryServiceTest.java
+        │       ├── ApplyScheduledTechnicalBlocksServiceTest.java
         │       ├── CheckInExecutionServiceTest.java
         │       ├── CheckInValidationServiceTest.java
         │       ├── CheckOutExecutionServiceTest.java
@@ -760,6 +764,7 @@ backend/
         │       ├── RoomReservationConflictServiceTest.java
         │       ├── RoomStateHistoryQueryServiceTest.java
         │       ├── RoomStateTransitionServiceTest.java
+        │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
         │       └── StartCleaningServiceTest.java
         ├── architecture/
@@ -812,7 +817,8 @@ backend/
         │   │   │       ├── RoomControllerTest.java
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
-        │   │   │       └── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       ├── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       └── TechnicalBlockSchedulingIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
         │   │   └── out/
         │   │       ├── messaging/
         │   │       │   ├── serializer/

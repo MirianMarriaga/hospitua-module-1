@@ -4,6 +4,7 @@ import com.hospitua.habitaciones.application.dto.CompleteCleaningCommand;
 import com.hospitua.habitaciones.application.dto.MarkRoomAvailableCommand;
 import com.hospitua.habitaciones.application.dto.MarkRoomReservedCommand;
 import com.hospitua.habitaciones.application.dto.ReportDamageCommand;
+import com.hospitua.habitaciones.application.ports.in.ApplyScheduledTechnicalBlocksUseCase;
 import com.hospitua.habitaciones.application.ports.in.CompleteCleaningUseCase;
 import com.hospitua.habitaciones.application.ports.in.MarkRoomAvailableUseCase;
 import com.hospitua.habitaciones.application.ports.in.MarkRoomReservedUseCase;
@@ -26,8 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Confirmar fin de limpieza (plan-confirmar-fin-de-limpieza.md T016). No reimplementa transiciones: delega en los puertos
  * transversales, todos en esta transacción y con la habitación ya bloqueada. Prioridad tras {@code Available} (regla 6
- * de la máquina de estados): daño, luego llegada pendiente hoy. El mantenimiento programado que contiene hoy (FR-020)
- * se conecta con {@code applyForRoom} de plan-programar-bloqueo-tecnico-para-habitacion.md (T021).
+ * de la máquina de estados): daño, luego llegada pendiente hoy y por último el mantenimiento programado que contiene hoy
+ * (FR-020), que aplica {@code applyForRoom} de plan-programar-bloqueo-tecnico-para-habitacion.md (T021).
  */
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class CompleteCleaningService implements CompleteCleaningUseCase {
     private final MarkRoomAvailableUseCase markRoomAvailableUseCase;
     private final MarkRoomReservedUseCase markRoomReservedUseCase;
     private final ReportDamageUseCase reportDamageUseCase;
+    private final ApplyScheduledTechnicalBlocksUseCase applyScheduledTechnicalBlocks;
     private final Clock clock;
 
     @Override
@@ -57,7 +59,10 @@ public class CompleteCleaningService implements CompleteCleaningUseCase {
                     roomId, command.damageDescription(), command.memberId(), SourceFlow.CONFIRM_CLEANING_END));
             outcome = CleaningTaskOutcome.DamageReported;
         } else {
-            reserveForPendingArrival(roomId, LocalDate.ofInstant(availableAt.toInstant(), clock.getZone()));
+            LocalDate today = LocalDate.ofInstant(availableAt.toInstant(), clock.getZone());
+            if (!reserveForPendingArrival(roomId, today)) {
+                applyScheduledTechnicalBlocks.applyForRoom(roomId, today);
+            }
             outcome = CleaningTaskOutcome.Completed;
         }
         task.close(outcome, availableAt);
@@ -67,10 +72,13 @@ public class CompleteCleaningService implements CompleteCleaningUseCase {
     /**
      * Con la habitación bloqueada y en {@code Available}, el apartado siempre resulta {@code RESERVED}; su resultado se
      * acepta sin revertir (FR-010).
+     *
+     * @return {@code true} si había una llegada pendiente hoy
      */
-    private void reserveForPendingArrival(UUID roomId, LocalDate today) {
+    private boolean reserveForPendingArrival(UUID roomId, LocalDate today) {
         Optional<String> reservationRef = dailyReservationRepository.findPendingArrivalReservationRef(roomId, today);
         reservationRef.ifPresent(ref -> markRoomReservedUseCase.markReserved(
                 new MarkRoomReservedCommand(roomId, ref, ReservationTrigger.CLEANING_END)));
+        return reservationRef.isPresent();
     }
 }

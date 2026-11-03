@@ -15,6 +15,7 @@ import com.hospitua.habitaciones.application.dto.MarkRoomAvailableResult;
 import com.hospitua.habitaciones.application.dto.MarkRoomReservedCommand;
 import com.hospitua.habitaciones.application.dto.MarkRoomReservedResult;
 import com.hospitua.habitaciones.application.dto.ReportDamageCommand;
+import com.hospitua.habitaciones.application.ports.in.ApplyScheduledTechnicalBlocksUseCase;
 import com.hospitua.habitaciones.application.ports.in.MarkRoomAvailableUseCase;
 import com.hospitua.habitaciones.application.ports.in.MarkRoomReservedUseCase;
 import com.hospitua.habitaciones.application.ports.in.ReportDamageUseCase;
@@ -76,6 +77,9 @@ class CompleteCleaningServiceTest {
     @Mock
     private ReportDamageUseCase reportDamageUseCase;
 
+    @Mock
+    private ApplyScheduledTechnicalBlocksUseCase applyScheduledTechnicalBlocks;
+
     private CleaningTask task;
     private CompleteCleaningService service;
 
@@ -86,7 +90,7 @@ class CompleteCleaningServiceTest {
     }
 
     @Test
-    @DisplayName("T004: sin daño ni llegada pendiente queda Available y la tarea se cierra Completed")
+    @DisplayName("T004 y T006: sin daño ni llegada pendiente invoca applyForRoom con hoy y cierra la tarea Completed")
     void complete_withoutArrival() {
         givenLockedTask();
         givenAvailableAt(AVAILABLE_AT);
@@ -101,12 +105,13 @@ class CompleteCleaningServiceTest {
         order.verify(cleaningTaskRepository).findById(task.getId());
         order.verify(markRoomAvailableUseCase)
                 .markAvailable(new MarkRoomAvailableCommand(ROOM_ID, SourceFlow.CONFIRM_CLEANING_END, MEMBER, null));
+        verify(applyScheduledTechnicalBlocks).applyForRoom(ROOM_ID, TODAY);
         assertClosed(CleaningTaskOutcome.Completed);
         verifyNoInteractions(markRoomReservedUseCase, reportDamageUseCase);
     }
 
     @Test
-    @DisplayName("T006: con una llegada pendiente hoy queda Reserved para esa reserva por CLEANING_END")
+    @DisplayName("T006: con una llegada pendiente hoy queda Reserved por CLEANING_END y no invoca applyForRoom")
     void complete_withPendingArrival() {
         givenLockedTask();
         givenAvailableAt(AVAILABLE_AT);
@@ -121,11 +126,11 @@ class CompleteCleaningServiceTest {
         verify(markRoomReservedUseCase)
                 .markReserved(new MarkRoomReservedCommand(ROOM_ID, "RSV-8D02E5A4", ReservationTrigger.CLEANING_END));
         assertClosed(CleaningTaskOutcome.Completed);
-        verifyNoInteractions(reportDamageUseCase);
+        verifyNoInteractions(reportDamageUseCase, applyScheduledTechnicalBlocks);
     }
 
     @Test
-    @DisplayName("T007: con daño lo reporta por CONFIRM_CLEANING_END, cierra DamageReported y no consulta llegadas")
+    @DisplayName("T007 y T006: con daño lo reporta, cierra DamageReported, no consulta llegadas ni invoca applyForRoom")
     void complete_withDamage() {
         givenLockedTask();
         givenAvailableAt(AVAILABLE_AT);
@@ -136,7 +141,7 @@ class CompleteCleaningServiceTest {
                 .reportDamage(
                         new ReportDamageCommand(ROOM_ID, "Grifo con fuga.", MEMBER, SourceFlow.CONFIRM_CLEANING_END));
         assertClosed(CleaningTaskOutcome.DamageReported);
-        verifyNoInteractions(dailyReservationRepository, markRoomReservedUseCase);
+        verifyNoInteractions(dailyReservationRepository, markRoomReservedUseCase, applyScheduledTechnicalBlocks);
     }
 
     @Test
@@ -235,6 +240,7 @@ class CompleteCleaningServiceTest {
                 markRoomAvailableUseCase,
                 markRoomReservedUseCase,
                 reportDamageUseCase,
+                applyScheduledTechnicalBlocks,
                 clock);
     }
 

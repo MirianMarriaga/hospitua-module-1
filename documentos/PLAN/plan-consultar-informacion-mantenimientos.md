@@ -228,8 +228,8 @@ No aplica: usa la infraestructura del plan base (`MaintenanceLimits` en `domain/
 - [x] T015 Integration test: un mantenimiento que termina el día anterior a la llegada no es cruce y la respuesta es `available = true` (esc. 5; FR-010).
 - [x] T016 Integration test: un mantenimiento que empieza el día de la salida no es cruce para la estadía, y el mismo rango consultado desde *Programar Bloqueo Técnico* (con su último día incluido) sí lo es (esc. 7; FR-003).
 - [x] T017 Integration test con `Clock` fijo: una habitación en `DisabledForRepairs`, o en `TechnicalBlock` con el informe vencido, con llegada hoy, responde `available = false` con un cruce de inicio y fin en la fecha actual; con llegada mañana responde `available = true` (esc. 8; FR-014).
-- [ ] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-007 de `spec-programar-bloqueo-tecnico-para-habitacion.md`).
-  - Pendiente: necesita `POST /api/rooms/{roomId}/technical-blocks`, que llega en L25 (`plan-programar-bloqueo-tecnico-para-habitacion.md` T020).
+- [x] T018 Integration test: desde que *Programar Bloqueo Técnico para Habitación* registra un informe `Scheduled`, `GET /api/rooms/{roomId}/maintenances` reporta su rango como cruce (FR-010; FR-007 de `spec-programar-bloqueo-tecnico-para-habitacion.md`).
+  - Hecho (L25): en `TechnicalBlockSchedulingIntegrationTest` (`futureStart_scheduled`).
 
 ---
 
