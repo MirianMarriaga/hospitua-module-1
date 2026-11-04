@@ -441,9 +441,12 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T027 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
-- [ ] T028 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
-- [ ] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
+- [x] T027 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
+  - Hecho (L38): ninguna clase del flujo escribe en el log; la respuesta de `POST /api/check-in` no lleva datos de los huéspedes y la de `GET /api/check-in/validate` solo los del titular que muestra el paso 1. `originPlace` y `destinationPlace` van únicamente en el mensaje a Módulo 2 que pide el contrato, y se omiten para los huéspedes colombianos.
+- [x] T028 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
+  - Hecho (L38): el Check-In valida contra la copia local de reservas. `CrossFlowRulesTest` exige que solo la baja y la programación de bloqueos técnicos consulten a Módulo 2, y que `RestClient` solo se use en los adaptadores REST y su configuración.
+- [x] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
+  - Hecho (L38): no queda ninguna referencia en `backend/src`; solo las nombra este plan, para decir que no existen.
 - [ ] T030 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.
 
 ---

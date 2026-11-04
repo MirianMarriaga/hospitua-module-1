@@ -205,10 +205,10 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T016 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
-  - Pendiente (L38): se revisa cuando existan *Editar habitación* y la reactivación (R9).
-- [ ] T017 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
-  - Pendiente (L38): se revisa cuando existan los trabajos diarios de mantenimiento (L26).
+- [x] T016 Revisar el código: ningún controlador, ni *Registrar habitación*, *Editar habitación* o la reactivación de *Marcar habitación como disponible*, permite asignar `Reserved`; solo la ingesta y el fin de limpieza dependen del puerto (FR-001, FR-009; SC-005).
+  - Hecho (L38): `CrossFlowRulesTest` lo comprueba con ArchUnit: solo `DailyReservationIngestionService` y `CompleteCleaningService` usan `MarkRoomReservedUseCase`, y solo `RoomStateTransitionService` llama a `Room.reserveFor`. Revisado además que el único servicio que pide la transición a `Reserved` es `MarkRoomReservedService`: el registro crea la habitación `Available`, la edición no cambia el estado y la reactivación la deja `Available`.
+- [x] T017 Revisar que ningún trabajo programado consulte a Módulo 2 para apartar habitaciones (FR-002).
+  - Hecho (L38): los trabajos programados son `TechnicalBlockScheduler` (aplicar bloqueos y avisos diarios) y `OutboxScheduledWorker`; ninguno consulta a Módulo 2. `CrossFlowRulesTest` exige que solo la baja y la programación de bloqueos técnicos usen `CheckRoomReservationConflictsUseCase`, y que solo el servicio de conflictos use el cliente de Módulo 2.
 - [ ] T018 Medir en la prueba de integración T006 que cada invocación tome menos de 200 ms (NFR-001; SC-001).
   - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 

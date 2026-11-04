@@ -787,7 +787,8 @@ backend/
         │       ├── StartRepairServiceTest.java
         │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
-        │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
+        │   ├── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
+        │   └── CrossFlowRulesTest.java                                # ArchUnit: verificaciones transversales de los planes (L38)
         ├── domain/
         │   ├── exception/
         │   │   └── CheckInExceptionsTest.java                         # plan-registrar-check-in.md
@@ -836,6 +837,7 @@ backend/
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
         │   │   │       ├── MaintenancePanelIntegrationTest.java       # plan-consultar-panel-mantenimiento.md
+        │   │   │       ├── MaintenancePanelQueryCountIntegrationTest.java # plan-consultar-panel-mantenimiento.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
@@ -843,6 +845,7 @@ backend/
         │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md
         │   │   │       ├── RoomBaseRateIntegrationTest.java           # plan-consultar-tarifa-base.md
         │   │   │       ├── RoomControllerTest.java
+        │   │   │       ├── RoomStateHistoryAcrossFlowsIntegrationTest.java # plan-consultar-historial-de-estados.md
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
         │   │   │       ├── StaffIntegrationTest.java                  # plan-gestionar-personal.md

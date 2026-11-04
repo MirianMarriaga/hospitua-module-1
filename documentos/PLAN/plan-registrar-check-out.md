@@ -468,8 +468,9 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
   - Hecho (L16): `checkInDate`, `checkOutDate` y `expectedCheckoutDate` son `LocalDate` en las respuestas y en los mensajes (`YYYY-MM-DD`).
 - [x] T020 Verificar que ante reenvíos de notificación de Check-Out por la cola RabbitMQ, se mantenga el mismo `messageId` (Contrato 1) y el mismo `eventId` (Contrato 2) para garantizar procesamiento idempotente en Módulo 2 y en Módulo 3.
   - Hecho: `OutboxTransactionalIntegrationTest` ("se reintenta, conserva messageId") cubre a todos los tipos del Outbox; el `eventId` del Contrato 2 es ese mismo `message_id`.
-- [ ] T021 Pruebas E2E de concurrencia: dos recepcionistas intentando el Check-Out sobre la misma habitación simultáneamente (la segunda debe fallar con colisión controlada).
+- [x] T021 Pruebas E2E de concurrencia: dos recepcionistas intentando el Check-Out sobre la misma habitación simultáneamente (la segunda debe fallar con colisión controlada).
   - Avance (L16): el bloqueo de la fila serializa dos Check-Out de la misma habitación; el segundo ve la habitación ya en `PendingCleaning` (409) o la estancia cerrada (404). Falta la prueba E2E con dos peticiones simultáneas (L38).
+  - Hecho (L38): `CheckOutRegistrationIntegrationTest` envía dos `POST /api/check-out` de la misma estancia a la vez: uno responde `200` y el otro `409 ROOM_INVALID_STATE` o `404 ACTIVE_STAY_NOT_FOUND`, según haya leído la estancia antes o después del cierre; queda un solo periodo `CHECK_OUT` y una sola auditoría.
 
 ---
 

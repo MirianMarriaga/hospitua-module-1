@@ -218,9 +218,10 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 
 - [ ] T012 Prueba de rendimiento (etiquetada según la estrategia de testing del plan base): con 500 habitaciones, `GET /api/maintenance/panel` responde en menos de 2 segundos (SC-001).
   - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
-- [ ] T013 Integration test sin tiempos: una habitación que pasa a `DisabledForRepairs` aparece en la siguiente consulta del panel antes que las habitaciones sin intervención, en el orden natural real de SQL, y ninguna `Inactive` aparece; el número de consultas no crece con el número de habitaciones (FR-002, FR-006; SC-002).
+- [x] T013 Integration test sin tiempos: una habitación que pasa a `DisabledForRepairs` aparece en la siguiente consulta del panel antes que las habitaciones sin intervención, en el orden natural real de SQL, y ninguna `Inactive` aparece; el número de consultas no crece con el número de habitaciones (FR-002, FR-006; SC-002).
   - Avance (L28): `MaintenancePanelIntegrationTest` ya prueba con SQL real el orden en tres grupos y que ninguna `Inactive` aparece. Falta que la habitación pase a `DisabledForRepairs` por el flujo real (reportar daño) y que el número de consultas no crezca con las habitaciones (hoy es un número fijo por construcción del servicio: la tarea abierta del miembro, las habitaciones y tres consultas por lotes).
   - Avance (cierre de R11): la parte del flujo real la prueba `DamageReportIntegrationTest` (T015 de `plan-marcar-habitacion-inhabilitada-por-reparaciones.md`): tras reportar el daño, la habitación aparece como `DisabledForRepairs` antes que una sin intervención. Pendiente (L38): medir que el número de consultas no crece con las habitaciones.
+  - Hecho (L38): `MaintenancePanelQueryCountIntegrationTest` cuenta las sentencias SQL con las estadísticas de Hibernate, en su propia base: con el triple de habitaciones (con tarea abierta, con informe `Applied`, con informe `Scheduled` y sin intervención) el panel hace las mismas consultas.
 
 ---
 
