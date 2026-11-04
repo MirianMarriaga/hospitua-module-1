@@ -13,6 +13,9 @@ import lombok.Getter;
 @Getter
 public class StaffAccount {
 
+    /** Longitud mínima de la contraseña en texto plano, antes de cifrarla (FR-004). */
+    public static final int MIN_PASSWORD_LENGTH = 8;
+
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-z0-9._]{3,30}$");
 
     private final String username;

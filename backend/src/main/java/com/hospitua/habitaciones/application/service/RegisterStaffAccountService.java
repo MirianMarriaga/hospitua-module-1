@@ -36,7 +36,7 @@ public class RegisterStaffAccountService implements RegisterStaffAccountUseCase 
             throw new UsernameAlreadyExistsException(normalizedUsername);
         }
 
-        if (command.rawPassword() == null || command.rawPassword().length() < 8) {
+        if (command.rawPassword() == null || command.rawPassword().length() < StaffAccount.MIN_PASSWORD_LENGTH) {
             throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
         }
 

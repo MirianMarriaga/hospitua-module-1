@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hospitua.habitaciones.TestcontainersConfiguration;
+import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RegisterStaffAccountCommand;
+import com.hospitua.habitaciones.application.dto.StaffAccountFilter;
 import com.hospitua.habitaciones.application.ports.in.RegisterStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.out.PasswordEncoderPort;
 import com.hospitua.habitaciones.application.ports.out.StaffAccountRepositoryPort;
@@ -96,27 +98,48 @@ class StaffAccountIntegrationTest {
         // Presencia y longitud de cada propiedad las valida StaffBootstrapProperties (ver StaffBootstrapPropertiesTest)
         StaffBootstrapProperties invalidProps = new StaffBootstrapProperties("ad", "Admin2026!", "Administrador");
 
-        StaffAccountBootstrapper failingBootstrapper = new StaffAccountBootstrapper(
-                new StaffAccountRepositoryPort() {
-                    @Override
-                    public Optional<StaffAccount> findByUsername(String username) {
-                        return Optional.empty();
-                    }
-
-                    @Override
-                    public StaffAccount save(StaffAccount account) {
-                        return account;
-                    }
-
-                    @Override
-                    public List<StaffAccount> findActiveAdministratorsForUpdate() {
-                        return List.of(); // Sin administradores activos
-                    }
-                },
-                registerStaffAccountUseCase,
-                invalidProps);
+        StaffAccountBootstrapper failingBootstrapper =
+                new StaffAccountBootstrapper(withoutAdministrators(), registerStaffAccountUseCase, invalidProps);
 
         assertThatThrownBy(() -> failingBootstrapper.run(new DefaultApplicationArguments()))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("T015: una contraseña de menos de 8 caracteres impide arrancar y el motivo no muestra la contraseña")
+    void bootstrapperShouldFailWithShortPassword() {
+        StaffBootstrapProperties shortPassword = new StaffBootstrapProperties("admin", "Cort4!x", "Administrador");
+        StaffAccountBootstrapper failingBootstrapper =
+                new StaffAccountBootstrapper(withoutAdministrators(), registerStaffAccountUseCase, shortPassword);
+
+        assertThatThrownBy(() -> failingBootstrapper.run(new DefaultApplicationArguments()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("al menos 8 caracteres")
+                .hasMessageNotContaining("Cort4!x");
+    }
+
+    /** Puerto sin Administradores activos y sin escritura real. */
+    private static StaffAccountRepositoryPort withoutAdministrators() {
+        return new StaffAccountRepositoryPort() {
+            @Override
+            public Optional<StaffAccount> findByUsername(String username) {
+                return Optional.empty();
+            }
+
+            @Override
+            public StaffAccount save(StaffAccount account) {
+                return account;
+            }
+
+            @Override
+            public PagedResultDto<StaffAccount> search(StaffAccountFilter filter, int page, int size) {
+                return PagedResultDto.of(List.of(), page, size);
+            }
+
+            @Override
+            public List<StaffAccount> findActiveAdministratorsForUpdate() {
+                return List.of();
+            }
+        };
     }
 }

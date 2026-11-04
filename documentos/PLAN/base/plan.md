@@ -571,6 +571,7 @@ backend/
     │   │   │       ├── ReactivationResultDto.java
     │   │   │       ├── RegisterStaffAccountCommand.java      # Personal
     │   │   │       ├── EditStaffAccountCommand.java
+    │   │   │       ├── StaffAccountFilter.java               # Área, estado y búsqueda de la lista del personal
     │   │   │       └── StaffAccountDto.java                  # Sin contraseña
     │   │   └── infrastructure/                               # CAPA DE INFRAESTRUCTURA (Adaptadores y Configuración)
     │   │       ├── adapters/
@@ -601,6 +602,8 @@ backend/
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
     │   │       │   │   │   │   ├── StartRepairRequest.java       # POST /api/maintenance/tasks
+    │   │       │   │   │   │   ├── RegisterStaffRequest.java     # POST /api/staff
+    │   │       │   │   │   │   ├── StaffListQuery.java           # Parámetros de GET /api/staff
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
@@ -775,6 +778,7 @@ backend/
         │       ├── RoomStateTransitionServiceTest.java
         │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
+        │       ├── StaffAccountQueryServiceTest.java
         │       ├── StartCleaningServiceTest.java
         │       ├── StartRepairServiceTest.java
         │       └── TechnicalBlockQueryServiceTest.java
@@ -834,6 +838,7 @@ backend/
         │   │   │       ├── RoomControllerTest.java
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
+        │   │   │       ├── StaffIntegrationTest.java                  # plan-gestionar-personal.md
         │   │   │       ├── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
         │   │   │       ├── StartRepairIntegrationTest.java            # plan-confirmar-reparacion-finalizada.md
         │   │   │       └── TechnicalBlockSchedulingIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md

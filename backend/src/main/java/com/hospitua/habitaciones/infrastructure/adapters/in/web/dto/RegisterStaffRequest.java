@@ -1,0 +1,45 @@
+package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
+
+import com.hospitua.habitaciones.application.dto.RegisterStaffAccountCommand;
+import com.hospitua.habitaciones.domain.model.StaffArea;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Cuerpo de {@code POST /api/staff} (plan-gestionar-personal.md T016). Todos los campos son obligatorios. El usuario se
+ * valida aquí ya con los espacios de los extremos permitidos, porque el servicio los quita y lo pasa a minúsculas antes
+ * de aplicar la misma regla (FR-003); el área llega como texto para responder el mensaje del catálogo (FR-002).
+ */
+public record RegisterStaffRequest(
+        @NotBlank(message = REQUIRED) @Pattern(regexp = "\\s*[A-Za-z0-9._]{3,30}\\s*", message = USERNAME_RULE)
+        String username,
+
+        @NotBlank(message = REQUIRED) @Size(min = 8, message = PASSWORD_RULE)
+        String password,
+
+        @NotBlank(message = REQUIRED) @Size(max = 150, message = FULL_NAME_RULE)
+        String fullName,
+
+        @NotNull(message = REQUIRED)
+        @Pattern(regexp = "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO", message = AREA_RULE)
+        String area) {
+
+    private static final String REQUIRED = "Completa los campos obligatorios.";
+    private static final String USERNAME_RULE =
+            "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo.";
+    private static final String PASSWORD_RULE = "La contraseña debe tener al menos 8 caracteres.";
+    private static final String FULL_NAME_RULE = "El nombre completo admite máximo 150 caracteres.";
+    private static final String AREA_RULE = "Selecciona un área válida.";
+
+    public RegisterStaffAccountCommand toCommand() {
+        return new RegisterStaffAccountCommand(username, password, fullName, StaffArea.valueOf(area));
+    }
+
+    /** Nunca muestra la contraseña, ni en un log que imprima la petición (FR-004; SC-002). */
+    @Override
+    public String toString() {
+        return "RegisterStaffRequest[username=" + username + ", fullName=" + fullName + ", area=" + area + "]";
+    }
+}
