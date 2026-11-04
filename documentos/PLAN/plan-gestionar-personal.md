@@ -390,6 +390,7 @@ frontend/src/
 - [x] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T022).
   - Hecho (L35): verificado; la longitud mínima de la contraseña pasa a ser `StaffAccount.MIN_PASSWORD_LENGTH`, que usan el registro y el arranque (ver T015).
   - Ajuste (revisión de L35): BCrypt (`spring-security-crypto` 7) rechaza al cifrar una contraseña de más de 72 bytes; sin un máximo, el registro terminaba en `422 UNEXPECTED_ERROR`. `StaffAccount.MAX_PASSWORD_BYTES` y `StaffAccount.fitsPasswordLimit` fijan el límite, que comprueban `RegisterStaffRequest` (`400` con `details.field = password`), `RegisterStaffAccountService` y `StaffAccountBootstrapper`. El login no se afecta: `matches` no aplica el límite.
+  - Ajuste (cierre de R12): la regla de una contraseña nueva (mínimo y límite de BCrypt) estaba repetida en el registro y en la edición; ahora vive en `StaffAccount.requireValidPassword`, que usan `RegisterStaffAccountService` y `EditStaffAccountService`. El arranque conserva su propio mensaje, que no puede mostrar la contraseña.
 - [x] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T022) y que `LoginService` (plan base, T020) use el mismo puerto.
   - Hecho (L35): verificado.
 - [x] T005 [P] Verificar `StaffAccountRepositoryPort`, `SpringDataUserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
@@ -520,6 +521,7 @@ frontend/src/
 - [x] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
   - Hecho (L37): solo escriben en `user_account` `StaffAccountRepositoryAdapter` (con su entidad, su mapper y `SpringDataUserAccountJpaRepository`, cuyas consultas son de lectura) y la migración `V1`. `RoomStateHistoryQueryRepository` solo la lee para el nombre del responsable.
 - [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
+  - Pendiente (frontend): se mide con `RegisterStaffPage` (T017). El backend responde el registro en una sola petición.
 
 ---
 

@@ -85,6 +85,20 @@ public class StaffAccount {
     }
 
     /**
+     * Regla de una contraseña nueva, antes de cifrarla (FR-004): al menos {@link #MIN_PASSWORD_LENGTH} caracteres y
+     * dentro del límite de BCrypt. La usan el registro y la edición; en la API la detienen antes los requests con
+     * {@code 400}, así que aquí un rechazo es un error interno (regla 7 del plan base).
+     */
+    public static void requireValidPassword(String rawPassword) {
+        if (rawPassword == null || rawPassword.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
+        }
+        if (!fitsPasswordLimit(rawPassword)) {
+            throw new IllegalArgumentException("La contraseña admite máximo 72 caracteres.");
+        }
+    }
+
+    /**
      * Normaliza el usuario eliminando espacios al inicio y al final y convirtiendo a minúsculas.
      */
     public static String normalizeUsername(String rawUsername) {
@@ -107,8 +121,8 @@ public class StaffAccount {
     }
 
     /**
-     * Cambia el nombre, el área y, si llega un hash nuevo, la contraseña; el usuario no cambia (plan-gestionar-personal.md
-     * T027; FR-008). Registra quién y cuándo (FR-013).
+     * Cambia el nombre, el área y, si llega un hash nuevo, la contraseña; el usuario no cambia
+     * (plan-gestionar-personal.md T027; FR-008). Registra quién y cuándo (FR-013).
      *
      * @param newPasswordHash la contraseña nueva ya cifrada, o {@code null} para conservar la actual
      */

@@ -77,12 +77,7 @@ public class EditStaffAccountService implements EditStaffAccountUseCase {
         if (rawPassword == null || rawPassword.isBlank()) {
             return null;
         }
-        if (rawPassword.length() < StaffAccount.MIN_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
-        }
-        if (!StaffAccount.fitsPasswordLimit(rawPassword)) {
-            throw new IllegalArgumentException("La contraseña admite máximo 72 caracteres.");
-        }
+        StaffAccount.requireValidPassword(rawPassword);
         return passwordEncoder.encode(rawPassword);
     }
 }

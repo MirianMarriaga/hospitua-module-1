@@ -12,22 +12,22 @@ import jakarta.validation.constraints.Size;
 /**
  * Cuerpo de {@code PATCH /api/staff/{username}} (plan-gestionar-personal.md T027). No lleva {@code username}: sale de
  * la ruta y, si llega en el cuerpo, se ignora (FR-008). {@code password} es opcional: ausente, vacía o solo con
- * espacios conserva la actual (esc. 7); si llega, debe tener entre 8 caracteres y 72 bytes, el límite de BCrypt (FR-004).
+ * espacios conserva la actual (esc. 7); si llega, debe tener entre 8 caracteres y 72 bytes, el límite de BCrypt
+ * (FR-004).
  */
 public record EditStaffRequest(
-        @NotNull(message = REQUIRED) Integer version,
+        @NotNull(message = RegisterStaffRequest.REQUIRED) Integer version,
 
-        @NotBlank(message = REQUIRED) @Size(max = 150, message = RegisterStaffRequest.FULL_NAME_RULE)
+        @NotBlank(message = RegisterStaffRequest.REQUIRED)
+        @Size(max = 150, message = RegisterStaffRequest.FULL_NAME_RULE)
         String fullName,
 
-        @NotNull(message = REQUIRED)
+        @NotNull(message = RegisterStaffRequest.REQUIRED)
         @Pattern(regexp = RegisterStaffRequest.AREAS, message = RegisterStaffRequest.AREA_RULE)
         String area,
 
         @Pattern(regexp = PASSWORD_OR_BLANK, message = RegisterStaffRequest.PASSWORD_RULE)
         String password) {
-
-    private static final String REQUIRED = "Completa los campos obligatorios.";
 
     /** En blanco (conserva la actual) o de al menos {@link StaffAccount#MIN_PASSWORD_LENGTH} caracteres. */
     private static final String PASSWORD_OR_BLANK = "\\s*|(?s).{" + StaffAccount.MIN_PASSWORD_LENGTH + ",}";

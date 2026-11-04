@@ -35,7 +35,9 @@ public record RegisterStaffRequest(
     static final String FULL_NAME_RULE = "El nombre completo admite máximo 150 caracteres.";
     static final String AREA_RULE = "Selecciona un área válida.";
 
-    private static final String REQUIRED = "Completa los campos obligatorios.";
+    /** Texto de un campo obligatorio que falta; la interfaz lo completa con la lista de {@code details.fields}. */
+    static final String REQUIRED = "Completa los campos obligatorios.";
+
     private static final String USERNAME_RULE =
             "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo.";
 
