@@ -544,6 +544,7 @@ backend/
     │   │   │       ├── CleaningTaskStartedDto.java       # {taskId}
     │   │   │       ├── CompleteCleaningCommand.java
     │   │   │       ├── MaintenancePanelDto.java              # Mantenimiento
+    │   │   │       ├── StartRepairCommand.java
     │   │   │       ├── RepairTaskStartedDto.java         # {taskId}
     │   │   │       ├── ReportDamageCommand.java
     │   │   │       ├── DamageReportCreatedDto.java       # {damageReportId}
@@ -598,6 +599,7 @@ backend/
     │   │       │   │   │   │   ├── RegisterCheckInRequest.java   # POST /api/check-in
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
+    │   │       │   │   │   │   ├── StartRepairRequest.java       # POST /api/maintenance/tasks
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
@@ -771,6 +773,7 @@ backend/
         │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
         │       ├── StartCleaningServiceTest.java
+        │       ├── StartRepairServiceTest.java
         │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
         │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
@@ -828,6 +831,7 @@ backend/
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
         │   │   │       ├── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       ├── StartRepairIntegrationTest.java            # plan-confirmar-reparacion-finalizada.md
         │   │   │       └── TechnicalBlockSchedulingIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
         │   │   └── out/
         │   │       ├── messaging/

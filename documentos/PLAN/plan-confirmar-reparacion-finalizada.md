@@ -315,21 +315,25 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 2
 
-- [ ] T005 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 6; FR-011, FR-015).
-- [ ] T006 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 7; FR-012).
-- [ ] T007 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 8; FR-012).
-- [ ] T008 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 9; FR-012).
-- [ ] T009 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `ROOM_TASK_EXISTS` (FR-012).
+- [x] T005 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 6; FR-011, FR-015).
+- [x] T006 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 7; FR-012).
+- [x] T007 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 8; FR-012).
+- [x] T008 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 9; FR-012).
+  - Hecho (L29): T005 a T008 están en `StartRepairServiceTest`. T008 recorre todos los estados salvo `DisabledForRepairs` y `TechnicalBlock`, y comprueba que el rechazo llega antes de mirar la tarea de la habitación.
+- [x] T009 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `ROOM_TASK_EXISTS` (FR-012).
+  - Hecho (L29): en `StartRepairIntegrationTest`, que llama al caso de uso desde dos hilos; queda una sola tarea y la habitación sigue `DisabledForRepairs`.
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Implementar `StartRepairService` (`@Transactional`) (FR-011, FR-012), en este orden:
+- [x] T010 [US2] Implementar `StartRepairService` (`@Transactional`) (FR-011, FR-012), en este orden:
   - Bloquear la habitación con `RoomRepositoryPort.lockById(roomId)` como primera carga de la transacción (regla 13 del plan base); si no existe, `RoomNotFoundException` (`ROOM_NOT_FOUND`).
   - Rechazar si el miembro tiene una tarea abierta (`ActiveTaskExistsException`, `ACTIVE_TASK_EXISTS`).
   - Validar que la habitación esté en `DisabledForRepairs` o `TechnicalBlock` (`ROOM_INVALID_STATE` con `currentStatus`).
   - Rechazar si la habitación tiene una tarea abierta (`existsOpenByRoom`; `RoomTaskExistsException`, `ROOM_TASK_EXISTS`). Con el bloqueo, dos inicios sobre la misma habitación se serializan y el segundo recibe este error; los índices únicos quedan como respaldo (T002).
   - Tomar la hora con `Clock` (no hay transición de estado) y crear la `ReparationTask`.
-- [ ] T011 [US2] Agregar a `MaintenanceController` (T004) `POST /api/maintenance/tasks`, que responde `201` con `taskId` y toma como miembro al usuario actual, con los textos de su tabla de errores (FR-011, FR-012). La interfaz de la acción (botón, llamada, retroalimentación, redirección y recarga) la implementa `plan-consultar-panel-mantenimiento.md`.
+  - Hecho (L29): el servicio no guarda la habitación ni llama a `RoomStateTransitionService`; `StartRepairServiceTest` (T005) lo comprueba y `StartRepairIntegrationTest` verifica que no hay filas en `room_state_history`.
+- [x] T011 [US2] Agregar a `MaintenanceController` (T004) `POST /api/maintenance/tasks`, que responde `201` con `taskId` y toma como miembro al usuario actual, con los textos de su tabla de errores (FR-011, FR-012). La interfaz de la acción (botón, llamada, retroalimentación, redirección y recarga) la implementa `plan-consultar-panel-mantenimiento.md`.
+  - Hecho (L29): el cuerpo es `StartRepairRequest` (solo `roomId`; una fecha enviada por el cliente se ignora). `StartRepairIntegrationTest` prueba la respuesta `201`, cada fila de la tabla de errores con su texto y que se inicia también desde `TechnicalBlock`.
 
 **Checkpoint**: El endpoint de inicio está listo para la acción del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`).
 
