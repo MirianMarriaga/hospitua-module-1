@@ -256,6 +256,7 @@ backend/src/
 │   │   ├── service/
 │   │   │   ├── StartRepairService.java
 │   │   │   ├── CompleteRepairService.java
+│   │   │   ├── LockedRepairTaskLoader.java            # Pasos 1 a 4 compartidos: roomId, bloqueo, tarea fresca y dueño
 │   │   │   └── ReleaseRepairTaskService.java          # Implementa los dos puertos de liberación
 │   │   └── dto/
 │   │       ├── StartRepairCommand.java                # roomId y el miembro (usuario actual)
