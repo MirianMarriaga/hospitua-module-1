@@ -489,6 +489,7 @@ backend/
     │   │   │   │   ├── StartRepairService.java
     │   │   │   │   ├── CompleteRepairService.java
     │   │   │   │   ├── ReleaseRepairTaskService.java         # Implementa ReleaseRepairTaskUseCase y ReleaseRepairTaskOnDeactivationUseCase
+    │   │   │   │   ├── LockedRepairTaskLoader.java     # Pasos compartidos de confirmar y liberar una reparación: bloqueo de la habitación y tarea fresca (plan-confirmar-reparacion-finalizada.md)
     │   │   │   │   ├── ReportDamageService.java
     │   │   │   │   ├── DamageReportQueryService.java
     │   │   │   │   ├── ScheduleTechnicalBlockService.java
@@ -744,6 +745,7 @@ backend/
         │       ├── CheckOutExecutionServiceTest.java
         │       ├── CleaningPanelQueryServiceTest.java
         │       ├── CompleteCleaningServiceTest.java
+        │       ├── CompleteRepairServiceTest.java
         │       ├── DailyMaintenanceNoticeServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
@@ -763,6 +765,7 @@ backend/
         │       ├── RegisterRoomServiceTest.java
         │       ├── RegisterStaffAccountServiceTest.java
         │       ├── ReleaseCleaningTaskServiceTest.java
+        │       ├── ReleaseRepairTaskServiceTest.java
         │       ├── ReportDamageServiceTest.java
         │       ├── RoomBaseRateQueryServiceTest.java
         │       ├── RoomDecommissionQueryServiceTest.java
@@ -814,6 +817,7 @@ backend/
         │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
         │   │   │       ├── CleaningPanelIntegrationTest.java          # plan-consultar-panel-limpieza.md
         │   │   │       ├── CompleteCleaningIntegrationTest.java       # plan-confirmar-fin-de-limpieza.md
+        │   │   │       ├── CompleteRepairIntegrationTest.java         # plan-confirmar-reparacion-finalizada.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
