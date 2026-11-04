@@ -30,6 +30,8 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        String username = validUsername();
+        validatePassword();
         List<StaffAccount> activeAdmins = staffAccountRepository.findActiveAdministratorsForUpdate();
         if (!activeAdmins.isEmpty()) {
             log.info(
@@ -39,7 +41,6 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
         }
 
         log.info("No existen cuentas activas de Administración. Creando cuenta inicial desde la configuración...");
-        String username = validUsername();
 
         RegisterStaffAccountCommand command = new RegisterStaffAccountCommand(
                 username, bootstrapProperties.password(), bootstrapProperties.fullName(), StaffArea.ADMINISTRACION);
@@ -49,8 +50,9 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
     }
 
     /**
-     * Presencia y longitudes las valida {@link StaffBootstrapProperties} al arrancar; aquí solo el formato del
-     * usuario, que define {@link StaffAccount}.
+     * La presencia de cada dato la valida {@link StaffBootstrapProperties} al arrancar; aquí el formato del usuario, que
+     * define {@link StaffAccount}. Se valida siempre, haya o no Administradores activos: una configuración inválida no
+     * arranca (T022).
      */
     private String validUsername() {
         try {
@@ -58,6 +60,22 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException(
                     "El usuario de bootstrap no cumple las reglas de formato: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Entre 8 caracteres y 72 bytes (FR-004; el máximo es el de BCrypt). El mensaje no incluye la contraseña, porque
+     * termina en el log del arranque fallido (plan-gestionar-personal.md T015; SC-002).
+     */
+    private void validatePassword() {
+        String password = bootstrapProperties.password();
+        if (password.length() < StaffAccount.MIN_PASSWORD_LENGTH || !StaffAccount.fitsPasswordLimit(password)) {
+            throw new IllegalStateException(
+                    "La contraseña de la cuenta inicial (hospitua.bootstrap.admin.password) debe tener entre "
+                            + StaffAccount.MIN_PASSWORD_LENGTH
+                            + " caracteres y "
+                            + StaffAccount.MAX_PASSWORD_BYTES
+                            + " bytes.");
         }
     }
 }

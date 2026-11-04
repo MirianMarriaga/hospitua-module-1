@@ -397,6 +397,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T026 Prueba de rendimiento (etiquetada según la estrategia de testing del plan base): tras confirmar, la habitación aparece en `PendingCleaning` en menos de 2 segundos (SC-002).
+  - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 
 ---
 

@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -27,17 +28,26 @@ class StaffBootstrapPropertiesTest {
     @ValueSource(
             strings = {
                 "hospitua.bootstrap.admin.username=",
-                "hospitua.bootstrap.admin.password=123",
+                "hospitua.bootstrap.admin.password=",
                 "hospitua.bootstrap.admin.full-name="
             })
-    @DisplayName("Una propiedad de la cuenta inicial faltante o inválida impide arrancar (T022)")
+    @DisplayName("Una propiedad de la cuenta inicial faltante impide arrancar (T022)")
     void invalidPropertyShouldPreventStartup(String invalidProperty) {
         contextRunner
                 .withPropertyValues(invalidProperty)
                 .run(context -> assertThat(context).hasFailed());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
+    @DisplayName("Una contraseña corta no se rechaza al enlazar, porque Spring Boot escribiría su valor en el log; la"
+            + " rechaza StaffAccountBootstrapper (plan-gestionar-personal.md T015)")
+    void shortPasswordIsLeftToBootstrapper() {
+        contextRunner
+                .withPropertyValues("hospitua.bootstrap.admin.password=123")
+                .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
     @DisplayName("Con propiedades válidas el contexto arranca")
     void validPropertiesShouldStart() {
         contextRunner.run(context -> assertThat(context).hasNotFailed());

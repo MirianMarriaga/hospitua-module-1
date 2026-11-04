@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.out.persistence.reposi
 import com.hospitua.habitaciones.infrastructure.adapters.out.persistence.entity.UserAccountJpaEntity;
 import jakarta.persistence.LockModeType;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -16,4 +17,8 @@ public interface SpringDataUserAccountJpaRepository extends JpaRepository<UserAc
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM UserAccountJpaEntity u WHERE u.area = :area AND u.active = true")
     List<UserAccountJpaEntity> findActiveByAreaForUpdate(@Param("area") String area);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM UserAccountJpaEntity u WHERE u.username = :username")
+    Optional<UserAccountJpaEntity> findByUsernameForUpdate(@Param("username") String username);
 }

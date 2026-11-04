@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.domain.model;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Objects;
@@ -12,6 +13,12 @@ import lombok.Getter;
  */
 @Getter
 public class StaffAccount {
+
+    /** Longitud mínima de la contraseña en texto plano, antes de cifrarla (FR-004). */
+    public static final int MIN_PASSWORD_LENGTH = 8;
+
+    /** BCrypt solo cifra 72 bytes y rechaza una contraseña más larga; la ñ y las tildes ocupan dos (FR-004). */
+    public static final int MAX_PASSWORD_BYTES = 72;
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-z0-9._]{3,30}$");
 
@@ -72,6 +79,25 @@ public class StaffAccount {
                 rawUsername, passwordHash, rawFullName, area, true, now, createdBy, now, createdBy, null, null, null);
     }
 
+    /** La contraseña no pasa de {@link #MAX_PASSWORD_BYTES} en UTF-8; una nula no tiene largo que revisar. */
+    public static boolean fitsPasswordLimit(String rawPassword) {
+        return rawPassword == null || rawPassword.getBytes(StandardCharsets.UTF_8).length <= MAX_PASSWORD_BYTES;
+    }
+
+    /**
+     * Regla de una contraseña nueva, antes de cifrarla (FR-004): al menos {@link #MIN_PASSWORD_LENGTH} caracteres y
+     * dentro del límite de BCrypt. La usan el registro y la edición; en la API la detienen antes los requests con
+     * {@code 400}, así que aquí un rechazo es un error interno (regla 7 del plan base).
+     */
+    public static void requireValidPassword(String rawPassword) {
+        if (rawPassword == null || rawPassword.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
+        }
+        if (!fitsPasswordLimit(rawPassword)) {
+            throw new IllegalArgumentException("La contraseña admite máximo 72 caracteres.");
+        }
+    }
+
     /**
      * Normaliza el usuario eliminando espacios al inicio y al final y convirtiendo a minúsculas.
      */
@@ -92,6 +118,37 @@ public class StaffAccount {
                     "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo.");
         }
         return normalized;
+    }
+
+    /**
+     * Cambia el nombre, el área y, si llega un hash nuevo, la contraseña; el usuario no cambia
+     * (plan-gestionar-personal.md T027; FR-008). Registra quién y cuándo (FR-013).
+     *
+     * @param newPasswordHash la contraseña nueva ya cifrada, o {@code null} para conservar la actual
+     */
+    public void edit(
+            String rawFullName, StaffArea newArea, String newPasswordHash, OffsetDateTime now, String editedBy) {
+        this.fullName = validateFullName(rawFullName);
+        this.area = Objects.requireNonNull(newArea, "area no puede ser nula");
+        if (newPasswordHash != null) {
+            if (newPasswordHash.isBlank()) {
+                throw new IllegalArgumentException("passwordHash no puede estar en blanco");
+            }
+            this.passwordHash = newPasswordHash;
+        }
+        this.updatedAt = Objects.requireNonNull(now, "updatedAt no puede ser nulo");
+        this.updatedBy = editedBy;
+    }
+
+    /**
+     * Deja la cuenta desactivada sin borrarla: el historial sigue mostrando su nombre (plan-gestionar-personal.md T034;
+     * FR-009, FR-013). Las reglas de la propia cuenta y del último Administrador las valida el servicio, que conoce al
+     * responsable y las demás cuentas.
+     */
+    public void deactivate(OffsetDateTime now, String deactivatedBy) {
+        this.active = false;
+        this.deactivatedAt = Objects.requireNonNull(now, "deactivatedAt no puede ser nulo");
+        this.deactivatedBy = deactivatedBy;
     }
 
     private static String validateFullName(String rawFullName) {
