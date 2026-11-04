@@ -302,16 +302,30 @@ class DamageReportIntegrationTest {
     }
 
     @Test
-    @DisplayName("T015: tras el reporte, la habitación ya no aparece en el panel de limpieza")
-    void report_leavesCleaningPanel() throws Exception {
+    @DisplayName("T015: tras el reporte, la habitación sale del panel de limpieza y entra en el de mantenimiento como"
+            + " DisabledForRepairs, antes que las habitaciones sin intervención")
+    void report_movesRoomBetweenPanels() throws Exception {
         UUID roomId = newRoom(RoomStatus.Available).getId();
+        UUID untouched = newRoom(RoomStatus.Available).getId();
         String member = newMember(StaffArea.LIMPIEZA);
+        String maintenanceMember = newMember(StaffArea.MANTENIMIENTO);
         assertThat(cleaningPanelRoomIds(member)).contains(roomId.toString());
 
         report(member, roomId, "{\"damageDescription\":\"" + DESCRIPTION + "\"}")
                 .andExpect(status().isCreated());
 
         assertThat(cleaningPanelRoomIds(member)).doesNotContain(roomId.toString());
+        String panel = mockMvc.perform(get("/api/maintenance/panel").header("X-User", maintenanceMember))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        List<String> maintenanceRoomIds = JsonPath.read(panel, "$.rooms[*].roomId");
+        List<String> reportedStatus = JsonPath.read(panel, "$.rooms[?(@.roomId == '" + roomId + "')].status");
+        assertThat(reportedStatus).containsExactly("DisabledForRepairs");
+        assertThat(maintenanceRoomIds.indexOf(roomId.toString()))
+                .isGreaterThanOrEqualTo(0)
+                .isLessThan(maintenanceRoomIds.indexOf(untouched.toString()));
     }
 
     private ResultActions report(String xUser, UUID roomId, String body) throws Exception {

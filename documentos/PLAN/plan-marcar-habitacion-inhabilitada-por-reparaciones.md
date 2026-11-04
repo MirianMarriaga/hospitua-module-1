@@ -302,8 +302,9 @@ No aplica: usa la infraestructura del plan base.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T015 Integration test: tras el reporte, en la consulta siguiente, la habitación ya no aparece en `GET /api/cleaning/panel` y aparece con `DisabledForRepairs` en `GET /api/maintenance/panel` (FR-004; el plazo de 60 segundos lo cubre la actualización periódica del panel de mantenimiento).
+- [x] T015 Integration test: tras el reporte, en la consulta siguiente, la habitación ya no aparece en `GET /api/cleaning/panel` y aparece con `DisabledForRepairs` en `GET /api/maintenance/panel` (FR-004; el plazo de 60 segundos lo cubre la actualización periódica del panel de mantenimiento).
   - Avance (L20): hecha la parte del panel de limpieza en `DamageReportIntegrationTest`. Falta la de `GET /api/maintenance/panel`, que se hace con ese panel.
+  - Hecho (cierre de R11): `DamageReportIntegrationTest` también consulta `GET /api/maintenance/panel` (L28): la habitación aparece como `DisabledForRepairs` y antes que una habitación sin intervención.
 
 ---
 
