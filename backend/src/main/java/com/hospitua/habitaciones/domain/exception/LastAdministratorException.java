@@ -1,11 +1,13 @@
 package com.hospitua.habitaciones.domain.exception;
 
 /**
- * Es la última cuenta activa del área Administración (409 LAST_ADMINISTRATOR; plan-gestionar-personal.md).
+ * La operación dejaría el sistema sin cuentas activas del área Administración (409 LAST_ADMINISTRATOR;
+ * plan-gestionar-personal.md, FR-010): cambiarle el área a la única que queda o desactivarla. Cada operación pone su
+ * mensaje.
  */
 public final class LastAdministratorException extends DomainException {
 
-    public LastAdministratorException() {
-        super(DomainError.LAST_ADMINISTRATOR, "No se puede desactivar: es la única cuenta activa de Administración.");
+    public LastAdministratorException(String message) {
+        super(DomainError.LAST_ADMINISTRATOR, message);
     }
 }

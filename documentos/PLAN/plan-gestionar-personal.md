@@ -261,6 +261,7 @@ Content-Type: application/json
 | 404 | `STAFF_NOT_FOUND` | `StaffAccountNotFoundException` | No existe la cuenta | "No se encontró la cuenta." |
 | 409 | `ACCOUNT_INACTIVE` | `AccountInactiveException` | La cuenta está desactivada (caso borde "Edición de una cuenta desactivada") | "La cuenta está desactivada; no se puede editar." |
 | 409 | `CONCURRENT_UPDATE` | `ConcurrentStaffUpdateException` (la `version` enviada no es la de la cuenta, comprobada con su fila bloqueada) | Otro Administrador cambió la cuenta después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
+| 409 | `LAST_ADMINISTRATOR` | `LastAdministratorException` | La cuenta es la única activa del área Administración y el área nueva es otra (FR-010) | "No se puede cambiar el área: es la única cuenta activa de Administración." |
 
 ---
 
@@ -321,7 +322,8 @@ backend/src/main/
 │   │       ├── StaffAccountNotFoundException.java     # 404
 │   │       ├── AccountInactiveException.java          # 409
 │   │       ├── CannotDeactivateSelfException.java     # 409
-│   │       └── LastAdministratorException.java        # 409
+│   │       ├── LastAdministratorException.java        # 409; cada operación pone su mensaje
+│   │       └── ConcurrentStaffUpdateException.java    # 409 CONCURRENT_UPDATE de la edición
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -349,6 +351,7 @@ backend/src/main/
 │       │   │   ├── web/StaffController.java       # /api/staff
 │       │   │   ├── web/dto/RegisterStaffRequest.java   # Cuerpo de POST /api/staff
 │       │   │   ├── web/dto/StaffListQuery.java         # Parámetros de GET /api/staff
+│       │   │   ├── web/dto/EditStaffRequest.java       # Cuerpo de PATCH /api/staff/{username}
 │       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T022)
 │       │   └── out/
 │       │       ├── persistence/repository/SpringDataUserAccountJpaRepository.java   # Plan base (T022)
@@ -475,6 +478,7 @@ frontend/src/
 
 - [x] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-013).
   - Hecho (L36): como *Editar habitación* (R9), el servicio bloquea la fila de la cuenta (`StaffAccountRepositoryPort.lockByUsername`, `MANDATORY`) y compara la `version`; si no coincide lanza `ConcurrentStaffUpdateException` (`CONCURRENT_UPDATE`) con el texto de la tabla. No se usa `ObjectOptimisticLockingFailureException`: su manejador responde el texto de la habitación ("La habitación acaba de cambiar…"), y con la fila bloqueada la segunda edición siempre ve la versión nueva. Orden de las validaciones: existencia, cuenta activa (una cuenta desactivada también cambió de versión, y `ACCOUNT_INACTIVE` explica mejor el rechazo), versión y datos. `StaffAccount.edit` cambia nombre, área y, si llega, la contraseña cifrada, y registra quién y cuándo. El cuerpo es `EditStaffRequest`; un `username` en el cuerpo se ignora. `EditStaffIntegrationTest` prueba el `200` con la versión nueva, el login con la contraseña nueva, la contraseña vacía que conserva la anterior, cada error de la tabla y la falta de `X-User`.
+  - Ajuste (revisión de L36): la única cuenta activa de Administración no puede pasar a otra área (FR-010 ampliado en el spec; antes la edición dejaba el sistema sin Administrador hasta el próximo arranque). Si el área nueva no es Administración, el servicio bloquea primero las cuentas activas de Administración (`findActiveAdministratorsForUpdate`) y después la de la edición; si es la única, `LastAdministratorException` (`409 LAST_ADMINISTRATOR`). `LastAdministratorException` recibe el mensaje de cada operación. Además, una contraseña solo con espacios cuenta como vacía y conserva la actual (FR-008), y el patrón de `EditStaffRequest` usa `StaffAccount.MIN_PASSWORD_LENGTH`.
 - [ ] T028 [US3] Construir `EditStaffPage.tsx`, con el usuario de solo lectura y el campo de contraseña opcional (FR-008).
 
 **Checkpoint**: Las cuentas se pueden corregir y las contraseñas restablecer.
@@ -498,6 +502,7 @@ frontend/src/
 ### Implementation for User Story 4
 
 - [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y `ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)` (username de la cuenta; sin actor). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los dos puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) y `ReleaseRepairTaskOnDeactivationUseCase` (`plan-confirmar-reparacion-finalizada.md`) (FR-009, FR-010, FR-011, FR-013).
+  - Nota (revisión de L36): bloquear primero las cuentas activas de Administración y después la cuenta a desactivar, el mismo orden de la edición (T027), para que una desactivación y un cambio de área simultáneos no se bloqueen entre sí. `LastAdministratorException` recibe el texto de la tabla de este endpoint.
 - [ ] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
 
 **Checkpoint**: La gestión del personal queda completa.

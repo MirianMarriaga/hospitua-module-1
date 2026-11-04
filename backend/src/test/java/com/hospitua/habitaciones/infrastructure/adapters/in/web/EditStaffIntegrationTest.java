@@ -37,6 +37,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code PATCH /api/staff/{username}} sobre la aplicación completa y PostgreSQL real (plan-gestionar-personal.md T026,
@@ -226,10 +227,45 @@ class EditStaffIntegrationTest {
         }
     }
 
+    @Test
+    @Transactional
+    @DisplayName("FR-010: la única cuenta activa de Administración no puede cambiar de área (409 LAST_ADMINISTRATOR)."
+            + " La prueba desactiva las demás dentro de su transacción, que se revierte al final")
+    void edit_lastAdministratorKeepsArea() throws Exception {
+        String admin = newAccount(StaffArea.ADMINISTRACION);
+        jdbcTemplate.update(
+                "UPDATE user_account SET active = false WHERE area = 'ADMINISTRACION' AND username <> ?", admin);
+
+        mockMvc.perform(patch("/api/staff/{username}", admin)
+                        .header("X-User", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":0,\"fullName\":\"Jorge Ramírez\",\"area\":\"LIMPIEZA\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("LAST_ADMINISTRATOR"))
+                .andExpect(jsonPath("$.message")
+                        .value("No se puede cambiar el área: es la única cuenta activa de Administración."));
+        assertThat(jdbcTemplate.queryForObject("SELECT area FROM user_account WHERE username = ?", String.class, admin))
+                .isEqualTo("ADMINISTRACION");
+    }
+
+    @Test
+    @DisplayName("FR-010: con otra cuenta activa de Administración (la inicial), un Administrador sí cambia de área")
+    void edit_administratorLeavesWhenAnotherRemains() throws Exception {
+        String admin = newAccount(StaffArea.ADMINISTRACION);
+
+        edit(admin, "{\"version\":0,\"fullName\":\"Jorge Ramírez\",\"area\":\"LIMPIEZA\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.area").value("LIMPIEZA"));
+    }
+
     private String newAccount() {
+        return newAccount(StaffArea.LIMPIEZA);
+    }
+
+    private String newAccount(StaffArea area) {
         String username = "edi_" + UUID.randomUUID().toString().substring(0, 8);
         registerStaffAccountUseCase.register(
-                new RegisterStaffAccountCommand(username, PASSWORD, "Jorge Ramírez", StaffArea.LIMPIEZA), ADMIN);
+                new RegisterStaffAccountCommand(username, PASSWORD, "Jorge Ramírez", area), ADMIN);
         return username;
     }
 

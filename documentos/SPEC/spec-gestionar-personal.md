@@ -138,6 +138,7 @@ Como Sistema, quiero crear al arrancar una cuenta inicial de Administrador cuand
 - Cuenta ya desactivada: la acción "Desactivar" no se muestra, y si la petición llega igual, el sistema la rechaza indicando que la cuenta ya está desactivada.
 - Edición de una cuenta desactivada: no se ofrece; una cuenta desactivada no se edita.
 - Ediciones simultáneas: si dos Administradores editan la misma cuenta al mismo tiempo, se guarda la primera y la segunda recibe un aviso de que la información ya fue actualizada.
+- Cambio de área del último Administrador: si la cuenta es la única activa del área Administración, la edición no le permite cambiar de área, porque el sistema quedaría sin Administrador (FR-010).
 - Pérdida de conexión o fallo al guardar: la operación se cancela completa y la cuenta queda como estaba.
 
 ## Requisitos *(obligatorio)*
@@ -153,7 +154,7 @@ Como Sistema, quiero crear al arrancar una cuenta inicial de Administrador cuand
 - **FR-007**: El sistema DEBE mostrar la lista del personal con usuario, nombre, área y estado ("Activa" o "Desactivada"), incluir por defecto las cuentas desactivadas, permitir filtrar por área y por estado y buscar por usuario o nombre, y paginar de 10 en 10, mostrando el rango y el total ("Mostrando X–Y de Z").
 - **FR-008**: El sistema DEBE permitir editar el nombre, el área y la contraseña de una cuenta activa. El usuario no se puede cambiar, porque identifica a la persona en el historial. Si el campo de contraseña se deja vacío, la contraseña actual se conserva.
 - **FR-009**: El sistema DEBE pedir confirmación antes de desactivar una cuenta, mostrando el usuario, el nombre y el área y advirtiendo que la persona no podrá iniciar sesión. Al confirmar, la cuenta queda desactivada: no se borra y no puede iniciar sesión.
-- **FR-010**: El sistema NO DEBE permitir que el Administrador desactive su propia cuenta ni la última cuenta activa del área Administración.
+- **FR-010**: El sistema NO DEBE permitir que el Administrador desactive su propia cuenta ni la última cuenta activa del área Administración, ni que esa última cuenta pase a otra área al editarla.
 - **FR-011**: Al desactivar una cuenta, el sistema DEBE liberar las tareas abiertas de la cuenta (limpieza y reparación). La liberación de limpieza registra al Administrador como actor en el historial de estados; la de reparación no registra actor.
 - **FR-012**: Si al arrancar no existe ninguna cuenta activa del área Administración, el sistema DEBE crear una cuenta inicial de Administrador con el usuario, la contraseña y el nombre de su configuración, aplicando las mismas reglas de FR-002 a FR-005.
 - **FR-013**: El sistema DEBE registrar la fecha y hora y el Administrador responsable del registro, de la última edición y de la desactivación de cada cuenta; la cuenta inicial de FR-012 queda registrada por el sistema.
