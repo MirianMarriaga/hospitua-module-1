@@ -755,6 +755,7 @@ backend/
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
         │       ├── DamageReportQueryServiceTest.java
+        │       ├── DeactivateStaffAccountServiceTest.java
         │       ├── DecommissionRoomServiceTest.java
         │       ├── DepartureSearchServiceTest.java
         │       ├── EditRoomServiceTest.java
@@ -827,6 +828,8 @@ backend/
         │   │   │       ├── CompleteRepairIntegrationTest.java         # plan-confirmar-reparacion-finalizada.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
+        │   │   │       ├── DeactivateLastAdministratorIntegrationTest.java # plan-gestionar-personal.md
+        │   │   │       ├── DeactivateStaffIntegrationTest.java        # plan-gestionar-personal.md
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
         │   │   │       ├── EditStaffIntegrationTest.java              # plan-gestionar-personal.md

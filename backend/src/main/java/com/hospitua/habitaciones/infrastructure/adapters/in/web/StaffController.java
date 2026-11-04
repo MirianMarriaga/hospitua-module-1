@@ -2,6 +2,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.StaffAccountDto;
+import com.hospitua.habitaciones.application.ports.in.DeactivateStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.in.EditStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.in.GetStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.in.ListStaffAccountsUseCase;
@@ -24,8 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Sección "Personal" del Administrador bajo {@code /api/staff} (plan-gestionar-personal.md T016, T021 y T027). El
- * registro y la edición toman como responsable al usuario actual ({@code X-User}); las consultas no lo usan (regla 14
+ * Sección "Personal" del Administrador bajo {@code /api/staff} (plan-gestionar-personal.md T016, T021, T027 y T035).
+ * El registro, la edición y la desactivación toman como responsable al usuario actual ({@code X-User}); las consultas no lo usan (regla 14
  * del plan base).
  */
 @RestController
@@ -37,6 +38,7 @@ public class StaffController {
     private final ListStaffAccountsUseCase listStaffAccountsUseCase;
     private final GetStaffAccountUseCase getStaffAccountUseCase;
     private final EditStaffAccountUseCase editStaffAccountUseCase;
+    private final DeactivateStaffAccountUseCase deactivateStaffAccountUseCase;
     private final CurrentUserResolver currentUserResolver;
 
     /** Registrar: responde 201 con la confirmación, sin contraseña (FR-002 a FR-006). */
@@ -70,5 +72,15 @@ public class StaffController {
             @Valid @RequestBody EditStaffRequest request) {
         String administratorId = currentUserResolver.resolve(xUser);
         return editStaffAccountUseCase.edit(request.toCommand(username, administratorId));
+    }
+
+    /**
+     * Desactivar: la confirmación la pide la interfaz antes de enviar (esc. 9); responde 200 con {@code active = false}
+     * (FR-009).
+     */
+    @PostMapping("/{username}/deactivation")
+    public StaffAccountDto deactivate(
+            @PathVariable String username, @RequestHeader(value = "X-User", required = false) String xUser) {
+        return deactivateStaffAccountUseCase.deactivate(username, currentUserResolver.resolve(xUser));
     }
 }

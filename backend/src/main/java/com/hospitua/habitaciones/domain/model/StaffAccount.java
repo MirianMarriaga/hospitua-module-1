@@ -126,6 +126,17 @@ public class StaffAccount {
         this.updatedBy = editedBy;
     }
 
+    /**
+     * Deja la cuenta desactivada sin borrarla: el historial sigue mostrando su nombre (plan-gestionar-personal.md T034;
+     * FR-009, FR-013). Las reglas de la propia cuenta y del último Administrador las valida el servicio, que conoce al
+     * responsable y las demás cuentas.
+     */
+    public void deactivate(OffsetDateTime now, String deactivatedBy) {
+        this.active = false;
+        this.deactivatedAt = Objects.requireNonNull(now, "deactivatedAt no puede ser nulo");
+        this.deactivatedBy = deactivatedBy;
+    }
+
     private static String validateFullName(String rawFullName) {
         if (rawFullName == null || rawFullName.trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre completo es obligatorio.");

@@ -493,17 +493,23 @@ frontend/src/
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-013). Desactivar con una tarea de limpieza abierta deja la habitación en `PendingCleaning`, y con una tarea de reparación abierta la deja liberada sin cambiar la habitación (esc. 11; FR-011).
-- [ ] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010; SC-004).
-- [ ] T031 [US4] Integration test con Testcontainers: dos desactivaciones simultáneas de las dos únicas cuentas activas de Administración; solo una tiene éxito y la otra recibe `LAST_ADMINISTRATOR` (FR-010).
-- [ ] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
+- [x] T029 [P] [US4] Unit test en `DeactivateStaffAccountServiceTest`: la cuenta queda con `active = false`, la fila no se borra y se registran el responsable y la hora (esc. 8; FR-009, FR-013). Desactivar con una tarea de limpieza abierta deja la habitación en `PendingCleaning`, y con una tarea de reparación abierta la deja liberada sin cambiar la habitación (esc. 11; FR-011).
+  - Hecho (L37): `DeactivateStaffAccountServiceTest` prueba el orden (bloquear Administradores, bloquear la cuenta, guardar, liberar la tarea de limpieza con el Administrador como actor y la de reparación sin actor), que la cuenta queda con `active = false`, `deactivatedBy` y `deactivatedAt` del reloj, y que conserva sus datos. Lo que pasa con la habitación lo deciden los puertos de liberación; `DeactivateStaffIntegrationTest` lo prueba sobre la base: con una limpieza abierta la habitación vuelve a `PendingCleaning`, y con una reparación abierta la tarea queda `Released` y la habitación sigue en `DisabledForRepairs`.
+- [x] T030 [P] [US4] Unit test: rechazo con `CANNOT_DEACTIVATE_SELF`, con `LAST_ADMINISTRATOR` y con `ACCOUNT_INACTIVE` si ya estaba desactivada (esc. 10, caso borde "Cuenta ya desactivada"; FR-010; SC-004).
+  - Hecho (L37): propia cuenta, último Administrador, cuenta ya desactivada ("La cuenta ya está desactivada.") y cuenta inexistente (`STAFF_NOT_FOUND`); en ningún caso se guarda ni se libera nada. `DeactivateStaffIntegrationTest` revisa además los códigos HTTP (409, 409, 404) y la falta de `X-User` (400).
+- [x] T031 [US4] Integration test con Testcontainers: dos desactivaciones simultáneas de las dos únicas cuentas activas de Administración; solo una tiene éxito y la otra recibe `LAST_ADMINISTRATOR` (FR-010).
+  - Hecho (L37): `DeactivateLastAdministratorIntegrationTest`, con su propio contexto y su propia base (`@TestPropertySource`) para no dejar sin Administrador a las demás pruebas: `admin` y `lrios` se desactivan uno al otro a la vez; uno tiene éxito, el otro recibe `LastAdministratorException` y queda una sola cuenta activa de Administración.
+- [x] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
+  - Hecho (L37): en `DeactivateStaffIntegrationTest`, tras desactivar a un miembro de limpieza con una limpieza iniciada, el login responde `401 INVALID_CREDENTIALS`, su `X-User` `400 CURRENT_USER_REQUIRED` y el periodo `InCleaning` del historial sigue mostrando su nombre en `actorName`.
 - [ ] T033 [P] [US4] Component test en `DeactivateStaffDialog`: muestra usuario, nombre y área, advierte que la persona no podrá iniciar sesión y cancelar no envía nada (esc. 9; FR-009).
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y `ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)` (username de la cuenta; sin actor). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los dos puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) y `ReleaseRepairTaskOnDeactivationUseCase` (`plan-confirmar-reparacion-finalizada.md`) (FR-009, FR-010, FR-011, FR-013).
+- [x] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y `ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)` (username de la cuenta; sin actor). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los dos puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) y `ReleaseRepairTaskOnDeactivationUseCase` (`plan-confirmar-reparacion-finalizada.md`) (FR-009, FR-010, FR-011, FR-013).
   - Nota (revisión de L36): bloquear primero las cuentas activas de Administración y después la cuenta a desactivar, el mismo orden de la edición (T027), para que una desactivación y un cambio de área simultáneos no se bloqueen entre sí. `LastAdministratorException` recibe el texto de la tabla de este endpoint.
+  - Hecho (L37): orden de las validaciones después de los bloqueos: existencia (`STAFF_NOT_FOUND`), cuenta ya desactivada (`ACCOUNT_INACTIVE`), propia cuenta y último Administrador, con su mensaje ("No se puede desactivar: es la única cuenta activa de Administración."). Se bloquean primero las cuentas activas de Administración (el mismo orden que el arranque y que la edición, según la nota de arriba) y después la cuenta, para que dos desactivaciones cruzadas se serialicen sin interbloqueo. `StaffAccount.deactivate` registra quién y cuándo; la respuesta es el resumen de la cuenta.
 - [ ] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
+  - Avance (L37): hecho `POST /api/staff/{username}/deactivation` (200 con el resumen de la cuenta, `active = false`). Falta `DeactivateStaffDialog.tsx` (frontend).
 
 **Checkpoint**: La gestión del personal queda completa.
 
@@ -511,7 +517,8 @@ frontend/src/
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
+- [x] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
+  - Hecho (L37): solo escriben en `user_account` `StaffAccountRepositoryAdapter` (con su entidad, su mapper y `SpringDataUserAccountJpaRepository`, cuyas consultas son de lectura) y la migración `V1`. `RoomStateHistoryQueryRepository` solo la lee para el nombre del responsable.
 - [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
 
 ---
