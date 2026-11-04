@@ -89,7 +89,7 @@ Content-Type: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (falta `roomId`) o `HttpMessageNotReadableException` (Jackson no lo lee como UUID); en los dos, `details.field = roomId`. El `message` es "Selecciona una habitación válida." si falta y el genérico "Cuerpo de la petición inválido o mal formado." si no es UUID; la interfaz muestra el texto de esta fila por `errorCode` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` (`lockById` no encuentra la habitación) | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 9) | "La habitación está {estado}; no necesita reparación." |
 | 409 | `ROOM_TASK_EXISTS` | `RoomTaskExistsException` (el servicio, o el adaptador al traducir el índice único de tarea abierta por habitación, T002) | La habitación ya tiene una tarea abierta de otro miembro, incluido el miembro que llega segundo tras el bloqueo (HU-2 esc. 7) | "Otro compañero ya está reparando esta habitación." |
@@ -258,10 +258,12 @@ backend/src/
 │   │   │   ├── CompleteRepairService.java
 │   │   │   └── ReleaseRepairTaskService.java          # Implementa los dos puertos de liberación
 │   │   └── dto/
+│   │       ├── StartRepairCommand.java                # roomId y el miembro (usuario actual)
 │   │       └── RepairTaskStartedDto.java              # taskId
 │   └── infrastructure/adapters/
 │       ├── in/web/
-│       │   └── MaintenanceController.java
+│       │   ├── MaintenanceController.java
+│       │   └── dto/StartRepairRequest.java            # Cuerpo de POST /api/maintenance/tasks (solo roomId)
 │       └── out/persistence/
 │           ├── entity/ReparationTaskJpaEntity.java
 │           ├── mapper/ReparationTaskMapper.java

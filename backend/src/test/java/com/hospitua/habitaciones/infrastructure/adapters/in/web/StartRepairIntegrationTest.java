@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -141,19 +142,27 @@ class StartRepairIntegrationTest {
     }
 
     @Test
-    @DisplayName("Una habitación inexistente responde 404; sin roomId 400 VALIDATION_ERROR; sin X-User 400")
+    @DisplayName(
+            "Una habitación inexistente responde 404; sin roomId o con uno que no es UUID 400 VALIDATION_ERROR; sin"
+                    + " X-User 400")
     void start_invalidRequests() throws Exception {
         String member = newMaintenanceMember();
         start(member, UUID.randomUUID())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("ROOM_NOT_FOUND"));
-        mockMvc.perform(post("/api/maintenance/tasks")
-                        .header("X-User", member)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.details.field").value("roomId"));
+        Map<String, String> messages = Map.of(
+                "{}", "Selecciona una habitación válida.",
+                "{\"roomId\":\"no-es-un-uuid\"}", "Cuerpo de la petición inválido o mal formado.");
+        for (Map.Entry<String, String> invalid : messages.entrySet()) {
+            mockMvc.perform(post("/api/maintenance/tasks")
+                            .header("X-User", member)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalid.getKey()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                    .andExpect(jsonPath("$.details.field").value("roomId"))
+                    .andExpect(jsonPath("$.message").value(invalid.getValue()));
+        }
         mockMvc.perform(post("/api/maintenance/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"roomId\":\"" + newRoom(RoomStatus.DisabledForRepairs) + "\"}"))
