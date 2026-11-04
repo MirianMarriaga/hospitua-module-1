@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Desactivar cuenta del personal (plan-gestionar-personal.md T034). Primero bloquea las cuentas activas de
- * Administración ({@code SELECT … FOR UPDATE}): de dos desactivaciones simultáneas de las dos últimas, la segunda espera
- * y ve que solo queda una (FR-010). Después bloquea la cuenta, valida y la desactiva, y libera sus tareas abiertas por
- * los puertos de limpieza y de reparación, en esta misma transacción ({@code MANDATORY}): si una liberación falla, la
- * desactivación se revierte. No captura los errores de esos puertos (FR-011).
+ * Administración ({@code SELECT … FOR UPDATE}): de dos desactivaciones simultáneas de las dos últimas, la segunda
+ * espera y ve que solo queda una (FR-010). Después bloquea la cuenta, valida y la desactiva, y libera sus tareas
+ * abiertas por los puertos de limpieza y de reparación, en esta misma transacción ({@code MANDATORY}): si una
+ * liberación falla, la desactivación se revierte. No captura los errores de esos puertos (FR-011).
  */
 @Service
 @RequiredArgsConstructor

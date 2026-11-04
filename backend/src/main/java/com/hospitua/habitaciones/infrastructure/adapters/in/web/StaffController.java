@@ -26,8 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Sección "Personal" del Administrador bajo {@code /api/staff} (plan-gestionar-personal.md T016, T021, T027 y T035).
- * El registro, la edición y la desactivación toman como responsable al usuario actual ({@code X-User}); las consultas no lo usan (regla 14
- * del plan base).
+ * El registro, la edición y la desactivación toman como responsable al usuario actual ({@code X-User}); las consultas
+ * no lo usan (regla 14 del plan base).
  */
 @RestController
 @RequestMapping("/api/staff")
