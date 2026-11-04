@@ -65,7 +65,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `activeTask` | object \| null | Tarea activa del miembro; si no es nula, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | `null` |
+| `activeTask` | object (se omite si no hay) | Tarea activa del miembro; si viene, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | `null` |
 | `activeTask.taskId` | UUID | Tarea abierta del miembro | `"7e6d5c4b-…"` |
 | `activeTask.room` | object | La habitación de la tarea, con los mismos campos de un ítem de `rooms[]` | |
 | `rooms` | array | Todas las habitaciones excepto las `Inactive`, en tres grupos: `TechnicalBlock` vencidos, el resto de `DisabledForRepairs` y `TechnicalBlock`, y las demás; partición estable sobre el orden natural por número (plan base, T008) (FR-002, FR-006). La búsqueda (FR-007) y los conteos (FR-009) los calcula el frontend sobre esta lista | |
@@ -75,7 +75,7 @@ Accept: application/json
 | `rooms[].status` | string | Estado actual de la habitación (cualquiera salvo `Inactive`) | `"DisabledForRepairs"` |
 | `rooms[].overdue` | boolean | `true` si la habitación está en `TechnicalBlock` y su informe `Applied` tiene la fecha estimada de fin anterior a hoy ("Bloqueo técnico (vencido)", FR-003) | `false` |
 | `rooms[].hasOpenTask` | boolean | La habitación ya tiene una `ReparationTask` abierta: el frontend muestra "En reparación" y oculta "Iniciar reparaciones" (FR-005) | `false` |
-| `rooms[].maintenance` | object \| null | Rango del `TechnicalBlockReport` en `Applied` o, si no hay, del `Scheduled` de inicio más temprano, igual que `GET /api/rooms/{roomId}/technical-blocks/current`; nulo si no hay ("Sin programar"), incluso si tuvo uno que pasó a `Expired` (FR-004). Es un `Scheduled` cuando la habitación no está en `TechnicalBlock`, y así lo cuenta el frontend como "con mantenimiento programado" (FR-009) | `null` |
+| `rooms[].maintenance` | object (se omite si no hay) | Rango del `TechnicalBlockReport` en `Applied` o, si no hay, del `Scheduled` de inicio más temprano, igual que `GET /api/rooms/{roomId}/technical-blocks/current`; se omite si no hay ("Sin programar"), incluso si tuvo uno que pasó a `Expired` (FR-004). Es un `Scheduled` cuando la habitación no está en `TechnicalBlock`, y así lo cuenta el frontend como "con mantenimiento programado" (FR-009) | `null` |
 | `rooms[].maintenance.startDate` | string | Inicio | `"2026-10-20"` |
 | `rooms[].maintenance.estimatedEndDate` | string | Fin estimado | `"2026-10-22"` |
 
@@ -83,7 +83,6 @@ Accept: application/json
 
 ```json
 {
-  "activeTask": null,
   "rooms": [
     {
       "roomId": "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
@@ -91,8 +90,7 @@ Accept: application/json
       "categoryRoom": "SUITE",
       "status": "DisabledForRepairs",
       "overdue": false,
-      "hasOpenTask": false,
-      "maintenance": null
+      "hasOpenTask": false
     },
     {
       "roomId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
@@ -107,7 +105,7 @@ Accept: application/json
 }
 ```
 
-Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones para listar"; una búsqueda sin coincidencias en `rooms` (incluida una habitación `Inactive`) muestra "No se encontró la habitación X" (FR-008).
+Los campos nulos no se envían (`default-property-inclusion: non_null` del plan base): sin tarea no viaja `activeTask`, y una habitación sin mantenimiento no lleva `maintenance`. Un panel sin habitaciones responde `200` con `rooms` vacío y el frontend muestra "No hay habitaciones para listar"; una búsqueda sin coincidencias en `rooms` (incluida una habitación `Inactive`) muestra "No se encontró la habitación X" (FR-008).
 
 ### Respuestas de error
 
@@ -170,11 +168,13 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que existan:
+- [x] T001 Verificar que existan:
   - `ReparationTaskRepositoryPort` con `findOpenByMember` y `findRoomIdsWithOpenTask`, y `MaintenanceController` (`plan-confirmar-reparacion-finalizada.md`, T002 y T004).
   - `TechnicalBlockReport.isOverdue(today)` y `TechnicalBlockReportRepositoryPort` con `findAppliedByRoomIds` y `findEarliestScheduledByRoomIds` (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003).
   - `RoomRepositoryPort.findByStatusNot(RoomStatus)` (plan base, T008).
-- [ ] T002 [P] Implementar `MaintenancePanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetMaintenancePanelUseCase`.
+  - Hecho (L28): todo existe (L27 trajo `ReparationTaskRepositoryPort` y `MaintenanceController`).
+- [x] T002 [P] Implementar `MaintenancePanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetMaintenancePanelUseCase`.
+  - Hecho (L28): `MaintenancePanelDto` con los records anidados `ActiveTaskDto`, `MaintenanceRoomDto` (el ítem de `rooms`, que también usa `activeTask.room`) y `MaintenanceRangeDto`, y `GetMaintenancePanelUseCase.getPanel(String memberId)`. Por `default-property-inclusion: non_null`, sin tarea `activeTask` no viaja en el JSON y una habitación sin mantenimiento no lleva `maintenance`, como en el panel de limpieza (L19); el contrato ya lo dice.
 
 ---
 
@@ -186,16 +186,22 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Unit test en `MaintenancePanelQueryServiceTest`: excluye `Inactive`; ordena en tres grupos (`TechnicalBlock` vencidos, resto de `DisabledForRepairs` y `TechnicalBlock`, demás), cada uno por número (HU-1 esc. 1 y 4; FR-002, FR-006).
-- [ ] T004 [P] [US1] Unit test con `Clock` fijo: `overdue` según `isOverdue(today)`; `maintenance` toma el `Applied` o, si no hay, el `Scheduled` de inicio más temprano, e ignora los `Expired`; `hasOpenTask` con una tarea abierta de otro miembro (HU-1 esc. 3, 4 y 5; FR-003, FR-004, FR-005).
-- [ ] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 7; FR-001).
-- [ ] T006 [US1] Integration test: la consulta no modifica `room`, `reparation_task` ni `technical_block_report` (FR-011).
+- [x] T003 [P] [US1] Unit test en `MaintenancePanelQueryServiceTest`: excluye `Inactive`; ordena en tres grupos (`TechnicalBlock` vencidos, resto de `DisabledForRepairs` y `TechnicalBlock`, demás), cada uno por número (HU-1 esc. 1 y 4; FR-002, FR-006).
+  - Hecho (L28).
+- [x] T004 [P] [US1] Unit test con `Clock` fijo: `overdue` según `isOverdue(today)`; `maintenance` toma el `Applied` o, si no hay, el `Scheduled` de inicio más temprano, e ignora los `Expired`; `hasOpenTask` con una tarea abierta de otro miembro (HU-1 esc. 3, 4 y 5; FR-003, FR-004, FR-005).
+  - Hecho (L28): el servicio recibe ya elegido el `Scheduled` de inicio más temprano; esa elección la prueba `TechnicalBlockReportRepositoryAdapterTest` (`findEarliestScheduledByRoomIds`). Los `Expired` se prueban en la integración (ver la nota de T006).
+- [x] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 7; FR-001).
+  - Hecho (L28).
+- [x] T006 [US1] Integration test: la consulta no modifica `room`, `reparation_task` ni `technical_block_report` (FR-011).
+  - Hecho (L28): en `MaintenancePanelIntegrationTest`, que compara las filas de las tres tablas de sus habitaciones antes y después de la consulta. Las pruebas unitarias T003 a T005 están en `MaintenancePanelQueryServiceTest`; un informe `Expired` nunca llega al servicio, porque el repositorio solo devuelve `Applied` y `Scheduled`, así que se prueba en la integración (habitación con solo un `Expired` → sin `maintenance`).
 - [ ] T007 [P] [US1] Component test en `MaintenancePanelPage` con la API simulada: conteos calculados sobre la lista ("con mantenimiento programado" solo cuenta los `Scheduled`); botones por estado (todas: Programar mantenimiento; `AVB`: además Reportar daño; `DFR`/`TB`: además Iniciar reparaciones solo si `hasOpenTask` es `false`; Ver informe del daño en `DFR` y del bloqueo en cualquier otra con `maintenance`); etiquetas "En reparación" y "Bloqueo técnico (vencido)"; "Sin programar"; búsqueda por número exacto sobre la lista, que al vaciarse vuelve al listado completo; mensajes de FR-008; redirección cuando hay `activeTask`; nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar reparaciones": redirige a la vista de tarea activa al tener éxito y, si se rechaza, muestra el texto de la tabla de errores de `plan-confirmar-reparacion-finalizada.md` según el `errorCode` y recarga el panel (HU-1 esc. 2 a 6; FR-003 a FR-005, FR-007 a FR-010; *Confirmar Fin de Reparación de Habitación* FR-011, FR-012).
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implementar `MaintenancePanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa (`activeTask` con la fila de su habitación), todas las habitaciones salvo `Inactive` con una partición estable en tres grupos sobre el orden natural de `findByStatusNot`, `overdue`, `hasOpenTask` y `maintenance` (FR-001 a FR-006, FR-011).
-- [ ] T009 [US1] Agregar a `MaintenanceController` el endpoint `GET /api/maintenance/panel`, tomando como miembro al usuario actual (FR-001).
+- [x] T008 [US1] Implementar `MaintenancePanelQueryService` (`@Transactional(readOnly = true)`): detección de tarea activa (`activeTask` con la fila de su habitación), todas las habitaciones salvo `Inactive` con una partición estable en tres grupos sobre el orden natural de `findByStatusNot`, `overdue`, `hasOpenTask` y `maintenance` (FR-001 a FR-006, FR-011).
+  - Hecho (L28): ver la nota de T009.
+- [x] T009 [US1] Agregar a `MaintenanceController` el endpoint `GET /api/maintenance/panel`, tomando como miembro al usuario actual (FR-001).
+  - Hecho (L28): `MaintenancePanelQueryService` arma las filas con tres consultas por lotes (`findAppliedByRoomIds`, `findEarliestScheduledByRoomIds` y `findRoomIdsWithOpenTask`), sin una por habitación. En la fila de `activeTask`, `hasOpenTask` es `true` (es la tarea del propio miembro). `GET /api/maintenance/panel` responde `400 CURRENT_USER_REQUIRED` sin `X-User`.
 - [ ] T010 [US1] Construir `MaintenancePanelPage.tsx`, `MaintenanceSummary.tsx` y `MaintenanceRoomTable.tsx` según `vistas/mantenimiento/01-panel.html`: conteos calculados sobre `rooms` (FR-009), columnas número, tipo, estado (nombre en español o "Bloqueo técnico (vencido)"), mantenimiento (DD-MM-YYYY a DD-MM-YYYY o "Sin programar"), etiqueta "En reparación" y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003 a FR-005, FR-007 a FR-009).
 - [ ] T011 [US1] Conectar las acciones y la actualización (FR-005, FR-010):
   - Este plan es dueño del botón, la llamada y la navegación de cada acción; los mensajes de éxito y error los define el plan de cada caso de uso.
@@ -212,6 +218,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 
 - [ ] T012 Prueba de rendimiento (etiquetada según la estrategia de testing del plan base): con 500 habitaciones, `GET /api/maintenance/panel` responde en menos de 2 segundos (SC-001).
 - [ ] T013 Integration test sin tiempos: una habitación que pasa a `DisabledForRepairs` aparece en la siguiente consulta del panel antes que las habitaciones sin intervención, en el orden natural real de SQL, y ninguna `Inactive` aparece; el número de consultas no crece con el número de habitaciones (FR-002, FR-006; SC-002).
+  - Avance (L28): `MaintenancePanelIntegrationTest` ya prueba con SQL real el orden en tres grupos y que ninguna `Inactive` aparece. Falta que la habitación pase a `DisabledForRepairs` por el flujo real (reportar daño) y que el número de consultas no crezca con las habitaciones (hoy es un número fijo por construcción del servicio: la tarea abierta del miembro, las habitaciones y tres consultas por lotes).
 
 ---
 

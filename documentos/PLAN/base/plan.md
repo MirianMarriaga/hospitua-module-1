@@ -489,6 +489,7 @@ backend/
     │   │   │   │   ├── StartRepairService.java
     │   │   │   │   ├── CompleteRepairService.java
     │   │   │   │   ├── ReleaseRepairTaskService.java         # Implementa ReleaseRepairTaskUseCase y ReleaseRepairTaskOnDeactivationUseCase
+    │   │   │   │   ├── LockedRepairTaskLoader.java     # Pasos compartidos de confirmar y liberar una reparación: bloqueo de la habitación y tarea fresca (plan-confirmar-reparacion-finalizada.md)
     │   │   │   │   ├── ReportDamageService.java
     │   │   │   │   ├── DamageReportQueryService.java
     │   │   │   │   ├── ScheduleTechnicalBlockService.java
@@ -544,6 +545,7 @@ backend/
     │   │   │       ├── CleaningTaskStartedDto.java       # {taskId}
     │   │   │       ├── CompleteCleaningCommand.java
     │   │   │       ├── MaintenancePanelDto.java              # Mantenimiento
+    │   │   │       ├── StartRepairCommand.java
     │   │   │       ├── RepairTaskStartedDto.java         # {taskId}
     │   │   │       ├── ReportDamageCommand.java
     │   │   │       ├── DamageReportCreatedDto.java       # {damageReportId}
@@ -598,6 +600,7 @@ backend/
     │   │       │   │   │   │   ├── RegisterCheckInRequest.java   # POST /api/check-in
     │   │       │   │   │   │   ├── RegisterCheckOutRequest.java  # POST /api/check-out
     │   │       │   │   │   │   ├── StartCleaningRequest.java     # POST /api/cleaning/tasks
+    │   │       │   │   │   │   ├── StartRepairRequest.java       # POST /api/maintenance/tasks
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
@@ -648,6 +651,7 @@ backend/
     │   │       │       │   │   ├── SpringDataDailyReservationRoomJpaRepository.java
     │   │       │       │   │   ├── SpringDataDailyReservationMessageLogJpaRepository.java
     │   │       │       │   │   ├── SpringDataOutboxNotificationJpaRepository.java
+    │   │       │       │   │   ├── SpringDataReparationTaskJpaRepository.java # Habitación de la tarea, tarea abierta por miembro y habitaciones con tarea abierta
     │   │       │       │   │   ├── SpringDataRoomAuditLogJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomGuestJpaRepository.java
     │   │       │       │   │   ├── SpringDataRoomJpaRepository.java # Incluye el bloqueo PESSIMISTIC_WRITE de lockById (regla 13)
@@ -741,6 +745,7 @@ backend/
         │       ├── CheckOutExecutionServiceTest.java
         │       ├── CleaningPanelQueryServiceTest.java
         │       ├── CompleteCleaningServiceTest.java
+        │       ├── CompleteRepairServiceTest.java
         │       ├── DailyMaintenanceNoticeServiceTest.java
         │       ├── DailyReservationIngestionServiceTest.java
         │       ├── DailyReservationSearchServiceTest.java
@@ -751,6 +756,7 @@ backend/
         │       ├── LoginServiceTest.java
         │       ├── MaintenanceAvailabilityServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
+        │       ├── MaintenancePanelQueryServiceTest.java
         │       ├── MarkPendingCleaningServiceTest.java
         │       ├── MarkRoomAvailableServiceTest.java
         │       ├── MarkRoomReservedServiceTest.java
@@ -759,6 +765,7 @@ backend/
         │       ├── RegisterRoomServiceTest.java
         │       ├── RegisterStaffAccountServiceTest.java
         │       ├── ReleaseCleaningTaskServiceTest.java
+        │       ├── ReleaseRepairTaskServiceTest.java
         │       ├── ReportDamageServiceTest.java
         │       ├── RoomBaseRateQueryServiceTest.java
         │       ├── RoomDecommissionQueryServiceTest.java
@@ -769,6 +776,7 @@ backend/
         │       ├── ScheduleTechnicalBlockServiceTest.java
         │       ├── SettlementQueryServiceTest.java
         │       ├── StartCleaningServiceTest.java
+        │       ├── StartRepairServiceTest.java
         │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
         │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
@@ -786,6 +794,7 @@ backend/
         │       ├── DepartureSummaryTest.java
         │       ├── MaintenanceDateRangeTest.java
         │       ├── ReservationConflictQueryTest.java
+        │       ├── ReparationTaskTest.java
         │       ├── RoomDecommissionTest.java
         │       ├── RoomTest.java
         │       ├── SourceFlowTest.java
@@ -808,12 +817,14 @@ backend/
         │   │   │       ├── CheckOutRegistrationIntegrationTest.java   # plan-registrar-check-out.md
         │   │   │       ├── CleaningPanelIntegrationTest.java          # plan-consultar-panel-limpieza.md
         │   │   │       ├── CompleteCleaningIntegrationTest.java       # plan-confirmar-fin-de-limpieza.md
+        │   │   │       ├── CompleteRepairIntegrationTest.java         # plan-confirmar-reparacion-finalizada.md
         │   │   │       ├── CurrentUserResolverTest.java
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
+        │   │   │       ├── MaintenancePanelIntegrationTest.java       # plan-consultar-panel-mantenimiento.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
@@ -824,6 +835,7 @@ backend/
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
         │   │   │       ├── StartCleaningIntegrationTest.java          # plan-marcar-habitacion-en-limpieza.md
+        │   │   │       ├── StartRepairIntegrationTest.java            # plan-confirmar-reparacion-finalizada.md
         │   │   │       └── TechnicalBlockSchedulingIntegrationTest.java # plan-programar-bloqueo-tecnico-para-habitacion.md
         │   │   └── out/
         │   │       ├── messaging/
@@ -843,6 +855,7 @@ backend/
         │   │       │   ├── MarkRoomReservedIntegrationTest.java       # plan-marcar-habitacion-reservada.md
         │   │       │   ├── OutboxTransactionalIntegrationTest.java    # Plan base
         │   │       │   ├── RegisterRoomIntegrationTest.java           # plan-registrar-habitacion.md
+        │   │       │   ├── ReparationTaskRepositoryAdapterTest.java
         │   │       │   ├── RoomInventoryIntegrationTest.java          # plan-consultar-inventario-habitaciones.md
         │   │       │   ├── RoomRepositoryAdapterTest.java
         │   │       │   ├── RoomStateHistoryQueryIntegrationTest.java  # plan-consultar-historial-de-estados.md

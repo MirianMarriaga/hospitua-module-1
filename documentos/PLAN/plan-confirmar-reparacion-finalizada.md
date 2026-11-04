@@ -89,7 +89,7 @@ Content-Type: application/json
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `CURRENT_USER_REQUIRED` | `CurrentUserRequiredException` | Falta `X-User`, el usuario no existe o su cuenta está desactivada (regla 14 del plan base) | "Tu sesión terminó. Inicia sesión de nuevo." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (falta `roomId`) o `HttpMessageNotReadableException` (Jackson no lo lee como UUID); en los dos, `details.field = roomId`. El `message` es "Selecciona una habitación válida." si falta y el genérico "Cuerpo de la petición inválido o mal formado." si no es UUID; la interfaz muestra el texto de esta fila por `errorCode` | Falta `roomId` o no es un UUID válido | "Selecciona una habitación válida." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` (`lockById` no encuentra la habitación) | El `roomId` no existe | "No se encontró la habitación." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `DisabledForRepairs` ni `TechnicalBlock` (HU-2 esc. 9) | "La habitación está {estado}; no necesita reparación." |
 | 409 | `ROOM_TASK_EXISTS` | `RoomTaskExistsException` (el servicio, o el adaptador al traducir el índice único de tarea abierta por habitación, T002) | La habitación ya tiene una tarea abierta de otro miembro, incluido el miembro que llega segundo tras el bloqueo (HU-2 esc. 7) | "Otro compañero ya está reparando esta habitación." |
@@ -242,7 +242,8 @@ backend/src/
 ├── main/java/com/hospitua/habitaciones/
 │   ├── domain/
 │   │   └── model/
-│   │       └── ReparationTask.java               # Declarada en el árbol del plan base; aquí se define e implementa con ensureClosableBy y close
+│   │       ├── ReparationTask.java               # Declarada en el árbol del plan base; aquí se define e implementa con ensureClosableBy y close
+│   │       └── ReparationTaskOutcome.java        # Enum Completed / Released
 │   ├── application/
 │   │   ├── ports/
 │   │   │   ├── in/
@@ -255,14 +256,19 @@ backend/src/
 │   │   ├── service/
 │   │   │   ├── StartRepairService.java
 │   │   │   ├── CompleteRepairService.java
+│   │   │   ├── LockedRepairTaskLoader.java            # Pasos 1 a 4 compartidos: roomId, bloqueo, tarea fresca y dueño
 │   │   │   └── ReleaseRepairTaskService.java          # Implementa los dos puertos de liberación
 │   │   └── dto/
+│   │       ├── StartRepairCommand.java                # roomId y el miembro (usuario actual)
 │   │       └── RepairTaskStartedDto.java              # taskId
 │   └── infrastructure/adapters/
 │       ├── in/web/
-│       │   └── MaintenanceController.java
+│       │   ├── MaintenanceController.java
+│       │   └── dto/StartRepairRequest.java            # Cuerpo de POST /api/maintenance/tasks (solo roomId)
 │       └── out/persistence/
 │           ├── entity/ReparationTaskJpaEntity.java
+│           ├── mapper/ReparationTaskMapper.java
+│           ├── repository/SpringDataReparationTaskJpaRepository.java # Habitación de la tarea, tarea abierta por miembro y habitaciones con tarea abierta
 │           └── adapter/ReparationTaskRepositoryAdapter.java
 └── main/resources/db/migration/
     └── (sin migración propia: `reparation_task` se crea en `V3__cleaning_maintenance_schema.sql` del plan base)
@@ -287,14 +293,18 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T017) (FR-012); verificar `RoomRepositoryPort.lockById` (plan base, T008; regla 13); que exista `MarkPendingCleaningUseCase`, con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003); y que `TechnicalBlockReport` tenga la transición `Applied` → `Completed` y `TechnicalBlockReportRepositoryPort` tenga `findAppliedByRoomIds`, que este plan usa con un solo id (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003); que `DamageReportRepositoryPort` tenga `findLatestByRoom(UUID roomId)` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T002); y que exista `MaintenanceNoticePublisher` (plan base, T024) (FR-006, FR-013, FR-019).
-- [ ] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA (FR-009, FR-010, FR-012, FR-018):
+- [x] T001 Verificar que la tabla `reparation_task` y sus índices únicos parciales existan (plan base, T017) (FR-012); verificar `RoomRepositoryPort.lockById` (plan base, T008; regla 13); que exista `MarkPendingCleaningUseCase`, con su resultado `MarkPendingCleaningResult` (`plan-marcar-pendiente-a-limpieza.md`, T003); y que `TechnicalBlockReport` tenga la transición `Applied` → `Completed` y `TechnicalBlockReportRepositoryPort` tenga `findAppliedByRoomIds`, que este plan usa con un solo id (`plan-programar-bloqueo-tecnico-para-habitacion.md`, T003); que `DamageReportRepositoryPort` tenga `findLatestByRoom(UUID roomId)` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T002); y que exista `MaintenanceNoticePublisher` (plan base, T024) (FR-006, FR-013, FR-019).
+  - Hecho (L27): todo existe. `CleaningMaintenanceSchemaTest` ya prueba los dos índices únicos parciales y el `CHECK` de cierre de `reparation_task`; `ReparationTaskRepositoryAdapterTest` los vuelve a probar a través del adaptador.
+- [x] T002 [P] Implementar `ReparationTask` (dominio), `ReparationTaskJpaEntity`, `ReparationTaskRepositoryPort` y su adaptador JPA (FR-009, FR-010, FR-012, FR-018):
   - `ReparationTask.ensureClosableBy(String memberId)`: primero el dueño (`TaskNotOwnedException`) y después que siga abierta (`TaskAlreadyClosedException`).
   - `ReparationTask.close(outcome, endDateTime)`: si el fin es anterior al inicio lanza `IllegalStateException` (error interno, regla 7 del plan base); liberar es `close(Released, marca)`.
   - Consultas: `save`, `findById(UUID taskId)`, `findRoomIdByTaskId(UUID taskId)`, `findOpenByMember(String memberId)`, `existsOpenByRoom(UUID roomId)` y `findRoomIdsWithOpenTask()`; las dos últimas las usan `StartRepairService` y `plan-consultar-panel-mantenimiento.md` (etiqueta "En reparación").
   - El adaptador guarda con `saveAndFlush` y traduce la violación de los índices únicos: el de la habitación a `RoomTaskExistsException` y el del miembro a `ActiveTaskExistsException`.
-- [ ] T003 [P] Verificar en `GlobalExceptionHandler` el registro de `RoomTaskExistsException` (`ROOM_TASK_EXISTS`) y `ActiveTaskExistsException` (`ACTIVE_TASK_EXISTS`) (catálogo del plan base, T019).
-- [ ] T004 [P] Crear `MaintenanceController` (`@RestController`, `@RequestMapping("/api/maintenance")`) sin endpoints, para que `plan-consultar-panel-mantenimiento.md` le agregue el suyo aunque este plan termine después.
+  - Hecho (L27): sigue el patrón de `CleaningTask` (L17), con `ReparationTaskOutcome` (`Completed`, `Released`) y `ReparationTaskMapper`; `TaskNotOwnedException` lleva el texto de la tabla de errores ("Esta reparación la está haciendo otro compañero."). `findRoomIdsWithOpenTask` devuelve un `Set`. Pruebas: `ReparationTaskTest` y `ReparationTaskRepositoryAdapterTest`.
+- [x] T003 [P] Verificar en `GlobalExceptionHandler` el registro de `RoomTaskExistsException` (`ROOM_TASK_EXISTS`) y `ActiveTaskExistsException` (`ACTIVE_TASK_EXISTS`) (catálogo del plan base, T019).
+  - Hecho (L27): ya están registradas y probadas en `GlobalExceptionHandlerTest` desde R8 (limpieza).
+- [x] T004 [P] Crear `MaintenanceController` (`@RestController`, `@RequestMapping("/api/maintenance")`) sin endpoints, para que `plan-consultar-panel-mantenimiento.md` le agregue el suyo aunque este plan termine después.
+  - Hecho (L27).
 
 ---
 
@@ -308,21 +318,25 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 2
 
-- [ ] T005 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 6; FR-011, FR-015).
-- [ ] T006 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 7; FR-012).
-- [ ] T007 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 8; FR-012).
-- [ ] T008 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 9; FR-012).
-- [ ] T009 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `ROOM_TASK_EXISTS` (FR-012).
+- [x] T005 [P] [US2] Unit test en `StartRepairServiceTest`: inicio exitoso sobre `DisabledForRepairs` y sobre `TechnicalBlock` crea la tarea con hora del servidor y no cambia el estado ni escribe en el historial (HU-2 esc. 6; FR-011, FR-015).
+- [x] T006 [P] [US2] Unit test: rechazo `ROOM_TASK_EXISTS` si la habitación tiene tarea abierta de otro miembro (HU-2 esc. 7; FR-012).
+- [x] T007 [P] [US2] Unit test: rechazo `ACTIVE_TASK_EXISTS` si el miembro ya tiene tarea (HU-2 esc. 8; FR-012).
+- [x] T008 [P] [US2] Unit test: rechazo `ROOM_INVALID_STATE` en cualquier otro estado (HU-2 esc. 9; FR-012).
+  - Hecho (L29): T005 a T008 están en `StartRepairServiceTest`. T008 recorre todos los estados salvo `DisabledForRepairs` y `TechnicalBlock`, y comprueba que el rechazo llega antes de mirar la tarea de la habitación.
+- [x] T009 [US2] Integration test con Testcontainers: dos inicios simultáneos sobre la misma habitación; solo uno tiene éxito y el otro recibe `ROOM_TASK_EXISTS` (FR-012).
+  - Hecho (L29): en `StartRepairIntegrationTest`, que llama al caso de uso desde dos hilos; queda una sola tarea y la habitación sigue `DisabledForRepairs`.
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Implementar `StartRepairService` (`@Transactional`) (FR-011, FR-012), en este orden:
+- [x] T010 [US2] Implementar `StartRepairService` (`@Transactional`) (FR-011, FR-012), en este orden:
   - Bloquear la habitación con `RoomRepositoryPort.lockById(roomId)` como primera carga de la transacción (regla 13 del plan base); si no existe, `RoomNotFoundException` (`ROOM_NOT_FOUND`).
   - Rechazar si el miembro tiene una tarea abierta (`ActiveTaskExistsException`, `ACTIVE_TASK_EXISTS`).
   - Validar que la habitación esté en `DisabledForRepairs` o `TechnicalBlock` (`ROOM_INVALID_STATE` con `currentStatus`).
   - Rechazar si la habitación tiene una tarea abierta (`existsOpenByRoom`; `RoomTaskExistsException`, `ROOM_TASK_EXISTS`). Con el bloqueo, dos inicios sobre la misma habitación se serializan y el segundo recibe este error; los índices únicos quedan como respaldo (T002).
   - Tomar la hora con `Clock` (no hay transición de estado) y crear la `ReparationTask`.
-- [ ] T011 [US2] Agregar a `MaintenanceController` (T004) `POST /api/maintenance/tasks`, que responde `201` con `taskId` y toma como miembro al usuario actual, con los textos de su tabla de errores (FR-011, FR-012). La interfaz de la acción (botón, llamada, retroalimentación, redirección y recarga) la implementa `plan-consultar-panel-mantenimiento.md`.
+  - Hecho (L29): el servicio no guarda la habitación ni llama a `RoomStateTransitionService`; `StartRepairServiceTest` (T005) lo comprueba y `StartRepairIntegrationTest` verifica que no hay filas en `room_state_history`.
+- [x] T011 [US2] Agregar a `MaintenanceController` (T004) `POST /api/maintenance/tasks`, que responde `201` con `taskId` y toma como miembro al usuario actual, con los textos de su tabla de errores (FR-011, FR-012). La interfaz de la acción (botón, llamada, retroalimentación, redirección y recarga) la implementa `plan-consultar-panel-mantenimiento.md`.
+  - Hecho (L29): el cuerpo es `StartRepairRequest` (solo `roomId`; una fecha enviada por el cliente se ignora). `StartRepairIntegrationTest` prueba la respuesta `201`, cada fila de la tabla de errores con su texto y que se inicia también desde `TechnicalBlock`.
 
 **Checkpoint**: El endpoint de inicio está listo para la acción del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`).
 
@@ -336,20 +350,27 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor, y publica el aviso `CANCELLED` con `maintenanceId` = id del último `DamageReport` de la habitación y `startDate` = `endDate` = fecha de cierre (HU-1 esc. 1; FR-006, FR-007, FR-009, FR-017, FR-019).
-- [ ] T013 [P] [US1] Unit test con `Clock` fijo: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed`; si la fecha de cierre es anterior o posterior a la estimada publica el aviso `UPDATED` (`endDate` = fecha de cierre, `previousStartDate` y `previousEndDate` = rango original), y si coincide no publica ningún aviso (FR-013, FR-019).
-- [ ] T014 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro, también si la tarea ajena ya está cerrada (el dueño se valida antes que el cierre); rechazo `TASK_ALREADY_CLOSED` sobre una tarea propia ya cerrada (HU-1 esc. 2 y 3; FR-005, FR-014).
-- [ ] T015 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial, deja el informe en `Applied` y no publica avisos de mantenimiento (HU-1 esc. 4; FR-016, FR-019).
-- [ ] T016 [P] [US1] Unit test con `Clock` fijo: al confirmar, `endDateTime` es la marca del periodo `PendingCleaning` que devuelve `MarkPendingCleaningUseCase`; al liberar, la hora de `Clock` (FR-009). Unit test de `ReparationTask`: `close` con un fin anterior al inicio lanza `IllegalStateException` (FR-010; caso límite 4).
-- [ ] T017 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-018).
-- [ ] T018 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe, y no deja ningún aviso de mantenimiento en `outbox_notification` (caso límite 3; FR-019).
+- [x] T012 [P] [US1] Unit test en `CompleteRepairServiceTest`: confirmación sobre `DisabledForRepairs` invoca `MarkPendingCleaningUseCase` con `CONFIRM_REPAIR_END`, cierra con `outcome = Completed` y hora del servidor, y publica el aviso `CANCELLED` con `maintenanceId` = id del último `DamageReport` de la habitación y `startDate` = `endDate` = fecha de cierre (HU-1 esc. 1; FR-006, FR-007, FR-009, FR-017, FR-019).
+  - Hecho (L30): T012 a T014 están en `CompleteRepairServiceTest`. Además prueba dos datos inconsistentes que no deben frenar la confirmación: una habitación `TechnicalBlock` sin informe `Applied` y una `DisabledForRepairs` sin reporte de daño pasan a `PendingCleaning` igual, sin aviso y con un `log.warn`.
+- [x] T013 [P] [US1] Unit test con `Clock` fijo: confirmación sobre `TechnicalBlock` además marca el `TechnicalBlockReport` `Applied` como `Completed`; si la fecha de cierre es anterior o posterior a la estimada publica el aviso `UPDATED` (`endDate` = fecha de cierre, `previousStartDate` y `previousEndDate` = rango original), y si coincide no publica ningún aviso (FR-013, FR-019).
+- [x] T014 [P] [US1] Unit test: rechazo `TASK_NOT_OWNED` en confirmar y liberar tareas de otro miembro, también si la tarea ajena ya está cerrada (el dueño se valida antes que el cierre); rechazo `TASK_ALREADY_CLOSED` sobre una tarea propia ya cerrada (HU-1 esc. 2 y 3; FR-005, FR-014).
+- [x] T015 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: cierra con `outcome = Released`, no cambia la habitación, no escribe en el historial, deja el informe en `Applied` y no publica avisos de mantenimiento (HU-1 esc. 4; FR-016, FR-019).
+  - Hecho (L30): en `ReleaseRepairTaskServiceTest`. El servicio no depende de la transición, del historial, de los informes ni del publicador, así que no puede tocarlos; la prueba comprueba que solo bloquea la habitación, sin guardarla. Que el informe sigue `Applied` y que no hay avisos lo prueba `CompleteRepairIntegrationTest`.
+- [x] T016 [P] [US1] Unit test con `Clock` fijo: al confirmar, `endDateTime` es la marca del periodo `PendingCleaning` que devuelve `MarkPendingCleaningUseCase`; al liberar, la hora de `Clock` (FR-009). Unit test de `ReparationTask`: `close` con un fin anterior al inicio lanza `IllegalStateException` (FR-010; caso límite 4).
+  - Avance (L27): la parte de `ReparationTask` está en `ReparationTaskTest` (fin anterior al inicio → `IllegalStateException`; fin igual al inicio se acepta). Falta la de los servicios (L30).
+  - Hecho (L30): la de los servicios está en `CompleteRepairServiceTest` (el fin es la marca de `MarkPendingCleaningResult`, distinta de la hora del `Clock`) y en `ReleaseRepairTaskServiceTest` (la hora del `Clock`).
+- [x] T017 [US1] Integration test con Testcontainers: confirmación y liberación simultáneas sobre la misma tarea; solo una tiene éxito y la otra recibe `TASK_ALREADY_CLOSED` (FR-018).
+  - Hecho (L30): en `CompleteRepairIntegrationTest`, que llama a los dos casos de uso desde dos hilos.
+- [x] T018 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe, y no deja ningún aviso de mantenimiento en `outbox_notification` (caso límite 3; FR-019).
+  - Hecho (L30): en `CompleteRepairIntegrationTest`, con un `@MockitoSpyBean` de `MarkPendingCleaningUseCase` que falla sobre una habitación `TechnicalBlock` (el informe ya se marcó `Completed` antes de la falla y vuelve a `Applied`). El espía queda detrás del proxy transaccional (`MANDATORY`), así que se programa sobre el objeto espiado (`AopTestUtils.getUltimateTargetObject`). El espía le da a la clase su propio contexto y su propia base.
 - [ ] T019 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel; si `GET /api/maintenance/panel` devuelve `activeTask` nulo, redirige al panel (FR-001, FR-004, FR-008, FR-016).
-- [ ] T020 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta la cierra con `outcome = Released` sin validar el dueño, sin cambiar la habitación, sin escribir en el historial y sin publicar avisos; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (FR-014, FR-016; caso límite 5).
-- [ ] T021 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la tarea con `outcome = Released` y la habitación y su informe sin cambios; si la transacción falla después, todo se revierte (FR-014; caso límite 5).
+- [x] T020 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta la cierra con `outcome = Released` sin validar el dueño, sin cambiar la habitación, sin escribir en el historial y sin publicar avisos; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (FR-014, FR-016; caso límite 5).
+- [x] T021 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la tarea con `outcome = Released` y la habitación y su informe sin cambios; si la transacción falla después, todo se revierte (FR-014; caso límite 5).
+  - Hecho (L30): en `CompleteRepairIntegrationTest`, con un `TransactionTemplate`; también prueba que fuera de una transacción `releaseOpenTaskOf` se rechaza (`IllegalTransactionStateException`). T020 está en `ReleaseRepairTaskServiceTest`, incluido el caso en que la tarea releída es otra (mismo filtro por id que L21).
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-005 a FR-007, FR-009, FR-010, FR-013, FR-015, FR-017, FR-019), en este orden:
+- [x] T022 [US1] Implementar `CompleteRepairService` (`@Transactional`) (FR-005 a FR-007, FR-009, FR-010, FR-013, FR-015, FR-017, FR-019), en este orden:
   1. Leer solo el `roomId` de la tarea con `ReparationTaskRepositoryPort.findRoomIdByTaskId`; si no existe, `TaskNotFoundException`.
   2. Bloquear la fila con `RoomRepositoryPort.lockById(roomId)` (regla 13 del plan base).
   3. Releer la tarea completa con `findById`, ya fresca tras el bloqueo.
@@ -359,10 +380,14 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
      - Invocar `MarkPendingCleaningUseCase` con `sourceFlow = CONFIRM_REPAIR_END` y el miembro como actor (registra el historial). Si la transición se rechaza (no debería ocurrir con la fila bloqueada), `InvalidRoomTransitionException` se propaga, la transacción se revierte y `GlobalExceptionHandler` responde `409 ROOM_INVALID_STATE`.
      - Cerrar la tarea con `task.close(Completed, MarkPendingCleaningResult.transitionDateTime)`, de modo que `EndDateTime` coincide con el inicio del periodo `PendingCleaning` (FR-009, FR-010).
      - Publicar el aviso con `MaintenanceNoticePublisher` (plan base, T024), con la fecha de cierre (fecha de `MarkPendingCleaningResult.transitionDateTime`): en `TechnicalBlock`, `publishUpdated(informe.id(), habitación, inicio del informe, fecha de cierre, inicio del informe, fecha estimada de fin)` solo si la fecha de cierre es distinta de la estimada; en `DisabledForRepairs`, `publishCancelled(reporte.id(), habitación, fecha de cierre, fecha de cierre)`, con el último `DamageReport` de la habitación (`findLatestByRoom`) (FR-019).
-- [ ] T023 [US1] Implementar `ReleaseRepairTaskService`, un servicio compartido por el endpoint de liberar y por el puerto de desactivación (FR-014, FR-016, FR-018); ninguno cambia el estado de la habitación:
+  - Hecho (L30): los pasos 1 a 4 los comparte con la liberación en `LockedRepairTaskLoader` (como `LockedCleaningTaskLoader` en limpieza), que devuelve la habitación bloqueada junto con la tarea. El estado de la habitación se toma de esa lectura bloqueada, antes de la transición. Si falta el informe `Applied` o el reporte de daño, la habitación pasa a `PendingCleaning` igual, sin aviso y con un `log.warn`.
+- [x] T023 [US1] Implementar `ReleaseRepairTaskService`, un servicio compartido por el endpoint de liberar y por el puerto de desactivación (FR-014, FR-016, FR-018); ninguno cambia el estado de la habitación:
   - Endpoint (`ReleaseRepairTaskUseCase`, `@Transactional`): los pasos 1 a 4 de T022 (`findRoomIdByTaskId`, `lockById`, releer la tarea, `ensureClosableBy`) y `task.close(Released, hora de Clock)`.
   - Desactivación (`ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)`, `@Transactional(propagation = MANDATORY)`, sin actor): `findOpenByMember(memberId)` (por miembro, sin filtrar por área); si no hay tarea, no hace nada. Si la hay, `lockById(roomId)` y releer la tarea; si ya está cerrada, no hace nada (no lanza excepción); si sigue abierta, `task.close(Released, hora de Clock)`. No valida el dueño, no escribe historial, deja el informe en `Applied` y no publica avisos.
-- [ ] T024 [US1] Agregar a `MaintenanceController` `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-008).
+  - Nota (revisión de L27): en la desactivación, "releer la tarea" después del bloqueo es volver a llamar a `findOpenByMember(memberId)`, como en `ReleaseCleaningTaskService` (L21). `findById` devolvería la tarea que la primera lectura dejó en el contexto de persistencia, sin ver un cierre hecho mientras se esperaba el bloqueo; `findOpenByMember` filtra en la base y no la devuelve si ya se cerró. Además, como en L21, solo se libera si la tarea releída es la misma de la primera lectura (mismo id): si mientras tanto el miembro cerró esa tarea y abrió otra en otra habitación, esa otra no tiene su fila bloqueada y no se toca.
+  - Hecho (L30): `ReleaseRepairTaskService` sigue esta nota; el endpoint usa `LockedRepairTaskLoader` (ver T022).
+- [x] T024 [US1] Agregar a `MaintenanceController` `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-008).
+  - Hecho (L30): `CompleteRepairIntegrationTest` prueba los dos endpoints sobre `DisabledForRepairs` y `TechnicalBlock` (habitación, historial, informe, tarea y el aviso en `outbox_notification`) y cada fila de sus tablas de errores con su texto.
 - [ ] T025 [US1] Construir `ActiveRepairTaskPage.tsx`, que toma sus datos de `GET /api/maintenance/panel` (`activeTask` con la fila del panel) y redirige al panel si `activeTask` es nulo (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-004, FR-005, FR-008, FR-016).
 
 **Checkpoint**: El ciclo de mantenimiento queda completo: tomar la habitación, confirmar o liberar.
