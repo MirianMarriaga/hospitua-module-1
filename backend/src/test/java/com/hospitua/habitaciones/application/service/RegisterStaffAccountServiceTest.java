@@ -116,6 +116,22 @@ class RegisterStaffAccountServiceTest {
     }
 
     @Test
+    @DisplayName("Rechaza una contraseña de más de 72 bytes (límite de BCrypt) sin cifrarla; 72 bytes se aceptan")
+    void shouldRejectPasswordOverBcryptLimit() {
+        RegisterStaffAccountCommand command =
+                new RegisterStaffAccountCommand("jramirez", "a" + "ñ".repeat(36), "Jorge Ramírez", StaffArea.LIMPIEZA);
+        when(staffAccountRepository.findByUsername("jramirez")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.register(command, "admin"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("La contraseña admite máximo 72 caracteres.");
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(staffAccountRepository, never()).save(any());
+        assertThat(StaffAccount.fitsPasswordLimit("a".repeat(72))).isTrue();
+    }
+
+    @Test
     @DisplayName("Rechaza área nula")
     void shouldRejectNullArea() {
         RegisterStaffAccountCommand command =

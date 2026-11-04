@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.domain.model;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Objects;
@@ -15,6 +16,9 @@ public class StaffAccount {
 
     /** Longitud mínima de la contraseña en texto plano, antes de cifrarla (FR-004). */
     public static final int MIN_PASSWORD_LENGTH = 8;
+
+    /** BCrypt solo cifra 72 bytes y rechaza una contraseña más larga; la ñ y las tildes ocupan dos (FR-004). */
+    public static final int MAX_PASSWORD_BYTES = 72;
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-z0-9._]{3,30}$");
 
@@ -73,6 +77,11 @@ public class StaffAccount {
             String createdBy) {
         return new StaffAccount(
                 rawUsername, passwordHash, rawFullName, area, true, now, createdBy, now, createdBy, null, null, null);
+    }
+
+    /** La contraseña no pasa de {@link #MAX_PASSWORD_BYTES} en UTF-8; una nula no tiene largo que revisar. */
+    public static boolean fitsPasswordLimit(String rawPassword) {
+        return rawPassword == null || rawPassword.getBytes(StandardCharsets.UTF_8).length <= MAX_PASSWORD_BYTES;
     }
 
     /**

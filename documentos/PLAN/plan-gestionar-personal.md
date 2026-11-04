@@ -70,7 +70,7 @@ Content-Type: application/json
 | Campo | Tipo | Regla | Ejemplo |
 | --- | --- | --- | --- |
 | `username` | string | Se normaliza a minúsculas sin espacios en los extremos; 3 a 30 caracteres; solo letras sin tilde, números, punto y guion bajo; único (FR-003) | `"jramirez"` |
-| `password` | string | Al menos 8 caracteres (FR-004) | `"Limpieza2026"` |
+| `password` | string | Al menos 8 caracteres (FR-004) y máximo 72 bytes, el límite de BCrypt: 72 caracteres sin tildes ni ñ, que ocupan dos bytes cada una | `"Limpieza2026"` |
 | `fullName` | string | No vacío | `"Jorge Ramírez"` |
 | `area` | string | `RECEPCION`, `ADMINISTRACION`, `GERENCIA`, `LIMPIEZA` o `MANTENIMIENTO` (FR-002) | `"LIMPIEZA"` |
 
@@ -111,9 +111,10 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta un campo obligatorio; `details.field` lista los campos pendientes (FR-002, esc. 3) | "Completa los campos obligatorios: {campos}." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta un campo obligatorio; `details.fields` lista los campos pendientes y `message` es "Completa los campos obligatorios." (la interfaz arma el texto con la lista) (FR-002, esc. 3) | "Completa los campos obligatorios: {campos}." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Usuario con caracteres no permitidos o fuera de 3 a 30 caracteres (FR-003, esc. 3) | "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Contraseña de menos de 8 caracteres (FR-004, esc. 3) | "La contraseña debe tener al menos 8 caracteres." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Contraseña de más de 72 bytes, que BCrypt no puede cifrar (FR-004); `details.field = password` | "La contraseña admite máximo 72 caracteres." |
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Área fuera del catálogo (FR-002) | "Selecciona un área válida." |
 | 409 | `USERNAME_ALREADY_EXISTS` | `UsernameAlreadyExistsException` | Ya existe una cuenta, activa o desactivada, con ese usuario, incluida una registrada al mismo tiempo (FR-003, esc. 2) | "Ya existe una cuenta con el usuario {usuario}." |
 
@@ -184,7 +185,7 @@ Una consulta sin coincidencias responde `200` con `items` vacío; el frontend mu
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `ConstraintViolationException` o `MethodArgumentTypeMismatchException` | `area` fuera del catálogo, `active` no booleano o `page` no es un entero positivo | "Revisa los filtros aplicados." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` (los parámetros llegan como texto en `StaffListQuery`) | `area` fuera del catálogo, `active` no booleano o `page` no es un entero positivo | "Revisa los filtros aplicados." |
 
 ---
 
@@ -340,11 +341,14 @@ backend/src/main/
 │   │   └── dto/
 │   │       ├── RegisterStaffAccountCommand.java
 │   │       ├── EditStaffAccountCommand.java
-│   │       └── StaffAccountDto.java               # Sin contraseña
+│   │       ├── StaffAccountDto.java               # Sin contraseña
+│   │       └── StaffAccountFilter.java            # Área, estado y búsqueda de la lista
 │   └── infrastructure/
 │       ├── adapters/
 │       │   ├── in/
 │       │   │   ├── web/StaffController.java       # /api/staff
+│       │   │   ├── web/dto/RegisterStaffRequest.java   # Cuerpo de POST /api/staff
+│       │   │   ├── web/dto/StaffListQuery.java         # Parámetros de GET /api/staff
 │       │   │   └── startup/StaffAccountBootstrapper.java   # Cuenta inicial de Administrador (FR-012); plan base (T022)
 │       │   └── out/
 │       │       ├── persistence/repository/SpringDataUserAccountJpaRepository.java   # Plan base (T022)
@@ -382,6 +386,7 @@ frontend/src/
   - Hecho (L35): verificado; `version` es `INT NOT NULL DEFAULT 0`.
 - [x] T003 [P] Verificar `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea` (plan base, T022).
   - Hecho (L35): verificado; la longitud mínima de la contraseña pasa a ser `StaffAccount.MIN_PASSWORD_LENGTH`, que usan el registro y el arranque (ver T015).
+  - Ajuste (revisión de L35): BCrypt (`spring-security-crypto` 7) rechaza al cifrar una contraseña de más de 72 bytes; sin un máximo, el registro terminaba en `422 UNEXPECTED_ERROR`. `StaffAccount.MAX_PASSWORD_BYTES` y `StaffAccount.fitsPasswordLimit` fijan el límite, que comprueban `RegisterStaffRequest` (`400` con `details.field = password`), `RegisterStaffAccountService` y `StaffAccountBootstrapper`. El login no se afecta: `matches` no aplica el límite.
 - [x] T004 [P] Verificar `PasswordEncoderPort` y `BCryptPasswordEncoderAdapter` (plan base, T022) y que `LoginService` (plan base, T020) use el mismo puerto.
   - Hecho (L35): verificado.
 - [x] T005 [P] Verificar `StaffAccountRepositoryPort`, `SpringDataUserAccountJpaRepository` y `StaffAccountRepositoryAdapter` (plan base, T022), y agregar al puerto las consultas paginadas con filtros por área, estado y búsqueda (FR-007).
@@ -443,6 +448,7 @@ frontend/src/
 
 - [x] T021 [US2] Implementar `StaffAccountQueryService` (`@Transactional(readOnly = true)`) y agregar a `StaffController` `GET /api/staff` y `GET /api/staff/{username}` (FR-007).
   - Hecho (L35): los parámetros son `StaffListQuery`; `area` y `active` llegan como texto para responder siempre "Revisa los filtros aplicados.". `GET /api/staff/{username}` normaliza el usuario antes de buscarlo y responde `version`.
+  - Ajuste (revisión de L35): `page` también llega como texto (`[1-9][0-9]{0,8}`): como entero, `page=abc` fallaba al convertirse y respondía "Tipo de dato inválido para el campo: page".
 - [ ] T022 [US2] Construir `StaffListPage.tsx`, reutilizando `Pagination.tsx` (`plan-consultar-inventario-habitaciones.md`), y agregar "Personal" al menú de la vista del Administrador (FR-001, FR-007).
 
 **Checkpoint**: La sección "Personal" muestra al personal registrado.

@@ -39,6 +39,9 @@ public class RegisterStaffAccountService implements RegisterStaffAccountUseCase 
         if (command.rawPassword() == null || command.rawPassword().length() < StaffAccount.MIN_PASSWORD_LENGTH) {
             throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
         }
+        if (!StaffAccount.fitsPasswordLimit(command.rawPassword())) {
+            throw new IllegalArgumentException("La contraseña admite máximo 72 caracteres.");
+        }
 
         if (command.area() == null) {
             throw new IllegalArgumentException("El área es obligatoria.");

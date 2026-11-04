@@ -138,6 +138,14 @@ class StaffIntegrationTest {
         register(body(newUsername(), "1234567", "Jorge", "LIMPIEZA"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("La contraseña debe tener al menos 8 caracteres."));
+        // BCrypt solo admite 72 bytes; la ñ ocupa dos, así que 37 caracteres con 36 ñ ya son 73
+        for (String tooLong : List.of("a".repeat(73), "a" + "ñ".repeat(36))) {
+            register(body(newUsername(), tooLong, "Jorge", "LIMPIEZA"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                    .andExpect(jsonPath("$.details.field").value("password"))
+                    .andExpect(jsonPath("$.message").value("La contraseña admite máximo 72 caracteres."));
+        }
         register(body(newUsername(), "Limpieza2026", "Jorge", "COCINA"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Selecciona un área válida."));
@@ -243,7 +251,7 @@ class StaffIntegrationTest {
     @Test
     @DisplayName("T021: filtros inválidos responden 400 VALIDATION_ERROR con el mensaje de la lista")
     void list_invalidFilters() throws Exception {
-        for (String params : List.of("area=COCINA", "active=quizas", "page=0")) {
+        for (String params : List.of("area=COCINA", "active=quizas", "page=0", "page=abc")) {
             list(params)
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))

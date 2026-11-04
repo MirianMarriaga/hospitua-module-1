@@ -64,15 +64,18 @@ public class StaffAccountBootstrapper implements ApplicationRunner {
     }
 
     /**
-     * Al menos 8 caracteres (FR-004). El mensaje no incluye la contraseña, porque termina en el log del arranque
-     * fallido (plan-gestionar-personal.md T015; SC-002).
+     * Entre 8 caracteres y 72 bytes (FR-004; el máximo es el de BCrypt). El mensaje no incluye la contraseña, porque
+     * termina en el log del arranque fallido (plan-gestionar-personal.md T015; SC-002).
      */
     private void validatePassword() {
-        if (bootstrapProperties.password().length() < StaffAccount.MIN_PASSWORD_LENGTH) {
+        String password = bootstrapProperties.password();
+        if (password.length() < StaffAccount.MIN_PASSWORD_LENGTH || !StaffAccount.fitsPasswordLimit(password)) {
             throw new IllegalStateException(
-                    "La contraseña de la cuenta inicial (hospitua.bootstrap.admin.password) debe tener al menos "
+                    "La contraseña de la cuenta inicial (hospitua.bootstrap.admin.password) debe tener entre "
                             + StaffAccount.MIN_PASSWORD_LENGTH
-                            + " caracteres.");
+                            + " caracteres y "
+                            + StaffAccount.MAX_PASSWORD_BYTES
+                            + " bytes.");
         }
     }
 }

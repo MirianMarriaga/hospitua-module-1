@@ -7,9 +7,4 @@ import com.hospitua.habitaciones.domain.model.StaffArea;
  * filtro) y se combinan: {@code query} busca por coincidencia parcial en usuario o nombre, sin distinguir mayúsculas ni
  * tildes.
  */
-public record StaffAccountFilter(StaffArea area, Boolean active, String query) {
-
-    public static StaffAccountFilter none() {
-        return new StaffAccountFilter(null, null, null);
-    }
-}
+public record StaffAccountFilter(StaffArea area, Boolean active, String query) {}

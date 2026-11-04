@@ -106,16 +106,19 @@ class StaffAccountIntegrationTest {
     }
 
     @Test
-    @DisplayName("T015: una contraseña de menos de 8 caracteres impide arrancar y el motivo no muestra la contraseña")
-    void bootstrapperShouldFailWithShortPassword() {
-        StaffBootstrapProperties shortPassword = new StaffBootstrapProperties("admin", "Cort4!x", "Administrador");
-        StaffAccountBootstrapper failingBootstrapper =
-                new StaffAccountBootstrapper(withoutAdministrators(), registerStaffAccountUseCase, shortPassword);
+    @DisplayName("T015: una contraseña de menos de 8 caracteres o de más de 72 bytes impide arrancar y el motivo no la"
+            + " muestra")
+    void bootstrapperShouldFailWithInvalidPasswordLength() {
+        for (String password : List.of("Cort4!x", "Larg4!" + "x".repeat(67))) {
+            StaffBootstrapProperties invalid = new StaffBootstrapProperties("admin", password, "Administrador");
+            StaffAccountBootstrapper failingBootstrapper =
+                    new StaffAccountBootstrapper(withoutAdministrators(), registerStaffAccountUseCase, invalid);
 
-        assertThatThrownBy(() -> failingBootstrapper.run(new DefaultApplicationArguments()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("al menos 8 caracteres")
-                .hasMessageNotContaining("Cort4!x");
+            assertThatThrownBy(() -> failingBootstrapper.run(new DefaultApplicationArguments()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("entre 8 caracteres y 72 bytes")
+                    .hasMessageNotContaining(password);
+        }
     }
 
     /** Puerto sin Administradores activos y sin escritura real. */
