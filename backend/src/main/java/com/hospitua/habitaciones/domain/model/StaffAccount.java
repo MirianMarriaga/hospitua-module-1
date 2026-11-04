@@ -106,6 +106,26 @@ public class StaffAccount {
         return normalized;
     }
 
+    /**
+     * Cambia el nombre, el área y, si llega un hash nuevo, la contraseña; el usuario no cambia (plan-gestionar-personal.md
+     * T027; FR-008). Registra quién y cuándo (FR-013).
+     *
+     * @param newPasswordHash la contraseña nueva ya cifrada, o {@code null} para conservar la actual
+     */
+    public void edit(
+            String rawFullName, StaffArea newArea, String newPasswordHash, OffsetDateTime now, String editedBy) {
+        this.fullName = validateFullName(rawFullName);
+        this.area = Objects.requireNonNull(newArea, "area no puede ser nula");
+        if (newPasswordHash != null) {
+            if (newPasswordHash.isBlank()) {
+                throw new IllegalArgumentException("passwordHash no puede estar en blanco");
+            }
+            this.passwordHash = newPasswordHash;
+        }
+        this.updatedAt = Objects.requireNonNull(now, "updatedAt no puede ser nulo");
+        this.updatedBy = editedBy;
+    }
+
     private static String validateFullName(String rawFullName) {
         if (rawFullName == null || rawFullName.trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre completo es obligatorio.");

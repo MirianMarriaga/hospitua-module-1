@@ -2,9 +2,11 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.StaffAccountDto;
+import com.hospitua.habitaciones.application.ports.in.EditStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.in.GetStaffAccountUseCase;
 import com.hospitua.habitaciones.application.ports.in.ListStaffAccountsUseCase;
 import com.hospitua.habitaciones.application.ports.in.RegisterStaffAccountUseCase;
+import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.EditStaffRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.RegisterStaffRequest;
 import com.hospitua.habitaciones.infrastructure.adapters.in.web.dto.StaffListQuery;
 import jakarta.validation.Valid;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,8 +24,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Sección "Personal" del Administrador bajo {@code /api/staff} (plan-gestionar-personal.md T016 y T021). El registro
- * toma como responsable al usuario actual ({@code X-User}); las consultas no lo usan (regla 14 del plan base).
+ * Sección "Personal" del Administrador bajo {@code /api/staff} (plan-gestionar-personal.md T016, T021 y T027). El
+ * registro y la edición toman como responsable al usuario actual ({@code X-User}); las consultas no lo usan (regla 14
+ * del plan base).
  */
 @RestController
 @RequestMapping("/api/staff")
@@ -32,6 +36,7 @@ public class StaffController {
     private final RegisterStaffAccountUseCase registerStaffAccountUseCase;
     private final ListStaffAccountsUseCase listStaffAccountsUseCase;
     private final GetStaffAccountUseCase getStaffAccountUseCase;
+    private final EditStaffAccountUseCase editStaffAccountUseCase;
     private final CurrentUserResolver currentUserResolver;
 
     /** Registrar: responde 201 con la confirmación, sin contraseña (FR-002 a FR-006). */
@@ -55,5 +60,15 @@ public class StaffController {
     @GetMapping("/{username}")
     public StaffAccountDto get(@PathVariable String username) {
         return getStaffAccountUseCase.get(username);
+    }
+
+    /** Editar: responde 200 con la cuenta y su {@code version} nueva, sin contraseña (FR-006, FR-008). */
+    @PatchMapping("/{username}")
+    public StaffAccountDto edit(
+            @PathVariable String username,
+            @RequestHeader(value = "X-User", required = false) String xUser,
+            @Valid @RequestBody EditStaffRequest request) {
+        String administratorId = currentUserResolver.resolve(xUser);
+        return editStaffAccountUseCase.edit(request.toCommand(username, administratorId));
     }
 }

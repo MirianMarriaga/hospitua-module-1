@@ -24,17 +24,20 @@ public record RegisterStaffRequest(
         @NotBlank(message = REQUIRED) @Size(max = 150, message = FULL_NAME_RULE)
         String fullName,
 
-        @NotNull(message = REQUIRED)
-        @Pattern(regexp = "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO", message = AREA_RULE)
+        @NotNull(message = REQUIRED) @Pattern(regexp = AREAS, message = AREA_RULE)
         String area) {
+
+    /** El catálogo de áreas (FR-002), compartido con la edición. */
+    static final String AREAS = "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO";
+
+    static final String PASSWORD_RULE = "La contraseña debe tener al menos 8 caracteres.";
+    static final String PASSWORD_LIMIT_RULE = "La contraseña admite máximo 72 caracteres.";
+    static final String FULL_NAME_RULE = "El nombre completo admite máximo 150 caracteres.";
+    static final String AREA_RULE = "Selecciona un área válida.";
 
     private static final String REQUIRED = "Completa los campos obligatorios.";
     private static final String USERNAME_RULE =
             "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo.";
-    private static final String PASSWORD_RULE = "La contraseña debe tener al menos 8 caracteres.";
-    private static final String PASSWORD_LIMIT_RULE = "La contraseña admite máximo 72 caracteres.";
-    private static final String FULL_NAME_RULE = "El nombre completo admite máximo 150 caracteres.";
-    private static final String AREA_RULE = "Selecciona un área válida.";
 
     /**
      * Propiedad {@code password} para Bean Validation (como {@code RoomBaseRateQuery.isDate}): no pasa del límite de

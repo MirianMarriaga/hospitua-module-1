@@ -140,6 +140,11 @@ class StaffAccountIntegrationTest {
             }
 
             @Override
+            public Optional<StaffAccount> lockByUsername(String username) {
+                return Optional.empty();
+            }
+
+            @Override
             public List<StaffAccount> findActiveAdministratorsForUpdate() {
                 return List.of();
             }

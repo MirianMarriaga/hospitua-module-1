@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Adaptador JPA para el puerto de persistencia de cuentas del personal (T022; plan-gestionar-personal.md T005). La lista
@@ -71,6 +73,16 @@ public class StaffAccountRepositoryAdapter implements StaffAccountRepositoryPort
                 .sorted(BY_NAME)
                 .toList();
         return PagedResultDto.of(accounts, page, size);
+    }
+
+    /** Solo dentro de la transacción del invocador: fuera de ella el bloqueo se liberaría al instante. */
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<StaffAccount> lockByUsername(String username) {
+        if (username == null) {
+            return Optional.empty();
+        }
+        return repository.findByUsernameForUpdate(username).map(mapper::toDomain);
     }
 
     @Override

@@ -236,7 +236,7 @@ Toda excepción o rechazo funcional se traduce a un cuerpo JSON estandarizado. `
 | `CURRENT_USER_REQUIRED` | 400 | `CurrentUserRequiredException` | Una petición del frontend que usa el usuario actual (registra un responsable o consulta las tareas del miembro) llega sin el encabezado `X-User`, con un usuario que no existe o con una cuenta desactivada (regla 14). | "Tu sesión terminó. Inicia sesión de nuevo." |
 | `ROOM_NOT_FOUND` | 404 | `RoomNotFoundException` | Plan base (`domain/exception/`) | "No se encontró la habitación." |
 | `ROOM_INVALID_STATE` | 409 | `InvalidRoomTransitionException`, con `details.currentStatus` | Plan base (`domain/exception/`) | Lo define el plan del endpoint, con el `{estado}` actual en español |
-| `CONCURRENT_UPDATE` | 409 | `ObjectOptimisticLockingFailureException` (control optimista de `version`) o `ConcurrentRoomUpdateException` (*Editar habitación*: la `version` del formulario ya no es la actual, comprobada con la fila bloqueada); un plan puede mapear también la violación de un índice único (`DataIntegrityViolationException`) | Spring Data JPA | "La habitación acaba de cambiar. Vuelve a intentarlo." Los formularios de edición (*Editar habitación*, *Gestionar personal*) usan su propio texto, que pide recargar los datos |
+| `CONCURRENT_UPDATE` | 409 | `ObjectOptimisticLockingFailureException` (control optimista de `version`), `ConcurrentRoomUpdateException` (*Editar habitación*) o `ConcurrentStaffUpdateException` (*Gestionar personal*): en las dos ediciones, la `version` del formulario ya no es la actual, comprobada con la fila bloqueada; un plan puede mapear también la violación de un índice único (`DataIntegrityViolationException`) | Spring Data JPA | "La habitación acaba de cambiar. Vuelve a intentarlo." Los formularios de edición (*Editar habitación*, *Gestionar personal*) usan su propio texto, que pide recargar los datos |
 | `TASK_NOT_OWNED` | 403 | `TaskNotOwnedException` | Plan base (`domain/exception/`) | Lo define el plan del endpoint (limpieza o reparación) |
 | `TASK_NOT_FOUND` | 404 | `TaskNotFoundException` | Plan base (`domain/exception/`) | Lo define el plan del endpoint (limpieza o reparación) |
 | `TASK_ALREADY_CLOSED` | 409 | `TaskAlreadyClosedException` | Plan base (`domain/exception/`) | "Esta tarea ya fue cerrada." |
@@ -370,6 +370,7 @@ backend/
     │   │   │       ├── InvalidDecommissionReasonException.java # 400 VALIDATION_ERROR del detalle del motivo de la baja (plan-dar-de-baja-habitacion.md)
     │   │   │       ├── UnknownDecommissionException.java     # 400 VALIDATION_ERROR: la baja de la reactivación no es de esa habitación (plan-marcar-habitacion-como-disponible.md)
     │   │   │       ├── ConcurrentRoomUpdateException.java    # 409 CONCURRENT_UPDATE de la edición: la version del formulario ya no es la actual (plan-editar-habitacion.md)
+    │   │   │       ├── ConcurrentStaffUpdateException.java   # 409 CONCURRENT_UPDATE de la edición de una cuenta (plan-gestionar-personal.md)
     │   │   │       ├── TechnicalBlockNotFoundException.java  # 404 TECHNICAL_BLOCK_NOT_FOUND (plan-programar-bloqueo-tecnico-para-habitacion.md)
     │   │   │       ├── InvalidDateRangeException.java        # 400 INVALID_DATE_RANGE, con la regla incumplida (plan-consultar-informacion-mantenimientos.md)
     │   │   │       ├── MaintenanceConflictException.java     # Cruce con otro mantenimiento (plan-programar-bloqueo-tecnico-para-habitacion.md)
@@ -604,6 +605,7 @@ backend/
     │   │       │   │   │   │   ├── StartRepairRequest.java       # POST /api/maintenance/tasks
     │   │       │   │   │   │   ├── RegisterStaffRequest.java     # POST /api/staff
     │   │       │   │   │   │   ├── StaffListQuery.java           # Parámetros de GET /api/staff
+    │   │       │   │   │   │   ├── EditStaffRequest.java         # PATCH /api/staff/{username}
     │   │       │   │   │   │   ├── ReportDamageRequest.java      # POST /api/rooms/{roomId}/damage-reports
     │   │       │   │   │   │   ├── DecommissionRoomRequest.java  # POST /api/rooms/{roomId}/decommission
     │   │       │   │   │   │   ├── ReactivateRoomRequest.java    # POST /api/rooms/{roomId}/reactivation
@@ -756,6 +758,7 @@ backend/
         │       ├── DecommissionRoomServiceTest.java
         │       ├── DepartureSearchServiceTest.java
         │       ├── EditRoomServiceTest.java
+        │       ├── EditStaffAccountServiceTest.java
         │       ├── LoginServiceTest.java
         │       ├── MaintenanceAvailabilityServiceTest.java
         │       ├── MaintenanceNoticePublisherTest.java
@@ -826,6 +829,7 @@ backend/
         │   │   │       ├── DamageReportIntegrationTest.java           # plan-marcar-habitacion-inhabilitada-por-reparaciones.md
         │   │   │       ├── DecommissionRoomIntegrationTest.java       # plan-dar-de-baja-habitacion.md
         │   │   │       ├── EditRoomIntegrationTest.java               # plan-editar-habitacion.md
+        │   │   │       ├── EditStaffIntegrationTest.java              # plan-gestionar-personal.md
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
         │   │   │       ├── MaintenancePanelIntegrationTest.java       # plan-consultar-panel-mantenimiento.md

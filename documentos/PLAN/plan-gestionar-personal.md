@@ -257,10 +257,10 @@ Content-Type: application/json
 
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Nombre vacío, área fuera del catálogo o contraseña nueva de menos de 8 caracteres (FR-004, FR-008) | El mensaje del campo |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Nombre vacío, área fuera del catálogo o contraseña nueva de menos de 8 caracteres o de más de 72 bytes (FR-004, FR-008) | El mensaje del campo |
 | 404 | `STAFF_NOT_FOUND` | `StaffAccountNotFoundException` | No existe la cuenta | "No se encontró la cuenta." |
 | 409 | `ACCOUNT_INACTIVE` | `AccountInactiveException` | La cuenta está desactivada (caso borde "Edición de una cuenta desactivada") | "La cuenta está desactivada; no se puede editar." |
-| 409 | `CONCURRENT_UPDATE` | `ObjectOptimisticLockingFailureException` | Otro Administrador cambió la cuenta después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
+| 409 | `CONCURRENT_UPDATE` | `ConcurrentStaffUpdateException` (la `version` enviada no es la de la cuenta, comprobada con su fila bloqueada) | Otro Administrador cambió la cuenta después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 
 ---
 
@@ -463,14 +463,18 @@ frontend/src/
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Unit test en `EditStaffAccountServiceTest`: cambia nombre y área, cifra la contraseña nueva y registra el responsable y la hora (esc. 6; FR-008, FR-013).
-- [ ] T024 [P] [US3] Unit test: con la contraseña vacía se conserva la actual (esc. 7; FR-008).
-- [ ] T025 [P] [US3] Unit test: rechazo de una cuenta desactivada con `ACCOUNT_INACTIVE` y de una contraseña nueva de menos de 8 caracteres (caso borde "Edición de una cuenta desactivada"; FR-004).
-- [ ] T026 [US3] Integration test con Testcontainers: dos ediciones simultáneas con la misma `version`; la segunda recibe `409 CONCURRENT_UPDATE` (caso borde "Ediciones simultáneas").
+- [x] T023 [P] [US3] Unit test en `EditStaffAccountServiceTest`: cambia nombre y área, cifra la contraseña nueva y registra el responsable y la hora (esc. 6; FR-008, FR-013).
+- [x] T024 [P] [US3] Unit test: con la contraseña vacía se conserva la actual (esc. 7; FR-008).
+- [x] T025 [P] [US3] Unit test: rechazo de una cuenta desactivada con `ACCOUNT_INACTIVE` y de una contraseña nueva de menos de 8 caracteres (caso borde "Edición de una cuenta desactivada"; FR-004).
+  - Hecho (L36): T023 a T025 en `EditStaffAccountServiceTest`, que además prueba la versión vieja (`CONCURRENT_UPDATE`) y la cuenta inexistente. La contraseña corta llega al servicio como `IllegalArgumentException` (regla 7 del plan base); en la API la detiene antes `EditStaffRequest` con `400 VALIDATION_ERROR`.
+  - Hecho (L36): la contraseña nueva también respeta el límite de BCrypt de la revisión de L35 (ver T003): `EditStaffRequest` (`400`) y `EditStaffAccountService` rechazan más de 72 bytes con "La contraseña admite máximo 72 caracteres.".
+- [x] T026 [US3] Integration test con Testcontainers: dos ediciones simultáneas con la misma `version`; la segunda recibe `409 CONCURRENT_UPDATE` (caso borde "Ediciones simultáneas").
+  - Hecho (L36): en `EditStaffIntegrationTest`, que llama al caso de uso desde dos hilos con la versión 0; queda la versión 1.
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-013).
+- [x] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-013).
+  - Hecho (L36): como *Editar habitación* (R9), el servicio bloquea la fila de la cuenta (`StaffAccountRepositoryPort.lockByUsername`, `MANDATORY`) y compara la `version`; si no coincide lanza `ConcurrentStaffUpdateException` (`CONCURRENT_UPDATE`) con el texto de la tabla. No se usa `ObjectOptimisticLockingFailureException`: su manejador responde el texto de la habitación ("La habitación acaba de cambiar…"), y con la fila bloqueada la segunda edición siempre ve la versión nueva. Orden de las validaciones: existencia, cuenta activa (una cuenta desactivada también cambió de versión, y `ACCOUNT_INACTIVE` explica mejor el rechazo), versión y datos. `StaffAccount.edit` cambia nombre, área y, si llega, la contraseña cifrada, y registra quién y cuándo. El cuerpo es `EditStaffRequest`; un `username` en el cuerpo se ignora. `EditStaffIntegrationTest` prueba el `200` con la versión nueva, el login con la contraseña nueva, la contraseña vacía que conserva la anterior, cada error de la tabla y la falta de `X-User`.
 - [ ] T028 [US3] Construir `EditStaffPage.tsx`, con el usuario de solo lectura y el campo de contraseña opcional (FR-008).
 
 **Checkpoint**: Las cuentas se pueden corregir y las contraseñas restablecer.

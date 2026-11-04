@@ -29,6 +29,13 @@ public interface StaffAccountRepositoryPort {
     PagedResultDto<StaffAccount> search(StaffAccountFilter filter, int page, int size);
 
     /**
+     * La cuenta con su fila bloqueada hasta el fin de la transacción ({@code SELECT … FOR UPDATE}): dos ediciones con la
+     * misma {@code version} quedan en fila y la segunda encuentra la versión nueva (plan-gestionar-personal.md T027).
+     * Solo dentro de la transacción del invocador.
+     */
+    Optional<StaffAccount> lockByUsername(String username);
+
+    /**
      * Consulta con bloqueo pesimista las cuentas activas del área Administración.
      */
     List<StaffAccount> findActiveAdministratorsForUpdate();
