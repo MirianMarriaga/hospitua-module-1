@@ -820,6 +820,7 @@ backend/
         │   │   │   │   └── TechnicalBlockSchedulerTest.java
         │   │   │   └── web/
         │   │   │       ├── AuthControllerTest.java
+        │   │   │       ├── CheckInOutboxRetryIntegrationTest.java     # plan-registrar-check-in.md
         │   │   │       ├── CheckInRegistrationIntegrationTest.java    # plan-registrar-check-in.md
         │   │   │       ├── CheckInValidationIntegrationTest.java      # plan-registrar-check-in.md
         │   │   │       ├── CheckOutActiveStayIntegrationTest.java     # plan-registrar-check-out.md
@@ -843,6 +844,7 @@ backend/
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionDeparturesIntegrationTest.java    # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md
+        │   │   │       ├── ReceptionPanelUpdatesIntegrationTest.java  # plan-consultar-panel-recepcion.md
         │   │   │       ├── RoomBaseRateIntegrationTest.java           # plan-consultar-tarifa-base.md
         │   │   │       ├── RoomControllerTest.java
         │   │   │       ├── RoomStateHistoryAcrossFlowsIntegrationTest.java # plan-consultar-historial-de-estados.md

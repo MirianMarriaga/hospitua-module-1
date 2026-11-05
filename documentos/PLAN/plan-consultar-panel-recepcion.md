@@ -371,9 +371,12 @@ frontend/src/
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verificar la configuración base de repositorios en [PLAN/base/plan.md](base/plan.md).
-- [ ] T002 Verificar que las tablas `daily_reservation` y `daily_reservation_room` estén disponibles (creadas por `V1__init_schema.sql` del plan base y alimentadas por `plan-consultar-reservas.md`).
-- [ ] T003 Verificar `GlobalExceptionHandler` (plan base, T009): los endpoints del panel no tienen errores propios.
+- [x] T001 Verificar la configuración base de repositorios en [PLAN/base/plan.md](base/plan.md).
+  - Hecho (cierre de R13): `DailyReservationRepositoryPort`, `StayRepositoryPort` y `RoomRepositoryPort` con sus adaptadores JPA existen; son los que usan los endpoints del panel.
+- [x] T002 Verificar que las tablas `daily_reservation` y `daily_reservation_room` estén disponibles (creadas por `V1__init_schema.sql` del plan base y alimentadas por `plan-consultar-reservas.md`).
+  - Hecho (cierre de R13): las crea `V1__init_schema.sql` y las alimenta `DailyReservationIngestionService` (R3).
+- [x] T003 Verificar `GlobalExceptionHandler` (plan base, T009): los endpoints del panel no tienen errores propios.
+  - Hecho (cierre de R13): `ReceptionPanelController` y sus servicios de consulta no lanzan excepciones de dominio propias, así que todo error lo traduce `GlobalExceptionHandler`.
 
 ---
 
@@ -465,7 +468,7 @@ frontend/src/
   - Avance (L38): en el backend, `CrossFlowRulesTest` exige que todo campo `…Date` sea `LocalDate` (los instantes se llaman `…DateTime`). Falta revisar los textos contra los wireframes (frontend).
 - [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
 - [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
-  - Pendiente: la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola usan días de 2200 en la base compartida, así que esta prueba con el día real necesita su propia base o un reloj fijo. Lo cubren por partes la ingesta (R3) y las pruebas de `arrivals` y `panel/kpis` sobre la copia local. La parte de frontend va con `ReceptionPanel.tsx`.
+  - Avance (cierre de R13): hecha la parte de backend en `ReceptionPanelUpdatesIntegrationTest`, con su propio contexto y su propia base (la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola dejan días de 2200 en la base compartida). Tras la lista del día, un `ADDED`, un `UPDATED` que quita una habitación y un `REMOVED`, cada consulta de `arrivals` y `panel/kpis` refleja el cambio. Falta el component test de `ReceptionPanel.tsx`, que va con el frontend.
 - [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---
