@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 import com.hospitua.habitaciones.application.dto.EditStaffAccountCommand;
 import com.hospitua.habitaciones.domain.model.StaffAccount;
 import com.hospitua.habitaciones.domain.model.StaffArea;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +34,8 @@ public record EditStaffRequest(
     private static final String PASSWORD_OR_BLANK = "\\s*|(?s).{" + StaffAccount.MIN_PASSWORD_LENGTH + ",}";
 
     /** Como en {@link RegisterStaffRequest#isPassword()}: el límite de BCrypt, con {@code details.field = password}. */
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = RegisterStaffRequest.PASSWORD_LIMIT_RULE)
     public boolean isPassword() {
         return StaffAccount.fitsPasswordLimit(password);

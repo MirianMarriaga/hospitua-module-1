@@ -38,6 +38,14 @@ hospitua:
 
 # Circuito hacia Módulo 3 (consultar-liquidacion T023), sin reintentos: el límite de 3 s lo da el read-timeout.
 # Solo cuentan las caídas (sin respuesta o 5xx), no las respuestas 4xx de negocio.
+# Contrato OpenAPI (L40): solo las rutas /api de Módulo 1, en GET /v3/api-docs. El contrato versionado está en
+# documentos/contrato/openapi.json y lo vigila OpenApiContractIntegrationTest.
+springdoc:
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  # Los filtros que llegan como objeto (@ModelAttribute) se publican como parámetros sueltos, como los recibe el backend.
+  default-flat-param-object: true
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -144,3 +152,8 @@ hospitua:
       username: ${BOOTSTRAP_ADMIN_USERNAME}
       password: ${BOOTSTRAP_ADMIN_PASSWORD}
       full-name: ${BOOTSTRAP_ADMIN_FULL_NAME}
+
+# En producción no se publica el contrato.
+springdoc:
+  api-docs:
+    enabled: false

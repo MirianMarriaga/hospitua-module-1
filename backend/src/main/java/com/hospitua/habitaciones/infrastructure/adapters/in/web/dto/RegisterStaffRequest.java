@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 import com.hospitua.habitaciones.application.dto.RegisterStaffAccountCommand;
 import com.hospitua.habitaciones.domain.model.StaffAccount;
 import com.hospitua.habitaciones.domain.model.StaffArea;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -45,6 +46,8 @@ public record RegisterStaffRequest(
      * Propiedad {@code password} para Bean Validation (como {@code RoomBaseRateQuery.isDate}): no pasa del límite de
      * BCrypt, que se mide en bytes, así que {@code details.field} es {@code password}.
      */
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = PASSWORD_LIMIT_RULE)
     public boolean isPassword() {
         return StaffAccount.fitsPasswordLimit(password);

@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -14,6 +15,8 @@ public record RoomBaseRateQuery(String date) {
     static final String DATE_FORMAT_RULE = "La fecha debe tener un formato válido (AAAA-MM-DD).";
 
     /** Propiedad {@code date} para Bean Validation: el texto es una fecha ISO existente. */
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = DATE_FORMAT_RULE)
     public boolean isDate() {
         return parse() != null;

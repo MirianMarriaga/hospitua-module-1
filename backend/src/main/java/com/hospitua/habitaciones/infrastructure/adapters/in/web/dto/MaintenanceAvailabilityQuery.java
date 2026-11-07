@@ -1,5 +1,6 @@
 package com.hospitua.habitaciones.infrastructure.adapters.in.web.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -15,16 +16,22 @@ public record MaintenanceAvailabilityQuery(String roomId, String startDate, Stri
 
     static final String FORMAT_RULE = "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD).";
 
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = FORMAT_RULE)
     public boolean isRoomId() {
         return parseUuid() != null;
     }
 
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = FORMAT_RULE)
     public boolean isStartDate() {
         return parseDate(startDate) != null;
     }
 
+    // El contrato OpenAPI muestra el campo del mismo nombre como texto, no este booleano de validación (L40).
+    @Schema(implementation = String.class)
     @AssertTrue(message = FORMAT_RULE)
     public boolean isEndDate() {
         return parseDate(endDate) != null;

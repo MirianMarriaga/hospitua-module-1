@@ -20,6 +20,7 @@
         <jacoco.version>0.8.13</jacoco.version>
         <wiremock.version>3.13.2</wiremock.version>
         <archunit.version>1.5.1</archunit.version>
+        <springdoc.version>3.2.0</springdoc.version>
         <maven.compiler.release>21</maven.compiler.release>
     </properties>
     <dependencies>
@@ -55,6 +56,12 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot4</artifactId>
             <version>${resilience4j.version}</version>
+        </dependency>
+        <!-- Contrato OpenAPI en GET /v3/api-docs, sin Swagger UI (L40) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
