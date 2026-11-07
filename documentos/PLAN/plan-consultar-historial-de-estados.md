@@ -235,7 +235,8 @@ No aplica: usa la infraestructura del plan base.
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T014 Integration test con decenas de miles de periodos: la consulta con cualquier combinación de filtros responde en menos de 10 segundos (SC-001, caso borde "Gran rango de fechas").
-- [ ] T015 Integration test: los periodos que registran los flujos de transición (registro, baja, reactivación, reservas, limpieza, mantenimiento, check-in y check-out) aparecen todos en la consulta, sin huecos entre el fin de un periodo y el inicio del siguiente (SC-002).
+- [x] T015 Integration test: los periodos que registran los flujos de transición (registro, baja, reactivación, reservas, limpieza, mantenimiento, check-in y check-out) aparecen todos en la consulta, sin huecos entre el fin de un periodo y el inicio del siguiente (SC-002).
+  - Hecho (L38): `RoomStateHistoryAcrossFlowsIntegrationTest` lleva una habitación por los 12 flujos de `SourceFlow` (registro, apartar y liberar la reserva, Check-In, Check-Out, limpieza liberada y terminada, daño reportado y reparado, bloqueo técnico aplicado y reparado, baja y reactivación) y comprueba con `GET /api/room-state-history`, página por página, los 20 periodos en orden, cada uno terminando cuando empieza el siguiente y solo el último abierto.
 
 ---
 

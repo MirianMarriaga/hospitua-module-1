@@ -13,14 +13,22 @@ import com.hospitua.habitaciones.domain.model.DailyReservationRoom;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
+import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,8 +38,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
@@ -247,6 +257,57 @@ class CheckOutRegistrationIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT check_out_date FROM stay WHERE id = ?::uuid", LocalDate.class, stayId))
                 .isNull();
+    }
+
+    @Test
+    @DisplayName("T021: dos Check-Out simultáneos de la misma estancia; uno responde 200 y el otro una colisión"
+            + " controlada (409 ROOM_INVALID_STATE o 404 ACTIVE_STAY_NOT_FOUND), con un solo cierre registrado")
+    void checkOut_concurrently_secondCollides() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<MvcResult>> results = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Callable<MvcResult> attempt = () -> {
+                    ready.countDown();
+                    go.await();
+                    return checkOut(RECEPTIONIST, stayId, "true").andReturn();
+                };
+                results.add(pool.submit(attempt));
+            }
+            ready.await(10, TimeUnit.SECONDS);
+            go.countDown();
+            List<MockHttpServletResponse> responses = new ArrayList<>();
+            for (Future<MvcResult> result : results) {
+                responses.add(result.get(30, TimeUnit.SECONDS).getResponse());
+            }
+
+            assertThat(responses)
+                    .filteredOn(response -> response.getStatus() == 200)
+                    .hasSize(1);
+            MockHttpServletResponse rejected = responses.stream()
+                    .filter(response -> response.getStatus() != 200)
+                    .findFirst()
+                    .orElseThrow();
+            String errorCode = JsonPath.read(rejected.getContentAsString(), "$.errorCode");
+            assertThat(rejected.getStatus() + " " + errorCode)
+                    .isIn("409 ROOM_INVALID_STATE", "404 ACTIVE_STAY_NOT_FOUND");
+            assertThat(roomRepository.findById(room.getId()).orElseThrow().getStatus())
+                    .isEqualTo(RoomStatus.PendingCleaning);
+            assertThat(jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM room_state_history WHERE room_id = ? AND source_flow = 'CHECK_OUT'",
+                            Integer.class,
+                            room.getId()))
+                    .isOne();
+            assertThat(jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM room_audit_log WHERE room_id = ? AND event_type = 'CHECK_OUT'",
+                            Integer.class,
+                            room.getId()))
+                    .isOne();
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     private void assertNothingChanged() {

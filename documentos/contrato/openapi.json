@@ -1,0 +1,3042 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "HOSPITUA Módulo 1 — Habitaciones",
+    "version" : "1"
+  },
+  "paths" : {
+    "/api/staff" : {
+      "get" : {
+        "tags" : [ "staff-controller" ],
+        "operationId" : "list",
+        "parameters" : [ {
+          "name" : "area",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO"
+          }
+        }, {
+          "name" : "active",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "true|false"
+          }
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[1-9][0-9]{0,8}"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResultDtoStaffAccountDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "staff-controller" ],
+        "operationId" : "register",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterStaffRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StaffAccountDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/{username}/deactivation" : {
+      "post" : {
+        "tags" : [ "staff-controller" ],
+        "operationId" : "deactivate",
+        "parameters" : [ {
+          "name" : "username",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StaffAccountDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms" : {
+      "get" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "sellableByCategory",
+        "parameters" : [ {
+          "name" : "categoryRoom",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Module2RoomDto"
+                  }
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "register_1",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterRoomRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoomDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/technical-blocks" : {
+      "post" : {
+        "tags" : [ "technical-block-controller" ],
+        "operationId" : "schedule",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ScheduleTechnicalBlockRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TechnicalBlockCreatedDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/reactivation" : {
+      "post" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "reactivate",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReactivateRoomRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReactivationResultDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/decommission" : {
+      "get" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "currentDecommission",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoomDecommissionInfoDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "decommission",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DecommissionRoomRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoomDecommissionDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/damage-reports" : {
+      "post" : {
+        "tags" : [ "damage-report-controller" ],
+        "operationId" : "reportDamage",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportDamageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DamageReportCreatedDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/tasks" : {
+      "post" : {
+        "tags" : [ "maintenance-controller" ],
+        "operationId" : "startRepair",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StartRepairRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RepairTaskStartedDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/tasks/{taskId}/release" : {
+      "post" : {
+        "tags" : [ "maintenance-controller" ],
+        "operationId" : "releaseTask",
+        "parameters" : [ {
+          "name" : "taskId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/tasks/{taskId}/complete" : {
+      "post" : {
+        "tags" : [ "maintenance-controller" ],
+        "operationId" : "completeRepair",
+        "parameters" : [ {
+          "name" : "taskId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cleaning/tasks" : {
+      "post" : {
+        "tags" : [ "cleaning-controller" ],
+        "operationId" : "startCleaning",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StartCleaningRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CleaningTaskStartedDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cleaning/tasks/{taskId}/release" : {
+      "post" : {
+        "tags" : [ "cleaning-controller" ],
+        "operationId" : "releaseTask_1",
+        "parameters" : [ {
+          "name" : "taskId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cleaning/tasks/{taskId}/complete" : {
+      "post" : {
+        "tags" : [ "cleaning-controller" ],
+        "operationId" : "completeCleaning",
+        "parameters" : [ {
+          "name" : "taskId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CompleteCleaningRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-out" : {
+      "post" : {
+        "tags" : [ "check-out-controller" ],
+        "operationId" : "register_2",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterCheckOutRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CheckOutResultDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in" : {
+      "post" : {
+        "tags" : [ "check-in-controller" ],
+        "operationId" : "register_3",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterCheckInRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CheckInResultDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/{username}" : {
+      "get" : {
+        "tags" : [ "staff-controller" ],
+        "operationId" : "get",
+        "parameters" : [ {
+          "name" : "username",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StaffAccountDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "staff-controller" ],
+        "operationId" : "edit",
+        "parameters" : [ {
+          "name" : "username",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EditStaffRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StaffAccountDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}" : {
+      "get" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "sellableById",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Module2RoomDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "edit_1",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EditRoomRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EditRoomResultDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stays/{stayId}/settlement" : {
+      "get" : {
+        "tags" : [ "settlement-controller" ],
+        "operationId" : "settlement",
+        "parameters" : [ {
+          "name" : "stayId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettlementResponseDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/technical-blocks/current" : {
+      "get" : {
+        "tags" : [ "technical-block-controller" ],
+        "operationId" : "current",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TechnicalBlockViewDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/maintenances" : {
+      "get" : {
+        "tags" : [ "maintenance-availability-controller" ],
+        "operationId" : "consult",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "startDate",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "endDate",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MaintenanceAvailabilityDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/damage-reports/latest" : {
+      "get" : {
+        "tags" : [ "damage-report-controller" ],
+        "operationId" : "latest",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DamageReportViewDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/base-rate" : {
+      "get" : {
+        "tags" : [ "room-base-rate-controller" ],
+        "operationId" : "baseRate",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "date",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoomBaseRateResponseDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/inventory" : {
+      "get" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "inventory",
+        "parameters" : [ {
+          "name" : "roomNumber",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "categoryRoom",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          }
+        }, {
+          "name" : "floor",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "exclusiveMinimum" : 0
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          }
+        }, {
+          "name" : "sort",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "roomNumber|floor|categoryRoom|maxCapacity|baseRate|status"
+          }
+        }, {
+          "name" : "direction",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "asc|desc"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResultDtoRoomDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/inventory/{roomId}" : {
+      "get" : {
+        "tags" : [ "room-controller" ],
+        "operationId" : "inventoryDetail",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoomDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/room-state-history" : {
+      "get" : {
+        "tags" : [ "room-state-history-controller" ],
+        "operationId" : "search",
+        "parameters" : [ {
+          "name" : "roomId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "roomNumber",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "categoryRoom",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResultDtoRoomStateHistoryRowDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reception/panel/kpis" : {
+      "get" : {
+        "tags" : [ "reception-panel-controller" ],
+        "operationId" : "kpis",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReceptionDashboardKpis"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reception/departures" : {
+      "get" : {
+        "tags" : [ "reception-panel-controller" ],
+        "operationId" : "departures",
+        "parameters" : [ {
+          "name" : "query",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeparturesDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reception/arrivals" : {
+      "get" : {
+        "tags" : [ "reception-panel-controller" ],
+        "operationId" : "arrivals",
+        "parameters" : [ {
+          "name" : "query",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PendingArrivalsDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/panel" : {
+      "get" : {
+        "tags" : [ "maintenance-controller" ],
+        "operationId" : "panel",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MaintenancePanelDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cleaning/panel" : {
+      "get" : {
+        "tags" : [ "cleaning-controller" ],
+        "operationId" : "panel_1",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CleaningPanelDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-out/active-stay" : {
+      "get" : {
+        "tags" : [ "check-out-controller" ],
+        "operationId" : "activeStay",
+        "parameters" : [ {
+          "name" : "reservationRef",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          }
+        }, {
+          "name" : "roomId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ActiveStayResponseDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in/validate" : {
+      "get" : {
+        "tags" : [ "check-in-controller" ],
+        "operationId" : "validate",
+        "parameters" : [ {
+          "name" : "reservationRef",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          }
+        }, {
+          "name" : "roomId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CheckInValidationDto"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Error de validación o de negocio (ApiError)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "RegisterStaffRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "\\s*[A-Za-z0-9._]{3,30}\\s*"
+          },
+          "password" : {
+            "type" : "string",
+            "maxLength" : 2147483647,
+            "minLength" : 8
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "area" : {
+            "type" : "string",
+            "pattern" : "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO"
+          }
+        },
+        "required" : [ "area", "fullName", "password", "username" ]
+      },
+      "StaffAccountDto" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "area" : {
+            "type" : "string",
+            "enum" : [ "RECEPCION", "ADMINISTRACION", "GERENCIA", "LIMPIEZA", "MANTENIMIENTO" ]
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "RegisterRoomRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roomNumber" : {
+            "type" : "string",
+            "maxLength" : 10,
+            "minLength" : 0
+          },
+          "floor" : {
+            "type" : "number",
+            "exclusiveMinimum" : 0
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "pattern" : "SENCILLA|DOBLE|SUITE|BOUTIQUE"
+          },
+          "maxCapacity" : {
+            "type" : "number",
+            "exclusiveMinimum" : 0
+          },
+          "baseRate" : {
+            "type" : "number",
+            "exclusiveMinimum" : 0
+          }
+        },
+        "required" : [ "baseRate", "categoryRoom", "floor", "maxCapacity", "roomNumber" ]
+      },
+      "RoomDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "floor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "maxCapacity" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "baseRate" : {
+            "type" : "number"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "ScheduleTechnicalBlockRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "estimatedEndDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "estimatedEndDate", "reason", "startDate" ]
+      },
+      "TechnicalBlockCreatedDto" : {
+        "type" : "object",
+        "properties" : {
+          "technicalBlockId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Scheduled", "Applied", "Completed", "Expired" ]
+          }
+        }
+      },
+      "ReactivateRoomRequest" : {
+        "type" : "object",
+        "properties" : {
+          "decommissionId" : {
+            "type" : "string",
+            "pattern" : "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+          }
+        },
+        "required" : [ "decommissionId" ]
+      },
+      "ReactivationResultDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "floor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "alreadyReactivated" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "DecommissionRoomRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reasonCategory" : {
+            "type" : "string",
+            "pattern" : "PERMANENT_REMODELING|FLOOR_CLOSURE|ADMINISTRATIVE_DECISION|OTHER"
+          },
+          "reasonDetail" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reasonCategory" ]
+      },
+      "RoomDecommissionDto" : {
+        "type" : "object",
+        "properties" : {
+          "decommissionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "floor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "reasonCategory" : {
+            "type" : "string",
+            "enum" : [ "PERMANENT_REMODELING", "FLOOR_CLOSURE", "ADMINISTRATIVE_DECISION", "OTHER" ]
+          },
+          "reasonDetail" : {
+            "type" : "string"
+          },
+          "decommissionDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ReportDamageRequest" : {
+        "type" : "object",
+        "properties" : {
+          "damageDescription" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "damageDescription" ]
+      },
+      "DamageReportCreatedDto" : {
+        "type" : "object",
+        "properties" : {
+          "damageReportId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "StartRepairRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "roomId" ]
+      },
+      "RepairTaskStartedDto" : {
+        "type" : "object",
+        "properties" : {
+          "taskId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "StartCleaningRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "roomId" ]
+      },
+      "CleaningTaskStartedDto" : {
+        "type" : "object",
+        "properties" : {
+          "taskId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "CompleteCleaningRequest" : {
+        "type" : "object",
+        "properties" : {
+          "damageDescription" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        }
+      },
+      "RegisterCheckOutRequest" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "confirmed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "confirmed", "stayId" ]
+      },
+      "CheckOutResultDto" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "roomStatus" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "checkOutDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "GuestRequest" : {
+        "type" : "object",
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "documentType" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "nationality" : {
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "originPlace" : {
+            "type" : "string"
+          },
+          "destinationPlace" : {
+            "type" : "string"
+          },
+          "isReservationGuest" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "RegisterCheckInRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reservationRef" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guests" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GuestRequest"
+            }
+          }
+        },
+        "required" : [ "guests", "reservationRef", "roomId" ]
+      },
+      "CheckInResultDto" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reservationRef" : {
+            "type" : "string"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "roomStatus" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "checkInDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
+      "LoginResponse" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "area" : {
+            "type" : "string"
+          }
+        }
+      },
+      "EditStaffRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "area" : {
+            "type" : "string",
+            "pattern" : "RECEPCION|ADMINISTRACION|GERENCIA|LIMPIEZA|MANTENIMIENTO"
+          },
+          "password" : {
+            "type" : "string",
+            "pattern" : "\\s*|(?s).{8,}"
+          }
+        },
+        "required" : [ "area", "fullName", "version" ]
+      },
+      "EditRoomRequest" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "floor" : {
+            "type" : "number"
+          },
+          "categoryRoom" : {
+            "type" : "string"
+          },
+          "maxCapacity" : {
+            "type" : "number"
+          },
+          "baseRate" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "EditRoomResultDto" : {
+        "type" : "object",
+        "properties" : {
+          "changed" : {
+            "type" : "boolean"
+          },
+          "changes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoomAttributeChange"
+            }
+          },
+          "room" : {
+            "$ref" : "#/components/schemas/RoomDto"
+          }
+        }
+      },
+      "RoomAttributeChange" : {
+        "type" : "object",
+        "properties" : {
+          "field" : {
+            "type" : "string"
+          },
+          "previousValue" : { },
+          "newValue" : { }
+        }
+      },
+      "GuestSummary" : {
+        "type" : "object",
+        "properties" : {
+          "lodgingAmount" : {
+            "type" : "number"
+          }
+        }
+      },
+      "ReservationInfo" : {
+        "type" : "object",
+        "properties" : {
+          "source" : {
+            "type" : "string"
+          },
+          "otaCommissionPercentage" : {
+            "type" : "number"
+          },
+          "otaCommissionAmount" : {
+            "type" : "number"
+          },
+          "netIncome" : {
+            "type" : "number"
+          }
+        }
+      },
+      "SettlementResponseDto" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AVAILABLE", "UNAVAILABLE" ]
+          },
+          "settlementType" : {
+            "type" : "string",
+            "enum" : [ "INFORMATIVE", "FINAL" ]
+          },
+          "reservationInfo" : {
+            "$ref" : "#/components/schemas/ReservationInfo"
+          },
+          "guestSummary" : {
+            "$ref" : "#/components/schemas/GuestSummary"
+          },
+          "stayData" : {
+            "$ref" : "#/components/schemas/StayData"
+          },
+          "unavailableCause" : {
+            "type" : "string"
+          }
+        }
+      },
+      "StayData" : {
+        "type" : "object",
+        "properties" : {
+          "nights" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "checkInDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "checkOutDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "PagedResultDtoStaffAccountDto" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StaffAccountDto"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "Module2RoomDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "maxCapacity" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "TechnicalBlockViewDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "responsibleName" : {
+            "type" : "string"
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "estimatedEndDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "reportDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ConflictDto" : {
+        "type" : "object",
+        "properties" : {
+          "maintenanceStart" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "maintenanceEnd" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "MaintenanceAvailabilityDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "conflicts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConflictDto"
+            }
+          }
+        }
+      },
+      "RoomDecommissionInfoDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "floor" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "decommissionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "decommissionDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reasonCategory" : {
+            "type" : "string",
+            "enum" : [ "PERMANENT_REMODELING", "FLOOR_CLOSURE", "ADMINISTRATIVE_DECISION", "OTHER" ]
+          },
+          "reasonDetail" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DamageReportViewDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "damageDescription" : {
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "reportDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "RoomBaseRateResponseDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "baseRate" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PagedResultDtoRoomDto" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoomDto"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "PagedResultDtoRoomStateHistoryRowDto" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoomStateHistoryRowDto"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "RoomStateHistoryRowDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "startDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "actorName" : {
+            "type" : "string"
+          },
+          "sourceFlow" : {
+            "type" : "string",
+            "enum" : [ "REGISTER_ROOM", "MARK_RESERVED", "MARK_AVAILABLE", "CHECK_IN", "CHECK_OUT", "START_CLEANING", "CONFIRM_CLEANING_END", "RELEASE_CLEANING_TASK", "REPORT_DAMAGE", "CONFIRM_REPAIR_END", "TECHNICAL_BLOCK", "DECOMMISSION_ROOM" ]
+          },
+          "sourceFlowName" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReceptionDashboardKpis" : {
+        "type" : "object",
+        "properties" : {
+          "arrivalsToday" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "departuresToday" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "overdueDepartures" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "occupiedRooms" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "DepartureSummary" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reservationRef" : {
+            "type" : "string"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string"
+          },
+          "titularFirstName" : {
+            "type" : "string"
+          },
+          "titularLastName" : {
+            "type" : "string"
+          },
+          "titularDocumentNumber" : {
+            "type" : "string"
+          },
+          "checkInDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "expectedCheckoutDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "overdue" : {
+            "type" : "boolean"
+          },
+          "guestCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "source" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DeparturesDto" : {
+        "type" : "object",
+        "properties" : {
+          "stays" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DepartureSummary"
+            }
+          }
+        }
+      },
+      "ArrivalGroup" : {
+        "type" : "object",
+        "properties" : {
+          "reservationRef" : {
+            "type" : "string"
+          },
+          "pendingRooms" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalRooms" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rooms" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ArrivalItemSummary"
+            }
+          }
+        }
+      },
+      "ArrivalItemSummary" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string"
+          },
+          "titularFirstName" : {
+            "type" : "string"
+          },
+          "titularLastName" : {
+            "type" : "string"
+          },
+          "titularDocumentNumber" : {
+            "type" : "string"
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "nights" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "guestCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "roomStatus" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "notice" : {
+            "$ref" : "#/components/schemas/ArrivalNotice"
+          }
+        }
+      },
+      "ArrivalNotice" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "enum" : [ "UNAVAILABLE", "PENDING_ASSIGNMENT" ]
+          },
+          "text" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PendingArrivalsDto" : {
+        "type" : "object",
+        "properties" : {
+          "listAvailable" : {
+            "type" : "boolean"
+          },
+          "groups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ArrivalGroup"
+            }
+          }
+        }
+      },
+      "ActiveTaskDto" : {
+        "type" : "object",
+        "properties" : {
+          "taskId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "room" : {
+            "$ref" : "#/components/schemas/MaintenanceRoomDto"
+          }
+        }
+      },
+      "MaintenancePanelDto" : {
+        "type" : "object",
+        "properties" : {
+          "activeTask" : {
+            "$ref" : "#/components/schemas/ActiveTaskDto"
+          },
+          "rooms" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MaintenanceRoomDto"
+            }
+          }
+        }
+      },
+      "MaintenanceRangeDto" : {
+        "type" : "object",
+        "properties" : {
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "estimatedEndDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "MaintenanceRoomDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "overdue" : {
+            "type" : "boolean"
+          },
+          "hasOpenTask" : {
+            "type" : "boolean"
+          },
+          "maintenance" : {
+            "$ref" : "#/components/schemas/MaintenanceRangeDto"
+          }
+        }
+      },
+      "CleaningPanelDto" : {
+        "type" : "object",
+        "properties" : {
+          "activeTask" : {
+            "$ref" : "#/components/schemas/ActiveTaskDto"
+          },
+          "rooms" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CleaningRoomDto"
+            }
+          }
+        }
+      },
+      "CleaningRoomDto" : {
+        "type" : "object",
+        "properties" : {
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "lastCleaningDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ActiveStayResponseDto" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reservationRef" : {
+            "type" : "string"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string",
+            "enum" : [ "SENCILLA", "DOBLE", "SUITE", "BOUTIQUE" ]
+          },
+          "roomStatus" : {
+            "type" : "string",
+            "enum" : [ "Available", "Reserved", "Occupied", "PendingCleaning", "InCleaning", "DisabledForRepairs", "TechnicalBlock", "Inactive" ]
+          },
+          "titularFirstName" : {
+            "type" : "string"
+          },
+          "titularLastName" : {
+            "type" : "string"
+          },
+          "checkInDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "expectedCheckoutDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "guests" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GuestDto"
+            }
+          }
+        }
+      },
+      "GuestDto" : {
+        "type" : "object",
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "documentType" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "nationality" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CheckInValidationDto" : {
+        "type" : "object",
+        "properties" : {
+          "reservationRef" : {
+            "type" : "string"
+          },
+          "roomId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roomNumber" : {
+            "type" : "string"
+          },
+          "categoryRoom" : {
+            "type" : "string"
+          },
+          "guestCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maxCapacity" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "nights" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "holder" : {
+            "$ref" : "#/components/schemas/Holder"
+          }
+        }
+      },
+      "Holder" : {
+        "type" : "object",
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "documentType" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "nationality" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiError" : {
+        "type" : "object",
+        "properties" : {
+          "errorCode" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "details" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        }
+      }
+    }
+  }
+}

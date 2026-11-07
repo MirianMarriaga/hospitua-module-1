@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.infrastructure.adapters.in.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -66,7 +67,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * {@code POST /api/cleaning/tasks/{taskId}/complete} y {@code …/release} sobre la aplicación completa y PostgreSQL real
- * (plan-confirmar-fin-de-limpieza.md T010–T012, T015, T018). Cada prueba parte de una tarea real
+ * (plan-confirmar-fin-de-limpieza.md T010–T012, T015, T018; plan-marcar-habitacion-como-disponible.md T020). Cada
+ * prueba parte de una tarea real
  * ({@code POST /api/cleaning/tasks}) sobre una habitación propia; la base es compartida.
  */
 @Import(TestcontainersConfiguration.class)
@@ -144,11 +146,17 @@ class CompleteCleaningIntegrationTest {
     }
 
     @Test
-    @DisplayName("T012: sin daño ni llegada queda Available con un periodo CONFIRM_CLEANING_END del miembro")
+    @DisplayName("T012: sin daño ni llegada queda Available con un periodo CONFIRM_CLEANING_END del miembro y aparece"
+            + " enseguida en el inventario de Available (como-disponible T020)")
     void complete_available() throws Exception {
         complete(member, null).andExpect(status().isNoContent());
 
         assertRoom(RoomStatus.Available);
+        mockMvc.perform(get("/api/rooms/inventory")
+                        .param("roomNumber", room.getRoomNumber())
+                        .param("status", "Available"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].roomId").value(room.getId().toString()));
         assertThat(periodsAfterCleaning())
                 .containsExactly(tuple("Available", "InCleaning", "CONFIRM_CLEANING_END", member, null, true));
         assertTaskClosed(CleaningTaskOutcome.Completed, "Available");

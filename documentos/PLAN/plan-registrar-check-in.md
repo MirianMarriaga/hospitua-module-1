@@ -327,9 +327,12 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 1: Setup & Database Migrations
 
-- [ ] T001 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `stay` tenga `titular_first_name`, `titular_last_name`, `titular_document_number`, `source` (`DIRECTA` o el nombre de la OTA). Este plan no tiene migración propia.
-- [ ] T002 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `room_guest` tenga `first_name` y `last_name` (sin `full_name`), `birth_date` (DATE NOT NULL), `origin_place` y `destination_place` (VARCHAR nullable).
-- [ ] T003 Verificar el exchange `hospitua.events` y la cola `m2.habitacion.checkin.queue` con routing key `habitacion.checkin` (plan base, T011).
+- [x] T001 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `stay` tenga `titular_first_name`, `titular_last_name`, `titular_document_number`, `source` (`DIRECTA` o el nombre de la OTA). Este plan no tiene migración propia.
+  - Hecho (cierre de R13): verificado en `V1__init_schema.sql`; `source` es `VARCHAR(50) NOT NULL`.
+- [x] T002 Verificar en `V1__init_schema.sql` (plan base, T007) que la tabla `room_guest` tenga `first_name` y `last_name` (sin `full_name`), `birth_date` (DATE NOT NULL), `origin_place` y `destination_place` (VARCHAR nullable).
+  - Hecho (cierre de R13): verificado en `V1__init_schema.sql`; `room_guest` no tiene `full_name`.
+- [x] T003 Verificar el exchange `hospitua.events` y la cola `m2.habitacion.checkin.queue` con routing key `habitacion.checkin` (plan base, T011).
+  - Hecho (cierre de R13): `RabbitConfig` declara la cola durable y su binding a `hospitua.events`; lo prueba `RabbitTopologyIntegrationTest`.
 
 ---
 
@@ -428,12 +431,13 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Hecho (L12): `CheckInEligibilityTest` y la integración (400 con `expectedGuests`/`receivedGuests` y `maxCapacity`).
 - [x] T022 [P] [US2] Unit test: Rechazar Check-In si dos ocupantes de la habitación comparten el mismo documento (`DuplicateGuestDocumentException`).
   - Hecho (L12): `CheckInEligibilityTest` y la integración (400 con el `guestIndex` del repetido; el número se compara sin mayúsculas).
-- [ ] T023 [P] [US2] Integration test: Simular fallo de RabbitMQ durante la publicación; comprobar que la transacción local de `Stay` y `Room.status = Occupied` queda en firme y el outbox reintenta con el mismo `messageId`.
-  - Pendiente: el Check-In ya encola en la misma transacción, así que la caída de RabbitMQ no lo revierte; falta la prueba con el broker caído.
+- [x] T023 [P] [US2] Integration test: Simular fallo de RabbitMQ durante la publicación; comprobar que la transacción local de `Stay` y `Room.status = Occupied` queda en firme y el outbox reintenta con el mismo `messageId`.
+  - Hecho (cierre de R13): `CheckInOutboxRetryIntegrationTest` registra Check-Ins reales y hace fallar la publicación de uno con `AmqpConnectException`, como si el broker no respondiera: la estancia y la habitación `Occupied` quedan en firme, el mensaje queda `PENDING` con un intento y el siguiente ciclo lo publica con el mismo `messageId` y `sequenceNumber`.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [P] [US2] Verificar con el worker del outbox del plan base (T012) que un Check-In no publicado se reintenta con el mismo `messageId` y `sequenceNumber`, sin frenar otros mensajes, y que agotados los reintentos queda en `FAILED` con alerta.
+- [x] T024 [P] [US2] Verificar con el worker del outbox del plan base (T012) que un Check-In no publicado se reintenta con el mismo `messageId` y `sequenceNumber`, sin frenar otros mensajes, y que agotados los reintentos queda en `FAILED` con alerta.
+  - Hecho (cierre de R13): en `CheckInOutboxRetryIntegrationTest`, el Check-In que falla no frena al otro, que se publica en el mismo ciclo, y al agotar los reintentos queda `FAILED` con la alerta `[OUTBOX_PUBLISH_FAILED]` en el log y sin llegar a la cola.
 - [ ] T025 [US2] Implementar manejo de contingencia en frontend: mensajes controlados sin jerga técnica cuando no se pueda registrar el Check-In.
 - [x] T026 [P] [US2] Unit test: Rechazar Check-In si el `startDate` de la reserva es distinto de la fecha actual en hora Colombia (`InvalidCheckInDateException`), usando un `Clock` fijo (FR-005; caso borde "Día operativo fijo").
 
@@ -441,9 +445,12 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T027 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
-- [ ] T028 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
-- [ ] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
+- [x] T027 Verificar que ninguna traza de log ni endpoint exponga información migratoria innecesaria.
+  - Hecho (L38): ninguna clase del flujo escribe en el log; la respuesta de `POST /api/check-in` no lleva datos de los huéspedes y la de `GET /api/check-in/validate` solo los del titular que muestra el paso 1. `originPlace` y `destinationPlace` van únicamente en el mensaje a Módulo 2 que pide el contrato, y se omiten para los huéspedes colombianos.
+- [x] T028 Validar que no quede ninguna llamada REST dirigida a Módulo 2 para obtener reservas en el flujo de Check-In.
+  - Hecho (L38): el Check-In valida contra la copia local de reservas. `CrossFlowRulesTest` exige que solo la baja y la programación de bloqueos técnicos consulten a Módulo 2, y que `RestClient` solo se use en los adaptadores REST y su configuración.
+- [x] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
+  - Hecho (L38): no queda ninguna referencia en `backend/src`; solo las nombra este plan, para decir que no existen.
 - [ ] T030 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.
 
 ---

@@ -56,6 +56,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 | Paquete base backend | `com.hospitua.habitaciones` | Convención estándar del dominio |
 | Pruebas de contrato REST | WireMock (junto con `MockRestServiceServer`) | Simular Módulo 2 y Módulo 3 con respuestas, errores y retrasos reales sobre HTTP en las pruebas de contrato |
 | Formato de código | Spotless con palantir-java-format (`./mvnw spotless:apply`; `verify` falla si el código no está formateado) | Formato uniforme sin discusiones en las revisiones |
+| Contrato OpenAPI | springdoc (`springdoc-openapi-starter-webmvc-api` 3.2.0, sin Swagger UI): publica `GET /v3/api-docs` con las rutas `/api/**`, apagado en `prod`. El contrato versionado está en `documentos/contrato/openapi.json` y lo vigila `OpenApiContractIntegrationTest` (T026) | El frontend genera sus tipos desde el contrato: un cambio de endpoint o DTO falla en el backend hasta actualizar el contrato y rompe el `typecheck` del frontend si no se regeneran los tipos |
 | Cobertura de pruebas | JaCoCo (`jacoco-maven-plugin` 0.8.13): `prepare-agent` y `report` en `verify`, reporte en `target/site/jacoco`; solo reporte, sin umbral que haga fallar el build | Medir la cobertura de unitarias e integración juntas al cerrar cada rama |
 
 ---
@@ -272,9 +273,12 @@ documentos/
 ├── SPEC/
 │   ├── referencias/maquina-estados-habitacion.md
 │   └── spec-*.md                     # Un spec por caso de uso de Módulo 1
+├── contrato/
+│   └── openapi.json                  # Contrato OpenAPI de /api, generado por OpenApiContractIntegrationTest (T026)
 ├── PLAN/
 │   ├── base/
 │   │   └── plan.md                   # Este archivo (plataforma técnica compartida)
+│   ├── FASES_IMPLEMENTACION.md       # Plan de fases del backend: ramas R0–R13 y lotes L00–L40
 │   └── plan-*.md                     # Un plan por caso de uso (ej. plan-registrar-check-out.md)
 └── vistas/                           # Prototipos HTML/CSS por área
     ├── recepcionista/
@@ -727,6 +731,7 @@ backend/
     │   │           ├── JsonPersistenceConfig.java            # Columnas JSONB con el JsonMapper de la aplicación (fechas AAAA-MM-DD, sin nulos) (T012)
     │   │           ├── MaintenanceConfig.java                # Expone el bean MaintenanceLimits del dominio desde MaintenanceProperties (T019)
     │   │           ├── MaintenanceProperties.java            # Record validado de hospitua.maintenance.* (90 / 365 días) (T019)
+    │   │           ├── OpenApiConfig.java                    # Título, ApiError y respuesta 4XX del contrato OpenAPI (T026)
     │   │           └── StaffBootstrapProperties.java         # hospitua.bootstrap.admin.* (cuenta inicial) (T022)
     │   └── resources/
     │       ├── application.yml
@@ -736,7 +741,7 @@ backend/
     │       │   ├── V3__cleaning_maintenance_schema.sql       # Tablas de limpieza y mantenimiento, sin datos (T017)
     │       │   ├── V4__room_inventory_indexes.sql            # plan-consultar-inventario-habitaciones.md
     │       │   └── V5__room_state_history_indexes.sql        # plan-consultar-historial-de-estados.md
-    │       └── db/dev-data/                                  # Datos sintéticos de limpieza y mantenimiento; solo perfil dev (T017)
+    │       └── db/dev-data/                                  # Opcional, aún no creada (L39 aplazado): datos sintéticos de limpieza y mantenimiento; solo perfil dev (T017)
     └── test/java/com/hospitua/habitaciones/                  # Unitarias sin comentario: prueban la clase del mismo nombre;
                                                               # las demás nombran su plan dueño. Integración con Testcontainers.
         ├── application/
@@ -787,7 +792,8 @@ backend/
         │       ├── StartRepairServiceTest.java
         │       └── TechnicalBlockQueryServiceTest.java
         ├── architecture/
-        │   └── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
+        │   ├── ArchitectureTest.java                                  # ArchUnit: reglas 1 (capas y nombres) y 8 del plan base
+        │   └── CrossFlowRulesTest.java                                # ArchUnit: verificaciones transversales de los planes (L38)
         ├── domain/
         │   ├── exception/
         │   │   └── CheckInExceptionsTest.java                         # plan-registrar-check-in.md
@@ -819,6 +825,7 @@ backend/
         │   │   │   │   └── TechnicalBlockSchedulerTest.java
         │   │   │   └── web/
         │   │   │       ├── AuthControllerTest.java
+        │   │   │       ├── CheckInOutboxRetryIntegrationTest.java     # plan-registrar-check-in.md
         │   │   │       ├── CheckInRegistrationIntegrationTest.java    # plan-registrar-check-in.md
         │   │   │       ├── CheckInValidationIntegrationTest.java      # plan-registrar-check-in.md
         │   │   │       ├── CheckOutActiveStayIntegrationTest.java     # plan-registrar-check-out.md
@@ -836,13 +843,17 @@ backend/
         │   │   │       ├── GlobalExceptionHandlerTest.java
         │   │   │       ├── MaintenanceAvailabilityIntegrationTest.java # plan-consultar-informacion-mantenimientos.md
         │   │   │       ├── MaintenancePanelIntegrationTest.java       # plan-consultar-panel-mantenimiento.md
+        │   │   │       ├── MaintenancePanelQueryCountIntegrationTest.java # plan-consultar-panel-mantenimiento.md
         │   │   │       ├── Module2RoomInventoryContractTest.java      # plan-consultar-inventario-habitaciones.md
+        │   │   │       ├── OpenApiContractIntegrationTest.java        # T026: /v3/api-docs igual a documentos/contrato/openapi.json
         │   │   │       ├── ReactivateRoomIntegrationTest.java         # plan-marcar-habitacion-como-disponible.md
         │   │   │       ├── ReceptionArrivalsIntegrationTest.java      # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionDeparturesIntegrationTest.java    # plan-consultar-panel-recepcion.md
         │   │   │       ├── ReceptionKpisIntegrationTest.java          # plan-consultar-panel-recepcion.md
+        │   │   │       ├── ReceptionPanelUpdatesIntegrationTest.java  # plan-consultar-panel-recepcion.md
         │   │   │       ├── RoomBaseRateIntegrationTest.java           # plan-consultar-tarifa-base.md
         │   │   │       ├── RoomControllerTest.java
+        │   │   │       ├── RoomStateHistoryAcrossFlowsIntegrationTest.java # plan-consultar-historial-de-estados.md
         │   │   │       ├── RoomStateHistoryControllerTest.java
         │   │   │       ├── SettlementQueryIntegrationTest.java        # plan-consultar-liquidacion.md
         │   │   │       ├── StaffIntegrationTest.java                  # plan-gestionar-personal.md
@@ -1295,7 +1306,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 - [ ] T003 Configurar `frontend/` con React 18+, TypeScript (TSX, `tsconfig.json`) y Vite
 - [ ] T004 [P] Configurar herramientas de formateo y calidad de código (backend: Spotless con palantir-java-format, hecho; frontend: ESLint/Prettier, pendiente junto con T003)
 - [x] T005 [P] Crear `docker-compose.yml` para desarrollo local con PostgreSQL 16 y RabbitMQ 3.13 con interfaz de gestión
-- [x] T006 Configurar `application.yml` y perfiles (`dev`, `test`, `prod`) con variables de entorno. Pendiente por la fase 2: quitar `hospitua.maintenance.fallback-apply-time` (regla 10) y añadir `classpath:db/dev-data` a `spring.flyway.locations` en el perfil `dev` (T017)
+- [x] T006 Configurar `application.yml` y perfiles (`dev`, `test`, `prod`) con variables de entorno. Pendiente por la fase 2: quitar `hospitua.maintenance.fallback-apply-time` (regla 10) y añadir `classpath:db/dev-data` a `spring.flyway.locations` en el perfil `dev` (T017). Nota (06-11-2026): la ubicación ya está en el perfil `dev`; la carpeta `db/dev-data/` no existe todavía porque L39 (datos sintéticos) quedó aplazado, y Flyway ignora una ubicación vacía
 
 ---
 
@@ -1357,6 +1368,12 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
   - Pruebas: el payload plano de cada acción en `outbox_notification` (con y sin `previous*`) y ninguna fila tras un rollback del invocador.
 - [x] T025 Crear el pipeline de integración continua del backend en GitHub Actions (`.github/workflows/backend-ci.yml`), según "Lineamientos de implementación del backend": en cada pull request hacia `develop` y `main`, con JDK 21 (Temurin) y caché de Maven, ejecutar `./mvnw verify` desde `backend/` (Spotless, pruebas unitarias e integración con Testcontainers); las pruebas `@Tag("performance")` quedan fuera. El pipeline en rojo bloquea el merge.
 
+- [x] T026 Publicar el contrato OpenAPI del backend (lote L40 de `FASES_IMPLEMENTACION.md`, agregado el 06-11-2026): dependencia `springdoc-openapi-starter-webmvc-api` (ver "Dependencias y herramientas transversales aprobadas") con `springdoc.paths-to-match: /api/**` y apagada en `prod`; `OpenApiContractIntegrationTest` compara `GET /v3/api-docs` (sin `servers`) con `documentos/contrato/openapi.json` y lo reescribe con `-Dopenapi.update=true`. No cambia endpoints, DTOs ni errores: las respuestas de error siguen siendo el `ApiError` de "Formato Estándar de Error" (no Problem Details, RFC 7807), y no se agregan `@Operation` ni `@Schema` a los controladores. Ajustes para que el contrato diga lo mismo que el backend:
+  - `infrastructure/config/OpenApiConfig`: título del contrato, el esquema `ApiError` y la respuesta `4XX` en cada operación (springdoc no ve los `ResponseEntity<ApiError>` de `GlobalExceptionHandler`).
+  - `springdoc.default-flat-param-object: true`: los filtros que llegan como objeto (`@ModelAttribute`, por ejemplo `StaffListQuery`) se publican como parámetros sueltos.
+  - `@Schema(implementation = String.class)` en los 6 métodos `@AssertTrue` que comparten nombre con un campo (`isPassword` de `RegisterStaffRequest` y `EditStaffRequest`, `isRoomId`, `isStartDate` e `isEndDate` de `MaintenanceAvailabilityQuery`, `isDate` de `RoomBaseRateQuery`): sin eso, el campo aparece como booleano.
+  - Limitación conocida: los endpoints que responden `201 Created` con `ResponseEntity.status(...)` aparecen con `200` en el contrato. Los tipos que genera el frontend no cambian por eso. El frontend genera sus tipos desde ese archivo (lote C02 de su plan de fases).
+
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
 
 ---
@@ -1392,7 +1409,7 @@ Los planes de feature dependen unos de otros. Este es el orden que evita impleme
    - [x] Bloqueos vencidos: un informe `Applied` vencido no bloquea reservas futuras; solo impide asignar la habitación el día actual, mientras sigue físicamente en `TechnicalBlock` (*Consultar información de mantenimientos* FR-010 y FR-014). Un informe caducado (`Expired`) es distinto: nunca se aplicó, es definitivo, solo sirve de registro y nunca bloquea reservas.
    - Fuera del alcance de esta solicitud: el aviso de baja de una habitación (4.4 del documento de Módulo 2) no está especificado; Módulo 2 refleja las bajas en su recálculo de las 03:00.
 5. **Aviso diario de mantenimiento**. Confirmar con Módulo 2 que un `SCHEDULED` repetido con el mismo `maintenanceId` y otras fechas (el aviso diario de las 00:00, "Convenciones de Mensajería") se trata como señal para recalcular, sin guardar estado por `maintenanceId`. Esa repetición ocurre a diario, y el `UPDATED` posterior trae `previousStartDate` y `previousEndDate` con el rango original.
-6. **Semilla de habitaciones** (T007). Decidir si `V2__seed_rooms.sql` es el inventario real del hotel o también es de prueba. Si es de prueba, se mueve igual a `db/dev-data` (T017), para que no corra en producción.
+6. **Semilla de habitaciones** (T007). Decidir si `V2__seed_rooms.sql` es el inventario real del hotel o también es de prueba. Si es de prueba, se mueve igual a `db/dev-data` (T017), para que no corra en producción. `db/dev-data` todavía no existe: se crea con L39, aplazado el 06-11-2026.
 7. **Contratos con Módulo 3** (respuesta de Módulo 3 del 24-10-2026). Acordados: el evento de facturación con la routing key `facturacion.checkout`, la consulta de liquidación por `reservationRef` y `roomId`, la tarifa base con `date` y el `404 ROOM_NOT_FOUND`, el `billingCustomer` del titular sin corrección posterior y sin reemisión de factura, y que una salida anticipada se cobra por lo cotizado, sin reducción. Pendiente:
    - Salida el mismo día (`checkOutDate = checkInDate`): Módulo 3 la acepta y la liquida por lo cotizado, pero hasta que haga dos ajustes internos ese evento queda en su revisión manual (dead-letter). Módulo 3 avisará cuando esté listo.
    - Equivalencia entre los estados de la liquidación del glosario de Módulo 3 (`Preliminary`, `Final`, `Cancelled`) y los tipos del contrato (`INFORMATIVE`, `FINAL`).

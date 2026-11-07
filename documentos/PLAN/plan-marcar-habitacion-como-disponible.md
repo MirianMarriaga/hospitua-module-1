@@ -365,8 +365,9 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms/inventory?status=Available` sin retraso (esc. 7; FR-007; SC-003).
+- [x] T020 Integration test: tras cada flujo, la habitación aparece en `GET /api/rooms/inventory?status=Available` sin retraso (esc. 7; FR-007; SC-003).
   - Avance (L32): hecho el flujo de la reactivación en `ReactivateRoomIntegrationTest`. Los otros dos flujos los cubren las pruebas de sus planes (`CompleteCleaningIntegrationTest` y la ingesta de reservas), sin consultar el inventario.
+  - Hecho (cierre de R13): `CompleteCleaningIntegrationTest` consulta el inventario tras el fin de limpieza, y `ReceptionPanelUpdatesIntegrationTest` tras liberar la reserva con un `UPDATED` y con un `REMOVED`.
 - [ ] T021 Medir en las pruebas de integración que la transición con su periodo tome menos de 1 segundo (SC-001).
   - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido).
 
