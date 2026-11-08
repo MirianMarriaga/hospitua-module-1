@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router';
 
-import { PageHero } from '@/components/PageHero';
+import { PageHeader } from '@/components/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrivalsTab } from '@/pages/panel/ArrivalsTab';
 import { DeparturesTab } from '@/pages/panel/DeparturesTab';
@@ -39,47 +39,44 @@ export function ReceptionPanel() {
   }
 
   return (
-    <div className="min-h-full">
-      <PageHero
+    <div className="space-y-5">
+      <PageHeader
         title={session ? `Bienvenida, ${session.fullName}` : 'Bienvenida'}
         subtitle="Estancias · llegadas y salidas del día"
       />
 
-      {/* Contenido principal centrado a máx 1180 px */}
-      <div className="mx-auto max-w-[1180px] space-y-5 px-6 py-6">
-        <KpiCards kpis={kpis.data} />
-        <Tabs
-          value={tab}
-          onValueChange={(value) => selectTab(value === 'salidas' ? 'salidas' : 'llegadas')}
-          className="gap-0 overflow-hidden rounded-lg border border-line bg-paper"
+      <KpiCards kpis={kpis.data} />
+      <Tabs
+        value={tab}
+        onValueChange={(value) => selectTab(value === 'salidas' ? 'salidas' : 'llegadas')}
+        className="glass-card gap-0 overflow-hidden rounded-card border"
+      >
+        <TabsList
+          variant="line"
+          aria-label="Movimientos del día"
+          className="h-auto w-full justify-start gap-1 rounded-none border-b border-line px-3 pt-1"
         >
-          <TabsList
-            variant="line"
-            aria-label="Movimientos del día"
-            className="h-auto w-full justify-start gap-1 rounded-none border-b border-line px-3 pt-1"
-          >
-            {TABS.map((item) => (
-              <TabsTrigger
-                key={item.id}
-                value={item.id}
-                className="flex-none px-4 py-2 font-semibold text-text-lo after:bg-primary hover:text-ink data-[state=active]:text-primary"
-              >
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {TABS.map((item) => (
+            <TabsTrigger
+              key={item.id}
+              value={item.id}
+              className="flex-none rounded-t-lg rounded-b-none px-[18px] py-2.5 text-[15px] font-semibold text-text-lo after:bg-primary hover:bg-accent hover:text-ink data-[state=active]:bg-primary-bg! data-[state=active]:text-primary"
+            >
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          <div className="p-4">
-            <ReceptionSearchBar />
-            <TabsContent value="llegadas" className="mt-4">
-              <ArrivalsTab query={query} />
-            </TabsContent>
-            <TabsContent value="salidas" className="mt-4">
-              <DeparturesTab query={query} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+        <div className="p-4">
+          <ReceptionSearchBar />
+          <TabsContent value="llegadas" className="mt-4">
+            <ArrivalsTab query={query} />
+          </TabsContent>
+          <TabsContent value="salidas" className="mt-4">
+            <DeparturesTab query={query} />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }

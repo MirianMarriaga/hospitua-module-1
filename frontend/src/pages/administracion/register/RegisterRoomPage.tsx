@@ -51,7 +51,7 @@ export function RegisterRoomPage() {
 
   if (mutation.isSuccess) {
     return (
-      <div className="p-6 lg:p-8">
+      <div>
         <RegisterRoomSuccess
           room={mutation.data}
           onRegisterAnother={() => {
@@ -67,7 +67,7 @@ export function RegisterRoomPage() {
     mutation.isError && errorCodeOf(mutation.error) !== 'ROOM_NUMBER_ALREADY_EXISTS';
 
   return (
-    <div className="p-6 lg:p-8">
+    <div>
       <PageHeader
         title="Registrar habitación"
         subtitle="La habitación quedará disponible en el inventario apenas se registre."

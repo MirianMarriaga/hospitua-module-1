@@ -16,6 +16,16 @@
   --color-paper-dim: var(--paper-dim);
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
+  --color-primary-bg: var(--primary-bg);
+  --color-field: var(--field);
+  --color-row-hover: var(--row-hover);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-avatar: var(--sidebar-avatar);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-photo-overlay: var(--photo-overlay);
+  --shadow-primary: 0 4px 14px var(--primary-shadow);
   --color-primary-foreground: var(--primary-foreground);
   --color-due: var(--due);
   --color-due-foreground: var(--due-foreground);
@@ -53,6 +63,9 @@
   --color-destructive: var(--due);
   --color-secondary: var(--paper-dim);
   --color-secondary-foreground: var(--ink);
+  --color-popover-foreground: var(--text-hi);
+  --color-accent: var(--state-gray-bg);
+  --color-accent-foreground: var(--text-hi);
 
   --radius-card: 14px;
 }

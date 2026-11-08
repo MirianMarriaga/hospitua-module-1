@@ -56,13 +56,13 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Panel izquierdo: imagen con degradado y bienvenida (oculto en pantallas < 900px) */}
-      <div className="relative hidden min-h-screen w-1/2 overflow-hidden bg-[#152B4D] min-[900px]:flex min-[900px]:flex-col min-[900px]:justify-between p-12 text-white">
+      <div className="relative hidden min-h-screen w-1/2 overflow-hidden bg-[linear-gradient(180deg,var(--sidebar-from),var(--sidebar-to))] min-[900px]:flex min-[900px]:flex-col min-[900px]:justify-between p-12 text-sidebar-foreground">
         <img
           src={loginPhoto}
           alt="Fachada de Hotel Hospitua"
           className="absolute inset-0 size-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B33]/90 via-[#0F1B33]/60 to-[#0F1B33]/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-photo-overlay/90 via-photo-overlay/60 to-photo-overlay/30" />
         <div className="relative z-10 flex items-center gap-3">
           <img
             src={hospituaLogo}
@@ -75,17 +75,17 @@ export function LoginPage() {
           <h2 className="text-3xl font-extrabold leading-tight">
             Bienvenido al sistema de gestión hotelera
           </h2>
-          <p className="mt-3 text-base text-slate-200">
+          <p className="mt-3 text-base text-sidebar-text">
             Control integral de estancias, reservas y administración de habitaciones.
           </p>
         </div>
-        <div className="relative z-10 text-xs text-slate-300">
+        <div className="relative z-10 text-xs text-sidebar-muted">
           © {new Date().getFullYear()} Hotel Hospitua. Todos los derechos reservados.
         </div>
       </div>
 
       {/* Panel derecho: formulario centrado */}
-      <div className="flex flex-1 items-center justify-center bg-paper-dim p-6 sm:p-12">
+      <div className="flex flex-1 items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm space-y-6">
           <div className="flex flex-col items-center text-center">
             <img
@@ -97,7 +97,7 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-text-lo">Ingresa con tu usuario del hotel</p>
           </div>
 
-          <Card className="border-line bg-paper shadow-sm">
+          <Card>
             <CardContent className="pt-6">
               <Form {...form}>
                 <form

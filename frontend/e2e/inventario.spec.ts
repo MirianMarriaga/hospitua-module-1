@@ -31,7 +31,9 @@ test('Administración registra una habitación y Gerencia ve su historial', asyn
   await expect(row.getByRole('button', { name: 'Editar' })).toBeDisabled();
   await capture(page, '04-admin-inventario-filtrado');
 
-  await page.getByRole('button', { name: /Salir/ }).click();
+  // "Salir" está en el menú del usuario de la barra lateral (F01e).
+  await page.getByRole('button', { name: `Menú de ${USERS.admin.fullName}` }).click();
+  await page.getByRole('menuitem', { name: /Salir/ }).click();
   await login(page, USERS.manager.username, USERS.manager.fullName);
   await page.getByLabel('Número').fill(roomNumber);
   await page

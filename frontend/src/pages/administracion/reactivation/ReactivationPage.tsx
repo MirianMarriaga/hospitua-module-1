@@ -57,7 +57,7 @@ export function ReactivationPage() {
 
   if (decommissionQuery.isPending) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl">
         <p className="text-sm text-text-lo">Cargando datos de la baja…</p>
       </div>
     );
@@ -65,7 +65,7 @@ export function ReactivationPage() {
 
   if (decommissionQuery.isError || !decommissionQuery.data) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Habitación no encontrada</CardTitle>
@@ -90,7 +90,7 @@ export function ReactivationPage() {
   // Si no está inactiva y la mutación no ha respondido
   if (decommissionInfo.status !== 'Inactive' && !reactivateMutation.isSuccess) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -127,7 +127,7 @@ export function ReactivationPage() {
     const isAlready = res.alreadyReactivated;
 
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -174,7 +174,7 @@ export function ReactivationPage() {
 
   // Pantalla de confirmación (vista 10)
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild aria-label="Volver">
           <Link to="/administracion/inventario">

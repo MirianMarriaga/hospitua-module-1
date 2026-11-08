@@ -935,26 +935,26 @@ frontend/                                                     # Árbol real revi
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
     │   └── settlementService.ts
-    ├── assets/                                               # Logo, fotos del hotel y variables.css (valores claros y oscuros de los tokens)
+    ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
     │   ├── PageHeader.tsx
-    │   ├── PageHero.tsx                                      # Encabezado con la foto del hotel
     │   ├── Pagination.tsx
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
     │   ├── StatusBadge.tsx
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
-    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, form, input, label, native-select, table, tabs, textarea
+    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, dropdown-menu, form, input, label, native-select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   └── useDebouncedValue.ts
     ├── layouts/
-    │   ├── AreaLayout.tsx                                    # Guarda de área, Header, Sidebar y Outlet
-    │   ├── Header.tsx
-    │   ├── Sidebar.tsx
+    │   ├── AreaLayout.tsx                                    # Guarda de área, Sidebar y panel principal de vidrio con TopBar y Outlet
+    │   ├── Sidebar.tsx                                       # Barra lateral verde azulada: logo, área, menú del área y UserMenu (barra superior bajo 900 px)
+    │   ├── TopBar.tsx                                        # Barra de vidrio con la ruta "Área › Opción del menú"
+    │   ├── UserMenu.tsx                                      # Menú del usuario: tema Claro / Oscuro y "Salir"
     │   ├── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
     │   └── useLogout.ts                                      # Cierra la sesión y vacía la caché de consultas
     ├── lib/

@@ -52,6 +52,14 @@
   --sidebar-border: transparent;
   --sidebar-text: hsl(183 25% 92%);
   --sidebar-muted: hsl(183 30% 82%);
+  --sidebar-avatar: hsl(0 0% 100% / 0.16);
+  --sidebar-hover: hsl(0 0% 100% / 0.1);
+  --sidebar-foreground: #ffffff;
+  --photo-overlay: hsl(192 70% 8%);
+  --primary-bg: hsl(186 35% 92%);
+  --primary-shadow: hsl(192 88% 19% / 0.25);
+  --field: hsl(0 0% 100% / 0.75);
+  --row-hover: hsl(190 25% 96% / 0.8);
 }
 
 .dark {
@@ -103,4 +111,12 @@
   --sidebar-border: hsl(0 0% 100% / 0.05);
   --sidebar-text: hsl(183 20% 90%);
   --sidebar-muted: hsl(183 18% 72%);
+  --sidebar-avatar: hsl(0 0% 100% / 0.16);
+  --sidebar-hover: hsl(0 0% 100% / 0.1);
+  --sidebar-foreground: #ffffff;
+  --photo-overlay: hsl(192 70% 8%);
+  --primary-bg: hsl(182 50% 40% / 0.16);
+  --primary-shadow: hsl(182 62% 40% / 0.25);
+  --field: hsl(0 0% 100% / 0.04);
+  --row-hover: hsl(0 0% 100% / 0.03);
 }

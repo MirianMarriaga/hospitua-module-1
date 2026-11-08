@@ -17,7 +17,7 @@ export function ReceptionSearchBar() {
         type="search"
         aria-label="Buscar reservas"
         placeholder="Buscar por huésped, documento o referencia de reserva…"
-        className="h-auto bg-paper-dim py-2.5 pr-4 pl-11 text-[14.5px]"
+        className="h-auto py-2.5 pr-4 pl-11 text-[14.5px]"
         maxLength={SEARCH_MAX_LENGTH}
         value={search.text}
         onChange={(event) => search.setText(event.target.value)}

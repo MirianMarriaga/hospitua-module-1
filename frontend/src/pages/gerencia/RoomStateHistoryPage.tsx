@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router';
 
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { PageHero } from '@/components/PageHero';
+import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { Card } from '@/components/ui/card';
 import { errorCodeOf, errorMessage } from '@/lib/errorMessages';
@@ -39,11 +39,11 @@ export function RoomStateHistoryPage() {
 
   return (
     <div>
-      <PageHero
+      <PageHeader
         title="Historial de estados"
         subtitle="Consulta por cuánto tiempo estuvo cada habitación en cada estado."
       />
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="space-y-6">
         <Card className="overflow-hidden">
           <RoomStateHistoryFilters rangeError={rangeError} />
           {query.isError && !backendRangeError && (

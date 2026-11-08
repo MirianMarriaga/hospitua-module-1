@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { PageHero } from '@/components/PageHero';
+import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -60,7 +60,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
 
   return (
     <div>
-      <PageHero
+      <PageHeader
         title="Inventario de habitaciones"
         subtitle={
           role === 'admin'
@@ -78,7 +78,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
           )
         }
       />
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="space-y-6">
         <Card className="overflow-hidden">
           <RoomInventoryFilters />
           {query.isError && (

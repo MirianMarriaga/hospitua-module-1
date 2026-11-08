@@ -1,14 +1,14 @@
 import { Construction } from 'lucide-react';
 
-import { PageHero } from '@/components/PageHero';
+import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 
 /** Limpieza y Mantenimiento quedan fuera de este alcance: solo su layout. */
 export function AreaPlaceholderPage({ title }: { title: string }) {
   return (
     <div>
-      <PageHero title={title} subtitle="Módulo en preparación" />
-      <div className="p-6 lg:p-8">
+      <PageHeader title={title} subtitle="Módulo en preparación" />
+      <div>
         <Card className="max-w-xl">
           <CardContent className="flex items-start gap-4 pt-5">
             <Construction className="mt-1 size-6 text-text-lo" aria-hidden />

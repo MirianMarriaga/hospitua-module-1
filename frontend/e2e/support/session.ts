@@ -12,5 +12,5 @@ export async function login(page: Page, username: string, fullName: string): Pro
   await page.getByLabel('Usuario').fill(username);
   await page.getByLabel('Contraseña').fill(PASSWORD);
   await page.getByRole('button', { name: 'Ingresar' }).click();
-  await expect(page.getByLabel('Usuario actual')).toContainText(fullName);
+  await expect(page.getByRole('button', { name: `Menú de ${fullName}` })).toBeVisible();
 }

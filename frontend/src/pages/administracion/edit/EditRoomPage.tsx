@@ -79,7 +79,7 @@ export function EditRoomPage() {
 
   if (roomQuery.isPending) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl">
         <p className="text-sm text-text-lo">Cargando habitación…</p>
       </div>
     );
@@ -87,7 +87,7 @@ export function EditRoomPage() {
 
   if (roomQuery.isError || !roomQuery.data) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Habitación no encontrada</CardTitle>
@@ -111,7 +111,7 @@ export function EditRoomPage() {
 
   if (room.status !== 'Available') {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -182,7 +182,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
     const currentRoom = result.room ?? { ...room, ...editMutation.variables };
 
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -283,7 +283,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
     );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">

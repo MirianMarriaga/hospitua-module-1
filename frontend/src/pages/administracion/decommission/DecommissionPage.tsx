@@ -97,7 +97,7 @@ export function DecommissionPage() {
 
   if (roomQuery.isPending) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl">
         <p className="text-sm text-text-lo">Cargando habitación…</p>
       </div>
     );
@@ -105,7 +105,7 @@ export function DecommissionPage() {
 
   if (roomQuery.isError || !roomQuery.data) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8 space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Habitación no encontrada</CardTitle>
@@ -130,7 +130,7 @@ export function DecommissionPage() {
   // Si la habitación no está disponible al abrir el flujo
   if (room.status !== 'Available' && step < 4) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8 space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -172,7 +172,7 @@ export function DecommissionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl space-y-4">
       {/* Cabecera */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild aria-label="Volver">
