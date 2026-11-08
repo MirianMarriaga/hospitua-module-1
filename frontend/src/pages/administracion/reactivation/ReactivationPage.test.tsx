@@ -63,6 +63,35 @@ describe('ReactivationPage', () => {
     expect(screen.getByRole('link', { name: 'Volver al inventario' })).toBeInTheDocument();
   });
 
+  it('el resultado se queda aunque la baja ya no se pueda consultar después de reactivar', async () => {
+    vi.mocked(reactivateRoom).mockImplementation(() => {
+      // Ya reactivada, la baja vigente responde 409: la habitación no está inactiva.
+      vi.mocked(getRoomDecommission).mockRejectedValue(
+        new ApiRequestError(409, 'ROOM_INVALID_STATE', 'No está inactiva'),
+      );
+      return Promise.resolve({
+        roomId: 'room-204',
+        roomNumber: '204',
+        floor: 2,
+        categoryRoom: 'BOUTIQUE',
+        status: 'Available',
+        alreadyReactivated: false,
+      });
+    });
+
+    renderWithProviders(<ReactivationPage />, {
+      route: '/administracion/habitaciones/room-204/reactivacion',
+      path: '/administracion/habitaciones/:roomId/reactivacion',
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar reactivación' }));
+
+    expect(await screen.findByText('Habitación 204 disponible')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByText('Habitación 204 disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Habitación no encontrada')).not.toBeInTheDocument();
+    expect(getRoomDecommission).toHaveBeenCalledTimes(1);
+  });
+
   it('si alreadyReactivated es true, muestra el resultado como éxito normal sin alarmas', async () => {
     const alreadyResult: ReactivationResultDto = {
       roomId: 'room-204',

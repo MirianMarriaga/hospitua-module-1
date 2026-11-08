@@ -21,7 +21,11 @@ interface ReactivateVariables {
   request: ReactivateRoomRequest;
 }
 
-/** Reactiva la habitación; el inventario, la habitación y su baja se vuelven a consultar. */
+/**
+ * Reactiva la habitación; el inventario y la habitación se vuelven a consultar. La baja solo se
+ * marca como vieja: consultarla ahora responde 409 (la habitación ya no está inactiva) y la
+ * pantalla mostraría ese error en lugar del resultado.
+ */
 export function useReactivateRoom() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -29,7 +33,10 @@ export function useReactivateRoom() {
     onSuccess: (_result, { roomId }) => {
       void queryClient.invalidateQueries({ queryKey: INVENTORY_KEY });
       void queryClient.invalidateQueries({ queryKey: roomKey(roomId) });
-      void queryClient.invalidateQueries({ queryKey: decommissionKey(roomId) });
+      void queryClient.invalidateQueries({
+        queryKey: decommissionKey(roomId),
+        refetchType: 'none',
+      });
     },
   });
 }

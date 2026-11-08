@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,6 +88,37 @@ describe('DecommissionPage', () => {
       screen.getByText('Ya no aparece entre las habitaciones disponibles.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver al inventario' })).toBeInTheDocument();
+  });
+
+  it('el resultado se queda aunque la habitación vuelva consultada como Inactiva', async () => {
+    vi.mocked(decommissionRoom).mockImplementation(() => {
+      // Ya dada de baja: la consulta que sigue al éxito trae la habitación Inactive.
+      vi.mocked(getRoom).mockResolvedValue({ ...AVAILABLE_ROOM, status: 'Inactive', version: 2 });
+      return Promise.resolve({
+        decommissionId: 'dec-1',
+        roomId: 'room-101',
+        roomNumber: '101',
+        floor: 1,
+        categoryRoom: 'SENCILLA',
+        status: 'Inactive',
+        reasonCategory: 'PERMANENT_REMODELING',
+        reasonDetail: null,
+        decommissionDateTime: new Date().toISOString(),
+      });
+    });
+
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+    await screen.findByText(/1\. Motivo de la baja/);
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Remodelación permanente');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar baja' }));
+
+    expect(await screen.findByText('Habitación 101 dada de baja')).toBeInTheDocument();
+    await waitFor(() => expect(getRoom).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Habitación 101 dada de baja')).toBeInTheDocument();
   });
 
   it('conflicto de reservas (409 RESERVATION_CONFLICT) muestra lista de reservas en conflicto', async () => {

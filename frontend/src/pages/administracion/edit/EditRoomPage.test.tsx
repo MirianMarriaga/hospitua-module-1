@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -65,6 +65,56 @@ describe('EditRoomPage', () => {
     expect(screen.getByText('Los cambios ya se reflejan en el inventario.')).toBeInTheDocument();
     expect(screen.getAllByText('Tarifa base').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole('link', { name: 'Volver al inventario' })).toBeInTheDocument();
+  });
+
+  it('la pantalla de éxito se queda aunque la habitación vuelva con otra versión', async () => {
+    const updated: Room = { ...INITIAL_ROOM, baseRate: 210000, version: 4 };
+    vi.mocked(editRoom).mockImplementation(() => {
+      // El backend ya guardó: la consulta que sigue al éxito trae la versión nueva.
+      vi.mocked(getRoom).mockResolvedValue(updated);
+      return Promise.resolve({
+        changed: true,
+        changes: [{ field: 'baseRate', previousValue: 180000, newValue: 210000 }],
+        room: updated,
+      });
+    });
+
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+    await screen.findByText('Editar habitación 101');
+    const rateInput = screen.getByLabelText(/Tarifa base por noche/);
+    await userEvent.clear(rateInput);
+    await userEvent.type(rateInput, '210000');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Habitación 101 actualizada')).toBeInTheDocument();
+    await waitFor(() => expect(getRoom).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Habitación 101 actualizada')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).not.toBeInTheDocument();
+  });
+
+  it('"Cargar los datos actuales" reinicia el formulario con la versión nueva', async () => {
+    vi.mocked(editRoom).mockRejectedValue(
+      new ApiRequestError(409, 'CONCURRENT_UPDATE', 'Conflicto concurrente'),
+    );
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+    await screen.findByText('Editar habitación 101');
+    const rateInput = screen.getByLabelText(/Tarifa base por noche/);
+    await userEvent.clear(rateInput);
+    await userEvent.type(rateInput, '220000');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await screen.findByText(/Otro usuario actualizó la información/);
+
+    vi.mocked(getRoom).mockResolvedValue({ ...INITIAL_ROOM, baseRate: 250000, version: 4 });
+    await userEvent.click(screen.getByRole('button', { name: 'Cargar los datos actuales' }));
+
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa base por noche/)).toHaveValue(250000));
+    expect(screen.queryByText(/Otro usuario actualizó la información/)).not.toBeInTheDocument();
   });
 
   it('si no se modificó ningún dato, avisa localmente sin llamar al backend', async () => {

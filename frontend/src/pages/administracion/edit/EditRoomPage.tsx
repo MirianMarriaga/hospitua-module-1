@@ -76,6 +76,10 @@ export function EditRoomPage() {
   const { roomId } = useParams<{ roomId: string }>();
 
   const roomQuery = useRoom(roomId);
+  // Reinicia el formulario solo al pulsar "Cargar los datos actuales". No se usa room.version: al
+  // guardar, la habitación se vuelve a consultar con otra versión y el formulario se reiniciaba,
+  // perdiendo la pantalla de éxito.
+  const [formKey, setFormKey] = useState(0);
 
   if (roomQuery.isPending) {
     return (
@@ -140,12 +144,13 @@ export function EditRoomPage() {
     );
   }
 
-  // La clave reinicia el formulario con los datos nuevos al pulsar "Cargar los datos actuales".
   return (
     <EditRoomFormContainer
-      key={room.version}
+      key={formKey}
       room={room}
-      onReload={() => void roomQuery.refetch()}
+      onReload={() => {
+        void roomQuery.refetch().then(() => setFormKey((key) => key + 1));
+      }}
     />
   );
 }
