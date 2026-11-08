@@ -1,10 +1,106 @@
+/*
+ * Colores del rediseño: los del logo (H azul petróleo #04495a y puerta verde azulado #138a90)
+ * sobre grises neutros. `.dark` en <html> activa el tema oscuro.
+ */
 :root {
-  --ink: #152a4e;
+  --ink: hsl(195 30% 12%);
+  --ink-foreground: #ffffff;
+  --ink-hover: hsl(195 30% 20%);
   --paper: #ffffff;
-  --paper-dim: #f1f4f9;
-  --primary: #2f6fed;
-  --due: #d14343;
-  --line: #e3e8f0;
-  --text-lo: #6b7a90;
-  --text-hi: #0f1b33;
+  --paper-dim: hsl(190 18% 95%);
+  --primary: hsl(192 88% 19%);
+  --primary-dark: hsl(192 90% 14%);
+  --primary-foreground: #ffffff;
+  --due: hsl(0 72% 51%);
+  --due-foreground: #ffffff;
+  --line: hsl(190 14% 88%);
+  --text-lo: hsl(195 7% 42%);
+  --text-hi: hsl(195 25% 9%);
+
+  --state-green: #15803d;
+  --state-green-bg: #e3f6ea;
+  --state-blue: #1d4ed8;
+  --state-blue-bg: #e8effd;
+  --state-amber: #b45309;
+  --state-amber-bg: #fdf3e1;
+  --state-red: #dc2626;
+  --state-red-bg: #fde8e8;
+  --state-purple: #7c3aed;
+  --state-purple-bg: #f1eafd;
+  --state-orange: #c2410c;
+  --state-orange-bg: #fdeede;
+  --state-crimson: #9f1239;
+  --state-crimson-bg: #fde4ea;
+  --state-gray: #5f6b76;
+  --state-gray-bg: #eef1f3;
+
+  /* Fondo de la aplicación y vidrio */
+  --app-glow-1: hsl(0 0% 100% / 0.9);
+  --app-glow-2: hsl(183 40% 80% / 0.45);
+  --app-base-1: hsl(190 16% 96%);
+  --app-base-2: hsl(192 14% 90%);
+  --glass-main: hsl(0 0% 100% / 0.22);
+  --glass-main-border: hsl(0 0% 100% / 0.55);
+  --glass-card: hsl(0 0% 100% / 0.6);
+  --glass-card-border: hsl(0 0% 100% / 0.65);
+  --glass-pop: hsl(0 0% 100% / 0.72);
+  --glass-pop-border: hsl(0 0% 100% / 0.5);
+  --glass-highlight: hsl(0 0% 100% / 0.7);
+  --glass-shadow: hsl(195 40% 12% / 0.08);
+  --sidebar-from: hsl(183 70% 31%);
+  --sidebar-to: hsl(187 78% 23%);
+  --sidebar-border: transparent;
+  --sidebar-text: hsl(183 25% 92%);
+  --sidebar-muted: hsl(183 30% 82%);
+}
+
+.dark {
+  --ink: hsl(190 12% 95%);
+  --ink-foreground: hsl(195 25% 9%);
+  --ink-hover: hsl(190 10% 82%);
+  --paper: hsl(195 14% 7%);
+  --paper-dim: hsl(192 12% 13%);
+  --primary: hsl(182 62% 40%);
+  --primary-dark: hsl(182 62% 34%);
+  --primary-foreground: #ffffff;
+  --due: hsl(0 72% 60%);
+  --due-foreground: #ffffff;
+  --line: hsl(192 12% 17%);
+  --text-lo: hsl(195 6% 64%);
+  --text-hi: hsl(0 0% 97%);
+
+  --state-green: #45c47c;
+  --state-green-bg: rgb(69 196 124 / 0.14);
+  --state-blue: #6aa3f5;
+  --state-blue-bg: rgb(106 163 245 / 0.14);
+  --state-amber: #e3a948;
+  --state-amber-bg: rgb(227 169 72 / 0.14);
+  --state-red: #f06a6a;
+  --state-red-bg: rgb(240 106 106 / 0.14);
+  --state-purple: #ab93f7;
+  --state-purple-bg: rgb(171 147 247 / 0.14);
+  --state-orange: #f08f52;
+  --state-orange-bg: rgb(240 143 82 / 0.14);
+  --state-crimson: #f06d92;
+  --state-crimson-bg: rgb(240 109 146 / 0.14);
+  --state-gray: #a3acb5;
+  --state-gray-bg: rgb(163 172 181 / 0.14);
+
+  --app-glow-1: hsl(183 40% 22% / 0.35);
+  --app-glow-2: hsl(192 60% 14% / 0.5);
+  --app-base-1: hsl(195 16% 8%);
+  --app-base-2: hsl(197 20% 4%);
+  --glass-main: hsl(195 16% 5% / 0.3);
+  --glass-main-border: hsl(0 0% 100% / 0.08);
+  --glass-card: hsl(195 14% 7% / 0.5);
+  --glass-card-border: hsl(0 0% 100% / 0.08);
+  --glass-pop: hsl(195 14% 8% / 0.7);
+  --glass-pop-border: hsl(0 0% 100% / 0.1);
+  --glass-highlight: hsl(0 0% 100% / 0.06);
+  --glass-shadow: rgb(0 0 0 / 0.35);
+  --sidebar-from: hsl(184 58% 19%);
+  --sidebar-to: hsl(190 68% 11%);
+  --sidebar-border: hsl(0 0% 100% / 0.05);
+  --sidebar-text: hsl(183 20% 90%);
+  --sidebar-muted: hsl(183 18% 72%);
 }

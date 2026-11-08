@@ -47,7 +47,7 @@ function DepartureRow({ stay }: { stay: DepartureStay }) {
         <span className="font-semibold text-text-hi">{sourceLabel(stay.source)}</span>
       </TableCell>
       <TableCell className="text-right">
-        <Button size="sm" asChild className="bg-ink px-3.5 text-primary-foreground hover:bg-ink/90">
+        <Button size="sm" variant="ink" asChild className="px-3.5">
           <Link to={checkOutLink(stay.reservationRef, stay.roomId)}>Check-out</Link>
         </Button>
       </TableCell>

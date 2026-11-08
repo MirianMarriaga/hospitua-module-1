@@ -907,7 +907,7 @@ frontend/                                                     # Árbol real revi
 ├── components.json                                           # Configuración de shadcn/ui
 ├── eslint.config.js
 ├── images/                                                   # Copias de imágenes sin uso: la app usa src/assets/ (se revisa en F14)
-├── index.html
+├── index.html                                                # Carga la fuente Geist (Google Fonts)
 ├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
 ├── playwright.config.ts
 ├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/); paths @/* para el CLI de shadcn
@@ -921,7 +921,7 @@ frontend/                                                     # Árbol real revi
 └── src/
     ├── main.tsx                                              # QueryClientProvider y BrowserRouter
     ├── routes.tsx                                            # Rutas por área dentro de AreaLayout, que tiene la guarda de sesión y de área
-    ├── index.css                                             # Tailwind 4 (@theme), tokens y .table-stacked
+    ├── index.css                                             # Tailwind 4 (@theme inline), tokens, tema oscuro (.dark), superficies de vidrio y .table-stacked
     ├── api/                                                  # Clientes HTTP y tipos TypeScript de los DTOs
     │   ├── apiClient.ts                                      # fetch con X-User; convierte el ApiError en ApiRequestError
     │   ├── schema.d.ts                                       # Generado por npm run api:types desde documentos/contrato/openapi.json; no se edita
@@ -935,7 +935,7 @@ frontend/                                                     # Árbol real revi
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
     │   └── settlementService.ts
-    ├── assets/                                               # Logo, fotos del hotel y variables.css
+    ├── assets/                                               # Logo, fotos del hotel y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
@@ -1036,7 +1036,9 @@ frontend/                                                     # Árbol real revi
     │   └── placeholder/
     │       └── AreaPlaceholderPage.tsx                       # Limpieza y Mantenimiento hasta F03 y F06
     ├── stores/
-    │   └── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
+    │   ├── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
+    │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>
+    │   └── themeStore.test.ts
     └── test/                                                 # Utilidades de las pruebas; cada prueba va junto a su archivo (*.test.ts[x])
         ├── fixtures/                                         # Datos de recepción y de habitaciones
         ├── renderWithProviders.tsx

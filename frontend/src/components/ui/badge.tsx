@@ -16,7 +16,7 @@ const badgeVariants = cva(
         orange: 'bg-state-orange-bg text-state-orange',
         crimson: 'bg-state-crimson-bg text-state-crimson',
         gray: 'bg-state-gray-bg text-state-gray',
-        due: 'bg-due text-white',
+        due: 'bg-due text-due-foreground',
       },
     },
     defaultVariants: { tone: 'gray' },
