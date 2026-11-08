@@ -1,13 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 
-import { getRoomStateHistory } from '@/api/historyService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { PageHero } from '@/components/PageHero';
 import { Pagination } from '@/components/Pagination';
 import { Card } from '@/components/ui/card';
 import { errorCodeOf, errorMessage } from '@/lib/errorMessages';
-import { readPage } from '@/pages/administracion/inventoryParams';
+import { readPage } from '@/lib/pagination';
 import {
   hasInvalidRange,
   INVALID_DATE_RANGE_TEXT,
@@ -15,6 +13,7 @@ import {
 } from '@/pages/gerencia/historyParams';
 import { RoomStateHistoryFilters } from '@/pages/gerencia/RoomStateHistoryFilters';
 import { RoomStateHistoryTable } from '@/pages/gerencia/RoomStateHistoryTable';
+import { useRoomStateHistory } from '@/pages/gerencia/useRoomStateHistory';
 
 const HISTORY_ERRORS = { VALIDATION_ERROR: 'Revisa los filtros aplicados.' };
 
@@ -25,12 +24,7 @@ export function RoomStateHistoryPage() {
   const page = readPage(searchParams);
   const invalidRange = hasInvalidRange(filters);
 
-  const query = useQuery({
-    queryKey: ['roomStateHistory', filters, page],
-    queryFn: () => getRoomStateHistory(filters, page),
-    placeholderData: keepPreviousData,
-    enabled: !invalidRange,
-  });
+  const query = useRoomStateHistory(filters, page, !invalidRange);
 
   const backendRangeError = errorCodeOf(query.error) === 'INVALID_DATE_RANGE';
   const rangeError = invalidRange || backendRangeError ? INVALID_DATE_RANGE_TEXT : undefined;

@@ -1,7 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
-
 import { ApiRequestError } from '@/api/apiClient';
-import { registerCheckIn, type CheckInResult, type CheckInValidation } from '@/api/checkInService';
+import { type CheckInResult, type CheckInValidation } from '@/api/checkInService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { Button } from '@/components/ui/button';
@@ -11,6 +9,7 @@ import { categoryLabel } from '@/lib/labels';
 import type { GuestFieldError } from '@/pages/checkin/checkInReducer';
 import { checkInErrorMessage } from '@/pages/checkin/checkInErrors';
 import { toCheckInGuest, type GuestValues } from '@/pages/checkin/guestSchema';
+import { useRegisterCheckIn } from '@/pages/checkin/useCheckIn';
 
 interface ConfirmCheckInStepProps {
   validation: CheckInValidation;
@@ -39,21 +38,24 @@ export function ConfirmCheckInStep({
   onGuestRejected,
   onCompleted,
 }: ConfirmCheckInStepProps) {
-  const mutation = useMutation({
-    mutationFn: () =>
-      registerCheckIn({
-        reservationRef: validation.reservationRef,
-        roomId: validation.roomId,
-        guests: guests.map(toCheckInGuest),
-      }),
-    onSuccess: onCompleted,
-    onError: (error) => {
-      const fieldError = guestFieldError(error);
-      if (fieldError) {
-        onGuestRejected(fieldError);
-      }
-    },
-  });
+  const mutation = useRegisterCheckIn();
+
+  function confirm() {
+    const request = {
+      reservationRef: validation.reservationRef,
+      roomId: validation.roomId,
+      guests: guests.map(toCheckInGuest),
+    };
+    mutation.mutate(request, {
+      onSuccess: onCompleted,
+      onError: (error) => {
+        const fieldError = guestFieldError(error);
+        if (fieldError) {
+          onGuestRejected(fieldError);
+        }
+      },
+    });
+  }
 
   return (
     <Card className="max-w-3xl">
@@ -94,7 +96,7 @@ export function ConfirmCheckInStep({
         <Button variant="outline" onClick={onBack} disabled={mutation.isPending}>
           Atrás
         </Button>
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        <Button onClick={confirm} disabled={mutation.isPending}>
           {mutation.isPending ? 'Registrando…' : 'Confirmar Check-In'}
         </Button>
       </CardFooter>

@@ -1,9 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
 
-import { registerRoom } from '@/api/roomService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -26,28 +24,30 @@ import {
   toRegisterRoomRequest,
   type RegisterRoomValues,
 } from '@/pages/administracion/registerRoomSchema';
-import { RegisterRoomSuccess } from '@/pages/administracion/RegisterRoomSuccess';
+import { RegisterRoomSuccess } from '@/pages/administracion/register/RegisterRoomSuccess';
+import { useRegisterRoom } from '@/pages/administracion/register/useRegisterRoom';
 
 const REGISTER_ERRORS = { VALIDATION_ERROR: 'Revisa los datos de la habitación.' };
 
 export function RegisterRoomPage() {
-  const queryClient = useQueryClient();
   const form = useForm<RegisterRoomValues>({
     resolver: zodResolver(registerRoomSchema),
     defaultValues: EMPTY_ROOM,
   });
 
-  const mutation = useMutation({
-    mutationFn: registerRoom,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-    onError: (error, request) => {
-      if (errorCodeOf(error) === 'ROOM_NUMBER_ALREADY_EXISTS') {
-        form.setError('roomNumber', {
-          message: `Ya existe una habitación con el número ${request.roomNumber.toUpperCase()}.`,
-        });
-      }
-    },
-  });
+  const mutation = useRegisterRoom();
+
+  function submit(values: RegisterRoomValues) {
+    mutation.mutate(toRegisterRoomRequest(values), {
+      onError: (error, request) => {
+        if (errorCodeOf(error) === 'ROOM_NUMBER_ALREADY_EXISTS') {
+          form.setError('roomNumber', {
+            message: `Ya existe una habitación con el número ${request.roomNumber.toUpperCase()}.`,
+          });
+        }
+      },
+    });
+  }
 
   if (mutation.isSuccess) {
     return (
@@ -73,10 +73,7 @@ export function RegisterRoomPage() {
         subtitle="La habitación quedará disponible en el inventario apenas se registre."
       />
       <Form {...form}>
-        <form
-          noValidate
-          onSubmit={form.handleSubmit((values) => mutation.mutate(toRegisterRoomRequest(values)))}
-        >
+        <form noValidate onSubmit={form.handleSubmit(submit)}>
           <Card className="max-w-2xl">
             <CardContent className="grid gap-6 pt-6">
               {showGeneralError && (

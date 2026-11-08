@@ -1,9 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
-import { getRoomDecommission, reactivateRoom, type ReactivateRoomRequest } from '@/api/roomService';
 import type { RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
@@ -19,6 +17,10 @@ import {
   ROOM_CATEGORY_LABELS,
   ROOM_STATUS_LABELS,
 } from '@/lib/labels';
+import {
+  useReactivateRoom,
+  useRoomDecommission,
+} from '@/pages/administracion/reactivation/useReactivation';
 
 function RoomSummaryBox({
   roomNumber,
@@ -50,22 +52,8 @@ function RoomSummaryBox({
 /** Reactivación de una habitación inactiva (vistas 10 y 11). */
 export function ReactivationPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const queryClient = useQueryClient();
-
-  const decommissionQuery = useQuery({
-    queryKey: ['decommission', roomId],
-    queryFn: () => getRoomDecommission(roomId!),
-    enabled: !!roomId,
-  });
-
-  const reactivateMutation = useMutation({
-    mutationFn: (request: ReactivateRoomRequest) => reactivateRoom(roomId!, request),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['room', roomId] });
-      queryClient.invalidateQueries({ queryKey: ['decommission', roomId] });
-    },
-  });
+  const decommissionQuery = useRoomDecommission(roomId);
+  const reactivateMutation = useReactivateRoom();
 
   if (decommissionQuery.isPending) {
     return (
@@ -256,7 +244,10 @@ export function ReactivationPage() {
           </Button>
           <Button
             onClick={() =>
-              reactivateMutation.mutate({ decommissionId: decommissionInfo.decommissionId })
+              reactivateMutation.mutate({
+                roomId: decommissionInfo.roomId,
+                request: { decommissionId: decommissionInfo.decommissionId },
+              })
             }
             disabled={reactivateMutation.isPending}
           >

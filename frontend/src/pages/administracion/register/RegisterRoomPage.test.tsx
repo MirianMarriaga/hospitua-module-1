@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError } from '@/api/apiClient';
 import { registerRoom } from '@/api/roomService';
-import { RegisterRoomPage } from '@/pages/administracion/RegisterRoomPage';
+import { RegisterRoomPage } from '@/pages/administracion/register/RegisterRoomPage';
 import { room } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
 

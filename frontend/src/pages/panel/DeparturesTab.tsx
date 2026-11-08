@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 
-import { getDepartures, type DepartureStay } from '@/api/receptionService';
+import { type DepartureStay } from '@/api/receptionService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/errorMessages';
@@ -9,7 +8,7 @@ import { formatDate } from '@/lib/format';
 import { categoryLabel, sourceLabel } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 import { PANEL_ERRORS } from '@/pages/panel/panelErrors';
-import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
+import { useDepartures } from '@/pages/panel/useReceptionPanel';
 
 function checkOutLink(reservationRef: string, roomId: string): string {
   return `/check-out?${new URLSearchParams({ reservationRef, roomId }).toString()}`;
@@ -55,11 +54,7 @@ function DepartureRow({ stay }: { stay: DepartureStay }) {
 }
 
 export function DeparturesTab({ query }: { query: string }) {
-  const departures = useQuery({
-    queryKey: ['reception', 'departures', query],
-    queryFn: () => getDepartures(query),
-    ...PANEL_REFRESH,
-  });
+  const departures = useDepartures(query);
 
   if (departures.isPending) {
     return <p className="p-9 text-center text-sm text-text-lo">Cargando salidas…</p>;

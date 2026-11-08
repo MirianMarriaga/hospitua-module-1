@@ -7,7 +7,8 @@ import { decommissionRoom, getRoom, type Room, type RoomDecommissionDto } from '
 import { DecommissionPage } from '@/pages/administracion/decommission/DecommissionPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
-vi.mock('@/api/roomService', () => ({
+vi.mock('@/api/roomService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/roomService')>()),
   getRoom: vi.fn(),
   decommissionRoom: vi.fn(),
 }));

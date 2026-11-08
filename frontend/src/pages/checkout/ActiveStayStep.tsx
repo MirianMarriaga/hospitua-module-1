@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 
-import { getActiveStay, type ActiveStay } from '@/api/checkOutService';
+import { type ActiveStay } from '@/api/checkOutService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -10,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { formatDate } from '@/lib/format';
 import { categoryLabel, DOCUMENT_TYPE_LABELS, sourceLabel } from '@/lib/labels';
 import { checkOutErrorMessage } from '@/pages/checkout/checkOutErrors';
+import { useActiveStay } from '@/pages/checkout/useCheckOut';
 
 interface ActiveStayStepProps {
   reservationRef: string;
@@ -19,11 +19,7 @@ interface ActiveStayStepProps {
 
 /** Paso 1: la estadía activa de la habitación. */
 export function ActiveStayStep({ reservationRef, roomId, onContinue }: ActiveStayStepProps) {
-  const stay = useQuery({
-    queryKey: ['check-out', 'active-stay', reservationRef, roomId],
-    queryFn: () => getActiveStay(reservationRef, roomId),
-    staleTime: 0,
-  });
+  const stay = useActiveStay(reservationRef, roomId);
 
   return (
     <Card className="max-w-3xl">

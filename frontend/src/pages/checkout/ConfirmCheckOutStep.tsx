@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 
-import { registerCheckOut, type ActiveStay, type CheckOutResult } from '@/api/checkOutService';
+import { type ActiveStay, type CheckOutResult } from '@/api/checkOutService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { checkOutErrorMessage } from '@/pages/checkout/checkOutErrors';
+import { useRegisterCheckOut } from '@/pages/checkout/useCheckOut';
 
 interface ConfirmCheckOutStepProps {
   stay: ActiveStay;
@@ -18,10 +18,7 @@ interface ConfirmCheckOutStepProps {
 /** Paso 4: el botón solo se habilita con la casilla marcada. */
 export function ConfirmCheckOutStep({ stay, onBack, onCompleted }: ConfirmCheckOutStepProps) {
   const [confirmed, setConfirmed] = useState(false);
-  const mutation = useMutation({
-    mutationFn: () => registerCheckOut({ stayId: stay.stayId, confirmed }),
-    onSuccess: onCompleted,
-  });
+  const mutation = useRegisterCheckOut();
 
   return (
     <Card className="max-w-3xl">
@@ -49,7 +46,12 @@ export function ConfirmCheckOutStep({ stay, onBack, onCompleted }: ConfirmCheckO
         <Button variant="outline" onClick={onBack} disabled={mutation.isPending}>
           Atrás
         </Button>
-        <Button onClick={() => mutation.mutate()} disabled={!confirmed || mutation.isPending}>
+        <Button
+          onClick={() =>
+            mutation.mutate({ stayId: stay.stayId, confirmed }, { onSuccess: onCompleted })
+          }
+          disabled={!confirmed || mutation.isPending}
+        >
           {mutation.isPending ? 'Registrando…' : 'Confirmar Check-Out'}
         </Button>
       </CardFooter>

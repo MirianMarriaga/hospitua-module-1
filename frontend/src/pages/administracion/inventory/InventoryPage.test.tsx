@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getInventory, type Room } from '@/api/roomService';
 import type { PagedResult } from '@/api/types';
-import { InventoryPage } from '@/pages/administracion/InventoryPage';
+import { InventoryPage } from '@/pages/administracion/inventory/InventoryPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 vi.mock('@/api/roomService', () => ({ getInventory: vi.fn() }));

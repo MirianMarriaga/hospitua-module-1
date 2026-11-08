@@ -1,15 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router';
 
-import { getArrivals, type ArrivalGroup, type ArrivalRoom } from '@/api/receptionService';
+import { type ArrivalGroup, type ArrivalRoom } from '@/api/receptionService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatNights } from '@/lib/format';
 import { categoryLabel, ROOM_STATUS_LABELS, sourceLabel } from '@/lib/labels';
 import { PANEL_ERRORS } from '@/pages/panel/panelErrors';
-import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
+import { useArrivals } from '@/pages/panel/useReceptionPanel';
 
 function checkInLink(reservationRef: string, roomId: string): string {
   return `/check-in?${new URLSearchParams({ reservationRef, roomId }).toString()}`;
@@ -95,11 +94,7 @@ function ArrivalRow({ group, room, showGroupColumn }: ArrivalRowProps) {
 }
 
 export function ArrivalsTab({ query }: { query: string }) {
-  const arrivals = useQuery({
-    queryKey: ['reception', 'arrivals', query],
-    queryFn: () => getArrivals(query),
-    ...PANEL_REFRESH,
-  });
+  const arrivals = useArrivals(query);
 
   if (arrivals.isPending) {
     return <p className="p-9 text-center text-sm text-text-lo">Cargando llegadas…</p>;
@@ -119,11 +114,7 @@ export function ArrivalsTab({ query }: { query: string }) {
     );
   }
 
-  const allRooms = arrivals.data.groups.flatMap((group) =>
-    group.rooms.map((room) => ({ group, room })),
-  );
-
-  const hasMultiRoom = arrivals.data.groups.some((group) => group.totalRooms > 1);
+  const { rows: allRooms, hasMultiRoom } = arrivals.data;
 
   return (
     <div className="overflow-x-auto">

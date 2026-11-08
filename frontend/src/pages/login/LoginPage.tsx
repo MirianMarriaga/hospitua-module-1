@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 
-import { login } from '@/api/authService';
 import hospituaLogo from '@/assets/icono-hospitua-grande.png';
 import loginPhoto from '@/assets/login-example-photo.jpg';
 import { ErrorAlert } from '@/components/ErrorAlert';
@@ -24,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { homeOf } from '@/layouts/areaNavigation';
 import { errorMessage } from '@/lib/errorMessages';
+import { useLogin } from '@/pages/login/useLogin';
 import { useSessionStore } from '@/stores/sessionStore';
 
 const loginSchema = z.object({
@@ -39,7 +38,6 @@ const LOGIN_ERRORS = { INVALID_CREDENTIALS: 'Usuario o contraseña incorrectos.'
 export function LoginPage() {
   const session = useSessionStore((state) => state.session);
   const expired = useSessionStore((state) => state.expired);
-  const saveSession = useSessionStore((state) => state.login);
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
   const [showPassword, setShowPassword] = useState(false);
@@ -49,10 +47,7 @@ export function LoginPage() {
     defaultValues: { username: '', password: '' },
   });
 
-  const mutation = useMutation({
-    mutationFn: login,
-    onSuccess: saveSession,
-  });
+  const mutation = useLogin();
 
   if (session) {
     return <Navigate to={from ?? homeOf(session.area)} replace />;

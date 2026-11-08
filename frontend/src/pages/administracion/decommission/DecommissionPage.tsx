@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck, Loader2 } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 
 import {
-  decommissionRoom,
-  getRoom,
-  type ConflictingReservation,
+  readConflictingReservations,
   type DecommissionRoomRequest,
   type Room,
 } from '@/api/roomService';
@@ -50,6 +47,8 @@ import {
   type DecommissionInput,
   type DecommissionValues,
 } from '@/pages/administracion/decommission/decommissionSchema';
+import { useDecommissionRoom } from '@/pages/administracion/decommission/useDecommissionRoom';
+import { useRoom } from '@/pages/administracion/useRoom';
 
 const STEPS = ['Motivo', 'Confirmación', 'Verificación', 'Resultado'];
 
@@ -83,8 +82,6 @@ function RoomSummaryBox({
 /** Flujo completo de 4 pasos para dar de baja una habitación (vistas 06 a 09). */
 export function DecommissionPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const queryClient = useQueryClient();
-
   const [step, setStep] = useState<number>(1);
   // La petición confirmada en el paso 1; "Reintentar" la reenvía sin volver al motivo (T017).
   const [request, setRequest] = useState<DecommissionRoomRequest | null>(null);
@@ -95,23 +92,8 @@ export function DecommissionPage() {
   });
   const reasonCategory = useWatch({ control: form.control, name: 'reasonCategory' });
 
-  const roomQuery = useQuery({
-    queryKey: ['room', roomId],
-    queryFn: () => getRoom(roomId!),
-    enabled: !!roomId,
-  });
-
-  const decommissionMutation = useMutation({
-    mutationFn: (request: DecommissionRoomRequest) => decommissionRoom(roomId!, request),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      void queryClient.invalidateQueries({ queryKey: ['room', roomId] });
-      setStep(4);
-    },
-    onError: () => {
-      setStep(4);
-    },
-  });
+  const roomQuery = useRoom(roomId);
+  const decommissionMutation = useDecommissionRoom();
 
   if (roomQuery.isPending) {
     return (
@@ -186,7 +168,7 @@ export function DecommissionPage() {
   function sendRequest() {
     if (!request) return;
     setStep(3);
-    decommissionMutation.mutate(request);
+    decommissionMutation.mutate({ roomId: room.roomId, request }, { onSettled: () => setStep(4) });
   }
 
   return (
@@ -435,7 +417,7 @@ function DecommissionErrorResult({
 
   // Caso 1: 409 RESERVATION_CONFLICT
   if (errorCode === 'RESERVATION_CONFLICT') {
-    const reservations = (details?.reservations as ConflictingReservation[]) || [];
+    const reservations = readConflictingReservations(details);
     const count = reservations.length;
 
     return (

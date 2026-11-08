@@ -19,11 +19,6 @@ export const SORT_OPTIONS: {
 
 export const FILTER_PARAMS = ['roomNumber', 'categoryRoom', 'floor', 'status'] as const;
 
-export function readPage(params: URLSearchParams): number {
-  const page = Number(params.get('page'));
-  return Number.isInteger(page) && page >= 1 ? page : 1;
-}
-
 export function readInventoryFilters(params: URLSearchParams): InventoryFilters {
   const filters: InventoryFilters = {};
   const roomNumber = params.get('roomNumber');

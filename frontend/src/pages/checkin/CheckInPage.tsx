@@ -1,5 +1,4 @@
 import { useReducer } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 
 import { MissingReservation } from '@/components/MissingReservation';
@@ -19,7 +18,6 @@ export function CheckInPage() {
   const reservationRef = searchParams.get('reservationRef');
   const roomId = searchParams.get('roomId');
   const [state, dispatch] = useReducer(checkInReducer, INITIAL_CHECK_IN_STATE);
-  const queryClient = useQueryClient();
 
   return (
     <>
@@ -54,10 +52,7 @@ export function CheckInPage() {
               guests={state.guests}
               onBack={() => dispatch({ type: 'back' })}
               onGuestRejected={(fieldError) => dispatch({ type: 'guestRejected', fieldError })}
-              onCompleted={(result) => {
-                void queryClient.invalidateQueries({ queryKey: ['reception'] });
-                dispatch({ type: 'completed', result });
-              }}
+              onCompleted={(result) => dispatch({ type: 'completed', result })}
             />
           )}
           {state.step === 4 && state.result && <CheckInSuccess result={state.result} />}

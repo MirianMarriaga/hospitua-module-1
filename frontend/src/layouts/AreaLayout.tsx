@@ -1,10 +1,10 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Outlet, useLocation } from 'react-router';
 
 import type { StaffArea } from '@/api/types';
 import { AREA_NAVIGATION, homeOf } from '@/layouts/areaNavigation';
 import { Header } from '@/layouts/Header';
 import { Sidebar } from '@/layouts/Sidebar';
+import { useLogout } from '@/layouts/useLogout';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -14,8 +14,7 @@ import { useSessionStore } from '@/stores/sessionStore';
  */
 export function AreaLayout({ area }: { area: StaffArea }) {
   const session = useSessionStore((state) => state.session);
-  const logout = useSessionStore((state) => state.logout);
-  const queryClient = useQueryClient();
+  const handleLogout = useLogout();
   const location = useLocation();
 
   if (!session) {
@@ -23,11 +22,6 @@ export function AreaLayout({ area }: { area: StaffArea }) {
   }
   if (session.area !== area) {
     return <Navigate to={homeOf(session.area)} replace />;
-  }
-
-  function handleLogout() {
-    queryClient.clear();
-    logout();
   }
 
   const isReception = area === 'RECEPCION';

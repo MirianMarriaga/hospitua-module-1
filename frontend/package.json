@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "demo:llegada": "node e2e/seed/demo-llegada.ts",
     "api:types": "openapi-typescript ../documentos/contrato/openapi.json -o src/api/schema.d.ts"
@@ -36,8 +37,10 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@babel/core": "8.0.9",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
+    "@rolldown/plugin-babel": "0.2.4",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -46,6 +49,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "babel-plugin-react-compiler": "1.0.0",
     "eslint": "10.14.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",

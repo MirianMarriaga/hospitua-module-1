@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 
-import { validateCheckIn, type CheckInValidation } from '@/api/checkInService';
+import { type CheckInValidation } from '@/api/checkInService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -10,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { formatDate, formatNights, formatPeople } from '@/lib/format';
 import { categoryLabel, sourceLabel } from '@/lib/labels';
 import { checkInErrorMessage } from '@/pages/checkin/checkInErrors';
+import { useCheckInValidation } from '@/pages/checkin/useCheckIn';
 
 interface ReservationStepProps {
   reservationRef: string;
@@ -19,11 +19,7 @@ interface ReservationStepProps {
 
 /** Paso 1: valida la reserva y muestra el titular en solo lectura. */
 export function ReservationStep({ reservationRef, roomId, onContinue }: ReservationStepProps) {
-  const validation = useQuery({
-    queryKey: ['check-in', 'validate', reservationRef, roomId],
-    queryFn: () => validateCheckIn(reservationRef, roomId),
-    staleTime: 0,
-  });
+  const validation = useCheckInValidation(reservationRef, roomId);
 
   return (
     <Card className="max-w-3xl">

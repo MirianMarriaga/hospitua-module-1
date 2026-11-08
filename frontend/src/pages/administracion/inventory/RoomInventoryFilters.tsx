@@ -11,7 +11,7 @@ import {
   ROOM_STATUSES,
   ROOM_STATUS_LABELS,
 } from '@/lib/labels';
-import { FILTER_PARAMS, SORT_OPTIONS } from '@/pages/administracion/inventoryParams';
+import { FILTER_PARAMS, SORT_OPTIONS } from '@/pages/administracion/inventory/inventoryParams';
 
 /** Filtros del inventario; viven en la URL y cada cambio vuelve a la página 1. */
 export function RoomInventoryFilters() {

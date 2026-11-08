@@ -1,14 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 
-import { getReceptionKpis } from '@/api/receptionService';
 import { PageHero } from '@/components/PageHero';
 import { cn } from '@/lib/utils';
 import { ArrivalsTab } from '@/pages/panel/ArrivalsTab';
 import { DeparturesTab } from '@/pages/panel/DeparturesTab';
 import { KpiCards } from '@/pages/panel/KpiCards';
-import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
 import { ReceptionSearchBar } from '@/pages/panel/ReceptionSearchBar';
+import { useReceptionKpis } from '@/pages/panel/useReceptionPanel';
 import { useSessionStore } from '@/stores/sessionStore';
 
 type Tab = 'llegadas' | 'salidas';
@@ -26,11 +24,7 @@ export function ReceptionPanel() {
   const tab: Tab = searchParams.get('tab') === 'salidas' ? 'salidas' : 'llegadas';
   const query = searchParams.get('query') ?? '';
 
-  const kpis = useQuery({
-    queryKey: ['reception', 'kpis'],
-    queryFn: getReceptionKpis,
-    ...PANEL_REFRESH,
-  });
+  const kpis = useReceptionKpis();
 
   function selectTab(next: Tab) {
     setSearchParams((previous) => {

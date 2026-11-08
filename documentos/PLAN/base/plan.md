@@ -911,7 +911,7 @@ frontend/                                                     # Árbol real revi
 ├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
 ├── playwright.config.ts
 ├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/)
-├── vite.config.ts                                            # Proxy de /api al backend y configuración de Vitest
+├── vite.config.ts                                            # Proxy de /api, compilador de React (Babel) y Vitest con cobertura
 ├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
 │   ├── README.md
 │   ├── inventario.spec.ts
@@ -927,6 +927,7 @@ frontend/                                                     # Árbol real revi
     │   ├── schema.d.ts                                       # Generado por npm run api:types desde documentos/contrato/openapi.json; no se edita
     │   ├── types.ts                                          # Alias de schema.d.ts con los nombres que usan los servicios
     │   ├── types.test.ts                                     # Las formas escritas a mano (PagedResult, ApiError) siguen al contrato
+    │   ├── roomService.test.ts                               # Lectura de las reservas en conflicto de un 409
     │   ├── authService.ts                                    # Inicio de sesión (T021)
     │   ├── checkInService.ts
     │   ├── checkOutService.ts
@@ -954,16 +955,20 @@ frontend/                                                     # Árbol real revi
     │   ├── AreaLayout.tsx                                    # Guarda de área, Header, Sidebar y Outlet
     │   ├── Header.tsx
     │   ├── Sidebar.tsx
-    │   └── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
+    │   ├── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
+    │   └── useLogout.ts                                      # Cierra la sesión y vacía la caché de consultas
     ├── lib/
     │   ├── errorMessages.ts                                  # errorMessage(error, tabla)
     │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
     │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
+    │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
     │   ├── queryClient.ts                                    # Reintentos solo ante errores de red
+    │   ├── queryKeys.ts                                      # Claves de consulta que comparten varias pantallas
     │   └── utils.ts                                          # cn()
     ├── pages/
     │   ├── login/
-    │   │   └── LoginPage.tsx
+    │   │   ├── LoginPage.tsx
+    │   │   └── useLogin.ts
     │   ├── panel/                                            # Vista 01 de recepción: KPI, Llegadas y Salidas
     │   │   ├── ReceptionPanel.tsx
     │   │   ├── KpiCards.tsx
@@ -971,7 +976,8 @@ frontend/                                                     # Árbol real revi
     │   │   ├── DeparturesTab.tsx
     │   │   ├── ReceptionSearchBar.tsx
     │   │   ├── panelErrors.ts
-    │   │   └── panelRefresh.ts                               # Consulta cada 60 s y al volver al panel (recepción T029)
+    │   │   ├── panelRefresh.ts                               # Consulta cada 60 s y al volver al panel (recepción T029)
+    │   │   └── useReceptionPanel.ts                          # KPI, llegadas (con select para la tabla) y salidas
     │   ├── checkin/                                          # Vistas 02-05: Check-In de 4 pasos
     │   │   ├── CheckInPage.tsx                               # Lleva el paso actual (checkInReducer.ts)
     │   │   ├── ReservationStep.tsx
@@ -981,49 +987,59 @@ frontend/                                                     # Árbol real revi
     │   │   ├── CheckInSuccess.tsx
     │   │   ├── checkInErrors.ts
     │   │   ├── checkInReducer.ts
-    │   │   └── guestSchema.ts
+    │   │   ├── guestSchema.ts
+    │   │   └── useCheckIn.ts                                 # Validar la reserva y registrar el Check-In
     │   ├── checkout/                                         # Vistas 06-09: Check-Out con liquidación
     │   │   ├── CheckOutPage.tsx                              # Lleva el paso actual (checkOutReducer.ts)
     │   │   ├── ActiveStayStep.tsx
     │   │   ├── SettlementStep.tsx                            # Pasos 2 y 3 con useSettlement.ts (una sola consulta)
     │   │   ├── SettlementCard.tsx
     │   │   ├── PaymentReviewCard.tsx
+    │   │   ├── SettlementCards.test.tsx                      # SettlementCard y PaymentReviewCard (liquidación T028)
     │   │   ├── ContingencyBanner.tsx
     │   │   ├── ConfirmCheckOutStep.tsx
     │   │   ├── CheckOutSuccess.tsx
     │   │   ├── checkOutErrors.ts
     │   │   ├── checkOutReducer.ts
+    │   │   ├── useCheckOut.ts                                # Estadía activa y registrar el Check-Out
     │   │   └── useSettlement.ts
     │   ├── administracion/
-    │   │   ├── InventoryPage.tsx                             # Inventario de Administración y de Gerencia (role admin o manager)
-    │   │   ├── RoomInventoryFilters.tsx
-    │   │   ├── RoomInventoryTable.tsx
-    │   │   ├── inventoryParams.ts                            # Filtros y página en la URL
-    │   │   ├── RegisterRoomPage.tsx
-    │   │   ├── RegisterRoomSuccess.tsx
-    │   │   ├── registerRoomSchema.ts                         # Reglas de Room del backend; también las usa editar
+    │   │   ├── registerRoomSchema.ts                         # Reglas de Room del backend; las usan registrar y editar
+    │   │   ├── useRoom.ts                                    # Una habitación (editar y dar de baja)
+    │   │   ├── inventory/
+    │   │   │   ├── InventoryPage.tsx                         # Inventario de Administración y de Gerencia (role admin o manager)
+    │   │   │   ├── RoomInventoryFilters.tsx
+    │   │   │   ├── RoomInventoryTable.tsx
+    │   │   │   ├── inventoryParams.ts                        # Filtros y orden en la URL
+    │   │   │   └── useInventory.ts
+    │   │   ├── register/
+    │   │   │   ├── RegisterRoomPage.tsx
+    │   │   │   ├── RegisterRoomSuccess.tsx
+    │   │   │   └── useRegisterRoom.ts
     │   │   ├── edit/
     │   │   │   ├── EditRoomPage.tsx                          # Formulario y confirmación "Antes / Ahora"
-    │   │   │   └── editRoomSchema.ts                         # Reglas de registerRoomSchema.ts con los textos de editar
+    │   │   │   ├── editRoomSchema.ts                         # Reglas de registerRoomSchema.ts con los textos de editar
+    │   │   │   └── useEditRoom.ts
     │   │   ├── decommission/
     │   │   │   ├── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
-    │   │   │   └── decommissionSchema.ts                     # Motivo del catálogo y detalle (máximo 500; obligatorio con "Otro")
+    │   │   │   ├── decommissionSchema.ts                     # Motivo del catálogo y detalle (máximo 500; obligatorio con "Otro")
+    │   │   │   └── useDecommissionRoom.ts
     │   │   └── reactivation/
-    │   │       └── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
+    │   │       ├── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
+    │   │       └── useReactivation.ts                        # Baja vigente y reactivar
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
     │   │   ├── RoomStateHistoryFilters.tsx
     │   │   ├── RoomStateHistoryTable.tsx
-    │   │   └── historyParams.ts
+    │   │   ├── historyParams.ts
+    │   │   └── useRoomStateHistory.ts
     │   └── placeholder/
     │       └── AreaPlaceholderPage.tsx                       # Limpieza y Mantenimiento hasta F03 y F06
     ├── stores/
     │   └── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
-    └── test/                                                 # Pruebas de componentes con Vitest; las demás pruebas van junto a su archivo (*.test.ts[x])
+    └── test/                                                 # Utilidades de las pruebas; cada prueba va junto a su archivo (*.test.ts[x])
         ├── fixtures/                                         # Datos de recepción y de habitaciones
         ├── renderWithProviders.tsx
-        ├── settlement/
-        │   └── SettlementCards.test.tsx
         └── setup.ts
 ```
 

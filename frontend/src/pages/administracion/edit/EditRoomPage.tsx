@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
-import { editRoom, getRoom, type EditRoomRequest, type Room } from '@/api/roomService';
+import { type EditRoomRequest, type Room } from '@/api/roomService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -49,6 +48,8 @@ import {
   toEditRoomValues,
   type EditRoomValues,
 } from '@/pages/administracion/edit/editRoomSchema';
+import { useEditRoom } from '@/pages/administracion/edit/useEditRoom';
+import { useRoom } from '@/pages/administracion/useRoom';
 
 const FIELD_LABELS: Record<string, string> = {
   roomNumber: 'Número de habitación',
@@ -74,11 +75,7 @@ function formatValue(field: string, val: unknown): string {
 export function EditRoomPage() {
   const { roomId } = useParams<{ roomId: string }>();
 
-  const roomQuery = useQuery({
-    queryKey: ['room', roomId],
-    queryFn: () => getRoom(roomId!),
-    enabled: !!roomId,
-  });
+  const roomQuery = useRoom(roomId);
 
   if (roomQuery.isPending) {
     return (
@@ -154,7 +151,6 @@ export function EditRoomPage() {
 }
 
 function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () => void }) {
-  const queryClient = useQueryClient();
   const [noChangesNotice, setNoChangesNotice] = useState(false);
 
   const form = useForm<EditRoomValues>({
@@ -162,26 +158,21 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
     defaultValues: toEditRoomValues(room),
   });
 
-  const editMutation = useMutation({
-    mutationFn: (request: EditRoomRequest) => editRoom(room.roomId, request),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      void queryClient.invalidateQueries({ queryKey: ['room', room.roomId] });
-    },
-    onError: (error, request) => {
-      const code = errorCodeOf(error);
-      if (code === 'ROOM_NUMBER_ALREADY_EXISTS') {
-        form.setError('roomNumber', {
-          message: `Ya existe una habitación con el número ${request.roomNumber?.toUpperCase()} (aunque esté inactiva).`,
-        });
-      } else if (code === 'VALIDATION_ERROR' && error instanceof ApiRequestError) {
-        const field = error.details.field;
-        if (isEditRoomField(field)) {
-          form.setError(field, { message: fieldErrorText(field, form.getValues()) });
-        }
+  const editMutation = useEditRoom(room.roomId);
+
+  function onEditError(error: Error, request: EditRoomRequest) {
+    const code = errorCodeOf(error);
+    if (code === 'ROOM_NUMBER_ALREADY_EXISTS') {
+      form.setError('roomNumber', {
+        message: `Ya existe una habitación con el número ${request.roomNumber?.toUpperCase()} (aunque esté inactiva).`,
+      });
+    } else if (code === 'VALIDATION_ERROR' && error instanceof ApiRequestError) {
+      const field = error.details.field;
+      if (isEditRoomField(field)) {
+        form.setError(field, { message: fieldErrorText(field, form.getValues()) });
       }
-    },
-  });
+    }
+  }
 
   const concurrentError = errorCodeOf(editMutation.error) === 'CONCURRENT_UPDATE';
 
@@ -278,7 +269,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
       return;
     }
     setNoChangesNotice(false);
-    editMutation.mutate(request);
+    editMutation.mutate(request, { onError: onEditError });
   }
 
   const showGeneralError =
