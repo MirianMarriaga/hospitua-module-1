@@ -904,13 +904,17 @@ backend/
         └── TestHabitacionesApplication.java                           # Plan base
 
 frontend/
-├── package.json
+├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
 ├── tsconfig.json
 ├── vite.config.ts
 ├── index.html
 └── src/
-    ├── api/                                                  # Clientes HTTP (Axios) y tipos TypeScript de los DTOs
-    │   ├── authService.ts                                    # Inicio de sesión; el interceptor agrega X-User a cada petición
+    ├── api/                                                  # Clientes HTTP y tipos TypeScript de los DTOs
+    │   ├── apiClient.ts                                      # fetch con X-User; convierte el ApiError en ApiRequestError
+    │   ├── schema.d.ts                                       # Generado por npm run api:types desde documentos/contrato/openapi.json; no se edita
+    │   ├── types.ts                                          # Alias de schema.d.ts con los nombres que usan los servicios
+    │   ├── types.test.ts                                     # Las formas escritas a mano (PagedResult, ApiError) siguen al contrato
+    │   ├── authService.ts                                    # Inicio de sesión; apiClient agrega X-User a cada petición
     │   ├── receptionPanelService.ts
     │   ├── departureService.ts
     │   ├── checkInService.ts
