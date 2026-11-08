@@ -1,12 +1,4 @@
-import {
-  BedDouble,
-  ConciergeBell,
-  History,
-  type LucideIcon,
-  SprayCan,
-  SquarePlus,
-  Wrench,
-} from 'lucide-react';
+import { BedDouble, ConciergeBell, History, type LucideIcon, SprayCan, Wrench } from 'lucide-react';
 
 import type { StaffArea } from '@/api/types';
 
@@ -20,10 +12,7 @@ export interface NavItem {
 /** Menú del Sidebar y pantalla de inicio de cada área (la primera entrada). */
 export const AREA_NAVIGATION: Record<StaffArea, NavItem[]> = {
   RECEPCION: [{ to: '/recepcion', label: 'Panel de recepción', icon: ConciergeBell }],
-  ADMINISTRACION: [
-    { to: '/administracion/inventario', label: 'Inventario', icon: BedDouble },
-    { to: '/administracion/habitaciones/nueva', label: 'Registrar habitación', icon: SquarePlus },
-  ],
+  ADMINISTRACION: [{ to: '/administracion/inventario', label: 'Inventario', icon: BedDouble }],
   GERENCIA: [
     { to: '/gerencia/inventario', label: 'Inventario', icon: BedDouble },
     { to: '/gerencia/historial', label: 'Historial de estados', icon: History },

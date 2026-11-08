@@ -73,6 +73,9 @@ describe('RegisterRoomPage', () => {
     await fillForm({ number: ' 402 ', floor: '4', capacity: '2', rate: '250000,50' });
 
     expect(await screen.findByText('Habitación 402 registrada')).toBeInTheDocument();
+    // FR-012: la confirmación muestra el ID de la habitación.
+    expect(screen.getByText('ID')).toBeInTheDocument();
+    expect(screen.getByText('11111111-1111-4111-a111-111111111111')).toBeInTheDocument();
     expect(registerRoom).toHaveBeenCalledWith(
       { roomNumber: '402', floor: 4, categoryRoom: 'DOBLE', maxCapacity: 2, baseRate: 250000.5 },
       expect.anything(),
