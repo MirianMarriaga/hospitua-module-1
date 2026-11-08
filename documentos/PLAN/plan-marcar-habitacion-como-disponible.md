@@ -357,7 +357,7 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
   - Hecho (L32): `ReactivateRoomService` bloquea la fila y recién después lee la baja, así la segunda de dos reactivaciones la encuentra revertida. Orden de las respuestas: baja ya revertida → `alreadyReactivated: true`; habitación fuera de `Inactive` → 409; baja ajena o inexistente → 400 (`UnknownDecommissionException`). La baja revertida guarda la marca del periodo `Available`.
 - [x] T018 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
   - Hecho (L32): `GetRoomDecommissionUseCase` en `RoomDecommissionQueryService` (`readOnly`; una habitación `Inactive` sin baja es un dato inconsistente) y los dos endpoints en `RoomController`.
-- [ ] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
+- [x] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
 
 **Checkpoint**: El Administrador puede revertir bajas.
 

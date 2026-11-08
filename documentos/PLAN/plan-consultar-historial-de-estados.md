@@ -225,8 +225,8 @@ No aplica: usa la infraestructura del plan base.
 
 - [x] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
 - [x] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
-- [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
-- [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
+- [x] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
+- [x] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
 
 **Checkpoint**: El Gerente puede auditar el historial de estados de cualquier habitación.
 

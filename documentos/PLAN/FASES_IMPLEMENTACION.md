@@ -1,6 +1,6 @@
 # Plan: Backend del Módulo 1 por lotes (un lote = un commit pequeño)
 
-## Estado al 06-11-2026
+## Estado al 07-11-2026
 
 | Rama | Lotes | Estado |
 | --- | --- | --- |
@@ -17,7 +17,7 @@
 | R10 `feature/m1-bloqueos-tecnicos` | L22, L23, L25, L26 | Integrada (PR #15) |
 | R11 `feature/m1-reparaciones` | L27–L30 | Integrada (PR #16) |
 | R12 `feature/m1-personal` | L35–L37 | Integrada (PR #17) |
-| R13 `feature/m1-cierre` | L38, L40 (L39 aplazado) | En curso: L38 y L40 (contrato OpenAPI) hechos; sin PR |
+| R13 `feature/m1-cierre` | L38, L40 (L39 aplazado) | Integrada (PR #18, 07-11-2026) |
 
 El frontend tiene su propio plan de fases (`FASES_IMPLEMENTACION_FRONTEND.md`); hoy está fuera del repositorio.
 

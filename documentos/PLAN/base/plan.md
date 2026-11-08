@@ -28,7 +28,7 @@ Este plan unifica el stack tecnológico, arquitectura hexagonal, modelo de persi
 - **Target Platform**: Servidor Linux/Windows + Navegador Web moderno
 - **Project Type**: Web Application monorepo estructurado (`backend/` + `frontend/`)
 - **API**: REST JSON, con errores en el formato `ApiError` (sección "Formato Estándar de Error")
-- **Frontend**: React 18+ con TypeScript (TSX) y Vite (componentes basados en las vistas prototipo en `documentos/vistas/recepcionista/`,`documentos/vistas/mantenimiento/`, `documentos/vistas/limpieza/`, `documentos/vistas/gerente/`, `documentos/vistas/administrador/`)
+- **Frontend**: React 19 con TypeScript (TSX) y Vite (componentes basados en las vistas prototipo en `documentos/vistas/recepcionista/`,`documentos/vistas/mantenimiento/`, `documentos/vistas/limpieza/`, `documentos/vistas/gerente/`, `documentos/vistas/administrador/`)
 - **Version Control**: Git + GitHub (estrategia Gitflow)
 - **Performance Goals**:
   - Transición física atómica de habitación (`Room.status`) < 50 ms p95.
@@ -903,102 +903,125 @@ backend/
         ├── TestcontainersConfiguration.java                           # Plan base
         └── TestHabitacionesApplication.java                           # Plan base
 
-frontend/
-├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
-├── tsconfig.json
-├── vite.config.ts
+frontend/                                                     # Árbol real revisado en F00 (07-11-2026); los archivos de las áreas que faltan los agregan sus lotes
+├── components.json                                           # Configuración de shadcn/ui
+├── eslint.config.js
+├── images/                                                   # Copias de imágenes sin uso: la app usa src/assets/ (se revisa en F14)
 ├── index.html
+├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
+├── playwright.config.ts
+├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/)
+├── vite.config.ts                                            # Proxy de /api al backend y configuración de Vitest
+├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
+│   ├── README.md
+│   ├── inventario.spec.ts
+│   ├── recepcion.spec.ts
+│   ├── seed/                                                 # Cuentas de prueba (demo-users.sql) y llegada de demostración (demo-llegada.ts)
+│   └── support/                                              # Datos de prueba contra el backend y RabbitMQ; inicio de sesión y capturas
 └── src/
+    ├── main.tsx                                              # QueryClientProvider y BrowserRouter
+    ├── routes.tsx                                            # Rutas por área dentro de AreaLayout, que tiene la guarda de sesión y de área
+    ├── index.css                                             # Tailwind 4 (@theme), tokens y .table-stacked
     ├── api/                                                  # Clientes HTTP y tipos TypeScript de los DTOs
     │   ├── apiClient.ts                                      # fetch con X-User; convierte el ApiError en ApiRequestError
     │   ├── schema.d.ts                                       # Generado por npm run api:types desde documentos/contrato/openapi.json; no se edita
     │   ├── types.ts                                          # Alias de schema.d.ts con los nombres que usan los servicios
     │   ├── types.test.ts                                     # Las formas escritas a mano (PagedResult, ApiError) siguen al contrato
-    │   ├── authService.ts                                    # Inicio de sesión; apiClient agrega X-User a cada petición
-    │   ├── receptionPanelService.ts
-    │   ├── departureService.ts
+    │   ├── authService.ts                                    # Inicio de sesión (T021)
     │   ├── checkInService.ts
     │   ├── checkOutService.ts
-    │   ├── settlementService.ts
-    │   ├── roomService.ts
-    │   ├── roomStateHistoryService.ts
-    │   ├── cleaningService.ts
-    │   ├── maintenanceService.ts
-    │   ├── damageReportService.ts
-    │   ├── technicalBlockService.ts
-    │   └── staffService.ts                                   # Cuentas del personal (plan-gestionar-personal.md)
-    ├── assets/                                               # Estilos y recursos visuales
-    ├── components/                                           # Navbar, Sidebar, Badges de estado, Modales y componentes compartidos
-    │   ├── roomCategoryLabels.ts                             # SENCILLA → "Sencilla", …
-    │   ├── staffAreaLabels.ts                                # RECEPCION → "Recepción", … (plan-gestionar-personal.md)
-    │   ├── RoomInventoryTable.tsx                            # Tabla compartida del inventario
-    │   ├── RoomInventoryFilters.tsx                          # Número, tipo, piso y estado
+    │   ├── historyService.ts                                 # Historial de estados
+    │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
+    │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
+    │   └── settlementService.ts
+    ├── assets/                                               # Logo, fotos del hotel y variables.css
+    ├── components/                                           # Componentes de dominio compartidos
+    │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
+    │   ├── InfoItem.tsx
+    │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
+    │   ├── PageHeader.tsx
+    │   ├── PageHero.tsx                                      # Encabezado con la foto del hotel
     │   ├── Pagination.tsx
-    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja y bloqueo técnico)
-    │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
-    │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño
-    │   ├── ScheduleTechnicalBlockDialog.tsx                  # Programar mantenimiento
-    │   ├── TechnicalBlockViewDialog.tsx                      # Ver informe del bloqueo técnico
-    │   └── settlement/
-    │       ├── SettlementCard.tsx                            # Paso 2 del check-out: liquidación
-    │       └── PaymentReviewCard.tsx                         # Paso 3 del check-out: pago (solo revisión)
+    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
+    │   ├── StatusBadge.tsx
+    │   ├── StepProgress.tsx
+    │   ├── Stepper.tsx
+    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, form, input, label, native-select, table, textarea
+    ├── hooks/
+    │   ├── useDebouncedSearchParam.ts
+    │   └── useDebouncedValue.ts
+    ├── layouts/
+    │   ├── AreaLayout.tsx                                    # Guarda de área, Header, Sidebar y Outlet
+    │   ├── Header.tsx
+    │   ├── Sidebar.tsx
+    │   └── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
+    ├── lib/
+    │   ├── errorMessages.ts                                  # errorMessage(error, tabla)
+    │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
+    │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
+    │   ├── queryClient.ts                                    # Reintentos solo ante errores de red
+    │   └── utils.ts                                          # cn()
     ├── pages/
-    │   ├── login/                                            # Inicio de sesión de todos los usuarios
+    │   ├── login/
     │   │   └── LoginPage.tsx
-    │   ├── panel/                                            # Vista 01: Inicio / Panel Recepcionista (Llegadas / Salidas)
+    │   ├── panel/                                            # Vista 01 de recepción: KPI, Llegadas y Salidas
     │   │   ├── ReceptionPanel.tsx
     │   │   ├── KpiCards.tsx
     │   │   ├── ArrivalsTab.tsx
     │   │   ├── DeparturesTab.tsx
-    │   │   └── ReceptionSearchBar.tsx
-    │   ├── checkin/                                          # Vistas 02-05: Flujo de Check-In de 4 pasos
-    │   │   ├── CheckInWizard.tsx
-    │   │   ├── Step1ReservationSummary.tsx
-    │   │   ├── Step2GuestCapture.tsx                         # Incluye el panel migratorio de extranjeros
-    │   │   ├── Step3Confirmation.tsx
-    │   │   └── Step4Success.tsx
-    │   ├── checkout/                                         # Vistas 06-09: Flujo de Check-Out (liquidación y entrega a limpieza)
-    │   │   ├── CheckOutWizard.tsx
-    │   │   ├── Step1ActiveStay.tsx
-    │   │   ├── Step2SettlementSummary.tsx
-    │   │   ├── Step3PaymentReview.tsx
-    │   │   ├── Step4Confirmation.tsx
-    │   │   └── Step5SuccessCleaning.tsx
-    │   ├── limpieza/                                         # Panel de limpieza y vista de tarea activa
-    │   │   ├── CleaningPanelPage.tsx
-    │   │   ├── CleaningSummary.tsx
-    │   │   ├── CleaningRoomTable.tsx
-    │   │   ├── RoomNumberSearch.tsx
-    │   │   ├── ActiveCleaningTaskPage.tsx
-    │   │   ├── ConfirmCleaningEndDialog.tsx
-    │   │   └── ReleaseCleaningTaskDialog.tsx
-    │   ├── mantenimiento/                                    # Panel de mantenimiento y vista de tarea activa
-    │   │   ├── MaintenancePanelPage.tsx
-    │   │   ├── MaintenanceSummary.tsx
-    │   │   ├── MaintenanceRoomTable.tsx
-    │   │   ├── ActiveRepairTaskPage.tsx
-    │   │   ├── ConfirmRepairEndDialog.tsx
-    │   │   └── ReleaseRepairTaskDialog.tsx
-    │   ├── administracion/                                   # Inventario, registro, edición, baja y reactivación de habitaciones, y personal
-    │   │   ├── AdminRoomInventoryPage.tsx
+    │   │   ├── ReceptionSearchBar.tsx
+    │   │   └── panelErrors.ts
+    │   ├── checkin/                                          # Vistas 02-05: Check-In de 4 pasos
+    │   │   ├── CheckInPage.tsx                               # Lleva el paso actual (checkInReducer.ts)
+    │   │   ├── ReservationStep.tsx
+    │   │   ├── GuestsStep.tsx
+    │   │   ├── GuestBlock.tsx                                # Un bloque por ocupante, con el panel migratorio
+    │   │   ├── ConfirmCheckInStep.tsx
+    │   │   ├── CheckInSuccess.tsx
+    │   │   ├── checkInErrors.ts
+    │   │   ├── checkInReducer.ts
+    │   │   └── guestSchema.ts
+    │   ├── checkout/                                         # Vistas 06-09: Check-Out con liquidación
+    │   │   ├── CheckOutPage.tsx                              # Lleva el paso actual (checkOutReducer.ts)
+    │   │   ├── ActiveStayStep.tsx
+    │   │   ├── SettlementStep.tsx                            # Pasos 2 y 3 con useSettlement.ts (una sola consulta)
+    │   │   ├── SettlementCard.tsx
+    │   │   ├── PaymentReviewCard.tsx
+    │   │   ├── ContingencyBanner.tsx
+    │   │   ├── ConfirmCheckOutStep.tsx
+    │   │   ├── CheckOutSuccess.tsx
+    │   │   ├── checkOutErrors.ts
+    │   │   ├── checkOutReducer.ts
+    │   │   └── useSettlement.ts
+    │   ├── administracion/
+    │   │   ├── InventoryPage.tsx                             # Inventario de Administración y de Gerencia (role admin o manager)
+    │   │   ├── RoomInventoryFilters.tsx
+    │   │   ├── RoomInventoryTable.tsx
+    │   │   ├── inventoryParams.ts                            # Filtros y página en la URL
     │   │   ├── RegisterRoomPage.tsx
-    │   │   ├── RegisterRoomConfirmation.tsx
-    │   │   ├── EditRoomPage.tsx
-    │   │   ├── EditRoomConfirmation.tsx
-    │   │   ├── DecommissionRoomPage.tsx
-    │   │   ├── ReactivateRoomDialog.tsx
-    │   │   ├── ReactivationResult.tsx
-    │   │   ├── StaffListPage.tsx                             # Lista del personal (plan-gestionar-personal.md)
-    │   │   ├── RegisterStaffPage.tsx
-    │   │   ├── EditStaffPage.tsx
-    │   │   ├── StaffConfirmation.tsx
-    │   │   └── DeactivateStaffDialog.tsx
-    │   └── gerencia/                                         # Inventario e historial de estados
-    │       ├── ManagerRoomInventoryPage.tsx
-    │       ├── RoomStateHistoryPage.tsx
-    │       └── RoomStateHistoryFilters.tsx
-    ├── routes/                                               # Enrutador de la aplicación
-    └── test/                                                 # Pruebas de componentes con Vitest
+    │   │   ├── RegisterRoomSuccess.tsx
+    │   │   ├── registerRoomSchema.ts
+    │   │   ├── edit/
+    │   │   │   └── EditRoomPage.tsx                          # Formulario y confirmación "Antes / Ahora"
+    │   │   ├── decommission/
+    │   │   │   └── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
+    │   │   └── reactivation/
+    │   │       └── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
+    │   ├── gerencia/                                         # Historial de estados
+    │   │   ├── RoomStateHistoryPage.tsx
+    │   │   ├── RoomStateHistoryFilters.tsx
+    │   │   ├── RoomStateHistoryTable.tsx
+    │   │   └── historyParams.ts
+    │   └── placeholder/
+    │       └── AreaPlaceholderPage.tsx                       # Limpieza y Mantenimiento hasta F03 y F06
+    ├── stores/
+    │   └── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
+    └── test/                                                 # Pruebas de componentes con Vitest; las demás pruebas van junto a su archivo (*.test.ts[x])
+        ├── fixtures/                                         # Datos de recepción y de habitaciones
+        ├── renderWithProviders.tsx
+        ├── settlement/
+        │   └── SettlementCards.test.tsx
+        └── setup.ts
 ```
 
 ---
@@ -1305,10 +1328,10 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 
 ## Phase 1: Setup (Infraestructura Compartida)
 
-- [ ] T001 Inicializar el repositorio con la estructura monorepo `backend/` y `frontend/`
+- [x] T001 Inicializar el repositorio con la estructura monorepo `backend/` y `frontend/`
 - [x] T002 Configurar `backend/pom.xml` con Java 21, Spring Boot 4.1+ y dependencias aprobadas
-- [ ] T003 Configurar `frontend/` con React 18+, TypeScript (TSX, `tsconfig.json`) y Vite
-- [ ] T004 [P] Configurar herramientas de formateo y calidad de código (backend: Spotless con palantir-java-format, hecho; frontend: ESLint/Prettier, pendiente junto con T003)
+- [x] T003 Configurar `frontend/` con React 19, TypeScript (TSX, `tsconfig.json`) y Vite
+- [x] T004 [P] Configurar herramientas de formateo y calidad de código (backend: Spotless con palantir-java-format, hecho; frontend: ESLint/Prettier, hecho)
 - [x] T005 [P] Crear `docker-compose.yml` para desarrollo local con PostgreSQL 16 y RabbitMQ 3.13 con interfaz de gestión
 - [x] T006 Configurar `application.yml` y perfiles (`dev`, `test`, `prod`) con variables de entorno. Pendiente por la fase 2: quitar `hospitua.maintenance.fallback-apply-time` (regla 10) y añadir `classpath:db/dev-data` a `spring.flyway.locations` en el perfil `dev` (T017). Nota (06-11-2026): la ubicación ya está en el perfil `dev`; la carpeta `db/dev-data/` no existe todavía porque L39 (datos sintéticos) quedó aplazado, y Flyway ignora una ubicación vacía
 
@@ -1331,7 +1354,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 - [x] T014 Configurar la infraestructura de pruebas automatizadas con Testcontainers (PostgreSQL y RabbitMQ)
   - [x] Agregar WireMock a la infraestructura de pruebas (dependencia de test `org.wiremock:wiremock-standalone` 3.13.2) para los contratos con Módulo 2 y Módulo 3
   - [x] Agregar JaCoCo (`jacoco-maven-plugin` 0.8.13, solo reporte) para el cierre de rama (agregado en el cierre de R7, check-out)
-- [ ] T015 Configurar el esqueleto base del frontend: router, cliente HTTP (Axios) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
+- [x] T015 Configurar el esqueleto base del frontend: router, cliente HTTP (`fetch` en `apiClient.ts`) y layouts por área (recepción, limpieza, mantenimiento, administración y gerencia) con Sidebar y Header
 - [x] T016 Implementar el historial común de estados: modelo `RoomStateHistory`, puerto `RoomStateHistoryRepositoryPort`, adaptador JPA y `RoomStateHistoryRecorder`, invocado únicamente por `RoomStateTransitionService` dentro de `TransitionRoomStateUseCase.transition(...)` y de `registerInitialStatus(...)` (Regla 8). Implementar también la bitácora `room_audit_log` (puerto `RoomAuditLogRepositoryPort` con `void record(RoomAuditEntry entry)`, donde `RoomAuditEntry(UUID roomId, RoomAuditEventType eventType, String actorId, Map<String, Object> details)`: `actorId` es nulo en los eventos autónomos y `event_date_time` lo pone el servidor con `Clock`; se escribe dentro de la transacción del flujo invocador; el contenido de `details` de cada tipo lo define el plan que lo usa) para los eventos que no son transiciones: conflictos al apartar (*Marcar habitación como reservada*), ediciones (*Editar habitación*) y el detalle de check-in y check-out (*Registrar check-in* y *Registrar check-out*, FR-015)
 - [x] T017 Crear la migración `V3__cleaning_maintenance_schema.sql` con las tablas `cleaning_task`, `reparation_task`, `damage_report` y `technical_block_report`, sus FK a `room` y sus índices (Regla 9); en `cleaning_task`, los dos `CHECK` y el índice parcial de última limpieza del modelo de datos (el predicado repite los outcomes de `CleaningTaskOutcome.countsAsCleaning()`, lo que se anota en un comentario de la migración); en `reparation_task` y `technical_block_report`, sin columna `version`, los `CHECK` y los índices parciales del modelo de datos. La migración no carga datos: los datos sintéticos de limpieza y mantenimiento, incluidas las habitaciones en `DisabledForRepairs` o `TechnicalBlock` junto con su `damage_report` o su informe `Applied`, van en `classpath:db/dev-data`, que `application.yml` solo añade en el perfil `dev` (las pruebas con Testcontainers no los cargan). Esos datos respetan las invariantes: cada `DisabledForRepairs` tiene su `DamageReport`, cada `TechnicalBlock` tiene exactamente un informe `Applied` y las tareas abiertas solo existen sobre `InCleaning`, `DisabledForRepairs` o `TechnicalBlock`. En operación, sus registros solo los crean los casos de uso: `cleaning_task`, *Marcar habitación en limpieza*; `damage_report`, *Marcar habitación inhabilitada por reparaciones*; `reparation_task`, *Confirmar fin de reparación* (al iniciar reparaciones); y `technical_block_report`, *Programar bloqueo técnico*. Los planes de limpieza y mantenimiento implementan sus repositorios sobre estas tablas
 - [x] T018 Puertos transversales de transición, sobre `TransitionRoomStateUseCase`. Se implementan en sus planes, que van primero en el orden de implementación (ver "Orden de implementación de los planes"), antes que los planes que los invocan:
@@ -1356,7 +1379,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
   | `DECOMMISSION_ROOM` | Dar de baja habitación |
 
 - [x] T020 Implementar el inicio de sesión (regla 14), después de T022: la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que leen la cuenta con `StaffAccountRepositoryPort` y validan la contraseña con `PasswordEncoderPort` (ambos de T022) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Los endpoints y las vistas de las cuentas los implementa `plan-gestionar-personal.md`
-- [ ] T021 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición con el interceptor de Axios (T015), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`. No hay vista prototipo del inicio de sesión: `LoginPage.tsx` sigue el estilo de las vistas existentes (punto abierto 2)
+- [x] T021 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición desde `apiClient.ts` (T015), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`. No hay vista prototipo del inicio de sesión: `LoginPage.tsx` sigue el estilo de las vistas existentes (punto abierto 2)
 - [x] T022 Implementar el núcleo de las cuentas del personal, que necesitan el inicio de sesión (T020) y todo endpoint con `X-User` (regla 14), según `spec-gestionar-personal.md` (FR-002 a FR-005 y FR-012):
   - `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
   - `StaffAccountRepositoryPort`, `SpringDataUserAccountJpaRepository` y `StaffAccountRepositoryAdapter`, con la consulta por usuario (`findByUsername`, que también usan los servicios de consulta que muestran el nombre de un responsable) y la consulta con bloqueo de las cuentas activas de Administración.

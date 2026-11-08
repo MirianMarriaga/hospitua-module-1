@@ -34,7 +34,7 @@ Implementar el caso de uso técnico **Consultar Reservas**, que resuelve dos req
 - **Storage**: PostgreSQL 16+ (tablas `daily_reservation`, `daily_reservation_room`, `daily_reservation_message_log`, `room`)
 - **Messaging**: RabbitMQ 3.13+ (Exchange topic `hospitua.events`, cola durable `m1.reservas.diarias.queue`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ), MockRestServiceServer / WireMock
-- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 19 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Búsqueda local de llegadas en mostrador < 50 ms p95 (100% sobre base de datos local).
@@ -384,7 +384,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 - [x] T019 [P] [US2] Implementar `DailyReservationSearchService` enriqueciendo cada habitación de la reserva con `RoomRepositoryPort` (estado `Reserved`).
 - [x] T020 [P] [US2] Exponer `SearchDailyReservationsUseCase` con `PendingArrivalsDto searchPendingArrivals(String query)` (`listAvailable` y la lista de `ArrivalGroup` en `groups`): cada `ArrivalGroup` es una reserva con `pendingRooms`, `totalRooms` y sus habitaciones sin `Stay` (los campos de `groups[]` de `GET /api/reception/arrivals`); `query` vacío devuelve todas las llegadas pendientes del día (`start_date = operationalDate`, mismo filtro que `findPendingArrivalReservationRef`). Diferencia documentada: un `ADDED` de hoy recibido sin lista del día sí aparta la habitación, mientras Recepción muestra "lista no disponible" (`plan-consultar-panel-recepcion.md`). Es el puerto de entrada para `ReceptionPanelController` (`GET /api/reception/arrivals?query={q}`, `plan-consultar-panel-recepcion.md`). Este plan no expone endpoints propios para la búsqueda, para que exista una sola ruta de consulta de llegadas.
   - Hecho (L08): `searchPendingArrivals(String query)` devuelve `PendingArrivalsDto` (`listAvailable` y `groups`), no solo la lista, para que el controlador no consulte aparte si llegó la lista del día (FR-011). Una habitación que no está en el inventario se omite, como en la ingesta.
-- [ ] T021 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
+- [x] T021 [P] [US2] Sin componentes propios: la interfaz de búsqueda y listado de llegadas es la pestaña Llegadas del panel (`ArrivalsTab.tsx` y `ReceptionSearchBar.tsx`, `plan-consultar-panel-recepcion.md` T013).
 
 ---
 
@@ -491,7 +491,7 @@ El mensaje `REMOVED` no incluye el objeto `reservation`.
 
 - [x] T030 Sanitización de entradas de texto en búsquedas locales: trim de espacios accidentales e insensibilidad a mayúsculas/minúsculas.
   - Hecho (L08): `DailyReservationSearchService.normalize` quita los espacios sobrantes y pasa a minúsculas; la referencia y el documento se comparan exactos, y el nombre, el apellido o el nombre completo por coincidencia parcial, con los comodines de `LIKE` escapados.
-- [ ] T031 Validar que no se muestren banners residuales tipo "Reserva encontrada" en la UI.
+- [x] T031 Validar que no se muestren banners residuales tipo "Reserva encontrada" en la UI.
 - [ ] T032 Auditoría y observabilidad: Métricas de latencia en la llamada REST a Módulo 2 y log transaccional de ingesta de cola en `daily_reservation_message_log`.
 
 ---

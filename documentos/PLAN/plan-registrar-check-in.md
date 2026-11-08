@@ -410,7 +410,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
   - Hecho: `GET /api/check-in/validate` (L11) y `POST /api/check-in` (L12), que responde 201 y toma el recepcionista de `X-User`; el cuerpo solo exige la forma (`RegisterCheckInRequest`).
   - `GET /api/check-in/validate?reservationRef={ref}&roomId={roomId}` (Paso 1; Endpoint 1).
   - `POST /api/check-in` (confirmación del Paso 3; Endpoint 2).
-- [ ] T018 [US1] Construir el flujo de 4 pasos en `pages/checkin/` y `checkInService.ts` (Endpoints 1 y 2) (FR-002):
+- [x] T018 [US1] Construir el flujo de 4 pasos en `pages/checkin/` y `checkInService.ts` (Endpoints 1 y 2) (FR-002):
   - `CheckInWizard.tsx`: lleva el paso actual y los datos entre pasos; se abre con `reservationRef` y `roomId` desde el botón "Check-in" del panel de recepción.
   - `Step1ReservationSummary.tsx`: reserva, titular y habitación específica (número, categoría y aforo) (vista `vistas/recepcionista/02-checkin-1-reserva.html`).
   - `Step2GuestCapture.tsx`: titular en solo lectura con la opción "El titular se aloja en esta habitación" (si no se marca, no cuenta como ocupante ni se le pide fecha de nacimiento), acompañantes con nombres y apellidos separados y panel migratorio visible solo para extranjeros, con fecha de nacimiento en el pasado (vista `vistas/recepcionista/03-checkin-2-huespedes.html`; FR-006, FR-007, FR-009).
@@ -438,7 +438,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 
 - [x] T024 [P] [US2] Verificar con el worker del outbox del plan base (T012) que un Check-In no publicado se reintenta con el mismo `messageId` y `sequenceNumber`, sin frenar otros mensajes, y que agotados los reintentos queda en `FAILED` con alerta.
   - Hecho (cierre de R13): en `CheckInOutboxRetryIntegrationTest`, el Check-In que falla no frena al otro, que se publica en el mismo ciclo, y al agotar los reintentos queda `FAILED` con la alerta `[OUTBOX_PUBLISH_FAILED]` en el log y sin llegar a la cola.
-- [ ] T025 [US2] Implementar manejo de contingencia en frontend: mensajes controlados sin jerga técnica cuando no se pueda registrar el Check-In.
+- [x] T025 [US2] Implementar manejo de contingencia en frontend: mensajes controlados sin jerga técnica cuando no se pueda registrar el Check-In.
 - [x] T026 [P] [US2] Unit test: Rechazar Check-In si el `startDate` de la reserva es distinto de la fecha actual en hora Colombia (`InvalidCheckInDateException`), usando un `Clock` fijo (FR-005; caso borde "Día operativo fijo").
 
 ---

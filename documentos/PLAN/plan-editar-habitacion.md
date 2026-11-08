@@ -243,7 +243,7 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L33): `EditRoomService` bloquea la fila (`lockById`, regla 13 del plan base) para que dos ediciones con la misma `version` queden en fila; luego compara la `version`, exige `Available`, aplica los cambios, valida el número nuevo, guarda con `RoomRepositoryPort.update` (escribe de inmediato y traduce el índice único del número) y registra `ROOM_EDITED`. La habitación inexistente responde el texto de la tabla, distinto del general del catálogo.
 - [x] T011 [US1] Agregar a `RoomController` el endpoint `PATCH /api/rooms/{roomId}`.
   - Hecho (L33): `EditRoomRequest` → `EditRoomCommand`, con el Administrador de `X-User`; responde 200 con `EditRoomResultDto`.
-- [ ] T012 [US1] Construir en el frontend `EditRoomPage.tsx` (formulario precargado con `GET /api/rooms/inventory/{roomId}`) y `EditRoomConfirmation.tsx` ("Antes / Ahora" y datos actualizados) (FR-001, FR-007).
+- [x] T012 [US1] Construir en el frontend `EditRoomPage.tsx` (formulario precargado con `GET /api/rooms/inventory/{roomId}`) y `EditRoomConfirmation.tsx` ("Antes / Ahora" y datos actualizados) (FR-001, FR-007).
 
 **Checkpoint**: El Administrador puede editar habitaciones disponibles con trazabilidad.
 

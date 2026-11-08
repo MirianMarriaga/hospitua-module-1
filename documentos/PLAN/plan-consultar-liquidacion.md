@@ -353,15 +353,15 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 - [x] T010 [US1] Implementar `SettlementRestAdapter` (GET con `reservationRef` y `roomId` desde `SettlementRequest`, mapeo de `settlementType` y `breakdown` a `SettlementSummary` convirtiendo los textos decimales a `BigDecimal`) (depende de T002, T004, T005)
   - Hecho (L13): lee solo `settlementType` y `breakdown`; los montos se leen como texto y se convierten con `new BigDecimal(...)`.
-- [ ] T011 [P] [US1] Implementar `settlementService.ts` en `frontend/src/api/`
+- [x] T011 [P] [US1] Implementar `settlementService.ts` en `frontend/src/api/`
 - [x] T012 [US1] Implementar `SettlementQueryService`: cargar `Stay`, construir `SettlementRequest`, invocar el puerto, tomar `source` de `Stay.source` y calcular `nights` (depende de T005, T006, T010)
   - Hecho (L14): sin `@Transactional`, para no retener una conexión de la base durante la llamada a Módulo 3; `nights` = días entre `checkInDate` y hoy.
 - [x] T013 [US1] Verificar que el único consumidor de `QuerySettlementUseCase` sea `SettlementController` (Endpoint 2), que usa el frontend del check-out en los pasos 2 y 3; el caso de uso no tiene lógica de liberación de habitación (depende de T012)
   - Hecho (L14): `SettlementController` es el único que usa `QuerySettlementUseCase`; el caso de uso solo lee.
 - [x] T014 [US1] Implementar `SettlementController` (Endpoint 2) (depende de T012)
   - Hecho (L14): `GET /api/stays/{stayId}/settlement`; un `stayId` que no es UUID da `400 VALIDATION_ERROR` y una estancia cerrada o inexistente `404 ACTIVE_STAY_NOT_FOUND`.
-- [ ] T015 [P] [US1] Implementar `SettlementCard.tsx` (Paso 2): "Liquidación informativa", Fuente, % y valor de comisión OTA ("No aplica" en directa), ingreso neto
-- [ ] T016 [P] [US1] Implementar `PaymentReviewCard.tsx` (Paso 3): hospedaje, noches, fechas de entrada y salida y la nota "La factura se emite al confirmar la salida"; sin IVA, total ni factura, y sin captura de pago
+- [x] T015 [P] [US1] Implementar `SettlementCard.tsx` (Paso 2): "Liquidación informativa", Fuente, % y valor de comisión OTA ("No aplica" en directa), ingreso neto
+- [x] T016 [P] [US1] Implementar `PaymentReviewCard.tsx` (Paso 3): hospedaje, noches, fechas de entrada y salida y la nota "La factura se emite al confirmar la salida"; sin IVA, total ni factura, y sin captura de pago
 - [x] T017 [US1] Garantizar idempotencia de reconsultas: sin escrituras en servicio ni controlador y `Cache-Control: no-store` respetado
   - Hecho (L14): el servicio solo lee la estancia y el controlador responde con `Cache-Control: no-store`.
 - [x] T018 [US1] Agregar logging (referencia de reserva, `source`, estado, latencia; sin montos)
@@ -396,7 +396,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
   - Hecho (L14): `SettlementResponseDto.unavailable(ex.unavailableCause())`, sin montos.
 - [x] T025 [US2] Mapear `UNAVAILABLE` como respuesta `200` controlada en `SettlementController` y registrar la contingencia
   - Hecho (L14): `200` en los dos estados; el log de la consulta registra el estado `UNAVAILABLE` y el adaptador, la causa.
-- [ ] T026 [P] [US2] Mostrar en las dos tarjetas el mensaje de indisponibilidad del servicio de facturación y devolver el control a Registrar Check-Out
+- [x] T026 [P] [US2] Mostrar en las dos tarjetas el mensaje de indisponibilidad del servicio de facturación y devolver el control a Registrar Check-Out
 
 **Checkpoint**: Las historias 1 y 2 funcionan de forma independiente.
 
@@ -406,7 +406,7 @@ Errores propios de Módulo 1 (formato `ApiError` del plan base); las fallas de M
 
 - [ ] T027 [P] Prueba de rendimiento: p95 < 800 ms normal y respuesta controlada < 3 s ante falla (SC-002, SC-003)
   - Pendiente (fuera de los lotes; `@Tag("performance")` a pedido). La respuesta controlada < 3 s la da el read-timeout de 3 s, probado en `SettlementQueryIntegrationTest` (T019).
-- [ ] T028 [P] Tests de componentes React en `frontend/src/test/settlement/` (estados `AVAILABLE` y `UNAVAILABLE`)
+- [x] T028 [P] Tests de componentes React en `frontend/src/test/settlement/` (estados `AVAILABLE` y `UNAVAILABLE`)
 - [x] T029 Agregar referencia cruzada en `spec-registrar-check-out.md` y `plan-registrar-check-out.md`
   - Hecho (cierre de R7): `plan-registrar-check-out.md` (Summary, "Structure Decision" y "Endpoints REST internos") y FR-005 de `spec-registrar-check-out.md` ya remiten a esta feature.
 
