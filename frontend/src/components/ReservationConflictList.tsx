@@ -39,7 +39,7 @@ export function ReservationConflictList({ reservations }: ReservationConflictLis
               <TableCell>{formatDate(reservation.startDate)}</TableCell>
               <TableCell>{formatDate(reservation.endDate)}</TableCell>
               <TableCell>
-                <Badge className="border-brand/30 bg-brand/10 text-brand">
+                <Badge className="border-primary/30 bg-primary/10 text-primary">
                   {RESERVATION_STATUS_LABELS[reservation.status] ?? reservation.status}
                 </Badge>
               </TableCell>

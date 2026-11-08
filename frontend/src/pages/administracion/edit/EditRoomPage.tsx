@@ -309,13 +309,14 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
                 <Alert variant="warning">
                   Otro usuario actualizó la información de esta habitación mientras la editabas. No
                   se guardaron tus cambios.{' '}
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
                     onClick={onReload}
-                    className="font-semibold underline hover:no-underline"
+                    className="h-auto p-0 font-semibold text-inherit underline hover:no-underline"
                   >
                     Cargar los datos actuales
-                  </button>
+                  </Button>
                 </Alert>
               )}
 

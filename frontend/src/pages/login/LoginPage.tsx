@@ -145,10 +145,12 @@ export function LoginPage() {
                               {...field}
                             />
                           </FormControl>
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-lo hover:text-ink focus:outline-none"
+                            className="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-text-lo hover:text-ink"
                             aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                           >
                             {showPassword ? (
@@ -156,7 +158,7 @@ export function LoginPage() {
                             ) : (
                               <Eye className="size-4" aria-hidden />
                             )}
-                          </button>
+                          </Button>
                         </div>
                         <FormMessage />
                       </FormItem>

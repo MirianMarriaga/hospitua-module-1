@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router';
 
 import { PageHero } from '@/components/PageHero';
-import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrivalsTab } from '@/pages/panel/ArrivalsTab';
 import { DeparturesTab } from '@/pages/panel/DeparturesTab';
 import { KpiCards } from '@/pages/panel/KpiCards';
@@ -48,41 +48,37 @@ export function ReceptionPanel() {
       {/* Contenido principal centrado a máx 1180 px */}
       <div className="mx-auto max-w-[1180px] space-y-5 px-6 py-6">
         <KpiCards kpis={kpis.data} />
-        <div className="overflow-hidden rounded-lg border border-line bg-paper">
-          <div
-            role="tablist"
+        <Tabs
+          value={tab}
+          onValueChange={(value) => selectTab(value === 'salidas' ? 'salidas' : 'llegadas')}
+          className="gap-0 overflow-hidden rounded-lg border border-line bg-paper"
+        >
+          <TabsList
+            variant="line"
             aria-label="Movimientos del día"
-            className="flex gap-1 border-b border-line px-3 pt-1"
+            className="h-auto w-full justify-start gap-1 rounded-none border-b border-line px-3 pt-1"
           >
-            {TABS.map((item) => {
-              const active = tab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => selectTab(item.id)}
-                  className={cn(
-                    'border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
-                    active
-                      ? 'border-brand text-brand'
-                      : 'border-transparent text-text-lo hover:text-ink',
-                  )}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+            {TABS.map((item) => (
+              <TabsTrigger
+                key={item.id}
+                value={item.id}
+                className="flex-none px-4 py-2 font-semibold text-text-lo after:bg-primary hover:text-ink data-[state=active]:text-primary"
+              >
+                {item.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
           <div className="p-4">
             <ReceptionSearchBar />
-            <div className="mt-4">
-              {tab === 'llegadas' ? <ArrivalsTab query={query} /> : <DeparturesTab query={query} />}
-            </div>
+            <TabsContent value="llegadas" className="mt-4">
+              <ArrivalsTab query={query} />
+            </TabsContent>
+            <TabsContent value="salidas" className="mt-4">
+              <DeparturesTab query={query} />
+            </TabsContent>
           </div>
-        </div>
+        </Tabs>
       </div>
     </div>
   );

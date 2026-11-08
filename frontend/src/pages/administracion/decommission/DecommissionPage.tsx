@@ -334,7 +334,7 @@ export function DecommissionPage() {
       {step === 3 && (
         <Card>
           <CardContent className="flex items-center gap-4 py-12">
-            <Loader2 className="size-8 animate-spin text-brand" aria-hidden />
+            <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
             <div>
               <div className="font-semibold text-ink">
                 Comprobando reservas de la habitación {room.roomNumber}…

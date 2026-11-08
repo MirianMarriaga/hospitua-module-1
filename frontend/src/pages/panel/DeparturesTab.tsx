@@ -3,6 +3,14 @@ import { Link } from 'react-router';
 import { type DepartureStay } from '@/api/receptionService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatDate } from '@/lib/format';
 import { categoryLabel, sourceLabel } from '@/lib/labels';
@@ -16,40 +24,34 @@ function checkOutLink(reservationRef: string, roomId: string): string {
 
 function DepartureRow({ stay }: { stay: DepartureStay }) {
   return (
-    <tr className="border-b border-line hover:bg-[#FAFAF7]">
-      <td className="px-4 py-3.5 align-middle">
+    <TableRow>
+      <TableCell>
         <div className="font-sans text-[20px] font-semibold text-text-hi">{stay.roomNumber}</div>
-      </td>
-      <td className="px-4 py-3.5 align-middle">
+      </TableCell>
+      <TableCell>
         <div className="font-semibold text-text-hi">
           {stay.titularFirstName} {stay.titularLastName}
         </div>
         <div className="mt-0.5 text-[13px] text-text-lo">{stay.titularDocumentNumber}</div>
-      </td>
-      <td className="px-4 py-3.5 align-middle tabular-nums text-text-hi">
-        {formatDate(stay.checkInDate)}
-      </td>
-      <td className="px-4 py-3.5 align-middle tabular-nums">
+      </TableCell>
+      <TableCell className="tabular-nums text-text-hi">{formatDate(stay.checkInDate)}</TableCell>
+      <TableCell className="tabular-nums">
         <div className={cn(stay.overdue ? 'font-semibold text-due' : 'text-text-hi')}>
           {formatDate(stay.expectedCheckoutDate)}
         </div>
         {stay.overdue && <div className="mt-0.5 text-[13px] font-medium text-due">Vencida</div>}
-      </td>
-      <td className="px-4 py-3.5 align-middle tabular-nums text-text-hi">{stay.guestCount}</td>
-      <td className="px-4 py-3.5 align-middle text-text-hi">{categoryLabel(stay.categoryRoom)}</td>
-      <td className="px-4 py-3.5 align-middle">
+      </TableCell>
+      <TableCell className="tabular-nums text-text-hi">{stay.guestCount}</TableCell>
+      <TableCell className="text-text-hi">{categoryLabel(stay.categoryRoom)}</TableCell>
+      <TableCell>
         <span className="font-semibold text-text-hi">{sourceLabel(stay.source)}</span>
-      </td>
-      <td className="px-4 py-3.5 text-right align-middle">
-        <Button
-          size="sm"
-          asChild
-          className="rounded-md bg-ink px-3.5 py-2 font-semibold text-white hover:bg-ink/90"
-        >
+      </TableCell>
+      <TableCell className="text-right">
+        <Button size="sm" asChild className="bg-ink px-3.5 text-primary-foreground hover:bg-ink/90">
           <Link to={checkOutLink(stay.reservationRef, stay.roomId)}>Check-out</Link>
         </Button>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -68,48 +70,32 @@ export function DeparturesTab({ query }: { query: string }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="table-stacked w-full border-collapse">
-        <thead>
-          <tr className="border-b border-line">
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Hab.
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Huésped titular
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Fecha entrada
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Fecha salida
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Personas
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Tipo habitación
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Fuente
-            </th>
-            <th className="px-4 py-3.5">
-              <span className="sr-only">Acciones</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {departures.data.stays.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="p-9 text-center text-text-lo">
-                <div className="empty">No hay salidas que mostrar.</div>
-              </td>
-            </tr>
-          ) : (
-            departures.data.stays.map((stay) => <DepartureRow key={stay.stayId} stay={stay} />)
-          )}
-        </tbody>
-      </table>
-    </div>
+    <Table className="table-stacked border-collapse">
+      <TableHeader className="bg-transparent">
+        <TableRow className="hover:bg-transparent">
+          <TableHead>Hab.</TableHead>
+          <TableHead>Huésped titular</TableHead>
+          <TableHead>Fecha entrada</TableHead>
+          <TableHead>Fecha salida</TableHead>
+          <TableHead>Personas</TableHead>
+          <TableHead>Tipo habitación</TableHead>
+          <TableHead>Fuente</TableHead>
+          <TableHead>
+            <span className="sr-only">Acciones</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {departures.data.stays.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={8} className="p-9 text-center text-text-lo">
+              <div>No hay salidas que mostrar.</div>
+            </TableCell>
+          </TableRow>
+        ) : (
+          departures.data.stays.map((stay) => <DepartureRow key={stay.stayId} stay={stay} />)
+        )}
+      </TableBody>
+    </Table>
   );
 }

@@ -910,7 +910,7 @@ frontend/                                                     # Árbol real revi
 ├── index.html
 ├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
 ├── playwright.config.ts
-├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/)
+├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/); paths @/* para el CLI de shadcn
 ├── vite.config.ts                                            # Proxy de /api, compilador de React (Babel) y Vitest con cobertura
 ├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
 │   ├── README.md
@@ -947,7 +947,7 @@ frontend/                                                     # Árbol real revi
     │   ├── StatusBadge.tsx
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
-    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, form, input, label, native-select, table, textarea
+    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, form, input, label, native-select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   └── useDebouncedValue.ts
