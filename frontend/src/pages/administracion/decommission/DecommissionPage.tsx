@@ -27,7 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { NativeSelect } from '@/components/ui/native-select';
+import { OptionSelect } from '@/components/OptionSelect';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiRequestError } from '@/api/apiClient';
 import { errorMessage } from '@/lib/errorMessages';
@@ -232,14 +232,17 @@ export function DecommissionPage() {
                     <FormItem className="max-w-md">
                       <FormLabel>Motivo de la baja *</FormLabel>
                       <FormControl>
-                        <NativeSelect {...field}>
-                          <option value="">Seleccionar motivo</option>
-                          {DECOMMISSION_REASONS.map((reason) => (
-                            <option key={reason} value={reason}>
-                              {DECOMMISSION_REASON_LABELS[reason]}
-                            </option>
-                          ))}
-                        </NativeSelect>
+                        <OptionSelect
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          emptyLabel="Seleccionar motivo"
+                          options={DECOMMISSION_REASONS.map((reason) => ({
+                            value: reason,
+                            label: DECOMMISSION_REASON_LABELS[reason],
+                          }))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

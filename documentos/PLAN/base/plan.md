@@ -941,6 +941,7 @@ frontend/                                                     # Árbol real revi
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
+    │   ├── OptionSelect.tsx                                  # Select de shadcn con lista de vidrio y opción vacía ("Todos", "Selecciona…")
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
@@ -948,7 +949,7 @@ frontend/                                                     # Árbol real revi
     │   ├── StatusBadge.tsx
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
-    │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, native-select, table, tabs, textarea
+    │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   ├── useDebouncedValue.ts
@@ -1043,9 +1044,10 @@ frontend/                                                     # Árbol real revi
     │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>
     │   └── themeStore.test.ts
     └── test/                                                 # Utilidades de las pruebas; cada prueba va junto a su archivo (*.test.ts[x])
+        ├── chooseOption.ts                                   # Elige una opción de un OptionSelect
         ├── fixtures/                                         # Datos de recepción y de habitaciones
         ├── renderWithProviders.tsx
-        └── setup.ts
+        └── setup.ts                                          # jest-dom y polyfills de jsdom (ResizeObserver, puntero, scrollIntoView)
 ```
 
 ---

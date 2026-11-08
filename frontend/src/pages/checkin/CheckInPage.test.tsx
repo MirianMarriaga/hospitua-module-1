@@ -7,6 +7,7 @@ import { registerCheckIn, validateCheckIn } from '@/api/checkInService';
 import { CheckInPage } from '@/pages/checkin/CheckInPage';
 import { VALIDATION } from '@/test/fixtures/reception';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/checkInService', () => ({ validateCheckIn: vi.fn(), registerCheckIn: vi.fn() }));
 
@@ -33,7 +34,7 @@ async function fillSecondGuest(nationality = 'Colombia') {
   await userEvent.type(within(second).getByLabelText('Apellidos'), 'Pérez');
   await userEvent.type(within(second).getByLabelText('Número de documento'), '79888777');
   const country = within(second).getByLabelText('Nacionalidad');
-  await userEvent.selectOptions(country, nationality);
+  await chooseOption(country, nationality);
   setDate(second, '1988-02-14');
 }
 

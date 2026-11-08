@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { OptionSelect } from '@/components/OptionSelect';
 import { useDebouncedSearchParam } from '@/hooks/useDebouncedSearchParam';
 import {
   ROOM_CATEGORIES,
@@ -57,18 +57,16 @@ export function RoomInventoryFilters() {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="f-tipo">Tipo</Label>
-          <NativeSelect
+          <OptionSelect
             id="f-tipo"
             value={searchParams.get('categoryRoom') ?? ''}
-            onChange={(event) => setParam('categoryRoom', event.target.value)}
-          >
-            <option value="">Todos</option>
-            {ROOM_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {ROOM_CATEGORY_LABELS[category]}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => setParam('categoryRoom', value)}
+            emptyLabel="Todos"
+            options={ROOM_CATEGORIES.map((category) => ({
+              value: category,
+              label: ROOM_CATEGORY_LABELS[category],
+            }))}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="f-piso">Piso</Label>
@@ -83,36 +81,30 @@ export function RoomInventoryFilters() {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="f-estado">Estado</Label>
-          <NativeSelect
+          <OptionSelect
             id="f-estado"
             value={searchParams.get('status') ?? ''}
-            onChange={(event) => setParam('status', event.target.value)}
-          >
-            <option value="">Todos</option>
-            {ROOM_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {ROOM_STATUS_LABELS[status]}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => setParam('status', value)}
+            emptyLabel="Todos"
+            options={ROOM_STATUSES.map((status) => ({
+              value: status,
+              label: ROOM_STATUS_LABELS[status],
+            }))}
+          />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="f-orden" className="text-sm font-normal">
           Ordenar por
         </Label>
-        <NativeSelect
+        <OptionSelect
           id="f-orden"
-          className="h-9 w-auto"
+          size="sm"
+          className="w-auto"
           value={searchParams.get('sort') ?? 'roomNumber'}
-          onChange={(event) => setParam('sort', event.target.value)}
-        >
-          {SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
+          onValueChange={(value) => setParam('sort', value)}
+          options={SORT_OPTIONS}
+        />
         <Button variant="link" className="ml-auto" onClick={clearFilters}>
           Limpiar filtros
         </Button>

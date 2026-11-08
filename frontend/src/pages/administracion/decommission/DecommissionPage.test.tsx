@@ -6,6 +6,7 @@ import { ApiRequestError } from '@/api/apiClient';
 import { decommissionRoom, getRoom, type Room, type RoomDecommissionDto } from '@/api/roomService';
 import { DecommissionPage } from '@/pages/administracion/decommission/DecommissionPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/roomService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/roomService')>()),
@@ -39,7 +40,7 @@ describe('DecommissionPage', () => {
 
     expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'OTHER');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Otro');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(await screen.findByText('Escribe el motivo de la baja.')).toBeInTheDocument();
@@ -69,10 +70,7 @@ describe('DecommissionPage', () => {
     expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
 
     // Seleccionar motivo
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Motivo de la baja/),
-      'PERMANENT_REMODELING',
-    );
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Remodelación permanente');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     // Paso 2: confirmación
@@ -112,7 +110,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
@@ -134,10 +132,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Motivo de la baja/),
-      'ADMINISTRATIVE_DECISION',
-    );
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Decisión administrativa');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
@@ -178,7 +173,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
@@ -199,7 +194,7 @@ describe('DecommissionPage', () => {
 
     // Un texto pegado por encima del límite lo rechaza el esquema, igual que el backend.
     fireEvent.change(detail, { target: { value: 'x'.repeat(501) } });
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(await screen.findByText('El detalle admite máximo 500 caracteres.')).toBeInTheDocument();
@@ -213,7 +208,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'OTHER');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Otro');
     await userEvent.type(screen.getByRole('textbox'), '  Cierre del ala norte  ');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
@@ -238,7 +233,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 

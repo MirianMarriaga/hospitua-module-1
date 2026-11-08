@@ -7,6 +7,7 @@ import { getRoomStateHistory, type RoomStatePeriod } from '@/api/historyService'
 import { RoomStateHistoryPage } from '@/pages/gerencia/RoomStateHistoryPage';
 import { page } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/historyService', () => ({ getRoomStateHistory: vi.fn() }));
 
@@ -96,7 +97,7 @@ describe('RoomStateHistoryPage', () => {
     await screen.findByText('En curso');
     expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 3);
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'DOBLE');
+    await chooseOption(screen.getByLabelText('Tipo'), 'Doble');
 
     await waitFor(() =>
       expect(getRoomStateHistory).toHaveBeenLastCalledWith(

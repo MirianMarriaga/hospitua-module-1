@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
+import { OptionSelect } from '@/components/OptionSelect';
 import {
   Table,
   TableBody,
@@ -361,13 +361,16 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
                     <FormItem>
                       <FormLabel>Tipo *</FormLabel>
                       <FormControl>
-                        <NativeSelect {...field}>
-                          {ROOM_CATEGORIES.map((category) => (
-                            <option key={category} value={category}>
-                              {ROOM_CATEGORY_LABELS[category]}
-                            </option>
-                          ))}
-                        </NativeSelect>
+                        <OptionSelect
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          options={ROOM_CATEGORIES.map((category) => ({
+                            value: category,
+                            label: ROOM_CATEGORY_LABELS[category],
+                          }))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -7,6 +7,7 @@ import { registerRoom } from '@/api/roomService';
 import { RegisterRoomPage } from '@/pages/administracion/register/RegisterRoomPage';
 import { room } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/roomService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/roomService')>()),
@@ -16,7 +17,7 @@ vi.mock('@/api/roomService', async (importOriginal) => ({
 async function fillForm(values: { number: string; floor: string; capacity: string; rate: string }) {
   await userEvent.type(screen.getByLabelText(/Número de habitación/), values.number);
   await userEvent.type(screen.getByLabelText(/Piso/), values.floor);
-  await userEvent.selectOptions(screen.getByLabelText(/Tipo/), 'DOBLE');
+  await chooseOption(screen.getByLabelText(/Tipo/), 'Doble');
   await userEvent.type(screen.getByLabelText(/Capacidad máxima/), values.capacity);
   await userEvent.type(screen.getByLabelText(/Tarifa base/), values.rate);
   await userEvent.click(screen.getByRole('button', { name: 'Registrar habitación' }));

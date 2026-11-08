@@ -14,3 +14,8 @@ afterEach(() => {
   cleanup();
   sessionStorage.clear();
 });
+
+// jsdom no trae la captura de puntero ni scrollIntoView, que usa el Select de Radix (OptionSelect).
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};

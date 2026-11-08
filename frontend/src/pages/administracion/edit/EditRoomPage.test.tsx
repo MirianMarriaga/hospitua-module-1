@@ -148,7 +148,7 @@ describe('EditRoomPage', () => {
     await screen.findByText('Editar habitación 101');
     expect(screen.getByLabelText(/Número de habitación/)).toHaveValue('101');
     expect(screen.getByLabelText(/Piso/)).toHaveValue(1);
-    expect(screen.getByLabelText(/Tipo/)).toHaveValue('SENCILLA');
+    expect(screen.getByLabelText(/Tipo/)).toHaveTextContent('Sencilla');
     expect(screen.getByLabelText(/Capacidad máxima/)).toHaveValue(1);
     expect(screen.getByLabelText(/Tarifa base por noche/)).toHaveValue(180000);
     expect(screen.queryByText('room-101')).not.toBeInTheDocument();

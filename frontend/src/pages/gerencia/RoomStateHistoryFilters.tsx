@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { OptionSelect } from '@/components/OptionSelect';
 import { useDebouncedSearchParam } from '@/hooks/useDebouncedSearchParam';
 import {
   ROOM_CATEGORIES,
@@ -56,33 +56,29 @@ export function RoomStateHistoryFilters({ rangeError }: { rangeError?: string })
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="h-tipo">Tipo</Label>
-          <NativeSelect
+          <OptionSelect
             id="h-tipo"
             value={searchParams.get('categoryRoom') ?? ''}
-            onChange={(event) => setParam('categoryRoom', event.target.value)}
-          >
-            <option value="">Todos</option>
-            {ROOM_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {ROOM_CATEGORY_LABELS[category]}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => setParam('categoryRoom', value)}
+            emptyLabel="Todos"
+            options={ROOM_CATEGORIES.map((category) => ({
+              value: category,
+              label: ROOM_CATEGORY_LABELS[category],
+            }))}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="h-estado">Estado</Label>
-          <NativeSelect
+          <OptionSelect
             id="h-estado"
             value={searchParams.get('status') ?? ''}
-            onChange={(event) => setParam('status', event.target.value)}
-          >
-            <option value="">Todos</option>
-            {ROOM_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {ROOM_STATUS_LABELS[status]}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => setParam('status', value)}
+            emptyLabel="Todos"
+            options={ROOM_STATUSES.map((status) => ({
+              value: status,
+              label: ROOM_STATUS_LABELS[status],
+            }))}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="h-desde">Desde</Label>
