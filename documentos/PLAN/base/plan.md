@@ -937,19 +937,22 @@ frontend/                                                     # Árbol real revi
     │   └── settlementService.ts
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
+    │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
+    │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
     │   ├── StatusBadge.tsx
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
-    │   └── ui/                                               # shadcn/ui: alert, badge, button, card, checkbox, dropdown-menu, form, input, label, native-select, table, tabs, textarea
+    │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, native-select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
-    │   └── useDebouncedValue.ts
+    │   ├── useDebouncedValue.ts
+    │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
     ├── layouts/
     │   ├── AreaLayout.tsx                                    # Guarda de área, Sidebar y panel principal de vidrio con TopBar y Outlet
     │   ├── Sidebar.tsx                                       # Barra lateral verde azulada: logo, área, menú del área y UserMenu (barra superior bajo 900 px)
@@ -964,6 +967,7 @@ frontend/                                                     # Árbol real revi
     │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
     │   ├── queryClient.ts                                    # Reintentos solo ante errores de red
     │   ├── queryKeys.ts                                      # Claves de consulta que comparten varias pantallas
+    │   ├── roomNumberSearch.ts                               # Búsqueda por número exacto y su mensaje sin resultados
     │   └── utils.ts                                          # cn()
     ├── pages/
     │   ├── login/
@@ -976,7 +980,6 @@ frontend/                                                     # Árbol real revi
     │   │   ├── DeparturesTab.tsx
     │   │   ├── ReceptionSearchBar.tsx
     │   │   ├── panelErrors.ts
-    │   │   ├── panelRefresh.ts                               # Consulta cada 60 s y al volver al panel (recepción T029)
     │   │   └── useReceptionPanel.ts                          # KPI, llegadas (con select para la tabla) y salidas
     │   ├── checkin/                                          # Vistas 02-05: Check-In de 4 pasos
     │   │   ├── CheckInPage.tsx                               # Lleva el paso actual (checkInReducer.ts)

@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-
 import {
   getArrivals,
   getDepartures,
@@ -8,15 +6,11 @@ import {
   type ArrivalRoom,
   type ArrivalsResponse,
 } from '@/api/receptionService';
+import { usePanelQuery } from '@/hooks/usePanelQuery';
 import { RECEPTION_KEY } from '@/lib/queryKeys';
-import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
 
 export function useReceptionKpis() {
-  return useQuery({
-    queryKey: [...RECEPTION_KEY, 'kpis'],
-    queryFn: getReceptionKpis,
-    ...PANEL_REFRESH,
-  });
+  return usePanelQuery([...RECEPTION_KEY, 'kpis'], getReceptionKpis);
 }
 
 export interface ArrivalRowData {
@@ -40,18 +34,13 @@ export function toArrivalsView(data: ArrivalsResponse): ArrivalsView {
 }
 
 export function useArrivals(query: string) {
-  return useQuery({
-    queryKey: [...RECEPTION_KEY, 'arrivals', query],
-    queryFn: () => getArrivals(query),
-    select: toArrivalsView,
-    ...PANEL_REFRESH,
-  });
+  return usePanelQuery(
+    [...RECEPTION_KEY, 'arrivals', query],
+    () => getArrivals(query),
+    toArrivalsView,
+  );
 }
 
 export function useDepartures(query: string) {
-  return useQuery({
-    queryKey: [...RECEPTION_KEY, 'departures', query],
-    queryFn: () => getDepartures(query),
-    ...PANEL_REFRESH,
-  });
+  return usePanelQuery([...RECEPTION_KEY, 'departures', query], () => getDepartures(query));
 }

@@ -19,6 +19,7 @@
   --color-primary-bg: var(--primary-bg);
   --color-field: var(--field);
   --color-row-hover: var(--row-hover);
+  --color-overlay: var(--overlay);
   --color-sidebar-text: var(--sidebar-text);
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-avatar: var(--sidebar-avatar);
