@@ -44,12 +44,13 @@ export function Sidebar({ area, items, session, onLogout }: SidebarProps) {
                   end
                   className={({ isActive }) =>
                     cn(
-                      'block rounded-lg px-2.5 py-2 text-sm font-medium text-sidebar-text transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground',
+                      'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-sidebar-text transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground',
                       isActive &&
                         'bg-sidebar-avatar text-sidebar-foreground shadow-[inset_0_1px_0_var(--sidebar-hover)]',
                     )
                   }
                 >
+                  <item.icon className="size-4 shrink-0" aria-hidden />
                   {item.label}
                 </NavLink>
               </li>
