@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { initials } from '@/lib/format';
 import { STAFF_ROLE_LABELS } from '@/lib/labels';
+import { cn } from '@/lib/utils';
 import type { Session } from '@/stores/sessionStore';
 import { type Theme, useThemeStore } from '@/stores/themeStore';
 
@@ -20,7 +21,17 @@ const THEMES: { value: Theme; label: string; Icon: typeof Sun }[] = [
 ];
 
 /** Usuario abajo en la barra lateral; su menú se abre hacia arriba con el tema y "Salir". */
-export function UserMenu({ session, onLogout }: { session: Session; onLogout: () => void }) {
+export function UserMenu({
+  session,
+  collapsed = false,
+  onLogout,
+}: {
+  session: Session;
+  /** Con la barra plegada solo se ve el avatar. */
+  collapsed?: boolean;
+  onLogout: () => void;
+}) {
+  const hidden = collapsed ? 'min-[901px]:hidden' : undefined;
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
 
@@ -28,12 +39,15 @@ export function UserMenu({ session, onLogout }: { session: Session; onLogout: ()
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Menú de ${session.fullName}`}
-        className="flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left transition-colors outline-none hover:bg-sidebar-hover focus-visible:ring-2 focus-visible:ring-sidebar-foreground/60 data-[state=open]:bg-sidebar-hover"
+        className={cn(
+          'flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left transition-colors outline-none hover:bg-sidebar-hover focus-visible:ring-2 focus-visible:ring-sidebar-foreground/60 data-[state=open]:bg-sidebar-hover',
+          collapsed && 'min-[901px]:justify-center min-[901px]:px-0',
+        )}
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-avatar text-[13px] font-semibold text-sidebar-foreground">
           {initials(session.fullName)}
         </span>
-        <span className="min-w-0 leading-tight">
+        <span className={cn('min-w-0 leading-tight', hidden)}>
           <span className="block truncate text-[13.5px] font-semibold text-sidebar-foreground">
             {session.fullName}
           </span>
@@ -41,7 +55,10 @@ export function UserMenu({ session, onLogout }: { session: Session; onLogout: ()
             {STAFF_ROLE_LABELS[session.area]}
           </span>
         </span>
-        <ChevronsUpDown className="ml-auto size-4 shrink-0 text-sidebar-muted" aria-hidden />
+        <ChevronsUpDown
+          className={cn('ml-auto size-4 shrink-0 text-sidebar-muted', hidden)}
+          aria-hidden
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         side="top"

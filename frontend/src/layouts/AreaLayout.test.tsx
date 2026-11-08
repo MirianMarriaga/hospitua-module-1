@@ -63,6 +63,26 @@ describe('AreaLayout', () => {
     expect(screen.getByRole('link', { name: 'Inventario' })).toBeInTheDocument();
   });
 
+  it('pliega y despliega la barra lateral sin perder los nombres del menú', async () => {
+    const user = userEvent.setup();
+    useSessionStore.setState({
+      session: { username: 'admin', fullName: 'Laura Méndez', area: 'ADMINISTRACION' },
+    });
+    renderWithProviders(<AreaLayout area="ADMINISTRACION" />, { route: '/' });
+    const toggle = screen.getByRole('button', { name: 'Mostrar u ocultar la barra lateral' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const inventario = screen.getByRole('link', { name: 'Inventario' });
+    expect(inventario).toHaveAttribute('title', 'Inventario');
+    expect(within(inventario).getByText('Inventario')).toHaveClass('min-[901px]:sr-only');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(within(inventario).getByText('Inventario')).not.toHaveClass('min-[901px]:sr-only');
+  });
+
   it('muestra la ruta con el área y la opción del menú', () => {
     useSessionStore.setState({
       session: { username: 'admin', fullName: 'Laura Méndez', area: 'ADMINISTRACION' },
