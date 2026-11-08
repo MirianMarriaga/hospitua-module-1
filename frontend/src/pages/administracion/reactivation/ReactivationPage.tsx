@@ -4,15 +4,21 @@ import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
 import { getRoomDecommission, reactivateRoom, type ReactivateRoomRequest } from '@/api/roomService';
-import { type RoomStatus } from '@/api/types';
+import type { RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate } from '@/lib/format';
-import { DECOMMISSION_REASON_LABELS, ROOM_CATEGORY_LABELS, ROOM_STATUS_LABELS } from '@/lib/labels';
+import { errorMessage } from '@/lib/errorMessages';
+import { formatTimestampDate } from '@/lib/format';
+import {
+  DECOMMISSION_REASON_LABELS,
+  isRoomStatus,
+  ROOM_CATEGORY_LABELS,
+  ROOM_STATUS_LABELS,
+} from '@/lib/labels';
 
 function RoomSummaryBox({
   roomNumber,
@@ -215,7 +221,7 @@ export function ReactivationPage() {
           <dl className="grid gap-3 rounded-lg border border-line bg-paper-dim p-4 sm:grid-cols-2">
             <InfoItem label="Dada de baja el">
               <span className="font-semibold text-ink">
-                {formatDate(decommissionInfo.decommissionDateTime)}
+                {formatTimestampDate(decommissionInfo.decommissionDateTime)}
               </span>
             </InfoItem>
             <InfoItem label="Motivo de la baja">
@@ -268,8 +274,11 @@ function ReactivationErrorAlert({ error, roomNumber }: { error: unknown; roomNum
   const details = isApiError ? error.details : {};
 
   if (errorCode === 'ROOM_INVALID_STATE') {
-    const currentStatus = (details?.currentStatus as RoomStatus) || 'Available';
-    const statusLabel = ROOM_STATUS_LABELS[currentStatus] ?? currentStatus;
+    const reported = details.currentStatus;
+    const statusLabel =
+      typeof reported === 'string' && isRoomStatus(reported)
+        ? ROOM_STATUS_LABELS[reported]
+        : ROOM_STATUS_LABELS.Available;
     return (
       <Alert variant="warning">
         La habitación {roomNumber} ya no está inactiva (estado actual: <b>{statusLabel}</b>). No se
@@ -286,5 +295,5 @@ function ReactivationErrorAlert({ error, roomNumber }: { error: unknown; roomNum
     );
   }
 
-  return <ErrorAlert message={error instanceof Error ? error.message : 'Error inesperado.'} />;
+  return <ErrorAlert message={errorMessage(error)} />;
 }

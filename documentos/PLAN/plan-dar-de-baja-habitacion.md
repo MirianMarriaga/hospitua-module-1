@@ -258,7 +258,7 @@ En los dos últimos casos la habitación sigue `Available`.
   - Hecho (L31): en `DecommissionRoomIntegrationTest`, con Módulo 2 en WireMock (no `MockRestServiceServer`): la respuesta se demora y, mientras tanto, otra transacción pasa la habitación a `InCleaning`.
 - [x] T012 [US1] Integration test: un fallo forzado al registrar `RoomDecommission` revierte la transición y el periodo del historial; la habitación sigue `Available` (caso borde 3).
   - Hecho (L31): en `DecommissionRoomIntegrationTest`, con un espía de `RoomDecommissionRepositoryPort` que falla al guardar.
-- [ ] T013 [P] [US1] Component test en `DecommissionRoomPage`:
+- [x] T013 [P] [US1] Component test en `DecommissionRoomPage`:
   - El paso del motivo muestra número, piso, tipo y estado.
   - "Otro" exige texto y el contador limita a 500 caracteres.
   - La confirmación muestra habitación, motivo y detalle, y cancelar no envía nada.

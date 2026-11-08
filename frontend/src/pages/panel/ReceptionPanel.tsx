@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ArrivalsTab } from '@/pages/panel/ArrivalsTab';
 import { DeparturesTab } from '@/pages/panel/DeparturesTab';
 import { KpiCards } from '@/pages/panel/KpiCards';
+import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
 import { ReceptionSearchBar } from '@/pages/panel/ReceptionSearchBar';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -20,13 +21,16 @@ const TABS: { id: Tab; label: string }[] = [
 /** Panel de `recepcionista/01-inicio.html`: hero con foto, KPIs, pestañas y tabla. */
 export function ReceptionPanel() {
   const session = useSessionStore((state) => state.session);
-  const fullName = session?.fullName ?? 'Ana Ramírez';
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get('tab') === 'salidas' ? 'salidas' : 'llegadas';
   const query = searchParams.get('query') ?? '';
 
-  const kpis = useQuery({ queryKey: ['reception', 'kpis'], queryFn: getReceptionKpis });
+  const kpis = useQuery({
+    queryKey: ['reception', 'kpis'],
+    queryFn: getReceptionKpis,
+    ...PANEL_REFRESH,
+  });
 
   function selectTab(next: Tab) {
     setSearchParams((previous) => {
@@ -43,7 +47,7 @@ export function ReceptionPanel() {
   return (
     <div className="min-h-full">
       <PageHero
-        title={`Bienvenida, ${fullName}`}
+        title={session ? `Bienvenida, ${session.fullName}` : 'Bienvenida'}
         subtitle="Estancias · llegadas y salidas del día"
       />
 

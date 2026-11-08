@@ -139,4 +139,83 @@ describe('EditRoomPage', () => {
     expect(await screen.findByText('No se puede editar la habitación 101')).toBeInTheDocument();
     expect(screen.getByText(/Solo se pueden editar habitaciones disponibles/)).toBeInTheDocument();
   });
+  it('llega precargado con los datos actuales y no muestra ni deja editar el UUID', async () => {
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+
+    await screen.findByText('Editar habitación 101');
+    expect(screen.getByLabelText(/Número de habitación/)).toHaveValue('101');
+    expect(screen.getByLabelText(/Piso/)).toHaveValue(1);
+    expect(screen.getByLabelText(/Tipo/)).toHaveValue('SENCILLA');
+    expect(screen.getByLabelText(/Capacidad máxima/)).toHaveValue(1);
+    expect(screen.getByLabelText(/Tarifa base por noche/)).toHaveValue(180000);
+    expect(screen.queryByText('room-101')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('room-101')).not.toBeInTheDocument();
+  });
+
+  it('valida los campos con los textos del plan sin llamar al backend', async () => {
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+
+    await screen.findByText('Editar habitación 101');
+    await userEvent.clear(screen.getByLabelText(/Número de habitación/));
+    await userEvent.clear(screen.getByLabelText(/Capacidad máxima/));
+    await userEvent.type(screen.getByLabelText(/Capacidad máxima/), '0');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('El número de habitación es obligatorio.')).toBeInTheDocument();
+    expect(
+      screen.getByText('La capacidad máxima debe ser un número entero mayor a 0.'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Número de habitación/)).toHaveFocus();
+    expect(editRoom).not.toHaveBeenCalled();
+  });
+
+  it('un VALIDATION_ERROR del backend marca su campo y conserva los demás valores', async () => {
+    vi.mocked(editRoom).mockRejectedValue(
+      new ApiRequestError(400, 'VALIDATION_ERROR', 'mensaje técnico', { field: 'baseRate' }),
+    );
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+
+    await screen.findByText('Editar habitación 101');
+    await userEvent.clear(screen.getByLabelText(/Piso/));
+    await userEvent.type(screen.getByLabelText(/Piso/), '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(
+      await screen.findByText('La tarifa base debe ser mayor a 0 y tener máximo dos decimales.'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Piso/)).toHaveValue(2);
+    expect(screen.queryByText('mensaje técnico')).not.toBeInTheDocument();
+  });
+
+  it('un 409 ROOM_INVALID_STATE al guardar muestra el estado actual en español', async () => {
+    vi.mocked(editRoom).mockRejectedValue(
+      new ApiRequestError(409, 'ROOM_INVALID_STATE', 'mensaje técnico', {
+        currentStatus: 'PendingCleaning',
+      }),
+    );
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+
+    await screen.findByText('Editar habitación 101');
+    await userEvent.clear(screen.getByLabelText(/Piso/));
+    await userEvent.type(screen.getByLabelText(/Piso/), '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(
+      await screen.findByText(
+        'La habitación no está disponible para edición (estado actual: Pendiente de limpieza).',
+      ),
+    ).toBeInTheDocument();
+  });
 });

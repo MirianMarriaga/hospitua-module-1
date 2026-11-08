@@ -10,7 +10,7 @@ import {
   type RoomDecommissionInfoDto,
 } from '@/api/roomService';
 import { ReactivationPage } from '@/pages/administracion/reactivation/ReactivationPage';
-import { renderWithProviders } from '@/test/renderWithProviders';
+import { LocationProbe, renderWithProviders } from '@/test/renderWithProviders';
 
 vi.mock('@/api/roomService', () => ({
   getRoomDecommission: vi.fn(),
@@ -24,7 +24,7 @@ const INACTIVE_ROOM_INFO: RoomDecommissionInfoDto = {
   categoryRoom: 'BOUTIQUE',
   status: 'Inactive',
   decommissionId: 'dec-uuid-1',
-  decommissionDateTime: '2026-10-08T10:00:00Z',
+  decommissionDateTime: '2026-10-08T22:30:00-05:00',
   reasonCategory: 'ADMINISTRATIVE_DECISION',
   reasonDetail: 'Ajuste operativo temporal',
 };
@@ -123,5 +123,37 @@ describe('ReactivationPage', () => {
     expect(
       await screen.findByText(/La habitación 204 ya no está inactiva \(estado actual:/),
     ).toBeInTheDocument();
+  });
+  it('la confirmación muestra la habitación y la baja, y "Cancelar" vuelve sin enviar nada', async () => {
+    renderWithProviders(<ReactivationPage />, {
+      route: '/administracion/habitaciones/room-204/reactivacion',
+      path: '/administracion/habitaciones/:roomId/reactivacion',
+      extraRoutes: [
+        { path: '/administracion/inventario', element: <LocationProbe label="inventario" /> },
+      ],
+    });
+
+    await screen.findByText('¿Reactivar la habitación 204?');
+    expect(screen.getByText('Piso 2')).toBeInTheDocument();
+    expect(screen.getByText('Boutique')).toBeInTheDocument();
+    expect(screen.getByText('Inactiva')).toBeInTheDocument();
+    expect(screen.getByText('08-10-2026')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Cancelar' }));
+
+    expect(await screen.findByTestId('location')).toHaveTextContent('inventario');
+    expect(reactivateRoom).not.toHaveBeenCalled();
+  });
+
+  it('sin detalle de la baja no muestra el campo Detalle', async () => {
+    vi.mocked(getRoomDecommission).mockResolvedValue({ ...INACTIVE_ROOM_INFO, reasonDetail: null });
+    renderWithProviders(<ReactivationPage />, {
+      route: '/administracion/habitaciones/room-204/reactivacion',
+      path: '/administracion/habitaciones/:roomId/reactivacion',
+    });
+
+    await screen.findByText('¿Reactivar la habitación 204?');
+    expect(screen.getByText('Decisión administrativa')).toBeInTheDocument();
+    expect(screen.queryByText('Detalle')).not.toBeInTheDocument();
   });
 });

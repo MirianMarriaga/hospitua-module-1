@@ -970,7 +970,8 @@ frontend/                                                     # Árbol real revi
     │   │   ├── ArrivalsTab.tsx
     │   │   ├── DeparturesTab.tsx
     │   │   ├── ReceptionSearchBar.tsx
-    │   │   └── panelErrors.ts
+    │   │   ├── panelErrors.ts
+    │   │   └── panelRefresh.ts                               # Consulta cada 60 s y al volver al panel (recepción T029)
     │   ├── checkin/                                          # Vistas 02-05: Check-In de 4 pasos
     │   │   ├── CheckInPage.tsx                               # Lleva el paso actual (checkInReducer.ts)
     │   │   ├── ReservationStep.tsx
@@ -1000,11 +1001,13 @@ frontend/                                                     # Árbol real revi
     │   │   ├── inventoryParams.ts                            # Filtros y página en la URL
     │   │   ├── RegisterRoomPage.tsx
     │   │   ├── RegisterRoomSuccess.tsx
-    │   │   ├── registerRoomSchema.ts
+    │   │   ├── registerRoomSchema.ts                         # Reglas de Room del backend; también las usa editar
     │   │   ├── edit/
-    │   │   │   └── EditRoomPage.tsx                          # Formulario y confirmación "Antes / Ahora"
+    │   │   │   ├── EditRoomPage.tsx                          # Formulario y confirmación "Antes / Ahora"
+    │   │   │   └── editRoomSchema.ts                         # Reglas de registerRoomSchema.ts con los textos de editar
     │   │   ├── decommission/
-    │   │   │   └── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
+    │   │   │   ├── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
+    │   │   │   └── decommissionSchema.ts                     # Motivo del catálogo y detalle (máximo 500; obligatorio con "Otro")
     │   │   └── reactivation/
     │   │       └── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
     │   ├── gerencia/                                         # Historial de estados

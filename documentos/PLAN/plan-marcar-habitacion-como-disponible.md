@@ -345,7 +345,7 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
   - Hecho (L32): en `RoomDecommissionQueryServiceTest`; por HTTP, `ReactivateRoomIntegrationTest` comprueba la baja de la semilla y que `reasonDetail` se omite sin detalle.
 - [x] T015 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
   - Hecho (L32): en `ReactivateRoomIntegrationTest`, con dos hilos sobre `ReactivateRoomUseCase`.
-- [ ] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
+- [x] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
   - La confirmación muestra número, piso, tipo y estado, más la fecha, el motivo y el detalle de la baja (el detalle solo si existe).
   - Cancelar no envía nada.
   - El resultado indica que la habitación ya puede recibir reservas y estancias, o que no fue necesario hacer cambios.

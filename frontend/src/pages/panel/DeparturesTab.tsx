@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/format';
 import { categoryLabel, sourceLabel } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 import { PANEL_ERRORS } from '@/pages/panel/panelErrors';
+import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
 
 function checkOutLink(reservationRef: string, roomId: string): string {
   return `/check-out?${new URLSearchParams({ reservationRef, roomId }).toString()}`;
@@ -57,6 +58,7 @@ export function DeparturesTab({ query }: { query: string }) {
   const departures = useQuery({
     queryKey: ['reception', 'departures', query],
     queryFn: () => getDepartures(query),
+    ...PANEL_REFRESH,
   });
 
   if (departures.isPending) {

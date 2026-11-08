@@ -1,17 +1,26 @@
 import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
 import { editRoom, getRoom, type EditRoomRequest, type Room } from '@/api/roomService';
-import { type RoomCategory, type RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import {
@@ -22,8 +31,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { errorCodeOf, errorMessage } from '@/lib/errorMessages';
 import { formatMoney, formatPeople } from '@/lib/format';
-import { ROOM_CATEGORIES, ROOM_CATEGORY_LABELS, ROOM_STATUS_LABELS } from '@/lib/labels';
+import {
+  isRoomCategory,
+  isRoomStatus,
+  ROOM_CATEGORIES,
+  ROOM_CATEGORY_LABELS,
+  ROOM_STATUS_LABELS,
+} from '@/lib/labels';
+import {
+  editRoomSchema,
+  fieldErrorText,
+  hasChanges,
+  isEditRoomField,
+  toEditRoomRequest,
+  toEditRoomValues,
+  type EditRoomValues,
+} from '@/pages/administracion/edit/editRoomSchema';
 
 const FIELD_LABELS: Record<string, string> = {
   roomNumber: 'Número de habitación',
@@ -37,7 +62,8 @@ function formatValue(field: string, val: unknown): string {
   if (val === null || val === undefined) return '';
   if (field === 'floor') return `Piso ${val}`;
   if (field === 'categoryRoom') {
-    return ROOM_CATEGORY_LABELS[val as RoomCategory] ?? String(val);
+    const category = String(val);
+    return isRoomCategory(category) ? ROOM_CATEGORY_LABELS[category] : category;
   }
   if (field === 'maxCapacity') return formatPeople(Number(val));
   if (field === 'baseRate') return formatMoney(Number(val));
@@ -117,52 +143,52 @@ export function EditRoomPage() {
     );
   }
 
-  return <EditRoomFormContainer room={room} onReload={() => roomQuery.refetch()} />;
+  // La clave reinicia el formulario con los datos nuevos al pulsar "Cargar los datos actuales".
+  return (
+    <EditRoomFormContainer
+      key={room.version}
+      room={room}
+      onReload={() => void roomQuery.refetch()}
+    />
+  );
 }
 
 function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () => void }) {
   const queryClient = useQueryClient();
-
-  const [roomNumber, setRoomNumber] = useState(room.roomNumber);
-  const [floor, setFloor] = useState(String(room.floor));
-  const [categoryRoom, setCategoryRoom] = useState<RoomCategory>(room.categoryRoom);
-  const [maxCapacity, setMaxCapacity] = useState(String(room.maxCapacity));
-  const [baseRate, setBaseRate] = useState(String(room.baseRate));
-
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [noChangesNotice, setNoChangesNotice] = useState(false);
-  const [concurrentError, setConcurrentError] = useState(false);
+
+  const form = useForm<EditRoomValues>({
+    resolver: zodResolver(editRoomSchema),
+    defaultValues: toEditRoomValues(room),
+  });
 
   const editMutation = useMutation({
     mutationFn: (request: EditRoomRequest) => editRoom(room.roomId, request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['room', room.roomId] });
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      void queryClient.invalidateQueries({ queryKey: ['room', room.roomId] });
     },
-    onError: (err) => {
-      if (err instanceof ApiRequestError) {
-        if (err.errorCode === 'CONCURRENT_UPDATE') {
-          setConcurrentError(true);
-        } else if (err.errorCode === 'ROOM_NUMBER_ALREADY_EXISTS') {
-          setFieldErrors({
-            roomNumber: `Ya existe una habitación con el número ${roomNumber.trim().toUpperCase()} en el inventario.`,
-          });
+    onError: (error, request) => {
+      const code = errorCodeOf(error);
+      if (code === 'ROOM_NUMBER_ALREADY_EXISTS') {
+        form.setError('roomNumber', {
+          message: `Ya existe una habitación con el número ${request.roomNumber?.toUpperCase()} (aunque esté inactiva).`,
+        });
+      } else if (code === 'VALIDATION_ERROR' && error instanceof ApiRequestError) {
+        const field = error.details.field;
+        if (isEditRoomField(field)) {
+          form.setError(field, { message: fieldErrorText(field, form.getValues()) });
         }
       }
     },
   });
 
+  const concurrentError = errorCodeOf(editMutation.error) === 'CONCURRENT_UPDATE';
+
   // Pantalla de éxito (vista 05)
   if (editMutation.isSuccess) {
     const result = editMutation.data;
-    const currentRoom = result.room ?? {
-      ...room,
-      roomNumber: roomNumber.trim(),
-      floor: Number(floor),
-      categoryRoom,
-      maxCapacity: Number(maxCapacity),
-      baseRate: Number(baseRate),
-    };
+    const currentRoom = result.room ?? { ...room, ...editMutation.variables };
 
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
@@ -226,7 +252,9 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
               </InfoItem>
               <InfoItem label="Piso">Piso {currentRoom.floor}</InfoItem>
               <InfoItem label="Tipo">
-                {ROOM_CATEGORY_LABELS[currentRoom.categoryRoom] ?? currentRoom.categoryRoom}
+                {isRoomCategory(currentRoom.categoryRoom)
+                  ? ROOM_CATEGORY_LABELS[currentRoom.categoryRoom]
+                  : currentRoom.categoryRoom}
               </InfoItem>
               <InfoItem label="Capacidad máxima">{formatPeople(currentRoom.maxCapacity)}</InfoItem>
               <InfoItem label="Tarifa base">{formatMoney(currentRoom.baseRate)}</InfoItem>
@@ -242,61 +270,26 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setNoChangesNotice(false);
-    setConcurrentError(false);
-
-    const errors: Record<string, string> = {};
-    const trimmedNumber = roomNumber.trim();
-    if (!trimmedNumber) {
-      errors.roomNumber = 'Ingresa el número de habitación.';
-    } else if (trimmedNumber.length > 10) {
-      errors.roomNumber = 'El número de habitación debe tener máximo 10 caracteres.';
-    }
-
-    const numFloor = Number(floor);
-    if (!Number.isInteger(numFloor) || numFloor < 1) {
-      errors.floor = 'El piso debe ser un número entero mayor a cero.';
-    }
-
-    const numCapacity = Number(maxCapacity);
-    if (!Number.isInteger(numCapacity) || numCapacity < 1) {
-      errors.maxCapacity = 'La capacidad debe ser un número entero mayor a cero.';
-    }
-
-    const numRate = Number(baseRate);
-    if (isNaN(numRate) || numRate <= 0) {
-      errors.baseRate = 'La tarifa base debe ser mayor a cero.';
-    }
-
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    // Comprobar si hubo cambios locales
-    const hasChanged =
-      trimmedNumber !== room.roomNumber ||
-      numFloor !== room.floor ||
-      categoryRoom !== room.categoryRoom ||
-      numCapacity !== room.maxCapacity ||
-      numRate !== room.baseRate;
-
-    if (!hasChanged) {
+  function submit(values: EditRoomValues) {
+    editMutation.reset();
+    const request = toEditRoomRequest(room, values);
+    if (!hasChanges(room, request)) {
       setNoChangesNotice(true);
       return;
     }
-
-    editMutation.mutate({
-      version: room.version,
-      roomNumber: trimmedNumber,
-      floor: numFloor,
-      categoryRoom,
-      maxCapacity: numCapacity,
-      baseRate: numRate,
-    });
+    setNoChangesNotice(false);
+    editMutation.mutate(request);
   }
+
+  const showGeneralError =
+    editMutation.isError &&
+    !concurrentError &&
+    errorCodeOf(editMutation.error) !== 'ROOM_NUMBER_ALREADY_EXISTS' &&
+    !(
+      errorCodeOf(editMutation.error) === 'VALIDATION_ERROR' &&
+      editMutation.error instanceof ApiRequestError &&
+      isEditRoomField(editMutation.error.details.field)
+    );
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
@@ -318,155 +311,138 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
       </div>
 
       <Card>
-        <form noValidate onSubmit={handleSubmit}>
-          <CardContent className="space-y-6 pt-6">
-            {concurrentError && (
-              <Alert variant="warning">
-                Otro usuario actualizó la información de esta habitación mientras la editabas. No se
-                guardaron tus cambios.{' '}
-                <button
-                  type="button"
-                  onClick={onReload}
-                  className="font-semibold underline hover:no-underline"
-                >
-                  Cargar los datos actuales
-                </button>
-              </Alert>
-            )}
+        <Form {...form}>
+          <form noValidate onSubmit={form.handleSubmit(submit)}>
+            <CardContent className="space-y-6 pt-6">
+              {concurrentError && (
+                <Alert variant="warning">
+                  Otro usuario actualizó la información de esta habitación mientras la editabas. No
+                  se guardaron tus cambios.{' '}
+                  <button
+                    type="button"
+                    onClick={onReload}
+                    className="font-semibold underline hover:no-underline"
+                  >
+                    Cargar los datos actuales
+                  </button>
+                </Alert>
+              )}
 
-            {noChangesNotice && <Alert variant="info">No has modificado ningún dato.</Alert>}
+              {noChangesNotice && <Alert variant="info">No has modificado ningún dato.</Alert>}
 
-            {editMutation.isError && !concurrentError && (
-              <EditRoomErrorAlert error={editMutation.error} />
-            )}
+              {showGeneralError && <EditRoomErrorAlert error={editMutation.error} />}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label htmlFor="roomNumber" className="text-sm font-semibold text-ink">
-                  Número de habitación <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  id="roomNumber"
-                  value={roomNumber}
-                  onChange={(e) => {
-                    setRoomNumber(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, roomNumber: '' }));
-                  }}
-                  className={fieldErrors.roomNumber ? 'border-due' : ''}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="roomNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de habitación *</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {fieldErrors.roomNumber && (
-                  <p className="text-xs text-due">{fieldErrors.roomNumber}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="floor" className="text-sm font-semibold text-ink">
-                  Piso <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  id="floor"
-                  type="number"
-                  min={1}
-                  value={floor}
-                  onChange={(e) => {
-                    setFloor(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, floor: '' }));
-                  }}
-                  className={fieldErrors.floor ? 'border-due' : ''}
+                <FormField
+                  control={form.control}
+                  name="floor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Piso *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {fieldErrors.floor && <p className="text-xs text-due">{fieldErrors.floor}</p>}
-              </div>
-            </div>
-
-            <div className="border-t border-line pt-4 grid gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <label htmlFor="categoryRoom" className="text-sm font-semibold text-ink">
-                  Tipo <span className="text-red-500">*</span>
-                </label>
-                <NativeSelect
-                  id="categoryRoom"
-                  value={categoryRoom}
-                  onChange={(e) => {
-                    setCategoryRoom(e.target.value as RoomCategory);
-                    setFieldErrors((prev) => ({ ...prev, categoryRoom: '' }));
-                  }}
-                >
-                  {ROOM_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {ROOM_CATEGORY_LABELS[cat]}
-                    </option>
-                  ))}
-                </NativeSelect>
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="maxCapacity" className="text-sm font-semibold text-ink">
-                  Capacidad máxima <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  id="maxCapacity"
-                  type="number"
-                  min={1}
-                  value={maxCapacity}
-                  onChange={(e) => {
-                    setMaxCapacity(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, maxCapacity: '' }));
-                  }}
-                  className={fieldErrors.maxCapacity ? 'border-due' : ''}
+              <div className="border-t border-line pt-4 grid gap-4 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="categoryRoom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo *</FormLabel>
+                      <FormControl>
+                        <NativeSelect {...field}>
+                          {ROOM_CATEGORIES.map((category) => (
+                            <option key={category} value={category}>
+                              {ROOM_CATEGORY_LABELS[category]}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {fieldErrors.maxCapacity && (
-                  <p className="text-xs text-due">{fieldErrors.maxCapacity}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="baseRate" className="text-sm font-semibold text-ink">
-                  Tarifa base por noche (COP) <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  id="baseRate"
-                  type="number"
-                  min={0.01}
-                  step={1000}
-                  value={baseRate}
-                  onChange={(e) => {
-                    setBaseRate(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, baseRate: '' }));
-                  }}
-                  className={fieldErrors.baseRate ? 'border-due' : ''}
+                <FormField
+                  control={form.control}
+                  name="maxCapacity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Capacidad máxima *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {fieldErrors.baseRate && <p className="text-xs text-due">{fieldErrors.baseRate}</p>}
+                <FormField
+                  control={form.control}
+                  name="baseRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tarifa base por noche (COP) *</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0.01} step={1000} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </div>
-          </CardContent>
+            </CardContent>
 
-          <CardFooter className="flex justify-end gap-2 border-t border-line pt-4">
-            <Button variant="outline" asChild>
-              <Link to="/administracion/inventario">Cancelar</Link>
-            </Button>
-            <Button type="submit" disabled={editMutation.isPending}>
-              {editMutation.isPending ? 'Guardando…' : 'Guardar cambios'}
-            </Button>
-          </CardFooter>
-        </form>
+            <CardFooter className="flex justify-end gap-2 border-t border-line pt-4">
+              <Button variant="outline" asChild>
+                <Link to="/administracion/inventario">Cancelar</Link>
+              </Button>
+              <Button type="submit" disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
     </div>
   );
 }
 
-function EditRoomErrorAlert({ error }: { error: unknown }) {
-  if (error instanceof ApiRequestError) {
-    if (error.errorCode === 'ROOM_INVALID_STATE') {
-      const currentStatus = error.details?.currentStatus as RoomStatus | undefined;
-      const statusLabel = currentStatus ? (ROOM_STATUS_LABELS[currentStatus] ?? currentStatus) : '';
-      return (
-        <Alert variant="warning">
-          La habitación no está disponible para edición
-          {statusLabel ? ` (estado actual: ${statusLabel})` : ''}.
-        </Alert>
-      );
-    }
+const EDIT_ERRORS = {
+  ROOM_NOT_FOUND: 'No se encontró ninguna habitación con ese identificador.',
+};
+
+function EditRoomErrorAlert({ error }: { error: Error }) {
+  if (errorCodeOf(error) === 'ROOM_INVALID_STATE' && error instanceof ApiRequestError) {
+    const currentStatus = error.details.currentStatus;
+    const statusLabel =
+      typeof currentStatus === 'string' && isRoomStatus(currentStatus)
+        ? ROOM_STATUS_LABELS[currentStatus]
+        : '';
+    return (
+      <Alert variant="warning">
+        La habitación no está disponible para edición
+        {statusLabel ? ` (estado actual: ${statusLabel})` : ''}.
+      </Alert>
+    );
   }
 
-  return <ErrorAlert message={error instanceof Error ? error.message : 'Error inesperado.'} />;
+  return <ErrorAlert message={errorMessage(error, EDIT_ERRORS)} />;
 }

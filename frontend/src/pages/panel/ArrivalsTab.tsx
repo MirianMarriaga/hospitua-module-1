@@ -9,6 +9,7 @@ import { errorMessage } from '@/lib/errorMessages';
 import { formatNights } from '@/lib/format';
 import { categoryLabel, ROOM_STATUS_LABELS, sourceLabel } from '@/lib/labels';
 import { PANEL_ERRORS } from '@/pages/panel/panelErrors';
+import { PANEL_REFRESH } from '@/pages/panel/panelRefresh';
 
 function checkInLink(reservationRef: string, roomId: string): string {
   return `/check-in?${new URLSearchParams({ reservationRef, roomId }).toString()}`;
@@ -97,6 +98,7 @@ export function ArrivalsTab({ query }: { query: string }) {
   const arrivals = useQuery({
     queryKey: ['reception', 'arrivals', query],
     queryFn: () => getArrivals(query),
+    ...PANEL_REFRESH,
   });
 
   if (arrivals.isPending) {

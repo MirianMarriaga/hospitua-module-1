@@ -5,6 +5,7 @@ import {
   formatMoney,
   formatPeople,
   formatTimestamp,
+  formatTimestampDate,
   initials,
   todayInBogota,
 } from '@/lib/format';
@@ -16,6 +17,10 @@ describe('format', () => {
 
   it('muestra la marca de tiempo como DD-MM-YYYY HH:MM sin convertir la zona', () => {
     expect(formatTimestamp('2026-10-31T23:45:12.123-05:00')).toBe('31-10-2026 23:45');
+  });
+
+  it('muestra solo la fecha de una marca de tiempo, sin pasarla a otra zona', () => {
+    expect(formatTimestampDate('2026-10-31T23:45:12.123-05:00')).toBe('31-10-2026');
   });
 
   it('formatea pesos colombianos', () => {

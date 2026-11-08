@@ -230,7 +230,7 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L33): en `EditRoomServiceTest` y `EditRoomIntegrationTest` (la `version` no cambia).
 - [x] T008 [P] [US1] Unit test: conservar el propio número o cambiar solo el piso no genera conflicto de duplicidad (casos borde 1 y 6).
   - Hecho (L33): en `EditRoomServiceTest`: sin cambio de número no se consulta la unicidad.
-- [ ] T009 [P] [US1] Component test en `EditRoomPage` y `EditRoomConfirmation`: el formulario llega precargado, el UUID no es editable, la confirmación muestra "Antes / Ahora" por cada dato modificado y los datos actualizados, sin fecha ni usuario, y "Sin cambios" muestra el aviso (esc. 5 y 6; FR-007, FR-010).
+- [x] T009 [P] [US1] Component test en `EditRoomPage` y `EditRoomConfirmation`: el formulario llega precargado, el UUID no es editable, la confirmación muestra "Antes / Ahora" por cada dato modificado y los datos actualizados, sin fecha ni usuario, y "Sin cambios" muestra el aviso (esc. 5 y 6; FR-007, FR-010).
 
 ### Implementation for User Story 1
 
@@ -259,7 +259,7 @@ No aplica: usa la infraestructura del plan base.
 
 - [x] T013 [P] [US2] Unit test: rechazo en `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` e `Inactive`, con el estado actual en `details` (esc. 7 a 9; FR-002 a FR-004; SC-002).
   - Hecho (L33): en `EditRoomServiceTest` (con datos inválidos en la misma petición, para comprobar que el estado va primero).
-- [ ] T014 [P] [US2] Component test: el error muestra el estado en español.
+- [x] T014 [P] [US2] Component test: el error muestra el estado en español.
 
 ### Implementation for User Story 2
 
@@ -287,7 +287,7 @@ No aplica: usa la infraestructura del plan base.
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Mostrar en el frontend los errores con el texto de la tabla, marcando el campo inválido y conservando los demás valores del formulario (SC-005).
+- [x] T019 [US3] Mostrar en el frontend los errores con el texto de la tabla, marcando el campo inválido y conservando los demás valores del formulario (SC-005).
 
 **Checkpoint**: Las tres historias funcionan de forma independiente.
 

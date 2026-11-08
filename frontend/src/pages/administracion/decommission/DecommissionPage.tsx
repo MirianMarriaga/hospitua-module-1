@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck, Loader2 } from 'lucide-react';
+import { useForm, useWatch } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 
 import {
   decommissionRoom,
   getRoom,
   type ConflictingReservation,
-  type DecommissionReason,
   type DecommissionRoomRequest,
   type Room,
 } from '@/api/roomService';
@@ -20,15 +21,35 @@ import { StepProgress } from '@/components/StepProgress';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiRequestError } from '@/api/apiClient';
+import { errorMessage } from '@/lib/errorMessages';
 import {
   DECOMMISSION_REASON_LABELS,
   DECOMMISSION_REASONS,
+  isRoomCategory,
+  isRoomStatus,
   ROOM_CATEGORY_LABELS,
   ROOM_STATUS_LABELS,
 } from '@/lib/labels';
+import {
+  decommissionSchema,
+  DETAIL_MAX,
+  EMPTY_REASON,
+  toDecommissionRequest,
+  type DecommissionInput,
+  type DecommissionValues,
+} from '@/pages/administracion/decommission/decommissionSchema';
 
 const STEPS = ['Motivo', 'Confirmación', 'Verificación', 'Resultado'];
 
@@ -50,7 +71,7 @@ function RoomSummaryBox({
       </InfoItem>
       <InfoItem label="Piso">Piso {floor}</InfoItem>
       <InfoItem label="Tipo">
-        {ROOM_CATEGORY_LABELS[categoryRoom as keyof typeof ROOM_CATEGORY_LABELS] ?? categoryRoom}
+        {isRoomCategory(categoryRoom) ? ROOM_CATEGORY_LABELS[categoryRoom] : categoryRoom}
       </InfoItem>
       <InfoItem label="Estado">
         <StatusBadge status={status} />
@@ -65,9 +86,14 @@ export function DecommissionPage() {
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState<number>(1);
-  const [reasonCategory, setReasonCategory] = useState<DecommissionReason | ''>('');
-  const [reasonDetail, setReasonDetail] = useState<string>('');
-  const [errors, setErrors] = useState<{ reasonCategory?: string; reasonDetail?: string }>({});
+  // La petición confirmada en el paso 1; "Reintentar" la reenvía sin volver al motivo (T017).
+  const [request, setRequest] = useState<DecommissionRoomRequest | null>(null);
+
+  const form = useForm<DecommissionInput, unknown, DecommissionValues>({
+    resolver: zodResolver(decommissionSchema),
+    defaultValues: EMPTY_REASON,
+  });
+  const reasonCategory = useWatch({ control: form.control, name: 'reasonCategory' });
 
   const roomQuery = useQuery({
     queryKey: ['room', roomId],
@@ -78,8 +104,8 @@ export function DecommissionPage() {
   const decommissionMutation = useMutation({
     mutationFn: (request: DecommissionRoomRequest) => decommissionRoom(roomId!, request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['room', roomId] });
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      void queryClient.invalidateQueries({ queryKey: ['room', roomId] });
       setStep(4);
     },
     onError: () => {
@@ -152,44 +178,15 @@ export function DecommissionPage() {
     );
   }
 
-  function handleContinueToConfirm(e: React.FormEvent) {
-    e.preventDefault();
-    const newErrors: { reasonCategory?: string; reasonDetail?: string } = {};
-
-    if (!reasonCategory) {
-      newErrors.reasonCategory = 'Selecciona un motivo para continuar.';
-    }
-
-    if (reasonCategory === 'OTHER' && !reasonDetail.trim()) {
-      newErrors.reasonDetail = 'Escribe el motivo de la baja.';
-    } else if (reasonDetail.length > 500) {
-      newErrors.reasonDetail = 'El detalle admite máximo 500 caracteres.';
-    }
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      return;
-    }
-
+  function continueToConfirm(values: DecommissionValues) {
+    setRequest(toDecommissionRequest(values));
     setStep(2);
   }
 
-  function handleConfirmDecommission() {
-    if (!reasonCategory) return;
+  function sendRequest() {
+    if (!request) return;
     setStep(3);
-    decommissionMutation.mutate({
-      reasonCategory,
-      reasonDetail: reasonDetail.trim() ? reasonDetail.trim() : undefined,
-    });
-  }
-
-  function handleRetry() {
-    if (!reasonCategory) return;
-    setStep(3);
-    decommissionMutation.mutate({
-      reasonCategory,
-      reasonDetail: reasonDetail.trim() ? reasonDetail.trim() : undefined,
-    });
+    decommissionMutation.mutate(request);
   }
 
   return (
@@ -239,67 +236,60 @@ export function DecommissionPage() {
               status={room.status}
             />
 
-            <form
-              id="decommission-reason-form"
-              onSubmit={handleContinueToConfirm}
-              className="space-y-4 pt-2"
-            >
-              <div className="max-w-md space-y-1.5">
-                <label htmlFor="reasonCategory" className="text-sm font-semibold text-ink">
-                  Motivo de la baja <span className="text-red-500">*</span>
-                </label>
-                <NativeSelect
-                  id="reasonCategory"
-                  value={reasonCategory}
-                  onChange={(e) => {
-                    const val = e.target.value as DecommissionReason | '';
-                    setReasonCategory(val);
-                    setErrors((prev) => ({ ...prev, reasonCategory: undefined }));
-                  }}
-                  className={errors.reasonCategory ? 'border-due' : ''}
-                >
-                  <option value="">Seleccionar motivo</option>
-                  {DECOMMISSION_REASONS.map((reason) => (
-                    <option key={reason} value={reason}>
-                      {DECOMMISSION_REASON_LABELS[reason]}
-                    </option>
-                  ))}
-                </NativeSelect>
-                {errors.reasonCategory && (
-                  <p className="text-xs text-due">{errors.reasonCategory}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="reasonDetail" className="text-sm font-semibold text-ink">
-                  {reasonCategory === 'OTHER' ? (
-                    <>
-                      Motivo de la baja <span className="text-red-500">*</span>
-                    </>
-                  ) : (
-                    'Detalle (opcional)'
+            <Form {...form}>
+              <form
+                id="decommission-reason-form"
+                noValidate
+                onSubmit={form.handleSubmit(continueToConfirm)}
+                className="space-y-4 pt-2"
+              >
+                <FormField
+                  control={form.control}
+                  name="reasonCategory"
+                  render={({ field }) => (
+                    <FormItem className="max-w-md">
+                      <FormLabel>Motivo de la baja *</FormLabel>
+                      <FormControl>
+                        <NativeSelect {...field}>
+                          <option value="">Seleccionar motivo</option>
+                          {DECOMMISSION_REASONS.map((reason) => (
+                            <option key={reason} value={reason}>
+                              {DECOMMISSION_REASON_LABELS[reason]}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </label>
-                <Textarea
-                  id="reasonDetail"
-                  rows={3}
-                  maxLength={500}
-                  placeholder={
-                    reasonCategory === 'OTHER'
-                      ? 'Escribe el motivo de la baja'
-                      : 'Información adicional sobre la baja'
-                  }
-                  value={reasonDetail}
-                  onChange={(e) => {
-                    setReasonDetail(e.target.value);
-                    setErrors((prev) => ({ ...prev, reasonDetail: undefined }));
-                  }}
-                  className={errors.reasonDetail ? 'border-due' : ''}
                 />
-                {errors.reasonDetail && <p className="text-xs text-due">{errors.reasonDetail}</p>}
-                <p className="text-xs text-text-lo">Máximo 500 caracteres.</p>
-              </div>
-            </form>
+                <FormField
+                  control={form.control}
+                  name="reasonDetail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {reasonCategory === 'OTHER' ? 'Motivo de la baja *' : 'Detalle (opcional)'}
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          rows={3}
+                          maxLength={DETAIL_MAX}
+                          placeholder={
+                            reasonCategory === 'OTHER'
+                              ? 'Escribe el motivo de la baja'
+                              : 'Información adicional sobre la baja'
+                          }
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <FormDescription>Máximo 500 caracteres.</FormDescription>
+                    </FormItem>
+                  )}
+                />
+              </form>
+            </Form>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
@@ -331,12 +321,12 @@ export function DecommissionPage() {
             <dl className="grid gap-3 rounded-lg border border-line bg-paper-dim p-4 sm:grid-cols-2">
               <InfoItem label="Motivo">
                 <span className="font-semibold text-ink">
-                  {reasonCategory ? DECOMMISSION_REASON_LABELS[reasonCategory] : ''}
+                  {request ? DECOMMISSION_REASON_LABELS[request.reasonCategory] : ''}
                 </span>
               </InfoItem>
-              {reasonDetail.trim() && (
+              {request?.reasonDetail && (
                 <InfoItem label="Detalle">
-                  <span className="text-ink">{reasonDetail.trim()}</span>
+                  <span className="text-ink">{request.reasonDetail}</span>
                 </InfoItem>
               )}
             </dl>
@@ -351,7 +341,7 @@ export function DecommissionPage() {
             <Button variant="outline" onClick={() => setStep(1)}>
               Atrás
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDecommission}>
+            <Button variant="destructive" onClick={sendRequest}>
               Confirmar baja
             </Button>
           </CardFooter>
@@ -401,12 +391,12 @@ export function DecommissionPage() {
             <dl className="w-full text-left grid gap-3 rounded-lg border border-line bg-paper-dim p-4 sm:grid-cols-2">
               <InfoItem label="Motivo">
                 <span className="font-semibold text-ink">
-                  {reasonCategory ? DECOMMISSION_REASON_LABELS[reasonCategory] : ''}
+                  {request ? DECOMMISSION_REASON_LABELS[request.reasonCategory] : ''}
                 </span>
               </InfoItem>
-              {reasonDetail.trim() && (
+              {request?.reasonDetail && (
                 <InfoItem label="Detalle">
-                  <span className="text-ink">{reasonDetail.trim()}</span>
+                  <span className="text-ink">{request.reasonDetail}</span>
                 </InfoItem>
               )}
             </dl>
@@ -423,7 +413,7 @@ export function DecommissionPage() {
         <DecommissionErrorResult
           room={room}
           error={decommissionMutation.error}
-          onRetry={handleRetry}
+          onRetry={sendRequest}
         />
       )}
     </div>
@@ -436,7 +426,7 @@ function DecommissionErrorResult({
   onRetry,
 }: {
   room: Room;
-  error: unknown;
+  error: Error;
   onRetry: () => void;
 }) {
   const isApiError = error instanceof ApiRequestError;
@@ -495,7 +485,9 @@ function DecommissionErrorResult({
 
   // Caso 3: 409 ROOM_INVALID_STATE
   if (errorCode === 'ROOM_INVALID_STATE') {
-    const currentStatus = (details?.currentStatus as RoomStatus) || room.status;
+    const reported = details.currentStatus;
+    const currentStatus =
+      typeof reported === 'string' && isRoomStatus(reported) ? reported : room.status;
     const isOccupied = currentStatus === 'Occupied';
     const statusLabel = ROOM_STATUS_LABELS[currentStatus] ?? currentStatus;
 
@@ -527,7 +519,7 @@ function DecommissionErrorResult({
         <CardTitle>No se pudo dar de baja la habitación {room.roomNumber}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ErrorAlert message={error instanceof Error ? error.message : 'Error inesperado.'} />
+        <ErrorAlert message={errorMessage(error)} />
       </CardContent>
       <CardFooter className="flex justify-end">
         <Button asChild>

@@ -91,4 +91,18 @@ describe('RoomStateHistoryPage', () => {
 
     expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument();
   });
+  it('al cambiar un filtro vuelve a la página 1', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=3' });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 3);
+
+    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'DOBLE');
+
+    await waitFor(() =>
+      expect(getRoomStateHistory).toHaveBeenLastCalledWith(
+        expect.objectContaining({ categoryRoom: 'DOBLE' }),
+        1,
+      ),
+    );
+  });
 });

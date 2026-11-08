@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -184,5 +184,66 @@ describe('DecommissionPage', () => {
     expect(
       await screen.findByText(/La habitación tiene un huésped activo; debe estar Disponible/),
     ).toBeInTheDocument();
+  });
+  it('el detalle admite máximo 500 caracteres', async () => {
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    const detail = screen.getByLabelText('Detalle (opcional)');
+    expect(detail).toHaveAttribute('maxLength', '500');
+    expect(screen.getByText('Máximo 500 caracteres.')).toBeInTheDocument();
+
+    // Un texto pegado por encima del límite lo rechaza el esquema, igual que el backend.
+    fireEvent.change(detail, { target: { value: 'x'.repeat(501) } });
+    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(await screen.findByText('El detalle admite máximo 500 caracteres.')).toBeInTheDocument();
+    expect(screen.queryByText(/2\. ¿Confirmas la baja/)).not.toBeInTheDocument();
+  });
+
+  it('la confirmación muestra el motivo y el detalle, y "Atrás" vuelve sin enviar nada', async () => {
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'OTHER');
+    await userEvent.type(screen.getByRole('textbox'), '  Cierre del ala norte  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(
+      await screen.findByText('2. ¿Confirmas la baja de la habitación 101?'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Otro')).toBeInTheDocument();
+    expect(screen.getByText('Cierre del ala norte')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Atrás' }));
+
+    expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toHaveValue('  Cierre del ala norte  ');
+    expect(decommissionRoom).not.toHaveBeenCalled();
+  });
+
+  it('mientras se comprueban las reservas muestra la verificación', async () => {
+    vi.mocked(decommissionRoom).mockReturnValue(new Promise(() => {}));
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+
+    expect(
+      await screen.findByText('Comprobando reservas de la habitación 101…'),
+    ).toBeInTheDocument();
+    expect(decommissionRoom).toHaveBeenCalledWith('room-101', { reasonCategory: 'FLOOR_CLOSURE' });
   });
 });
