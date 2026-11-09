@@ -931,6 +931,8 @@ frontend/                                                     # Árbol real revi
     │   ├── authService.ts                                    # Inicio de sesión (T021)
     │   ├── checkInService.ts
     │   ├── checkOutService.ts
+    │   ├── cleaningService.ts                                # Panel de limpieza e iniciar limpieza (plan-consultar-panel-limpieza.md)
+    │   ├── damageReportService.ts                            # Reportar daño y ver el último reporte (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   ├── historyService.ts                                 # Historial de estados
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
@@ -938,6 +940,9 @@ frontend/                                                     # Árbol real revi
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
+    │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
+    │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño (panel de mantenimiento)
+    │   ├── damageReportErrors.ts                             # Textos de los diálogos de daño por errorCode
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
@@ -952,6 +957,7 @@ frontend/                                                     # Árbol real revi
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
+    │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
     │   ├── useDebouncedValue.ts
     │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
     ├── layouts/
@@ -962,7 +968,7 @@ frontend/                                                     # Árbol real revi
     │   ├── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
     │   └── useLogout.ts                                      # Cierra la sesión y vacía la caché de consultas
     ├── lib/
-    │   ├── errorMessages.ts                                  # errorMessage(error, tabla)
+    │   ├── errorMessages.ts                                  # errorMessage(error, tabla) e invalidRoomStateLabel (estado de ROOM_INVALID_STATE)
     │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
     │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
     │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
@@ -1037,8 +1043,20 @@ frontend/                                                     # Árbol real revi
     │   │   ├── RoomStateHistoryTable.tsx
     │   │   ├── historyParams.ts
     │   │   └── useRoomStateHistory.ts
+    │   ├── limpieza/                                         # Panel de limpieza (plan-consultar-panel-limpieza.md) y tarea activa (plan-confirmar-fin-de-limpieza.md)
+    │   │   ├── CleaningPanelPage.tsx                         # Conteo, búsqueda, tabla e "Iniciar limpieza"; con tarea activa lleva a /limpieza/tarea
+    │   │   ├── CleaningPanelPage.test.tsx
+    │   │   ├── CleaningSummary.tsx                           # Pendientes de limpieza y disponibles (FR-010)
+    │   │   ├── CleaningRoomTable.tsx
+    │   │   ├── ActiveCleaningTaskPage.tsx                    # /limpieza/tarea: "Confirmar fin" y "Liberar tarea"; sin tarea vuelve al panel
+    │   │   ├── ActiveCleaningTaskPage.test.tsx
+    │   │   ├── ConfirmCleaningEndDialog.tsx                  # Confirmación con campo opcional de daño
+    │   │   ├── ReleaseCleaningTaskDialog.tsx
+    │   │   ├── cleaningRoutes.ts                             # Rutas del área y aviso con el que se vuelve al panel
+    │   │   ├── cleaningErrors.ts                             # Textos de iniciar, confirmar fin y liberar por errorCode
+    │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select), iniciar, confirmar fin y liberar
     │   └── placeholder/
-    │       └── AreaPlaceholderPage.tsx                       # Limpieza y Mantenimiento hasta F03 y F06
+    │       └── AreaPlaceholderPage.tsx                       # Panel de mantenimiento hasta F06
     ├── stores/
     │   ├── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
     │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>
@@ -1426,6 +1444,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
   - `springdoc.default-flat-param-object: true`: los filtros que llegan como objeto (`@ModelAttribute`, por ejemplo `StaffListQuery`) se publican como parámetros sueltos.
   - `@Schema(implementation = String.class)` en los 6 métodos `@AssertTrue` que comparten nombre con un campo (`isPassword` de `RegisterStaffRequest` y `EditStaffRequest`, `isRoomId`, `isStartDate` e `isEndDate` de `MaintenanceAvailabilityQuery`, `isDate` de `RoomBaseRateQuery`): sin eso, el campo aparece como booleano.
   - Limitación conocida: los endpoints que responden `201 Created` con `ResponseEntity.status(...)` aparecen con `200` en el contrato. Los tipos que genera el frontend no cambian por eso. El frontend genera sus tipos desde ese archivo (lote C02 de su plan de fases).
+  - Limitación conocida (cierre de RF1, frontend): `CleaningPanelDto` y `MaintenancePanelDto` tienen cada uno un record anidado `ActiveTaskDto`, y el contrato publica un único esquema `ActiveTaskDto`, el de mantenimiento (`room` es `MaintenanceRoomDto` y falta `startDateTime`). `CleaningPanelDto.activeTask` queda mal descrito; el frontend escribe ese tipo a mano en `cleaningService.ts`. Pendiente de un lote del backend: dar nombres distintos a los dos records o configurar springdoc para que no los fusione, y regenerar `documentos/contrato/openapi.json`.
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
 
@@ -1453,7 +1472,7 @@ Los planes de feature dependen unos de otros. Este es el orden que evita impleme
    - Que el `username` sea el identificador único de cada persona en los tres módulos, para que los responsables que viajan en las notificaciones (por ejemplo, el recepcionista del check-in) se puedan cruzar entre módulos.
    - Si habrá un inicio de sesión compartido (SSO) y quién lo implementa. Mientras no haya respuesta, Módulo 1 mantiene su login provisional y no amplía *Gestionar personal* (sin políticas de contraseña ni recuperación de cuenta).
 2. **Vista prototipo del inicio de sesión** (T021). Falta en `documentos/vistas/`; la define el frente de vistas. Mientras tanto, `LoginPage.tsx` sigue el estilo de las vistas existentes.
-3. **Vistas de resultado de limpieza y mantenimiento**. `vistas/limpieza/03-limpieza-finalizada.html` y `vistas/mantenimiento/03-reparacion-finalizada.html` no las usa ningún plan: *Confirmar fin de limpieza* y *Confirmar fin de reparación* redirigen al panel tras el éxito. Hay que decidir si se muestra esa pantalla antes de volver al panel o si se retiran las vistas.
+3. **Vistas de resultado de limpieza y mantenimiento**. `vistas/limpieza/03-limpieza-finalizada.html` y `vistas/mantenimiento/03-reparacion-finalizada.html` no las usa ningún plan: *Confirmar fin de limpieza* y *Confirmar fin de reparación* redirigen al panel tras el éxito. Hay que decidir si se muestra esa pantalla antes de volver al panel o si se retiran las vistas. Limpieza (F05): el contenido de `03-limpieza-finalizada.html` se muestra como aviso arriba del panel, sin pantalla propia; falta decidir mantenimiento (F08). Como `complete` responde `204` sin el estado final, el aviso no distingue `Reserved` de `Available`, que la vista 03 sí distingue; sin daño solo dice "Limpieza de la habitación X finalizada.", porque "lista para recibir huéspedes" sería falso si queda en `TechnicalBlock`.
 4. **Track de cambios de Módulo 2 (Channex)**. Checklist de confirmación de la solicitud de cambios de Módulo 2 (`Track_de_cambios_en_m1.md`, punto 8); la solicitud queda resuelta cuando todos los ítems están marcados:
    - [x] Rutas definitivas: acordadas con Módulo 2. Son `GET /api/rooms/{roomId}/maintenances` y la cola `m2.habitacion.mantenimiento.queue` (routing key `habitacion.mantenimiento`).
    - [x] `maintenanceStart` y `maintenanceEnd` son inclusivos (*Consultar información de mantenimientos* FR-010).

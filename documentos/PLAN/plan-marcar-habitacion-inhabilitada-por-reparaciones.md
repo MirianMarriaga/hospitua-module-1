@@ -233,7 +233,10 @@ backend/src/
 frontend/src/
 ├── components/
 │   ├── DamageReportDialog.tsx                     # Reportar daño; lo usan los paneles de limpieza y mantenimiento
-│   └── DamageReportViewDialog.tsx                 # Ver informe; lo usa el panel de mantenimiento
+│   ├── DamageReportViewDialog.tsx                 # Ver informe; lo usa el panel de mantenimiento
+│   └── damageReportErrors.ts                      # Textos de los dos diálogos por errorCode
+├── hooks/
+│   └── useDamageReport.ts                         # Reportar (recarga el panel que lo abre) y ver el último reporte
 └── api/
     └── damageReportService.ts
 ```
@@ -282,7 +285,8 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L20): en `DamageReportIntegrationTest`; la falla se fuerza con un `author_id` de más de 100 caracteres. En la transacción externa, un primer reporte que sí se guardó también se revierte, con su aviso.
 - [x] T010 [P] [US1] Unit test en `DamageReportQueryServiceTest`: "Ver informe" devuelve el reporte más reciente con descripción, autor y fecha; `authorName` es el `full_name` de la cuenta del autor o, si la cuenta no existe, su `username` (FR-006, FR-007; responde `DAMAGE_REPORT_NOT_FOUND` si la habitación no está en `DisabledForRepairs`).
   - Hecho (L20): `DamageReportQueryServiceTest`.
-- [ ] T011 [P] [US1] Component test en `DamageReportDialog`: la descripción es obligatoria, contador de 500 caracteres, botón de confirmar deshabilitado si no es válida y conservación del texto ante un error (FR-001, FR-003, FR-012).
+- [x] T011 [P] [US1] Component test en `DamageReportDialog`: la descripción es obligatoria, contador de 500 caracteres, botón de confirmar deshabilitado si no es válida y conservación del texto ante un error (FR-001, FR-003, FR-012).
+  - Hecho (F04): `DamageReportDialog.test.tsx` y `DamageReportViewDialog.test.tsx`.
 
 ### Implementation for User Story 1
 
@@ -294,7 +298,8 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L20): `ReportDamageService`. La descripción se valida antes de `lockById`, así un texto inválido no bloquea la fila; el estado lo valida la transición, y el servicio le pone el mensaje del plan. La fecha del aviso es la de la marca del reporte en la zona del `Clock`.
 - [x] T013 [US1] Implementar `DamageReportQueryService`, que obtiene `authorName` con `StaffAccountRepositoryPort.findByUsername(authorId)` (el `username` si la cuenta no existe), y `DamageReportController` con `POST /api/rooms/{roomId}/damage-reports` (paneles de limpieza y mantenimiento) y `GET /api/rooms/{roomId}/damage-reports/latest` (panel de mantenimiento) (FR-001, FR-006).
   - Hecho (L20): `DamageReportQueryService` y `DamageReportController`; `DamageReportIntegrationTest` cubre los dos endpoints y sus errores.
-- [ ] T014 [US1] Construir `DamageReportDialog.tsx`, que abren los paneles de limpieza y de mantenimiento (`plan-consultar-panel-limpieza.md` y `plan-consultar-panel-mantenimiento.md` son dueños del botón y de refrescar el panel al terminar) (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.tsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007).
+- [x] T014 [US1] Construir `DamageReportDialog.tsx`, que abren los paneles de limpieza y de mantenimiento (`plan-consultar-panel-limpieza.md` y `plan-consultar-panel-mantenimiento.md` son dueños del botón y de refrescar el panel al terminar) (modal con campo de texto obligatorio de máximo 500 caracteres; mensaje de éxito; ante error de estado, mensaje con el estado actual y actualización de la vista) y `DamageReportViewDialog.tsx` (descripción, autor y fecha en DD-MM-YYYY HH:MM) (FR-001 a FR-004, FR-007).
+  - Hecho (F04): `DamageReportDialog.tsx` en `components/`, con `damageReportErrors.ts` y `useReportDamage`. `DamageReportViewDialog.tsx` ("Ver informe") se adelantó en F04 según el plan de fases; su primer consumidor es el panel de mantenimiento (F06). Ajuste (cierre de RF1): el rechazo por estado usa `invalidRoomStateLabel`, con el nombre del estado como en el catálogo del plan base.
 
 **Checkpoint**: El reporte de daño funciona desde el panel de limpieza y queda disponible para el panel de mantenimiento y para *Confirmar Fin de Limpieza de Habitación*.
 

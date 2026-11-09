@@ -139,11 +139,14 @@ backend/src/
     └── infrastructure/adapters/in/web/
         └── CleaningController.java                # Definido en plan-marcar-habitacion-en-limpieza.md; aquí se agrega GET /api/cleaning/panel
 frontend/src/
+├── components/
+│   └── RoomNumberSearch.tsx                       # Compartido con el panel de mantenimiento
 ├── pages/limpieza/
 │   ├── CleaningPanelPage.tsx
 │   ├── CleaningSummary.tsx
 │   ├── CleaningRoomTable.tsx
-│   └── RoomNumberSearch.tsx
+│   ├── cleaningErrors.ts                          # Textos de "Iniciar limpieza" por errorCode
+│   └── useCleaningPanel.ts                        # Consulta del panel e "Iniciar limpieza"
 └── api/
     └── cleaningService.ts                         # Compartido con los planes de limpieza
 ```
@@ -179,7 +182,8 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
 - [x] T004 [P] [US1] Unit test: `lastCleaningDateTime` toma la última tarea `Completed` o `DamageReported` de la consulta por lotes, ignora las `Released` y es nulo sin registro (HU-1 esc. 3; FR-004).
 - [x] T005 [P] [US1] Unit test: con tarea abierta devuelve `activeTask` (con `taskId`, `startDateTime` y la fila de su habitación) y `rooms` vacío (HU-1 esc. 6; FR-001; SC-003).
   - Hecho (L19): `CleaningPanelQueryServiceTest` (T003–T005 y el panel vacío). T004 comprueba que la consulta por lotes es una sola, con todas las habitaciones y con `countsAsCleaning()`, que no incluye `Released`; que la consulta ignore las `Released` lo prueba `CleaningTaskRepositoryAdapterTest` (L17).
-- [ ] T006 [P] [US1] Component test en `CleaningPanelPage` con la API simulada: botones por estado, "Sin registro", conteo por estado calculado sobre la lista, búsqueda por número exacto y al vaciarla vuelve el listado completo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTask` y nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito, si se rechaza muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel, y ante un fallo de red sugiere reintentar (HU-1 esc. 2, 4, 5 y 7; FR-003, FR-005, FR-007, FR-008, FR-009, FR-010; *Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
+- [x] T006 [P] [US1] Component test en `CleaningPanelPage` con la API simulada: botones por estado, "Sin registro", conteo por estado calculado sobre la lista, búsqueda por número exacto y al vaciarla vuelve el listado completo, mensajes de búsqueda vacía y panel vacío, redirección cuando hay `activeTask` y nueva consulta cada 60 segundos y al volver de una acción. Acción "Iniciar limpieza": muestra la retroalimentación de la acción, redirige a la vista de tarea activa al tener éxito, si se rechaza muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel, y ante un fallo de red sugiere reintentar (HU-1 esc. 2, 4, 5 y 7; FR-003, FR-005, FR-007, FR-008, FR-009, FR-010; *Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
+  - Hecho (F03): `CleaningPanelPage.test.tsx`.
 
 ### Implementation for User Story 1
 
@@ -187,11 +191,13 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
   - Hecho (L19): `CleaningPanelQueryService`. Con tarea abierta no consulta el listado; la fila de su habitación lleva también su última limpieza.
 - [x] T008 [US1] Agregar a `CleaningController` el endpoint `GET /api/cleaning/panel`, tomando como miembro al usuario actual (FR-001).
   - Hecho (L19): `CleaningPanelIntegrationTest` cubre el listado (sin `InCleaning` ni `Occupied`, pendientes primero, última limpieza con offset `-05:00` y sin contar la `Released` posterior), la tarea activa y el 400 `CURRENT_USER_REQUIRED`.
-- [ ] T009 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
-- [ ] T010 [US1] Conectar las acciones y la actualización:
+- [x] T009 [US1] Construir `CleaningPanelPage.tsx`, `CleaningSummary.tsx`, `CleaningRoomTable.tsx` y `RoomNumberSearch.tsx` según `vistas/limpieza/01-panel.html`: conteo por estado calculado sobre `rooms`, tabla con número, tipo, estado ("Pendiente de limpieza" / "Disponible"), última limpieza (DD-MM-YYYY HH:MM o "Sin registro") y botones por estado; búsqueda exacta sobre `rooms`; mensajes de FR-008; redirección si `activeTask` no es nulo (FR-001, FR-003, FR-005, FR-007, FR-008, FR-010).
+  - Hecho (F03): `RoomNumberSearch.tsx` está en `components/` (F02). Ajuste (cierre de RF1): la tabla se apila por debajo de 900 px (`table-stacked`), como `limpieza/01-panel.html`.
+- [x] T010 [US1] Conectar las acciones y la actualización:
   - "Iniciar limpieza": este plan es dueño de toda su interfaz (FR-005 y FR-010 de *Marcar Habitación en Limpieza*). Llama a `POST /api/cleaning/tasks`, muestra la retroalimentación de la acción y, al tener éxito, redirige a la vista de tarea activa; si se rechaza, muestra el texto de la tabla de errores de `plan-marcar-habitacion-en-limpieza.md` según el `errorCode` y recarga el panel; ante fallos de red, sugiere reintentar (*Marcar Habitación en Limpieza* FR-001, FR-005, FR-009, FR-010).
   - "Reportar daño": abre `DamageReportDialog.tsx`, con sus mensajes (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`, T014).
   - El panel se vuelve a consultar cada 60 segundos, al volver de una acción y cuando una acción falla por cambio de estado (FR-005, FR-009).
+  - Hecho (F03, F04): `useCleaningPanel` (`usePanelQuery`, 60 s) y las mutaciones que invalidan `CLEANING_KEY`; "Reportar daño" abre `DamageReportDialog` con `refreshKey = CLEANING_KEY`. Ajuste (cierre de RF1): el rechazo por estado usa `invalidRoomStateLabel` de `lib/errorMessages.ts`, con el nombre del estado como en el catálogo del plan base ("La habitación está En limpieza; …").
 
 **Checkpoint**: El Personal de limpieza ve su panel, busca habitaciones y entra a sus acciones; el panel se mantiene actualizado sin recargar la página.
 

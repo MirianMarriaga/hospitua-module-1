@@ -15,3 +15,6 @@ export function roomKey(roomId: string | undefined) {
 export function settlementKey(stayId: string) {
   return ['settlement', stayId] as const;
 }
+
+/** Panel de limpieza; iniciar, terminar o dejar una limpieza lo invalidan. */
+export const CLEANING_KEY = ['cleaning'] as const;
