@@ -2,6 +2,7 @@ import { BedDouble, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 
+import type { ActiveCleaningTask } from '@/api/cleaningService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { PageHeader } from '@/components/PageHeader';
@@ -48,7 +49,13 @@ export function ActiveCleaningTaskPage() {
   const panel = useCleaningPanel();
   const complete = useCompleteCleaning();
   const release = useReleaseCleaning();
-  const [dialog, setDialog] = useState<'complete' | 'release' | null>(null);
+  // Los diálogos usan la tarea con la que se abrieron: si la acción falla porque la tarea ya no
+  // existe (por ejemplo, TASK_ALREADY_CLOSED), el panel recargado deja de traerla y el diálogo sigue
+  // abierto con su error; al cerrarlo, la redirección lleva al panel.
+  const [dialog, setDialog] = useState<{
+    kind: 'complete' | 'release' | null;
+    task: ActiveCleaningTask;
+  } | null>(null);
 
   const task = panel.data?.activeTask;
   const elapsed = useElapsedMinutes(task?.startDateTime);
@@ -65,31 +72,34 @@ export function ActiveCleaningTaskPage() {
   }
 
   function closeDialog() {
-    setDialog(null);
+    setDialog((current) => current && { ...current, kind: null });
     complete.reset();
     release.reset();
   }
 
   function confirmEnd(damageDescription?: string) {
-    if (!task) return;
-    const roomNumber = task.room.roomNumber;
+    if (!dialog) return;
+    const roomNumber = dialog.task.room.roomNumber;
     complete.mutate(
-      { taskId: task.taskId, damageDescription },
+      { taskId: dialog.task.taskId, damageDescription },
       {
+        // El fin responde 204 sin el estado final: sin daño, la habitación puede quedar disponible,
+        // reservada o en bloqueo técnico, así que el aviso no dice cuál (opción A de
+        // ~/Documentos/decision-aviso-fin-de-limpieza.md). Con daño siempre queda fuera de servicio.
         onSuccess: () =>
           backToPanel(
             damageDescription
               ? `Limpieza de la habitación ${roomNumber} finalizada con daño reportado. La habitación quedó fuera de servicio hasta que mantenimiento la repare.`
-              : `Limpieza de la habitación ${roomNumber} finalizada. La habitación quedó lista para recibir huéspedes.`,
+              : `Limpieza de la habitación ${roomNumber} finalizada.`,
           ),
       },
     );
   }
 
   function confirmRelease() {
-    if (!task) return;
-    const roomNumber = task.room.roomNumber;
-    release.mutate(task.taskId, {
+    if (!dialog) return;
+    const roomNumber = dialog.task.room.roomNumber;
+    release.mutate(dialog.task.taskId, {
       onSuccess: () =>
         backToPanel(
           `Dejaste la habitación ${roomNumber} para otro compañero. Vuelve a aparecer como pendiente de limpieza.`,
@@ -148,27 +158,27 @@ export function ActiveCleaningTaskPage() {
           </Alert>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" onClick={() => setDialog('release')}>
+            <Button variant="outline" onClick={() => setDialog({ kind: 'release', task })}>
               Liberar tarea
             </Button>
-            <Button onClick={() => setDialog('complete')}>Confirmar fin</Button>
+            <Button onClick={() => setDialog({ kind: 'complete', task })}>Confirmar fin</Button>
           </div>
         </section>
       )}
 
-      {task && (
+      {dialog && (
         <>
           <ConfirmCleaningEndDialog
-            open={dialog === 'complete'}
-            roomNumber={task.room.roomNumber}
+            open={dialog.kind === 'complete'}
+            roomNumber={dialog.task.room.roomNumber}
             pending={complete.isPending}
             error={complete.isError ? completeCleaningErrorMessage(complete.error) : null}
             onConfirm={confirmEnd}
             onClose={closeDialog}
           />
           <ReleaseCleaningTaskDialog
-            open={dialog === 'release'}
-            roomNumber={task.room.roomNumber}
+            open={dialog.kind === 'release'}
+            roomNumber={dialog.task.room.roomNumber}
             pending={release.isPending}
             error={release.isError ? releaseCleaningErrorMessage(release.error) : null}
             onConfirm={confirmRelease}

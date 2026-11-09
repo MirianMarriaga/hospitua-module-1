@@ -108,8 +108,9 @@ describe('ActiveCleaningTaskPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar fin' }));
 
     expect(completeCleaning).toHaveBeenCalledWith('t-1', undefined);
+    // Solo lo seguro: sin el estado final no dice si quedó disponible, reservada o bloqueada.
     expect(await screen.findByTestId('panel')).toHaveTextContent(
-      'Limpieza de la habitación 101 finalizada. La habitación quedó lista para recibir huéspedes.',
+      /^Limpieza de la habitación 101 finalizada\.$/,
     );
   });
 
@@ -158,6 +159,43 @@ describe('ActiveCleaningTaskPage', () => {
 
     expect(await within(dialog).findByText('Esta tarea ya fue cerrada.')).toBeInTheDocument();
     expect(field).toHaveValue('Espejo roto');
+  });
+
+  it('si la tarea ya se cerró, el diálogo conserva el error y al cerrarlo vuelve al panel', async () => {
+    vi.mocked(completeCleaning).mockRejectedValue(
+      new ApiRequestError(409, 'TASK_ALREADY_CLOSED', 'cerrada'),
+    );
+    renderTask();
+    const dialog = await openConfirmEnd();
+    // Tras el rechazo, el panel recargado ya no trae la tarea (FR-016)
+    vi.mocked(getCleaningPanel).mockResolvedValue(WITHOUT_TASK);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar fin' }));
+    await waitFor(() => expect(getCleaningPanel).toHaveBeenCalledTimes(2));
+    expect(await within(dialog).findByText('Esta tarea ya fue cerrada.')).toBeVisible();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByTestId('panel')).toHaveTextContent('sin aviso');
+  });
+
+  it('una descripción con solo espacios no es un daño (FR-018)', async () => {
+    vi.mocked(completeCleaning).mockResolvedValue(undefined);
+    renderTask();
+    const dialog = await openConfirmEnd();
+
+    await userEvent.type(
+      within(dialog).getByLabelText('Describir daño encontrado (opcional)'),
+      '   ',
+    );
+    expect(within(dialog).queryByText(/Como describiste un daño/)).not.toBeInTheDocument();
+    vi.mocked(getCleaningPanel).mockResolvedValue(WITHOUT_TASK);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar fin' }));
+
+    expect(completeCleaning).toHaveBeenCalledWith('t-1', undefined);
+    // Solo lo seguro: sin el estado final no dice si quedó disponible, reservada o bloqueada.
+    expect(await screen.findByTestId('panel')).toHaveTextContent(
+      /^Limpieza de la habitación 101 finalizada\.$/,
+    );
   });
 
   it('libera la tarea y vuelve al panel con el aviso', async () => {
