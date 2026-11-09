@@ -17,13 +17,19 @@ interface CleaningRoomTableProps {
   /** Texto cuando no hay filas: búsqueda sin coincidencias o panel vacío (FR-008). */
   emptyMessage: string;
   onStart: (room: CleaningRoom) => void;
+  onReportDamage: (room: CleaningRoom) => void;
 }
 
 /**
  * Tabla de `limpieza/01-panel.html`: número, tipo, estado, última limpieza y acciones (FR-003).
- * "Iniciar limpieza" está en las dos filas (FR-005); "Reportar daño" de las disponibles llega en F04.
+ * "Iniciar limpieza" en las dos y "Reportar daño" solo en las disponibles (FR-005).
  */
-export function CleaningRoomTable({ rooms, emptyMessage, onStart }: CleaningRoomTableProps) {
+export function CleaningRoomTable({
+  rooms,
+  emptyMessage,
+  onStart,
+  onReportDamage,
+}: CleaningRoomTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -67,6 +73,16 @@ export function CleaningRoomTable({ rooms, emptyMessage, onStart }: CleaningRoom
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-2">
+                  {room.status === 'Available' && (
+                    <Button
+                      size="sm"
+                      variant="destructive-outline"
+                      onClick={() => onReportDamage(room)}
+                      aria-label={`Reportar daño en la habitación ${room.roomNumber}`}
+                    >
+                      Reportar daño
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     onClick={() => onStart(room)}

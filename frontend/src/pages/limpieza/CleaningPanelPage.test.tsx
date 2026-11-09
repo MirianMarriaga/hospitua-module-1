@@ -10,11 +10,16 @@ import {
   type CleaningPanel,
   type CleaningRoom,
 } from '@/api/cleaningService';
+import { reportDamage } from '@/api/damageReportService';
 import { CleaningPanelPage } from '@/pages/limpieza/CleaningPanelPage';
 import { useSessionStore } from '@/stores/sessionStore';
 import { LocationProbe, renderWithProviders } from '@/test/renderWithProviders';
 
 vi.mock('@/api/cleaningService', () => ({ getCleaningPanel: vi.fn(), startCleaning: vi.fn() }));
+vi.mock('@/api/damageReportService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/damageReportService')>()),
+  reportDamage: vi.fn(),
+}));
 
 const PENDING: CleaningRoom = {
   roomId: 'r101',
@@ -86,9 +91,12 @@ describe('CleaningPanelPage', () => {
     expect(within(summary).getByText('Disponibles').previousSibling).toHaveTextContent('1');
   });
 
-  it('ofrece "Iniciar limpieza" en las pendientes y en las disponibles', async () => {
+  it('ofrece "Iniciar limpieza" en las dos y "Reportar daño" solo en las disponibles', async () => {
     renderPanel();
     await screen.findByText('101', { selector: 'div' });
+
+    expect(within(rowOf('101')).queryByRole('button', { name: /Reportar daño/ })).toBeNull();
+    expect(within(rowOf('102')).getByRole('button', { name: /Reportar daño/ })).toBeInTheDocument();
 
     expect(
       within(rowOf('101')).getByRole('button', { name: /Iniciar limpieza/ }),
@@ -253,5 +261,30 @@ describe('CleaningPanelPage', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Volver al panel' }));
 
     await waitFor(() => expect(getCleaningPanel).toHaveBeenCalledTimes(calls + 1));
+  });
+
+  it('reporta un daño, avisa arriba del panel y lo vuelve a consultar', async () => {
+    vi.mocked(reportDamage).mockResolvedValue({ damageReportId: 'd1' });
+    renderPanel();
+    await screen.findByText('101', { selector: 'div' });
+    vi.mocked(getCleaningPanel).mockResolvedValue({ rooms: [PENDING] });
+
+    await userEvent.click(within(rowOf('102')).getByRole('button', { name: /Reportar daño/ }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Reportar daño' });
+    expect(dialog).toHaveTextContent(
+      'La habitación 102 quedará fuera de servicio hasta que mantenimiento la repare.',
+    );
+    await userEvent.type(within(dialog).getByLabelText('Descripción del daño *'), 'Ventana rota');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reportar daño' }));
+
+    expect(
+      await screen.findByText(
+        'Daño reportado. La habitación 102 quedó fuera de servicio para que mantenimiento la repare.',
+      ),
+    ).toBeInTheDocument();
+    expect(reportDamage).toHaveBeenCalledWith('r102', 'Ventana rota');
+    await waitFor(() =>
+      expect(screen.queryByText('102', { selector: 'div' })).not.toBeInTheDocument(),
+    );
   });
 });

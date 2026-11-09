@@ -3,10 +3,13 @@ import { Navigate, useNavigate } from 'react-router';
 
 import type { CleaningRoom } from '@/api/cleaningService';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DamageReportDialog } from '@/components/DamageReportDialog';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { PageHeader } from '@/components/PageHeader';
 import { RoomNumberSearch } from '@/components/RoomNumberSearch';
+import { Alert } from '@/components/ui/alert';
 import { errorMessage } from '@/lib/errorMessages';
+import { CLEANING_KEY } from '@/lib/queryKeys';
 import { filterByRoomNumber, roomNotFoundMessage } from '@/lib/roomNumberSearch';
 import { startCleaningErrorMessage } from '@/pages/limpieza/cleaningErrors';
 import { CleaningRoomTable } from '@/pages/limpieza/CleaningRoomTable';
@@ -21,7 +24,7 @@ const EMPTY_PANEL_MESSAGE = 'No hay habitaciones pendientes de limpieza ni dispo
 
 /**
  * Panel de `limpieza/01-panel.html` (`plan-consultar-panel-limpieza.md` T009, T010): conteo por
- * estado, búsqueda por número y la tabla. Con una tarea activa lleva a su vista (FR-001).
+ * estado, búsqueda por número, la tabla, "Iniciar limpieza" y "Reportar daño". Con una tarea activa lleva a su vista (FR-001).
  */
 export function CleaningPanelPage() {
   const session = useSessionStore((state) => state.session);
@@ -31,6 +34,9 @@ export function CleaningPanelPage() {
 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CleaningRoom | null>(null);
+  const [damageRoom, setDamageRoom] = useState<CleaningRoom | null>(null);
+  // Aviso de éxito arriba del panel, como el de la vista.
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (panel.data?.activeTask) {
     return <Navigate to={ACTIVE_CLEANING_TASK_PATH} replace />;
@@ -60,6 +66,12 @@ export function CleaningPanelPage() {
         subtitle="Habitaciones por limpiar y disponibles"
       />
 
+      {notice && (
+        <Alert variant="success" role="status">
+          {notice}
+        </Alert>
+      )}
+
       <CleaningSummary
         pendingCount={panel.data?.pendingCount}
         availableCount={panel.data?.availableCount}
@@ -80,7 +92,12 @@ export function CleaningPanelPage() {
           {panel.isError && <ErrorAlert message={errorMessage(panel.error)} />}
           {panel.isPending && <p className="py-6 text-sm text-text-lo">Cargando habitaciones…</p>}
           {panel.data && (
-            <CleaningRoomTable rooms={rooms} emptyMessage={emptyMessage} onStart={setSelected} />
+            <CleaningRoomTable
+              rooms={rooms}
+              emptyMessage={emptyMessage}
+              onStart={setSelected}
+              onReportDamage={setDamageRoom}
+            />
           )}
         </div>
       </section>
@@ -99,6 +116,22 @@ export function CleaningPanelPage() {
       >
         {start.isError && <ErrorAlert message={startCleaningErrorMessage(start.error)} />}
       </ConfirmDialog>
+
+      <DamageReportDialog
+        room={damageRoom}
+        description={
+          damageRoom
+            ? `La habitación ${damageRoom.roomNumber} quedará fuera de servicio hasta que mantenimiento la repare.`
+            : ''
+        }
+        refreshKey={CLEANING_KEY}
+        onClose={() => setDamageRoom(null)}
+        onReported={(room) =>
+          setNotice(
+            `Daño reportado. La habitación ${room.roomNumber} quedó fuera de servicio para que mantenimiento la repare.`,
+          )
+        }
+      />
     </div>
   );
 }

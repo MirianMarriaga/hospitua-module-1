@@ -15,6 +15,9 @@ const buttonVariants = cva(
         ghost: 'text-ink hover:bg-accent',
         link: 'text-primary underline-offset-4 hover:underline',
         destructive: 'bg-due text-due-foreground hover:bg-due/90',
+        // btn-danger-outline de las vistas: "Reportar daño" en los paneles de limpieza y mantenimiento.
+        'destructive-outline':
+          'border border-state-red/40 bg-field text-state-red backdrop-blur-sm hover:bg-state-red-bg',
       },
       size: {
         default: 'h-10 px-4',

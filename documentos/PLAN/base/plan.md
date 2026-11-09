@@ -932,6 +932,7 @@ frontend/                                                     # Árbol real revi
     │   ├── checkInService.ts
     │   ├── checkOutService.ts
     │   ├── cleaningService.ts                                # Panel de limpieza e iniciar limpieza (plan-consultar-panel-limpieza.md)
+    │   ├── damageReportService.ts                            # Reportar daño y ver el último reporte (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   ├── historyService.ts                                 # Historial de estados
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
@@ -939,6 +940,9 @@ frontend/                                                     # Árbol real revi
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
+    │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
+    │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño (panel de mantenimiento)
+    │   ├── damageReportErrors.ts                             # Textos de los diálogos de daño por errorCode
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
@@ -953,6 +957,7 @@ frontend/                                                     # Árbol real revi
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
+    │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
     │   ├── useDebouncedValue.ts
     │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
     ├── layouts/
