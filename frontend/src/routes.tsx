@@ -12,7 +12,9 @@ import { CheckOutPage } from '@/pages/checkout/CheckOutPage';
 import { RoomStateHistoryPage } from '@/pages/gerencia/RoomStateHistoryPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { ReceptionPanel } from '@/pages/panel/ReceptionPanel';
-import { ACTIVE_CLEANING_TASK_PATH, CleaningPanelPage } from '@/pages/limpieza/CleaningPanelPage';
+import { ActiveCleaningTaskPage } from '@/pages/limpieza/ActiveCleaningTaskPage';
+import { CleaningPanelPage } from '@/pages/limpieza/CleaningPanelPage';
+import { ACTIVE_CLEANING_TASK_PATH, CLEANING_PANEL_PATH } from '@/pages/limpieza/cleaningRoutes';
 import { AreaPlaceholderPage } from '@/pages/placeholder/AreaPlaceholderPage';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -49,12 +51,8 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<AreaLayout area="LIMPIEZA" />}>
-        <Route path="/limpieza" element={<CleaningPanelPage />} />
-        {/* La vista de la tarea activa llega en F05; hasta entonces, la página "en preparación". */}
-        <Route
-          path={ACTIVE_CLEANING_TASK_PATH}
-          element={<AreaPlaceholderPage title="Tarea activa" />}
-        />
+        <Route path={CLEANING_PANEL_PATH} element={<CleaningPanelPage />} />
+        <Route path={ACTIVE_CLEANING_TASK_PATH} element={<ActiveCleaningTaskPage />} />
       </Route>
 
       <Route element={<AreaLayout area="MANTENIMIENTO" />}>

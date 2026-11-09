@@ -287,4 +287,18 @@ describe('CleaningPanelPage', () => {
       expect(screen.queryByText('102', { selector: 'div' })).not.toBeInTheDocument(),
     );
   });
+
+  it('al volver de la tarea activa muestra el aviso que trae la navegación', async () => {
+    renderWithProviders(<CleaningPanelPage />, {
+      route: {
+        pathname: '/limpieza',
+        state: { notice: 'Limpieza de la habitación 101 finalizada.' },
+      },
+      path: '/limpieza',
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Limpieza de la habitación 101 finalizada.',
+    );
+  });
 });

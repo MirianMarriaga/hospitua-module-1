@@ -24,3 +24,22 @@ export function startCleaningErrorMessage(error: unknown): string {
   }
   return errorMessage(error, START_CLEANING_ERRORS);
 }
+
+// Textos de "Confirmar fin" y "Liberar tarea" según el errorCode: tablas de errores de
+// `plan-confirmar-fin-de-limpieza.md` (T020). La red usa el texto común, que sugiere reintentar.
+const CLOSE_TASK_ERRORS = {
+  TASK_NOT_OWNED: 'Esta habitación la está limpiando otro compañero.',
+  TASK_NOT_FOUND: 'No encontramos esta limpieza. Vuelve al panel.',
+  TASK_ALREADY_CLOSED: 'Esta tarea ya fue cerrada.',
+};
+
+export function completeCleaningErrorMessage(error: unknown): string {
+  return errorMessage(error, {
+    ...CLOSE_TASK_ERRORS,
+    VALIDATION_ERROR: 'La descripción del daño admite máximo 500 caracteres.',
+  });
+}
+
+export function releaseCleaningErrorMessage(error: unknown): string {
+  return errorMessage(error, CLOSE_TASK_ERRORS);
+}

@@ -1043,13 +1043,18 @@ frontend/                                                     # Árbol real revi
     │   │   ├── RoomStateHistoryTable.tsx
     │   │   ├── historyParams.ts
     │   │   └── useRoomStateHistory.ts
-    │   ├── limpieza/                                         # Panel de limpieza (plan-consultar-panel-limpieza.md)
+    │   ├── limpieza/                                         # Panel de limpieza (plan-consultar-panel-limpieza.md) y tarea activa (plan-confirmar-fin-de-limpieza.md)
     │   │   ├── CleaningPanelPage.tsx                         # Conteo, búsqueda, tabla e "Iniciar limpieza"; con tarea activa lleva a /limpieza/tarea
     │   │   ├── CleaningPanelPage.test.tsx
     │   │   ├── CleaningSummary.tsx                           # Pendientes de limpieza y disponibles (FR-010)
     │   │   ├── CleaningRoomTable.tsx
-    │   │   ├── cleaningErrors.ts                             # Textos de iniciar limpieza (plan-marcar-habitacion-en-limpieza.md)
-    │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select) e iniciar limpieza
+    │   │   ├── ActiveCleaningTaskPage.tsx                    # /limpieza/tarea: "Confirmar fin" y "Liberar tarea"; sin tarea vuelve al panel
+    │   │   ├── ActiveCleaningTaskPage.test.tsx
+    │   │   ├── ConfirmCleaningEndDialog.tsx                  # Confirmación con campo opcional de daño
+    │   │   ├── ReleaseCleaningTaskDialog.tsx
+    │   │   ├── cleaningRoutes.ts                             # Rutas del área y aviso con el que se vuelve al panel
+    │   │   ├── cleaningErrors.ts                             # Textos de iniciar, confirmar fin y liberar por errorCode
+    │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select), iniciar, confirmar fin y liberar
     │   └── placeholder/
     │       └── AreaPlaceholderPage.tsx                       # Mantenimiento hasta F06 y la tarea activa de limpieza hasta F05
     ├── stores/

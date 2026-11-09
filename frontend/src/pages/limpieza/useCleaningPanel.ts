@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
+  completeCleaning,
   getCleaningPanel,
+  releaseCleaning,
   startCleaning,
   type ActiveCleaningTask,
   type CleaningPanel,
@@ -37,6 +39,25 @@ export function useStartCleaning() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: startCleaning,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: CLEANING_KEY }),
+  });
+}
+
+/** "Confirmar fin", con la descripción del daño si se escribió (FR-018). */
+export function useCompleteCleaning() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, damageDescription }: { taskId: string; damageDescription?: string }) =>
+      completeCleaning(taskId, damageDescription),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: CLEANING_KEY }),
+  });
+}
+
+/** "Liberar tarea": la habitación vuelve a la lista como pendiente de limpieza (FR-013). */
+export function useReleaseCleaning() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => releaseCleaning(taskId),
     onSettled: () => queryClient.invalidateQueries({ queryKey: CLEANING_KEY }),
   });
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import type { CleaningRoom } from '@/api/cleaningService';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -12,31 +12,37 @@ import { errorMessage } from '@/lib/errorMessages';
 import { CLEANING_KEY } from '@/lib/queryKeys';
 import { filterByRoomNumber, roomNotFoundMessage } from '@/lib/roomNumberSearch';
 import { startCleaningErrorMessage } from '@/pages/limpieza/cleaningErrors';
+import {
+  ACTIVE_CLEANING_TASK_PATH,
+  type CleaningPanelState,
+} from '@/pages/limpieza/cleaningRoutes';
 import { CleaningRoomTable } from '@/pages/limpieza/CleaningRoomTable';
 import { CleaningSummary } from '@/pages/limpieza/CleaningSummary';
 import { useCleaningPanel, useStartCleaning } from '@/pages/limpieza/useCleaningPanel';
 import { useSessionStore } from '@/stores/sessionStore';
 
-/** Vista de la tarea activa (confirmar-fin, lote F05). */
-export const ACTIVE_CLEANING_TASK_PATH = '/limpieza/tarea';
-
 const EMPTY_PANEL_MESSAGE = 'No hay habitaciones pendientes de limpieza ni disponibles';
 
 /**
  * Panel de `limpieza/01-panel.html` (`plan-consultar-panel-limpieza.md` T009, T010): conteo por
- * estado, búsqueda por número, la tabla, "Iniciar limpieza" y "Reportar daño". Con una tarea activa lleva a su vista (FR-001).
+ * estado, búsqueda por número, la tabla, "Iniciar limpieza" y "Reportar daño". Con una tarea
+ * activa lleva a su vista (FR-001).
  */
 export function CleaningPanelPage() {
   const session = useSessionStore((state) => state.session);
   const navigate = useNavigate();
+  const location = useLocation();
   const panel = useCleaningPanel();
   const start = useStartCleaning();
 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CleaningRoom | null>(null);
   const [damageRoom, setDamageRoom] = useState<CleaningRoom | null>(null);
-  // Aviso de éxito arriba del panel, como el de la vista.
-  const [notice, setNotice] = useState<string | null>(null);
+  // Aviso de éxito arriba del panel, como el de la vista; al volver de la tarea activa llega con la
+  // navegación (fin confirmado o tarea liberada).
+  const [notice, setNotice] = useState<string | null>(
+    () => (location.state as CleaningPanelState | null)?.notice ?? null,
+  );
 
   if (panel.data?.activeTask) {
     return <Navigate to={ACTIVE_CLEANING_TASK_PATH} replace />;

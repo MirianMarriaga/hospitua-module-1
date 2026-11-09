@@ -205,8 +205,12 @@ backend/src/main/java/com/hospitua/habitaciones/
 frontend/src/
 ├── pages/limpieza/
 │   ├── ActiveCleaningTaskPage.tsx
+│   ├── ActiveCleaningTaskPage.test.tsx
 │   ├── ConfirmCleaningEndDialog.tsx               # Confirmación con campo opcional de daño
-│   └── ReleaseCleaningTaskDialog.tsx
+│   ├── ReleaseCleaningTaskDialog.tsx
+│   ├── cleaningRoutes.ts                          # Rutas del área y aviso con el que se vuelve al panel
+│   ├── cleaningErrors.ts                          # Se agregan los textos de este plan
+│   └── useCleaningPanel.ts                        # Se agregan confirmar fin y liberar
 └── api/
     └── cleaningService.ts                         # Se agregan las 2 llamadas de este plan
 ```
@@ -269,7 +273,7 @@ No aplica: usa la infraestructura del plan base.
 
   En los caminos de dos periodos, el periodo `Available` dura lo que separa ambas transiciones (cero con el reloj fijo de las pruebas) y es válido.
   - Avance (L21): hechos en `CompleteCleaningIntegrationTest` todos los caminos menos el del mantenimiento programado, que necesita `applyForRoom` (T021 de `plan-programar-bloqueo-tecnico-para-habitacion.md`). En cada camino la tarea termina con la marca del primer periodo tras la limpieza.
-- [ ] T013 [P] [US1] Component test en `ActiveCleaningTaskPage`: solo muestra "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación tiene el campo opcional de daño (máximo 500), advierte la inhabilitación si se escribe un daño y cancelar no envía nada; tras éxito redirige al panel; si `GET /api/cleaning/panel` devuelve `activeTask` nulo, redirige al panel (FR-006, FR-013, FR-018).
+- [x] T013 [P] [US1] Component test en `ActiveCleaningTaskPage`: solo muestra "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación tiene el campo opcional de daño (máximo 500), advierte la inhabilitación si se escribe un daño y cancelar no envía nada; tras éxito redirige al panel; si `GET /api/cleaning/panel` devuelve `activeTask` nulo, redirige al panel (FR-006, FR-013, FR-018).
 - [x] T014 [P] [US1] Unit test en `ReleaseCleaningTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta invoca `MarkPendingCleaningUseCase` con `RELEASE_CLEANING_TASK` y el Administrador como `actorId` y cierra la tarea con `outcome = Released` sin validar el dueño; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (HU-1 esc. 8; FR-014).
   - Hecho (L21): `ReleaseCleaningTaskServiceTest`.
 - [x] T015 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la habitación en `PendingCleaning`, la tarea con `outcome = Released` y el periodo con actor = Administrador; si la transacción falla después, todo se revierte (HU-1 esc. 8; FR-014).
@@ -296,8 +300,8 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L21): `ReleaseCleaningTaskService`. En la desactivación, tras el bloqueo vuelve a buscar la tarea abierta del miembro en la base (`findOpenByMember`), porque la primera lectura quedó en el contexto de persistencia y no se refresca.
 - [x] T018 [US1] Agregar a `CleaningController` los endpoints `POST /api/cleaning/tasks/{taskId}/complete` y `POST /api/cleaning/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-006).
   - Hecho (L21): con `CompleteCleaningRequest` (cuerpo opcional, `@Size(max = 500)`); `CompleteCleaningIntegrationTest` cubre los 204 y los errores de las dos tablas.
-- [ ] T019 [US1] Construir en el frontend `ActiveCleaningTaskPage.tsx`, que toma sus datos de `GET /api/cleaning/panel` (`activeTask` con la fila del panel) al cargar, tras iniciar una tarea o al recargar, y redirige al panel si `activeTask` es nulo (habitación con el formato del panel y botones "Confirmar fin" y "Liberar tarea"), `ConfirmCleaningEndDialog.tsx` ("¿Está seguro que desea finalizar la limpieza de la habitación X?", campo "Describir daño encontrado" opcional de máximo 500 caracteres y advertencia de inhabilitación) y `ReleaseCleaningTaskDialog.tsx` ("¿Está seguro que desea liberar la limpieza de la habitación X?"); al terminar, redirigir al panel (FR-001, FR-006, FR-013, FR-018).
-- [ ] T020 [US1] Mostrar los errores de los endpoints con el texto de las tablas de este plan según el `errorCode` (el `message` de la respuesta es solo un texto de respaldo) y, ante fallos de red, la sugerencia de reintentar (FR-017).
+- [x] T019 [US1] Construir en el frontend `ActiveCleaningTaskPage.tsx`, que toma sus datos de `GET /api/cleaning/panel` (`activeTask` con la fila del panel) al cargar, tras iniciar una tarea o al recargar, y redirige al panel si `activeTask` es nulo (habitación con el formato del panel y botones "Confirmar fin" y "Liberar tarea"), `ConfirmCleaningEndDialog.tsx` ("¿Está seguro que desea finalizar la limpieza de la habitación X?", campo "Describir daño encontrado" opcional de máximo 500 caracteres y advertencia de inhabilitación) y `ReleaseCleaningTaskDialog.tsx` ("¿Está seguro que desea liberar la limpieza de la habitación X?"); al terminar, redirigir al panel (FR-001, FR-006, FR-013, FR-018).
+- [x] T020 [US1] Mostrar los errores de los endpoints con el texto de las tablas de este plan según el `errorCode` (el `message` de la respuesta es solo un texto de respaldo) y, ante fallos de red, la sugerencia de reintentar (FR-017).
 
 **Checkpoint**: El ciclo de limpieza queda completo: iniciar (plan anterior), confirmar con o sin daño y liberar.
 
