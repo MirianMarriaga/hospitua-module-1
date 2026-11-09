@@ -121,6 +121,27 @@ export interface ConflictingReservation {
   status: string;
 }
 
+function isConflictingReservation(value: unknown): value is ConflictingReservation {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const item: Record<string, unknown> = { ...value };
+  return ['reservationRef', 'startDate', 'endDate', 'status'].every(
+    (key) => typeof item[key] === 'string',
+  );
+}
+
+/**
+ * Reservas en conflicto de un `409 RESERVATION_CONFLICT` (`details.reservations`). Lo que no tenga
+ * la forma esperada se descarta, en lugar de suponerla con un `as`.
+ */
+export function readConflictingReservations(
+  details: Record<string, unknown>,
+): ConflictingReservation[] {
+  const reservations = details.reservations;
+  return Array.isArray(reservations) ? reservations.filter(isConflictingReservation) : [];
+}
+
 export function decommissionRoom(
   roomId: string,
   request: DecommissionRoomRequest,

@@ -23,7 +23,7 @@ Implementar el caso de uso misional **Registrar Check-Out** para el actor Recepc
 - **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Hibernate Validator, Lombok, Spring AMQP
 - **Storage**: PostgreSQL 16+ (Tablas: `room`, `stay`, `room_guest`, `outbox_notification`, `room_state_history`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers (PostgreSQL, RabbitMQ)
-- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 19 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Transición atómica de `Room.status` a `PendingCleaning` y cierre de `Stay`: < 50 ms.
@@ -381,7 +381,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
   - Hecho (L16): `CheckOutExecutionServiceTest` (bloqueo, estancia cerrada con su `version`, `PendingCleaning`, auditoría y los dos mensajes, en ese orden).
 - [x] T006 [P] [US1] Integration test con Testcontainers para `POST /api/check-out` verificando respuesta HTTP 200 OK y entrega en cola `m2.habitacion.checkout.queue` con formato `CheckOutMessagePayload` (`movementType` = `MovementType.DEPARTURE`), y la fila del Contrato 2 (`event_type = CHECK_OUT_BILLING`, routing key `facturacion.checkout`) con `eventId` = `message_id`, `occurredAt` con offset `-05:00` y `billingCustomer` del titular.
   - Hecho (L16): `CheckOutRegistrationIntegrationTest` revisa las dos filas de `outbox_notification` (el worker está apagado en el perfil de pruebas). El sobre del Contrato 2 (`eventId` = `message_id`, `occurredAt` con `-05:00`) lo prueba `OutboxMessageSerializerTest`.
-- [ ] T007 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
+- [x] T007 [P] [US1] Component test frontend para `CheckOutWizard.tsx` validando que el botón de confirmación permanece deshabilitado hasta marcar el checkbox del paso 4.
 - [x] T008 [P] [US1] Integration test verificando que tras el check-out la habitación queda en `PendingCleaning` (su aparición en el panel de limpieza la prueba `plan-consultar-panel-limpieza.md`, T012).
   - Hecho (L16): `CheckOutRegistrationIntegrationTest`, a partir de un Check-In real: habitación `PendingCleaning` con el periodo `CHECK_OUT` del recepcionista en el historial.
 
@@ -428,7 +428,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
   - Hecho: `GET /api/check-out/active-stay` (L15) y `POST /api/check-out` (L16), que responde 200 y toma el recepcionista de `X-User`; `RegisterCheckOutRequest` exige `stayId` y `confirmed` (si falta, `400 VALIDATION_ERROR`).
   - `GET /api/check-out/active-stay?reservationRef={ref}&roomId={roomId}`: Datos locales de la estancia de esa habitación para el Paso 1 (los mismos parámetros que envía el botón "Check-out" del panel); responde 404 si no hay una estancia activa para ese par (Endpoint 1).
   - `POST /api/check-out`: Confirmación y formalización del Check-Out (Endpoint 2).
-- [ ] T012 [US1] Construir los componentes frontend en React:
+- [x] T012 [US1] Construir los componentes frontend en React:
   - `Step1ActiveStay.tsx` (vista `vistas/recepcionista/06-checkout-1-reserva.html`): Renderiza código, titular, fechas reales, canal `source` y estado "Ocupada". Sin barra de búsqueda propia ni estado de M2.
   - `Step2SettlementSummary.tsx` (vista `vistas/recepcionista/07-checkout-2-liquidacion.html`): Muestra la liquidación informativa como valor exacto: canal local `Stay.source`, comisión OTA ("No aplica" en reserva directa) e ingreso neto.
   - `Step3PaymentReview.tsx` (vista `vistas/recepcionista/07b-checkout-2b-pago.html`): Hospedaje de M3 (sin recálculo local), noches y fechas, con la nota "La factura se emite al confirmar la salida".
@@ -458,7 +458,7 @@ La respuesta no depende de Módulo 2 ni de Módulo 3: los dos mensajes quedan en
 
 - [x] T017 [P] [US2] Incorporar validaciones preventivas de estado y existencia en `CheckOutEligibility.verify` (dominio).
   - Hecho (L15/L16): las validaciones de existencia y estado viven en `CheckOutEligibility.verify` (dominio, sin consultas); el Paso 1 las aplica con lo que leyó y el registro las repite con la habitación bloqueada. No hizo falta `CheckOutValidationService`.
-- [ ] T018 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
+- [x] T018 [US2] Implementar en la UI el banner de contingencia ante caída de Módulo 3, permitiendo al Recepcionista autorizar la liberación física a limpieza sin bloquear al huésped.
 
 ---
 

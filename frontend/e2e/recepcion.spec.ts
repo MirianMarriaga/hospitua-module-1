@@ -27,7 +27,9 @@ test('Recepción hace el check-in y el check-out de una llegada de hoy', async (
   const second = page.getByRole('group', { name: 'Huésped 2' });
   await second.getByLabel('Nombres').fill('John');
   await second.getByLabel('Apellidos').fill('Smith');
-  await second.getByLabel('Tipo de documento').selectOption('PAS');
+  // Tipo de documento es un OptionSelect (F02b): se abre la lista y se elige la opción.
+  await second.getByLabel('Tipo de documento').click();
+  await page.getByRole('option', { name: /^PAS/ }).click();
   await second.getByLabel('Número de documento').fill(`X${Date.now().toString().slice(-7)}`);
   await second.getByLabel('Nacionalidad').fill('Estados Unidos');
   await second.getByLabel('Fecha de nacimiento').fill('1987-07-04');

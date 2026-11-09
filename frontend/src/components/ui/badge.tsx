@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
+  'inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shadow-[inset_0_0_0_1px_color-mix(in_srgb,currentColor_22%,transparent)]',
   {
     variants: {
       tone: {
@@ -16,7 +16,7 @@ const badgeVariants = cva(
         orange: 'bg-state-orange-bg text-state-orange',
         crimson: 'bg-state-crimson-bg text-state-crimson',
         gray: 'bg-state-gray-bg text-state-gray',
-        due: 'bg-due text-white',
+        due: 'bg-due text-due-foreground',
       },
     },
     defaultVariants: { tone: 'gray' },

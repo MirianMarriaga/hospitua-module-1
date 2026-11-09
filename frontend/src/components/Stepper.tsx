@@ -19,8 +19,8 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
             <span
               className={cn(
                 'flex size-7 items-center justify-center rounded-full border text-xs font-bold',
-                done && 'border-state-green bg-state-green text-white',
-                active && 'border-primary bg-primary text-white',
+                done && 'border-state-green bg-state-green text-primary-foreground',
+                active && 'border-primary bg-primary text-primary-foreground',
                 !done && !active && 'border-line bg-paper text-text-lo',
               )}
             >

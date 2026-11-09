@@ -34,7 +34,7 @@ Componentes y lógica operativa:
 - **Primary Dependencies**: Spring Boot 4.1+, Spring Web MVC, Spring Data JPA, Lombok
 - **Storage**: PostgreSQL 16+ (Lectura optimizada sobre `room`, `stay`, `room_guest`, `daily_reservation`, `daily_reservation_room`)
 - **Testing**: JUnit 5, Mockito, Spring Boot Test, Testcontainers
-- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 18 / TypeScript, TSX)
+- **Target Platform**: Servidor Linux/Windows + UI Web en navegador (React 19 / TypeScript, TSX)
 - **Project Type**: Web Application monorepo (`backend/` + `frontend/`)
 - **Performance Goals**:
   - Carga inicial del panel < 500 ms (KPIs y listados servidos desde almacenamiento local), dentro del máximo de 2 segundos de SC-001.
@@ -409,13 +409,13 @@ frontend/src/
 
 - [x] T008 [P] [US1] Unit test para `DailyReservationSearchService` (`plan-consultar-reservas.md`) verificando que las llegadas se obtienen exclusivamente de la copia local, se dividen en una fila por habitación, se enriquecen con el estado físico de `Room` y se calculan las noches en tiempo de ejecución (FR-003, FR-005).
 - [x] T009 [P] [US1] Integration test para `GET /api/reception/arrivals` verificando que devuelve `PendingArrivalsDto` con sus `ArrivalGroup` y `ArrivalItemSummary` (sin llamadas REST a M2) y presenta alerta técnica si la habitación está en `DisabledForRepairs`, `TechnicalBlock` o `Inactive` y el indicador informativo si está en `Occupied`, `PendingCleaning` o `InCleaning` (FR-005); esa alerta se calcula solo con el estado de la habitación y no se publica ningún mensaje hacia Módulo 2 (*Marcar habitación como reservada*, esc. 7 y 8, FR-012 y SC-006; prueba trasladada desde `plan-marcar-habitacion-reservada.md`).
-- [ ] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-008; SC-004).
+- [x] T010 [P] [US1] Component test frontend para `ArrivalsTab.tsx` validando renderizado de agrupador `RES-xxx · X de Y pendientes`, alertas visuales y pase de parámetros al pulsar "Check-in" (FR-005, FR-008; SC-004).
 
 ### Implementation for User Story 1
 
 - [x] T011 [P] [US1] Implementar en `DailyReservationSearchService` (`SearchDailyReservationsUseCase.searchPendingArrivals`, `plan-consultar-reservas.md` T019 y T020) el método que lista y filtra llegadas del día a nivel de habitación, cruzando con `Stay` existente para filtrar solo las pendientes de check-in y enriqueciendo con `Room.status` para calcular `notice` (FR-003, FR-005).
 - [x] T012 [US1] Implementar el endpoint `GET /api/reception/arrivals?query={q}` en `ReceptionPanelController.java`, que delega en `SearchDailyReservationsUseCase` (FR-003, FR-011).
-- [ ] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-008).
+- [x] T013 [US1] Construir los componentes frontend `ArrivalsTab.tsx` y `ReceptionSearchBar.tsx` con agrupamiento visual por reserva, alertas técnicas ("No disponible: [Estado]" o "[Estado]: se apartará al terminar la limpieza") y botón "Check-in" que navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-003, FR-005, FR-008).
 
 ---
 
@@ -429,14 +429,14 @@ frontend/src/
 
 - [x] T014 [P] [US2] Unit test para `DepartureSearchService` verificando filtrado local por nombre del titular, documento, código y número de habitación (FR-004).
 - [x] T015 [P] [US2] Integration test para `GET /api/reception/departures` verificando que devuelve `DeparturesDto` con las `DepartureSummary` de las estancias activas locales, primero las vencidas (FR-004, FR-007).
-- [ ] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
+- [x] T016 [P] [US2] Component test frontend para `DeparturesTab.tsx` validando el resaltado visual de "Vencida" y paso de parámetros (FR-007, FR-009; SC-005).
 
 ### Implementation for User Story 2
 
 - [x] T017 [P] [US2] Implementar en `DepartureSearchService` la lógica de filtrado local insensible a mayúsculas y sin espacios (FR-004).
   - Hecho (L09): mismo texto normalizado que Llegadas (`SearchQuery.normalize`); referencia, documento y número de habitación exactos, y nombre, apellido o nombre completo por parte del texto.
 - [x] T018 [US2] Implementar el endpoint `GET /api/reception/departures?query={q}` en `ReceptionPanelController.java` (FR-004).
-- [ ] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-007, FR-009).
+- [x] T019 [US2] Construir el componente frontend `DeparturesTab.tsx` mostrando columnas completas, badge "Vencida" y botón "Check-out" hacia `/check-out?reservationRef={ref}&roomId={roomId}` (FR-007, FR-009).
 
 ---
 
@@ -449,27 +449,27 @@ frontend/src/
 ### Tests for User Story 3
 
 - [x] T020 [P] [US3] Unit test calculando los 4 KPIs con datos de la copia local y entidades `Stay`/`Room`; `arrivalsToday` es nulo si la lista del día no llegó (FR-002, FR-011).
-- [ ] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-011).
+- [x] T021 [P] [US3] Component test frontend para `KpiCards.tsx` verificando tarjeta de alerta destacada para "Salidas vencidas" y "—" cuando `arrivalsToday` es nulo (FR-002, FR-011).
 
 ### Implementation for User Story 3
 
 - [x] T022 [P] [US3] Implementar en `ReceptionPanelQueryService` el cálculo consolidado de los 4 KPIs locales (FR-002).
 - [x] T023 [US3] Implementar el endpoint `GET /api/reception/panel/kpis` en `ReceptionPanelController.java` (FR-002).
-- [ ] T024 [US3] Construir el componente `KpiCards.tsx` en frontend con las 4 tarjetas de resumen (FR-002).
+- [x] T024 [US3] Construir el componente `KpiCards.tsx` en frontend con las 4 tarjetas de resumen (FR-002).
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-010).
+- [x] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-010).
 - [ ] T026 Garantizar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración desacopladas de red, midiendo que el panel completo carga en menos de 2 segundos y cada búsqueda responde en menos de 0,5 segundos (SC-001 a SC-003).
   - Avance (L38): `CrossFlowRulesTest` comprueba que ninguna clase del panel consulta a Módulo 2 (solo la baja y los bloqueos técnicos lo hacen) y que `RestClient` solo se usa en los adaptadores REST. Falta medir los tiempos (fuera de los lotes; `@Tag("performance")` a pedido).
 - [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
   - Avance (L38): en el backend, `CrossFlowRulesTest` exige que todo campo `…Date` sea `LocalDate` (los instantes se llaman `…DateTime`). Falta revisar los textos contra los wireframes (frontend).
 - [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
-- [ ] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
+- [x] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
   - Avance (cierre de R13): hecha la parte de backend en `ReceptionPanelUpdatesIntegrationTest`, con su propio contexto y su propia base (la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola dejan días de 2200 en la base compartida). Tras la lista del día, un `ADDED`, un `UPDATED` que quita una habitación y un `REMOVED`, cada consulta de `arrivals` y `panel/kpis` refleja el cambio. Falta el component test de `ReceptionPanel.tsx`, que va con el frontend.
-- [ ] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
+- [x] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).
 
 ---
 

@@ -16,6 +16,12 @@ export function formatTimestamp(value: string): string {
   return match ? `${match[3]}-${match[2]}-${match[1]} ${match[4]}:${match[5]}` : value;
 }
 
+/** Solo la fecha de una marca de tiempo del backend, como `DD-MM-YYYY` y sin convertir la zona. */
+export function formatTimestampDate(value: string): string {
+  const match = TIMESTAMP.exec(value);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : value;
+}
+
 const COP = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',

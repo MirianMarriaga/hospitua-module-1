@@ -14,13 +14,8 @@ interface KpiCardProps {
 function KpiCard({ label, value, icon, due = false }: KpiCardProps) {
   const isOverdueAlert = due && value !== undefined && value > 0;
   return (
-    <div
-      className={cn(
-        'flex items-center gap-4 rounded-[10px] border border-line bg-paper p-4 sm:p-5',
-        due && 'due',
-      )}
-    >
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#EAF1FF] text-primary">
+    <div className="glass-card flex items-center gap-4 rounded-card border p-4 sm:p-5">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-bg text-primary">
         {icon}
       </div>
       <div>

@@ -213,7 +213,7 @@ No aplica: usa la infraestructura del plan base.
 - [x] T006 [P] [US1] Unit test: `from` posterior a `to` se rechaza con `INVALID_DATE_RANGE` sin consultar (esc. 4; FR-006).
 - [x] T007 [P] [US1] Unit test: la paginación devuelve 15 por página con `totalElements` y `totalPages` correctos (FR-008).
 - [x] T008 [US1] Integration test con Testcontainers: la consulta no modifica datos y no bloquea una transición que ocurre al mismo tiempo en otra habitación (FR-005, caso borde "Concurrente"; SC-004).
-- [ ] T009 [P] [US1] Component test en `RoomStateHistoryPage`:
+- [x] T009 [P] [US1] Component test en `RoomStateHistoryPage`:
   - Muestra habitación, tipo, estado en español, inicio, fin o "En curso", responsable o "Sistema", y flujo de origen.
   - Al llegar con `roomId` en la URL, el filtro de habitación ya viene aplicado.
   - Con "Desde" posterior a "Hasta" muestra el error y no muestra resultados.
@@ -225,8 +225,8 @@ No aplica: usa la infraestructura del plan base.
 
 - [x] T010 [US1] Implementar `RoomStateHistoryQueryService` con `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)` sobre `RoomStateHistoryRepositoryPort.search(...)`, validando el rango antes de consultar (FR-002 a FR-006, FR-008).
 - [x] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
-- [ ] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
-- [ ] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
+- [x] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
+- [x] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
 
 **Checkpoint**: El Gerente puede auditar el historial de estados de cualquier habitación.
 

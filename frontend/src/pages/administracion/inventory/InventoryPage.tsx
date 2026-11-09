@@ -1,22 +1,24 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 
-import { getInventory } from '@/api/roomService';
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { PageHero } from '@/components/PageHero';
+import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { errorMessage } from '@/lib/errorMessages';
+import { readPage } from '@/lib/pagination';
 import {
   FILTER_PARAMS,
   hasActiveFilters,
   readInventoryFilters,
-  readPage,
-} from '@/pages/administracion/inventoryParams';
-import { RoomInventoryFilters } from '@/pages/administracion/RoomInventoryFilters';
-import { RoomInventoryTable, type InventoryRole } from '@/pages/administracion/RoomInventoryTable';
+} from '@/pages/administracion/inventory/inventoryParams';
+import { RoomInventoryFilters } from '@/pages/administracion/inventory/RoomInventoryFilters';
+import {
+  RoomInventoryTable,
+  type InventoryRole,
+} from '@/pages/administracion/inventory/RoomInventoryTable';
+import { useInventory } from '@/pages/administracion/inventory/useInventory';
 
 const INVENTORY_ERRORS = { VALIDATION_ERROR: 'Revisa los filtros aplicados.' };
 
@@ -26,11 +28,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
   const filters = readInventoryFilters(searchParams);
   const page = readPage(searchParams);
 
-  const query = useQuery({
-    queryKey: ['inventory', filters, page],
-    queryFn: () => getInventory(filters, page),
-    placeholderData: keepPreviousData,
-  });
+  const query = useInventory(filters, page);
 
   function goToPage(next: number) {
     setSearchParams((previous) => {
@@ -62,7 +60,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
 
   return (
     <div>
-      <PageHero
+      <PageHeader
         title="Inventario de habitaciones"
         subtitle={
           role === 'admin'
@@ -80,7 +78,7 @@ export function InventoryPage({ role }: { role: InventoryRole }) {
           )
         }
       />
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="space-y-6">
         <Card className="overflow-hidden">
           <RoomInventoryFilters />
           {query.isError && (

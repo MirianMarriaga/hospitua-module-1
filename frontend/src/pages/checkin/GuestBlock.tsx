@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { OptionSelect } from '@/components/OptionSelect';
 import { formatDate, todayInBogota } from '@/lib/format';
 import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES } from '@/lib/labels';
 import {
@@ -23,6 +23,13 @@ interface GuestBlockProps {
 }
 
 /** Un ocupante. El primero es el titular: con la casilla marcada sus datos de la reserva son de solo lectura. */
+/** Países de la lista; si el huésped trae uno que no está (de la reserva), se agrega al principio. */
+function countryOptions(current: string) {
+  const known = (COUNTRIES as readonly string[]).includes(current);
+  const countries = current && !known ? [current, ...COUNTRIES] : COUNTRIES;
+  return countries.map((country) => ({ value: country, label: country }));
+}
+
 export function GuestBlock({ index, holder }: GuestBlockProps) {
   const form = useFormContext<GuestsValues>();
   const isHolderBlock = index === 0;
@@ -104,13 +111,17 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
             <FormItem>
               <FormLabel>Tipo de documento</FormLabel>
               <FormControl>
-                <NativeSelect {...field} disabled={locked}>
-                  {DOCUMENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type} — {DOCUMENT_TYPE_LABELS[type]}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <OptionSelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  disabled={locked}
+                  options={DOCUMENT_TYPES.map((type) => ({
+                    value: type,
+                    label: `${type} — ${DOCUMENT_TYPE_LABELS[type]}`,
+                  }))}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -136,27 +147,20 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
             <FormItem>
               <FormLabel>Nacionalidad</FormLabel>
               <FormControl>
-                <NativeSelect
-                  {...field}
+                <OptionSelect
+                  value={field.value}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
                   disabled={locked}
-                  onChange={(e) => {
-                    const newCountry = e.target.value;
+                  onValueChange={(newCountry) => {
                     field.onChange(newCountry);
                     if (newCountry === 'Colombia') {
                       form.setValue(`guests.${index}.originPlace`, '');
                       form.setValue(`guests.${index}.destinationPlace`, '');
                     }
                   }}
-                >
-                  {field.value && !(COUNTRIES as readonly string[]).includes(field.value) && (
-                    <option value={field.value}>{field.value}</option>
-                  )}
-                  {COUNTRIES.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </NativeSelect>
+                  options={countryOptions(field.value)}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

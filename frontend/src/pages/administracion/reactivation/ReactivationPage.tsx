@@ -1,18 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CircleCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 
 import { ApiRequestError } from '@/api/apiClient';
-import { getRoomDecommission, reactivateRoom, type ReactivateRoomRequest } from '@/api/roomService';
-import { type RoomStatus } from '@/api/types';
+import type { RoomStatus } from '@/api/types';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate } from '@/lib/format';
-import { DECOMMISSION_REASON_LABELS, ROOM_CATEGORY_LABELS, ROOM_STATUS_LABELS } from '@/lib/labels';
+import { errorMessage } from '@/lib/errorMessages';
+import { formatTimestampDate } from '@/lib/format';
+import {
+  DECOMMISSION_REASON_LABELS,
+  isRoomStatus,
+  ROOM_CATEGORY_LABELS,
+  ROOM_STATUS_LABELS,
+} from '@/lib/labels';
+import {
+  useReactivateRoom,
+  useRoomDecommission,
+} from '@/pages/administracion/reactivation/useReactivation';
 
 function RoomSummaryBox({
   roomNumber,
@@ -44,26 +52,12 @@ function RoomSummaryBox({
 /** Reactivación de una habitación inactiva (vistas 10 y 11). */
 export function ReactivationPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const queryClient = useQueryClient();
-
-  const decommissionQuery = useQuery({
-    queryKey: ['decommission', roomId],
-    queryFn: () => getRoomDecommission(roomId!),
-    enabled: !!roomId,
-  });
-
-  const reactivateMutation = useMutation({
-    mutationFn: (request: ReactivateRoomRequest) => reactivateRoom(roomId!, request),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['room', roomId] });
-      queryClient.invalidateQueries({ queryKey: ['decommission', roomId] });
-    },
-  });
+  const decommissionQuery = useRoomDecommission(roomId);
+  const reactivateMutation = useReactivateRoom();
 
   if (decommissionQuery.isPending) {
     return (
-      <div className="mx-auto max-w-3xl p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl">
         <p className="text-sm text-text-lo">Cargando datos de la baja…</p>
       </div>
     );
@@ -71,7 +65,7 @@ export function ReactivationPage() {
 
   if (decommissionQuery.isError || !decommissionQuery.data) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Habitación no encontrada</CardTitle>
@@ -96,7 +90,7 @@ export function ReactivationPage() {
   // Si no está inactiva y la mutación no ha respondido
   if (decommissionInfo.status !== 'Inactive' && !reactivateMutation.isSuccess) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -133,7 +127,7 @@ export function ReactivationPage() {
     const isAlready = res.alreadyReactivated;
 
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild aria-label="Volver">
             <Link to="/administracion/inventario">
@@ -180,7 +174,7 @@ export function ReactivationPage() {
 
   // Pantalla de confirmación (vista 10)
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild aria-label="Volver">
           <Link to="/administracion/inventario">
@@ -215,7 +209,7 @@ export function ReactivationPage() {
           <dl className="grid gap-3 rounded-lg border border-line bg-paper-dim p-4 sm:grid-cols-2">
             <InfoItem label="Dada de baja el">
               <span className="font-semibold text-ink">
-                {formatDate(decommissionInfo.decommissionDateTime)}
+                {formatTimestampDate(decommissionInfo.decommissionDateTime)}
               </span>
             </InfoItem>
             <InfoItem label="Motivo de la baja">
@@ -250,7 +244,10 @@ export function ReactivationPage() {
           </Button>
           <Button
             onClick={() =>
-              reactivateMutation.mutate({ decommissionId: decommissionInfo.decommissionId })
+              reactivateMutation.mutate({
+                roomId: decommissionInfo.roomId,
+                request: { decommissionId: decommissionInfo.decommissionId },
+              })
             }
             disabled={reactivateMutation.isPending}
           >
@@ -268,8 +265,11 @@ function ReactivationErrorAlert({ error, roomNumber }: { error: unknown; roomNum
   const details = isApiError ? error.details : {};
 
   if (errorCode === 'ROOM_INVALID_STATE') {
-    const currentStatus = (details?.currentStatus as RoomStatus) || 'Available';
-    const statusLabel = ROOM_STATUS_LABELS[currentStatus] ?? currentStatus;
+    const reported = details.currentStatus;
+    const statusLabel =
+      typeof reported === 'string' && isRoomStatus(reported)
+        ? ROOM_STATUS_LABELS[reported]
+        : ROOM_STATUS_LABELS.Available;
     return (
       <Alert variant="warning">
         La habitación {roomNumber} ya no está inactiva (estado actual: <b>{statusLabel}</b>). No se
@@ -286,5 +286,5 @@ function ReactivationErrorAlert({ error, roomNumber }: { error: unknown; roomNum
     );
   }
 
-  return <ErrorAlert message={error instanceof Error ? error.message : 'Error inesperado.'} />;
+  return <ErrorAlert message={errorMessage(error)} />;
 }

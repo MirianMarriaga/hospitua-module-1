@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 
-import { login } from '@/api/authService';
 import hospituaLogo from '@/assets/icono-hospitua-grande.png';
 import loginPhoto from '@/assets/login-example-photo.jpg';
 import { ErrorAlert } from '@/components/ErrorAlert';
@@ -24,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { homeOf } from '@/layouts/areaNavigation';
 import { errorMessage } from '@/lib/errorMessages';
+import { useLogin } from '@/pages/login/useLogin';
 import { useSessionStore } from '@/stores/sessionStore';
 
 const loginSchema = z.object({
@@ -39,7 +38,6 @@ const LOGIN_ERRORS = { INVALID_CREDENTIALS: 'Usuario o contraseña incorrectos.'
 export function LoginPage() {
   const session = useSessionStore((state) => state.session);
   const expired = useSessionStore((state) => state.expired);
-  const saveSession = useSessionStore((state) => state.login);
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
   const [showPassword, setShowPassword] = useState(false);
@@ -49,10 +47,7 @@ export function LoginPage() {
     defaultValues: { username: '', password: '' },
   });
 
-  const mutation = useMutation({
-    mutationFn: login,
-    onSuccess: saveSession,
-  });
+  const mutation = useLogin();
 
   if (session) {
     return <Navigate to={from ?? homeOf(session.area)} replace />;
@@ -61,13 +56,13 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Panel izquierdo: imagen con degradado y bienvenida (oculto en pantallas < 900px) */}
-      <div className="relative hidden min-h-screen w-1/2 overflow-hidden bg-[#152B4D] min-[900px]:flex min-[900px]:flex-col min-[900px]:justify-between p-12 text-white">
+      <div className="relative hidden min-h-screen w-1/2 overflow-hidden bg-[linear-gradient(180deg,var(--sidebar-from),var(--sidebar-to))] min-[900px]:flex min-[900px]:flex-col min-[900px]:justify-between p-12 text-sidebar-foreground">
         <img
           src={loginPhoto}
           alt="Fachada de Hotel Hospitua"
           className="absolute inset-0 size-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B33]/90 via-[#0F1B33]/60 to-[#0F1B33]/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-photo-overlay/90 via-photo-overlay/60 to-photo-overlay/30" />
         <div className="relative z-10 flex items-center gap-3">
           <img
             src={hospituaLogo}
@@ -80,17 +75,17 @@ export function LoginPage() {
           <h2 className="text-3xl font-extrabold leading-tight">
             Bienvenido al sistema de gestión hotelera
           </h2>
-          <p className="mt-3 text-base text-slate-200">
+          <p className="mt-3 text-base text-sidebar-text">
             Control integral de estancias, reservas y administración de habitaciones.
           </p>
         </div>
-        <div className="relative z-10 text-xs text-slate-300">
+        <div className="relative z-10 text-xs text-sidebar-muted">
           © {new Date().getFullYear()} Hotel Hospitua. Todos los derechos reservados.
         </div>
       </div>
 
       {/* Panel derecho: formulario centrado */}
-      <div className="flex flex-1 items-center justify-center bg-paper-dim p-6 sm:p-12">
+      <div className="flex flex-1 items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm space-y-6">
           <div className="flex flex-col items-center text-center">
             <img
@@ -102,7 +97,7 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-text-lo">Ingresa con tu usuario del hotel</p>
           </div>
 
-          <Card className="border-line bg-paper shadow-sm">
+          <Card>
             <CardContent className="pt-6">
               <Form {...form}>
                 <form
@@ -150,10 +145,12 @@ export function LoginPage() {
                               {...field}
                             />
                           </FormControl>
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-lo hover:text-ink focus:outline-none"
+                            className="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-text-lo hover:text-ink"
                             aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                           >
                             {showPassword ? (
@@ -161,7 +158,7 @@ export function LoginPage() {
                             ) : (
                               <Eye className="size-4" aria-hidden />
                             )}
-                          </button>
+                          </Button>
                         </div>
                         <FormMessage />
                       </FormItem>

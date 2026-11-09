@@ -1,14 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router';
 
-import { getArrivals, type ArrivalGroup, type ArrivalRoom } from '@/api/receptionService';
+import { type ArrivalGroup, type ArrivalRoom } from '@/api/receptionService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatNights } from '@/lib/format';
 import { categoryLabel, ROOM_STATUS_LABELS, sourceLabel } from '@/lib/labels';
 import { PANEL_ERRORS } from '@/pages/panel/panelErrors';
+import { useArrivals } from '@/pages/panel/useReceptionPanel';
 
 function checkInLink(reservationRef: string, roomId: string): string {
   return `/check-in?${new URLSearchParams({ reservationRef, roomId }).toString()}`;
@@ -32,12 +40,12 @@ function ArrivalRow({ group, room, showGroupColumn }: ArrivalRowProps) {
       : null);
 
   return (
-    <tr className="border-b border-line hover:bg-[#FAFAF7]">
+    <TableRow>
       {showGroupColumn && (
-        <td className="px-4 py-3.5 align-middle">
+        <TableCell>
           {group.totalRooms > 1 ? (
             <>
-              <span className="inline-block rounded-md bg-[#EAF1FF] px-2 py-0.5 text-xs font-bold text-primary">
+              <span className="inline-block rounded-md bg-state-blue-bg px-2 py-0.5 text-xs font-bold text-primary">
                 Reserva de {group.totalRooms} habitaciones
               </span>
               <div className="mt-0.5 text-xs text-text-lo">
@@ -47,57 +55,46 @@ function ArrivalRow({ group, room, showGroupColumn }: ArrivalRowProps) {
           ) : (
             <span className="text-text-lo">—</span>
           )}
-        </td>
+        </TableCell>
       )}
-      <td className="px-4 py-3.5 align-middle">
+      <TableCell>
         <div className="font-sans text-[20px] font-semibold text-text-hi">{room.roomNumber}</div>
         {alertText && (
-          <div className="mt-1 inline-flex items-center gap-1 rounded bg-[#FEF2F2] px-2 py-0.5 text-[11.5px] font-semibold text-[#991B1B]">
+          <div className="mt-1 inline-flex items-center gap-1 rounded bg-state-red-bg px-2 py-0.5 text-[11.5px] font-semibold text-state-red">
             <AlertTriangle className="size-3 shrink-0" aria-hidden />
             <span>{alertText}</span>
           </div>
         )}
-      </td>
-      <td className="px-4 py-3.5 align-middle">
+      </TableCell>
+      <TableCell>
         <div className="font-semibold text-text-hi">
           {room.titularFirstName} {room.titularLastName}
         </div>
         <div className="mt-0.5 text-[13px] text-text-lo">{room.titularDocumentNumber}</div>
-      </td>
-      <td className="px-4 py-3.5 align-middle text-text-hi">{formatNights(room.nights)}</td>
-      <td className="px-4 py-3.5 align-middle tabular-nums text-text-hi">{room.guestCount}</td>
-      <td className="px-4 py-3.5 align-middle text-text-hi">{categoryLabel(room.categoryRoom)}</td>
-      <td className="px-4 py-3.5 align-middle">
+      </TableCell>
+      <TableCell className="text-text-hi">{formatNights(room.nights)}</TableCell>
+      <TableCell className="tabular-nums text-text-hi">{room.guestCount}</TableCell>
+      <TableCell className="text-text-hi">{categoryLabel(room.categoryRoom)}</TableCell>
+      <TableCell>
         <span className="font-semibold text-text-hi">{sourceLabel(room.source)}</span>
-      </td>
-      <td className="px-4 py-3.5 text-right align-middle">
+      </TableCell>
+      <TableCell className="text-right">
         {isUnavailable ? (
-          <Button
-            size="sm"
-            disabled
-            className="cursor-not-allowed rounded-md bg-primary/50 px-3.5 py-2 font-semibold text-white"
-          >
+          <Button size="sm" disabled className="px-3.5">
             Check-in
           </Button>
         ) : (
-          <Button
-            size="sm"
-            asChild
-            className="rounded-md bg-primary px-3.5 py-2 font-semibold text-white hover:bg-primary/90"
-          >
+          <Button size="sm" asChild className="px-3.5">
             <Link to={checkInLink(group.reservationRef, room.roomId)}>Check-in</Link>
           </Button>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
 export function ArrivalsTab({ query }: { query: string }) {
-  const arrivals = useQuery({
-    queryKey: ['reception', 'arrivals', query],
-    queryFn: () => getArrivals(query),
-  });
+  const arrivals = useArrivals(query);
 
   if (arrivals.isPending) {
     return <p className="p-9 text-center text-sm text-text-lo">Cargando llegadas…</p>;
@@ -117,64 +114,42 @@ export function ArrivalsTab({ query }: { query: string }) {
     );
   }
 
-  const allRooms = arrivals.data.groups.flatMap((group) =>
-    group.rooms.map((room) => ({ group, room })),
-  );
-
-  const hasMultiRoom = arrivals.data.groups.some((group) => group.totalRooms > 1);
+  const { rows: allRooms, hasMultiRoom } = arrivals.data;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="table-stacked w-full border-collapse">
-        <thead>
-          <tr className="border-b border-line">
-            {hasMultiRoom && (
-              <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-                Reserva / Grupo
-              </th>
-            )}
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Hab.
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Huésped titular
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Estadía
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Personas
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Tipo habitación
-            </th>
-            <th className="px-4 py-3.5 text-left text-[12.5px] font-semibold tracking-wider text-text-lo uppercase">
-              Fuente
-            </th>
-            <th className="px-4 py-3.5">
-              <span className="sr-only">Acciones</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {allRooms.length === 0 ? (
-            <tr>
-              <td colSpan={hasMultiRoom ? 8 : 7} className="p-9 text-center text-text-lo">
-                <div className="empty">No hay reservas de llegada que mostrar.</div>
-              </td>
-            </tr>
-          ) : (
-            allRooms.map(({ group, room }) => (
-              <ArrivalRow
-                key={`${group.reservationRef}-${room.roomId}`}
-                group={group}
-                room={room}
-                showGroupColumn={hasMultiRoom}
-              />
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+    <Table className="table-stacked border-collapse">
+      <TableHeader className="bg-transparent">
+        <TableRow className="hover:bg-transparent">
+          {hasMultiRoom && <TableHead>Reserva / Grupo</TableHead>}
+          <TableHead>Hab.</TableHead>
+          <TableHead>Huésped titular</TableHead>
+          <TableHead>Estadía</TableHead>
+          <TableHead>Personas</TableHead>
+          <TableHead>Tipo habitación</TableHead>
+          <TableHead>Fuente</TableHead>
+          <TableHead>
+            <span className="sr-only">Acciones</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {allRooms.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={hasMultiRoom ? 8 : 7} className="p-9 text-center text-text-lo">
+              <div>No hay reservas de llegada que mostrar.</div>
+            </TableCell>
+          </TableRow>
+        ) : (
+          allRooms.map(({ group, room }) => (
+            <ArrivalRow
+              key={`${group.reservationRef}-${room.roomId}`}
+              group={group}
+              room={room}
+              showGroupColumn={hasMultiRoom}
+            />
+          ))
+        )}
+      </TableBody>
+    </Table>
   );
 }

@@ -13,7 +13,9 @@ test('Administración registra una habitación y Gerencia ve su historial', asyn
   await page.getByRole('link', { name: 'Registrar habitación' }).first().click();
   await page.getByLabel(/Número de habitación/).fill(roomNumber);
   await page.getByLabel(/Piso/).fill('7');
-  await page.getByLabel(/Tipo/).selectOption('SUITE');
+  // Tipo es un OptionSelect (F02b): se abre la lista y se elige la opción.
+  await page.getByLabel(/Tipo/).click();
+  await page.getByRole('option', { name: 'Suite' }).click();
   await page.getByLabel(/Capacidad máxima/).fill('4');
   await page.getByLabel(/Tarifa base/).fill('520000');
   await capture(page, '02-admin-registrar');
@@ -31,7 +33,9 @@ test('Administración registra una habitación y Gerencia ve su historial', asyn
   await expect(row.getByRole('button', { name: 'Editar' })).toBeDisabled();
   await capture(page, '04-admin-inventario-filtrado');
 
-  await page.getByRole('button', { name: /Salir/ }).click();
+  // "Salir" está en el menú del usuario de la barra lateral (F01e).
+  await page.getByRole('button', { name: `Menú de ${USERS.admin.fullName}` }).click();
+  await page.getByRole('menuitem', { name: /Salir/ }).click();
   await login(page, USERS.manager.username, USERS.manager.fullName);
   await page.getByLabel('Número').fill(roomNumber);
   await page

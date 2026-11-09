@@ -7,6 +7,7 @@ import { getRoomStateHistory, type RoomStatePeriod } from '@/api/historyService'
 import { RoomStateHistoryPage } from '@/pages/gerencia/RoomStateHistoryPage';
 import { page } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/historyService', () => ({ getRoomStateHistory: vi.fn() }));
 
@@ -90,5 +91,19 @@ describe('RoomStateHistoryPage', () => {
     renderWithProviders(<RoomStateHistoryPage />, { route: '/?status=Inactive' });
 
     expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument();
+  });
+  it('al cambiar un filtro vuelve a la página 1', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=3' });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 3);
+
+    await chooseOption(screen.getByLabelText('Tipo'), 'Doble');
+
+    await waitFor(() =>
+      expect(getRoomStateHistory).toHaveBeenLastCalledWith(
+        expect.objectContaining({ categoryRoom: 'DOBLE' }),
+        1,
+      ),
+    );
   });
 });

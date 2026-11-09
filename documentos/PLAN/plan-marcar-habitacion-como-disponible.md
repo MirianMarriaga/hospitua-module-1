@@ -345,7 +345,7 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
   - Hecho (L32): en `RoomDecommissionQueryServiceTest`; por HTTP, `ReactivateRoomIntegrationTest` comprueba la baja de la semilla y que `reasonDetail` se omite sin detalle.
 - [x] T015 [US1] Integration test con Testcontainers: dos reactivaciones simultáneas; con el bloqueo de la fila, una aplica la transición y la otra espera y responde `alreadyReactivated: true`, con un solo periodo en el historial (caso borde 2; regla 13 del plan base).
   - Hecho (L32): en `ReactivateRoomIntegrationTest`, con dos hilos sobre `ReactivateRoomUseCase`.
-- [ ] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
+- [x] T016 [P] [US1] Component test en `ReactivateRoomDialog` y `ReactivationResult`:
   - La confirmación muestra número, piso, tipo y estado, más la fecha, el motivo y el detalle de la baja (el detalle solo si existe).
   - Cancelar no envía nada.
   - El resultado indica que la habitación ya puede recibir reservas y estancias, o que no fue necesario hacer cambios.
@@ -357,7 +357,7 @@ La continuación tras la limpieza, según la prioridad de la regla 6 de la máqu
   - Hecho (L32): `ReactivateRoomService` bloquea la fila y recién después lee la baja, así la segunda de dos reactivaciones la encuentra revertida. Orden de las respuestas: baja ya revertida → `alreadyReactivated: true`; habitación fuera de `Inactive` → 409; baja ajena o inexistente → 400 (`UnknownDecommissionException`). La baja revertida guarda la marca del periodo `Available`.
 - [x] T018 [US1] Crear el puerto `GetRoomDecommissionUseCase`, implementarlo en `RoomDecommissionQueryService` y agregar a `RoomController` `GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation` (FR-002, FR-009).
   - Hecho (L32): `GetRoomDecommissionUseCase` en `RoomDecommissionQueryService` (`readOnly`; una habitación `Inactive` sin baja es un dato inconsistente) y los dos endpoints en `RoomController`.
-- [ ] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
+- [x] T019 [US1] Construir en el frontend `ReactivateRoomDialog.tsx` y `ReactivationResult.tsx`, abiertos desde la acción "Marcar como disponible" del inventario (FR-009, FR-010).
 
 **Checkpoint**: El Administrador puede revertir bajas.
 

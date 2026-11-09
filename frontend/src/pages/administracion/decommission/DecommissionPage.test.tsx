@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,8 +6,10 @@ import { ApiRequestError } from '@/api/apiClient';
 import { decommissionRoom, getRoom, type Room, type RoomDecommissionDto } from '@/api/roomService';
 import { DecommissionPage } from '@/pages/administracion/decommission/DecommissionPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
-vi.mock('@/api/roomService', () => ({
+vi.mock('@/api/roomService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/roomService')>()),
   getRoom: vi.fn(),
   decommissionRoom: vi.fn(),
 }));
@@ -38,7 +40,7 @@ describe('DecommissionPage', () => {
 
     expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'OTHER');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Otro');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(await screen.findByText('Escribe el motivo de la baja.')).toBeInTheDocument();
@@ -68,10 +70,7 @@ describe('DecommissionPage', () => {
     expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
 
     // Seleccionar motivo
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Motivo de la baja/),
-      'PERMANENT_REMODELING',
-    );
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Remodelación permanente');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     // Paso 2: confirmación
@@ -89,6 +88,37 @@ describe('DecommissionPage', () => {
       screen.getByText('Ya no aparece entre las habitaciones disponibles.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver al inventario' })).toBeInTheDocument();
+  });
+
+  it('el resultado se queda aunque la habitación vuelva consultada como Inactiva', async () => {
+    vi.mocked(decommissionRoom).mockImplementation(() => {
+      // Ya dada de baja: la consulta que sigue al éxito trae la habitación Inactive.
+      vi.mocked(getRoom).mockResolvedValue({ ...AVAILABLE_ROOM, status: 'Inactive', version: 2 });
+      return Promise.resolve({
+        decommissionId: 'dec-1',
+        roomId: 'room-101',
+        roomNumber: '101',
+        floor: 1,
+        categoryRoom: 'SENCILLA',
+        status: 'Inactive',
+        reasonCategory: 'PERMANENT_REMODELING',
+        reasonDetail: null,
+        decommissionDateTime: new Date().toISOString(),
+      });
+    });
+
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+    await screen.findByText(/1\. Motivo de la baja/);
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Remodelación permanente');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar baja' }));
+
+    expect(await screen.findByText('Habitación 101 dada de baja')).toBeInTheDocument();
+    await waitFor(() => expect(getRoom).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Habitación 101 dada de baja')).toBeInTheDocument();
   });
 
   it('conflicto de reservas (409 RESERVATION_CONFLICT) muestra lista de reservas en conflicto', async () => {
@@ -111,7 +141,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
@@ -133,10 +163,7 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Motivo de la baja/),
-      'ADMINISTRATIVE_DECISION',
-    );
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Decisión administrativa');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
@@ -177,12 +204,73 @@ describe('DecommissionPage', () => {
     });
 
     await screen.findByText(/1\. Motivo de la baja/);
-    await userEvent.selectOptions(screen.getByLabelText(/Motivo de la baja/), 'FLOOR_CLOSURE');
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
     expect(
       await screen.findByText(/La habitación tiene un huésped activo; debe estar Disponible/),
     ).toBeInTheDocument();
+  });
+  it('el detalle admite máximo 500 caracteres', async () => {
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    const detail = screen.getByLabelText('Detalle (opcional)');
+    expect(detail).toHaveAttribute('maxLength', '500');
+    expect(screen.getByText('Máximo 500 caracteres.')).toBeInTheDocument();
+
+    // Un texto pegado por encima del límite lo rechaza el esquema, igual que el backend.
+    fireEvent.change(detail, { target: { value: 'x'.repeat(501) } });
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(await screen.findByText('El detalle admite máximo 500 caracteres.')).toBeInTheDocument();
+    expect(screen.queryByText(/2\. ¿Confirmas la baja/)).not.toBeInTheDocument();
+  });
+
+  it('la confirmación muestra el motivo y el detalle, y "Atrás" vuelve sin enviar nada', async () => {
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Otro');
+    await userEvent.type(screen.getByRole('textbox'), '  Cierre del ala norte  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(
+      await screen.findByText('2. ¿Confirmas la baja de la habitación 101?'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Otro')).toBeInTheDocument();
+    expect(screen.getByText('Cierre del ala norte')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Atrás' }));
+
+    expect(await screen.findByText(/1\. Motivo de la baja/)).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toHaveValue('  Cierre del ala norte  ');
+    expect(decommissionRoom).not.toHaveBeenCalled();
+  });
+
+  it('mientras se comprueban las reservas muestra la verificación', async () => {
+    vi.mocked(decommissionRoom).mockReturnValue(new Promise(() => {}));
+    renderWithProviders(<DecommissionPage />, {
+      route: '/administracion/habitaciones/room-101/baja',
+      path: '/administracion/habitaciones/:roomId/baja',
+    });
+
+    await screen.findByText(/1\. Motivo de la baja/);
+    await chooseOption(screen.getByLabelText(/Motivo de la baja/), 'Cierre definitivo de piso');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+
+    expect(
+      await screen.findByText('Comprobando reservas de la habitación 101…'),
+    ).toBeInTheDocument();
+    expect(decommissionRoom).toHaveBeenCalledWith('room-101', { reasonCategory: 'FLOOR_CLOSURE' });
   });
 });

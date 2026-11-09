@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
 
@@ -42,7 +42,8 @@ export function GuestsStep({
   onBack,
   onContinue,
 }: GuestsStepProps) {
-  const schema = useMemo(() => createGuestsSchema(todayInBogota()), []);
+  // El compilador de React la calcula una vez por montaje (antes, un useMemo).
+  const schema = createGuestsSchema(todayInBogota());
   const form = useForm<GuestsValues>({
     resolver: zodResolver(schema),
     defaultValues: { guests: guests ?? initialGuests(validation.holder, validation.guestCount) },

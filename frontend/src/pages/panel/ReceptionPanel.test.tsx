@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Link } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getArrivals, getDepartures, getReceptionKpis } from '@/api/receptionService';
 import { ReceptionPanel } from '@/pages/panel/ReceptionPanel';
@@ -25,6 +26,10 @@ describe('ReceptionPanel', () => {
       overdueDepartures: 1,
       occupiedRooms: 12,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('muestra "—" en Llegadas de hoy cuando el backend no envía arrivalsToday', async () => {
@@ -135,5 +140,42 @@ describe('ReceptionPanel', () => {
       'Fuente',
       'Acciones',
     ]);
+  });
+  it('resalta "Salidas vencidas" cuando hay alguna', async () => {
+    renderWithProviders(<ReceptionPanel />);
+
+    const kpis = screen.getByRole('region', { name: 'Indicadores del día' });
+    const overdue = await within(kpis).findByText('1');
+    expect(overdue).toHaveClass('text-due');
+    expect(within(kpis).getByText('12')).not.toHaveClass('text-due');
+  });
+
+  it('vuelve a consultar los KPI, las llegadas y las salidas cada 60 segundos', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderWithProviders(<ReceptionPanel />);
+    await screen.findAllByText('Reserva de 2 habitaciones');
+    expect(getReceptionKpis).toHaveBeenCalledTimes(1);
+    expect(getArrivals).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    await waitFor(() => expect(getReceptionKpis).toHaveBeenCalledTimes(2));
+    expect(getArrivals).toHaveBeenCalledTimes(2);
+  });
+
+  it('vuelve a consultar al volver de un Check-In, aunque no se haya registrado', async () => {
+    renderWithProviders(<ReceptionPanel />, {
+      route: '/recepcion',
+      path: '/recepcion',
+      extraRoutes: [{ path: '/check-in', element: <Link to="/recepcion">Volver al panel</Link> }],
+    });
+    const ready = (await screen.findAllByRole('link', { name: 'Check-in' }))[0];
+    expect(getReceptionKpis).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(ready);
+    await userEvent.click(await screen.findByRole('link', { name: 'Volver al panel' }));
+
+    await waitFor(() => expect(getReceptionKpis).toHaveBeenCalledTimes(2));
+    expect(getArrivals).toHaveBeenCalledTimes(2);
   });
 });

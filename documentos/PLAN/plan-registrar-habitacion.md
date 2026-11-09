@@ -214,7 +214,7 @@ No aplica: usa la infraestructura del plan base.
 - [x] T007 [P] [US1] Unit test con `Clock` fijo: el periodo inicial guarda como actor al Administrador que registra y la hora del servidor como inicio (FR-010, FR-013).
 - [x] T008 [US1] Integration test con Testcontainers: dos registros simultáneos con el mismo número; solo uno tiene éxito y el otro recibe `409` (FR-004; SC-003).
 - [x] T009 [US1] Integration test: un fallo forzado al abrir el periodo inicial revierte la habitación; no queda una habitación sin su periodo (caso borde 5; SC-004).
-- [ ] T010 [P] [US1] Component test en `RegisterRoomPage`: marca los campos pendientes, restringe el tipo a las 4 categorías y, tras el registro, muestra la confirmación con ID, estado, número, piso, tipo, capacidad y tarifa, sin fecha ni usuario, con "Registrar otra" y "Volver al inventario" (esc. 3 y 5; FR-005, FR-012).
+- [x] T010 [P] [US1] Component test en `RegisterRoomPage`: marca los campos pendientes, restringe el tipo a las 4 categorías y, tras el registro, muestra la confirmación con ID, estado, número, piso, tipo, capacidad y tarifa, sin fecha ni usuario, con "Registrar otra" y "Volver al inventario" (esc. 3 y 5; FR-005, FR-012). Ajuste (revisión de 07282e4): se marcó en F00 sin que la confirmación mostrara el ID; `RegisterRoomPage.test.tsx` ahora lo comprueba.
 
 ### Implementation for User Story 1
 
@@ -224,8 +224,8 @@ No aplica: usa la infraestructura del plan base.
   - Crear la habitación con UUID generado y estado `Available`.
   - Abrir el primer periodo con `registerInitialStatus(roomId, administratorId, REGISTER_ROOM)`, que guarda el Administrador y la hora de `Clock` (FR-010, FR-013).
 - [x] T012 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms` (FR-001).
-- [ ] T013 [US1] Construir en el frontend `RegisterRoomPage.tsx` (formulario con número, piso, tipo como lista de las 4 categorías con las etiquetas de `roomCategoryLabels.ts`, capacidad y tarifa) y `RegisterRoomConfirmation.tsx` ("Registrar otra" limpia el formulario; "Volver al inventario" regresa al listado) (FR-005, FR-012).
-- [ ] T014 [US1] Mostrar los errores del endpoint con el texto de su tabla, señalando cada campo pendiente o inválido (esc. 2 a 4).
+- [x] T013 [US1] Construir en el frontend `RegisterRoomPage.tsx` (formulario con número, piso, tipo como lista de las 4 categorías con las etiquetas de `roomCategoryLabels.ts`, capacidad y tarifa) y `RegisterRoomConfirmation.tsx` ("Registrar otra" limpia el formulario; "Volver al inventario" regresa al listado) (FR-005, FR-012). Hecho (F00): la confirmación es `RegisterRoomSuccess.tsx` (`pages/administracion/register/`) y las etiquetas de tipo salen de `ROOM_CATEGORY_LABELS` de `lib/labels.ts`. Ajuste (revisión de 07282e4): la confirmación muestra el ID primero, como la vista 03 (FR-012).
+- [x] T014 [US1] Mostrar los errores del endpoint con el texto de su tabla, señalando cada campo pendiente o inválido (esc. 2 a 4).
 
 **Checkpoint**: El Administrador puede registrar habitaciones y verlas en el inventario.
 

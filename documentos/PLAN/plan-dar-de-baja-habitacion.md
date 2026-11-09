@@ -258,14 +258,14 @@ En los dos últimos casos la habitación sigue `Available`.
   - Hecho (L31): en `DecommissionRoomIntegrationTest`, con Módulo 2 en WireMock (no `MockRestServiceServer`): la respuesta se demora y, mientras tanto, otra transacción pasa la habitación a `InCleaning`.
 - [x] T012 [US1] Integration test: un fallo forzado al registrar `RoomDecommission` revierte la transición y el periodo del historial; la habitación sigue `Available` (caso borde 3).
   - Hecho (L31): en `DecommissionRoomIntegrationTest`, con un espía de `RoomDecommissionRepositoryPort` que falla al guardar.
-- [ ] T013 [P] [US1] Component test en `DecommissionRoomPage`:
+- [x] T013 [P] [US1] Component test en `DecommissionRoomPage`:
   - El paso del motivo muestra número, piso, tipo y estado.
   - "Otro" exige texto y el contador limita a 500 caracteres.
   - La confirmación muestra habitación, motivo y detalle, y cancelar no envía nada.
   - Durante la petición se muestra "Comprobando las reservas de la habitación…".
   - El resultado muestra los datos, el motivo, el detalle y que la habitación ya no aparece entre las disponibles.
   - (esc. 5; FR-005, FR-008, FR-010)
-- [ ] T014 [P] [US1] Component test: `RESERVATION_CONFLICT` muestra `ReservationConflictList` con referencia, fechas y estado de cada reserva; `MODULE_2_UNAVAILABLE` muestra "Reintentar", que reenvía la petición sin volver al motivo ni a la confirmación (esc. 3; FR-004, FR-009).
+- [x] T014 [P] [US1] Component test: `RESERVATION_CONFLICT` muestra `ReservationConflictList` con referencia, fechas y estado de cada reserva; `MODULE_2_UNAVAILABLE` muestra "Reintentar", que reenvía la petición sin volver al motivo ni a la confirmación (esc. 3; FR-004, FR-009).
 
 ### Implementation for User Story 1
 
@@ -276,7 +276,7 @@ En los dos últimos casos la habitación sigue `Available`.
   - Hecho (L31): `DecommissionRoomService` (sin `@Transactional`) valida el detalle antes de leer la habitación, rechaza fuera de `Available` sin llamar a Módulo 2 y luego invoca `RoomDecommissionRegistration`. Si la habitación cambió mientras Módulo 2 respondía, la transición a `Inactive` lo detecta con la fila bloqueada y responde el segundo `ROOM_INVALID_STATE` de la tabla.
 - [x] T016 [US1] Agregar a `RoomController` el endpoint `POST /api/rooms/{roomId}/decommission` (FR-001).
   - Hecho (L31): `DecommissionRoomRequest` → `DecommissionRoomCommand`, con el Administrador de `X-User`; responde 200 con `RoomDecommissionDto`.
-- [ ] T017 [US1] Construir en el frontend `DecommissionRoomPage.tsx` con los cuatro pasos y `ReservationConflictList.tsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
+- [x] T017 [US1] Construir en el frontend `DecommissionRoomPage.tsx` con los cuatro pasos y `ReservationConflictList.tsx`; conservar el motivo en el estado de la página para "Reintentar" (FR-005, FR-008 a FR-010).
 
 **Checkpoint**: La baja funciona de forma independiente; la reactivación queda para `plan-marcar-habitacion-como-disponible.md`.
 

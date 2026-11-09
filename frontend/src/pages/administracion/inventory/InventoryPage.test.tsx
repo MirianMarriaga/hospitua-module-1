@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getInventory, type Room } from '@/api/roomService';
 import type { PagedResult } from '@/api/types';
-import { InventoryPage } from '@/pages/administracion/InventoryPage';
+import { InventoryPage } from '@/pages/administracion/inventory/InventoryPage';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/roomService', () => ({ getInventory: vi.fn() }));
 
@@ -117,7 +118,7 @@ describe('InventoryPage', () => {
     renderWithProviders(<InventoryPage role="admin" />, { route: '/?page=3' });
     await screen.findByText('Mostrando 1–10 de 23');
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'DOBLE');
+    await chooseOption(screen.getByLabelText('Tipo'), 'Doble');
 
     await waitFor(() =>
       expect(getInventory).toHaveBeenLastCalledWith({ categoryRoom: 'DOBLE' }, 1),

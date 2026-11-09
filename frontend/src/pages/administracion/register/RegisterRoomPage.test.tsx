@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError } from '@/api/apiClient';
 import { registerRoom } from '@/api/roomService';
-import { RegisterRoomPage } from '@/pages/administracion/RegisterRoomPage';
+import { RegisterRoomPage } from '@/pages/administracion/register/RegisterRoomPage';
 import { room } from '@/test/fixtures/rooms';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { chooseOption } from '@/test/chooseOption';
 
 vi.mock('@/api/roomService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/roomService')>()),
@@ -16,7 +17,7 @@ vi.mock('@/api/roomService', async (importOriginal) => ({
 async function fillForm(values: { number: string; floor: string; capacity: string; rate: string }) {
   await userEvent.type(screen.getByLabelText(/Número de habitación/), values.number);
   await userEvent.type(screen.getByLabelText(/Piso/), values.floor);
-  await userEvent.selectOptions(screen.getByLabelText(/Tipo/), 'DOBLE');
+  await chooseOption(screen.getByLabelText(/Tipo/), 'Doble');
   await userEvent.type(screen.getByLabelText(/Capacidad máxima/), values.capacity);
   await userEvent.type(screen.getByLabelText(/Tarifa base/), values.rate);
   await userEvent.click(screen.getByRole('button', { name: 'Registrar habitación' }));
@@ -72,6 +73,9 @@ describe('RegisterRoomPage', () => {
     await fillForm({ number: ' 402 ', floor: '4', capacity: '2', rate: '250000,50' });
 
     expect(await screen.findByText('Habitación 402 registrada')).toBeInTheDocument();
+    // FR-012: la confirmación muestra el ID de la habitación.
+    expect(screen.getByText('ID')).toBeInTheDocument();
+    expect(screen.getByText('11111111-1111-4111-a111-111111111111')).toBeInTheDocument();
     expect(registerRoom).toHaveBeenCalledWith(
       { roomNumber: '402', floor: 4, categoryRoom: 'DOBLE', maxCapacity: 2, baseRate: 250000.5 },
       expect.anything(),

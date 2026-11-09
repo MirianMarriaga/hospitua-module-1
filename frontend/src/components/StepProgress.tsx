@@ -22,7 +22,7 @@ export function StepProgress({ steps, currentStep }: StepProgressProps) {
               <div
                 className={cn(
                   'mx-2.5 h-0.5 min-w-4 sm:min-w-8',
-                  isDone || isActive ? 'bg-state-green' : 'bg-slate-200',
+                  isDone || isActive ? 'bg-state-green' : 'bg-line',
                 )}
               />
             )}
@@ -30,16 +30,16 @@ export function StepProgress({ steps, currentStep }: StepProgressProps) {
               className={cn(
                 'flex items-center gap-2 text-xs font-bold sm:text-sm',
                 isDone && 'text-state-green',
-                isActive && 'text-brand',
+                isActive && 'text-primary',
                 !isDone && !isActive && 'text-text-lo',
               )}
             >
               <div
                 className={cn(
                   'flex size-6 items-center justify-center rounded-full text-xs font-bold border-2',
-                  isDone && 'border-state-green bg-state-green text-white',
-                  isActive && 'border-brand bg-brand text-white',
-                  !isDone && !isActive && 'border-slate-300 bg-white text-text-lo',
+                  isDone && 'border-state-green bg-state-green text-primary-foreground',
+                  isActive && 'border-primary bg-primary text-primary-foreground',
+                  !isDone && !isActive && 'border-line bg-paper text-text-lo',
                 )}
               >
                 {isDone ? <Check className="size-3.5 stroke-[3]" /> : stepNum}
