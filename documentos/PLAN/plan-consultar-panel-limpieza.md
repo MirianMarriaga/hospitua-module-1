@@ -139,11 +139,14 @@ backend/src/
     └── infrastructure/adapters/in/web/
         └── CleaningController.java                # Definido en plan-marcar-habitacion-en-limpieza.md; aquí se agrega GET /api/cleaning/panel
 frontend/src/
+├── components/
+│   └── RoomNumberSearch.tsx                       # Compartido con el panel de mantenimiento
 ├── pages/limpieza/
 │   ├── CleaningPanelPage.tsx
 │   ├── CleaningSummary.tsx
 │   ├── CleaningRoomTable.tsx
-│   └── RoomNumberSearch.tsx
+│   ├── cleaningErrors.ts                          # Textos de "Iniciar limpieza" por errorCode
+│   └── useCleaningPanel.ts                        # Consulta del panel e "Iniciar limpieza"
 └── api/
     └── cleaningService.ts                         # Compartido con los planes de limpieza
 ```

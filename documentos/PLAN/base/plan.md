@@ -931,6 +931,7 @@ frontend/                                                     # Árbol real revi
     │   ├── authService.ts                                    # Inicio de sesión (T021)
     │   ├── checkInService.ts
     │   ├── checkOutService.ts
+    │   ├── cleaningService.ts                                # Panel de limpieza e iniciar limpieza (plan-consultar-panel-limpieza.md)
     │   ├── historyService.ts                                 # Historial de estados
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
@@ -1037,8 +1038,15 @@ frontend/                                                     # Árbol real revi
     │   │   ├── RoomStateHistoryTable.tsx
     │   │   ├── historyParams.ts
     │   │   └── useRoomStateHistory.ts
+    │   ├── limpieza/                                         # Panel de limpieza (plan-consultar-panel-limpieza.md)
+    │   │   ├── CleaningPanelPage.tsx                         # Conteo, búsqueda, tabla e "Iniciar limpieza"; con tarea activa lleva a /limpieza/tarea
+    │   │   ├── CleaningPanelPage.test.tsx
+    │   │   ├── CleaningSummary.tsx                           # Pendientes de limpieza y disponibles (FR-010)
+    │   │   ├── CleaningRoomTable.tsx
+    │   │   ├── cleaningErrors.ts                             # Textos de iniciar limpieza (plan-marcar-habitacion-en-limpieza.md)
+    │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select) e iniciar limpieza
     │   └── placeholder/
-    │       └── AreaPlaceholderPage.tsx                       # Limpieza y Mantenimiento hasta F03 y F06
+    │       └── AreaPlaceholderPage.tsx                       # Mantenimiento hasta F06 y la tarea activa de limpieza hasta F05
     ├── stores/
     │   ├── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
     │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>
