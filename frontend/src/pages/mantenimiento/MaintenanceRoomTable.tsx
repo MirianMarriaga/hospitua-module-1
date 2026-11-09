@@ -28,6 +28,8 @@ interface MaintenanceRoomTableProps {
   onStart: (room: MaintenanceRoom) => void;
   onReportDamage: (room: MaintenanceRoom) => void;
   onViewDamage: (room: MaintenanceRoom) => void;
+  onSchedule: (room: MaintenanceRoom) => void;
+  onViewBlock: (room: MaintenanceRoom) => void;
 }
 
 function groupOf(room: MaintenanceRoom) {
@@ -50,8 +52,10 @@ function StateCell({ room }: { room: MaintenanceRoom }) {
 /**
  * Tabla de `mantenimiento/01-panel.html` (`plan-consultar-panel-mantenimiento.md` T010): número,
  * tipo, estado (con "vencido" y "En reparación"), mantenimiento y acciones por estado (FR-003 a
- * FR-005). "Programar mantenimiento" y el informe del bloqueo llegan con su diálogo (F07). Por
- * debajo de 900 px las filas se apilan, como en la vista.
+ * FR-005): "Programar mantenimiento" en todas; "Reportar daño" en las disponibles; "Ver informe" del
+ * daño en las inhabilitadas y del mantenimiento en las demás que tengan uno; "Iniciar reparaciones"
+ * en las que requieren intervención y nadie está reparando. Por debajo de 900 px las filas se apilan,
+ * como en la vista.
  */
 export function MaintenanceRoomTable({
   rooms,
@@ -61,6 +65,8 @@ export function MaintenanceRoomTable({
   onStart,
   onReportDamage,
   onViewDamage,
+  onSchedule,
+  onViewBlock,
 }: MaintenanceRoomTableProps) {
   return (
     <Table className="table-stacked">
@@ -143,6 +149,24 @@ export function MaintenanceRoomTable({
                           Ver informe
                         </Button>
                       )}
+                      {room.status !== 'DisabledForRepairs' && room.maintenance && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onViewBlock(room)}
+                          aria-label={`Ver informe del mantenimiento de la habitación ${room.roomNumber}`}
+                        >
+                          Ver informe
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onSchedule(room)}
+                        aria-label={`Programar mantenimiento de la habitación ${room.roomNumber}`}
+                      >
+                        Programar mantenimiento
+                      </Button>
                       {needsIntervention(room) && !room.hasOpenTask && (
                         <Button
                           size="sm"

@@ -266,7 +266,12 @@ backend/src/
 frontend/src/
 ├── components/
 │   ├── ScheduleTechnicalBlockDialog.tsx           # Lo abre "Programar mantenimiento" del panel de mantenimiento
-│   └── TechnicalBlockViewDialog.tsx               # Lo abre "Ver informe" según la regla de `plan-consultar-panel-mantenimiento.md` (FR-005 de su spec)
+│   ├── ScheduleTechnicalBlockDialog.test.tsx
+│   ├── TechnicalBlockViewDialog.tsx               # Lo abre "Ver informe" según la regla de `plan-consultar-panel-mantenimiento.md` (FR-005 de su spec)
+│   ├── TechnicalBlockViewDialog.test.tsx
+│   └── technicalBlockErrors.ts                    # Validación previa de fechas, aviso de éxito y textos de error
+├── hooks/
+│   └── useTechnicalBlock.ts                       # Programar y ver el informe
 └── api/
     └── technicalBlockService.ts
 ```
@@ -327,7 +332,7 @@ frontend/src/
   - Hecho (L26): `TechnicalBlockSchedulerIntegrationTest` invoca la ingesta por su puerto con el día operativo de hoy; el espía de `runDaily` le da su propio contexto y su propia base, sin las listas de días futuros de las pruebas de la cola, que harían descartar la de hoy como atrasada. El listener atrapa y registra el fallo de `runDaily`: la ingesta ya se confirmó y la excepción no debe llegar al listener de RabbitMQ, que reintentaría el mensaje; el respaldo de las 01:00 lo vuelve a intentar.
 - [x] T017 [P] [US1] Unit test en `TechnicalBlockQueryServiceTest`: "Ver informe" devuelve justificación, responsable (`responsibleName`: `full_name` de la cuenta o, si no existe, su `username`), rango y fecha de programación del informe `Applied` o, si no hay, del `Scheduled` de inicio más temprano (FR-009, FR-010).
   - Hecho (L26): también cubre la respuesta 404 sin informe y la habitación inexistente.
-- [ ] T018 [P] [US1] Component test en `ScheduleTechnicalBlockDialog`: campos obligatorios, fechas DD-MM-YYYY, validación previa y mensaje de la regla incumplida, alerta de conflicto con reservas o mantenimientos (FR-005, FR-011 a FR-015).
+- [x] T018 [P] [US1] Component test en `ScheduleTechnicalBlockDialog`: campos obligatorios, fechas DD-MM-YYYY, validación previa y mensaje de la regla incumplida, alerta de conflicto con reservas o mantenimientos (FR-005, FR-011 a FR-015).
 - [x] T019 [US1] Integration test con `Clock` fijo: `DailyMaintenanceNoticeService` deja en `outbox_notification` un aviso `SCHEDULED` con inicio = fin = hoy por cada habitación `DisabledForRepairs` (con `maintenanceId` = id de su último `DamageReport`) y por cada informe `Applied` vencido (con `maintenanceId` = id del informe), y ninguno para un `Applied` vigente ni un `Scheduled` (FR-020).
   - Hecho (L26): en `TechnicalBlockSchedulerIntegrationTest`, con dos reportes de daño (usa el último). `publishDaily` recibe la fecha, que `TechnicalBlockScheduler` toma del `Clock`, así que la prueba fija el día sin reemplazar el `Clock` de la aplicación; `DailyMaintenanceNoticeServiceTest` cubre además la reparación sin reporte (se omite con un `log.warn`).
 
@@ -348,7 +353,7 @@ frontend/src/
 - [x] T023 [US1] Implementar `TechnicalBlockQueryService`, que obtiene `responsibleName` con `StaffAccountRepositoryPort.findByUsername(maintenanceStaffMemberId)` (el `username` si la cuenta no existe), y `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` y `GET /api/rooms/{roomId}/technical-blocks/current` (FR-009, FR-018).
   - Avance (L25): `TechnicalBlockController` con `POST /api/rooms/{roomId}/technical-blocks` (201, `technicalBlockId` y `status`). `TechnicalBlockQueryService` y `GET …/current` llegan con L26.
   - Hecho (L26): `GetCurrentTechnicalBlockUseCase` y `GET …/current`, probado en `TechnicalBlockSchedulingIntegrationTest` (Scheduled más temprano, luego el Applied, 404 sin informe y habitación inexistente).
-- [ ] T024 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida, de `VALIDATION_ERROR` por campo según `details.field`, de `ROOM_INVALID_STATE` según `details.currentStatus` y de conflictos, éxito con el estado resultante según `status`) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-005, FR-010, FR-015).
+- [x] T024 [US1] Construir `ScheduleTechnicalBlockDialog.tsx` (justificación de máximo 500 caracteres, fecha de inicio y fecha estimada de fin en DD-MM-YYYY, mensajes de la regla incumplida, de `VALIDATION_ERROR` por campo según `details.field`, de `ROOM_INVALID_STATE` según `details.currentStatus` y de conflictos, éxito con el estado resultante según `status`) y `TechnicalBlockViewDialog.tsx` (justificación, responsable, rango y fecha de programación), conectados a los botones del panel de mantenimiento (`plan-consultar-panel-mantenimiento.md`, T011) (FR-005, FR-010, FR-015).
 - [x] T025 [US1] Implementar `DailyMaintenanceNoticeService` (`@Transactional`, sin bloquear filas, porque `MaintenanceNoticePublisher` exige una transacción abierta) y su disparo a las 00:00 en `TechnicalBlockScheduler` (`@Scheduled(cron = "0 0 0 * * *", zone = "America/Bogota")`), separado de `runDaily` para que el aviso no salga dos veces al día: con `findByStatusIn` (plan base, T008), `findAppliedByRoomIds` con `isOverdue(today)` y `DamageReportRepositoryPort.findLatestByRoomIds` (`plan-marcar-habitacion-inhabilitada-por-reparaciones.md`), publicar `publishScheduled(maintenanceId, habitación, today, today)` por cada habitación `DisabledForRepairs` (id del último `DamageReport`) y por cada informe `Applied` vencido (id del informe) (FR-020).
   - Ajuste (revisión de L26): una habitación `TechnicalBlock` sin informe `Applied` (dato inconsistente) no recibe aviso, porque no hay `maintenanceId` que enviar, y deja un `log.warn`, como la `DisabledForRepairs` sin reporte de daño. Módulo 2 no la asigna igual: la consulta de mantenimientos la responde no disponible hoy (`plan-consultar-informacion-mantenimientos.md` T011).
 

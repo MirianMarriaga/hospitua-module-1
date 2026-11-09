@@ -937,7 +937,8 @@ frontend/                                                     # Árbol real revi
     │   ├── maintenanceService.ts                             # Panel de mantenimiento e iniciar reparaciones (plan-consultar-panel-mantenimiento.md)
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
-    │   └── settlementService.ts
+    │   ├── settlementService.ts
+    │   └── technicalBlockService.ts                          # Programar mantenimiento y ver el informe del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
@@ -950,16 +951,20 @@ frontend/                                                     # Árbol real revi
     │   ├── OptionSelect.tsx                                  # Select de shadcn con lista de vidrio y opción vacía ("Todos", "Selecciona…")
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
-    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
+    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja y bloqueo técnico)
     │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
+    │   ├── ScheduleTechnicalBlockDialog.tsx                  # Programar mantenimiento (panel de mantenimiento)
     │   ├── StatusBadge.tsx
     │   ├── SummaryCard.tsx                                   # Tarjeta de conteo de los paneles de limpieza y mantenimiento
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
+    │   ├── TechnicalBlockViewDialog.tsx                      # Ver informe del mantenimiento (panel de mantenimiento)
+    │   ├── technicalBlockErrors.ts                           # Validación previa de fechas, aviso de éxito y textos de error del bloqueo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
+    │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     │   ├── useDebouncedValue.ts
     │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
     ├── layouts/

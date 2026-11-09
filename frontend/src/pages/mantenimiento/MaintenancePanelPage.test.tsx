@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError, NETWORK_ERROR } from '@/api/apiClient';
 import { getLatestDamageReport, reportDamage } from '@/api/damageReportService';
+import { getCurrentTechnicalBlock, scheduleTechnicalBlock } from '@/api/technicalBlockService';
 import {
   getMaintenancePanel,
   startRepair,
@@ -18,6 +19,16 @@ import { LocationProbe, renderWithProviders } from '@/test/renderWithProviders';
 vi.mock('@/api/maintenanceService', () => ({
   getMaintenancePanel: vi.fn(),
   startRepair: vi.fn(),
+}));
+vi.mock('@/api/technicalBlockService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/technicalBlockService')>()),
+  scheduleTechnicalBlock: vi.fn(),
+  getCurrentTechnicalBlock: vi.fn(),
+}));
+// "Hoy" fijo en Bogotá para las reglas de fechas de "Programar mantenimiento".
+vi.mock('@/lib/format', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/format')>()),
+  todayInBogota: () => '2026-11-09',
 }));
 vi.mock('@/api/damageReportService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/damageReportService')>()),
@@ -96,6 +107,8 @@ describe('MaintenancePanelPage', () => {
     vi.mocked(startRepair).mockReset();
     vi.mocked(reportDamage).mockReset();
     vi.mocked(getLatestDamageReport).mockReset();
+    vi.mocked(scheduleTechnicalBlock).mockReset();
+    vi.mocked(getCurrentTechnicalBlock).mockReset();
     useSessionStore.setState({
       session: { username: 'jcastro', fullName: 'Jorge Castro', area: 'MANTENIMIENTO' },
     });
@@ -146,16 +159,36 @@ describe('MaintenancePanelPage', () => {
     expect(within(rowOf('106')).getByText('20-11-2026 a 22-11-2026')).toBeInTheDocument();
   });
 
-  it('ofrece las acciones según el estado', async () => {
+  it('ofrece las acciones según el estado y el mantenimiento', async () => {
     renderPanel();
     await screen.findByText('105', { selector: 'div' });
 
-    expect(buttonsOf('105')).toEqual(['Ver informe', 'Iniciar reparaciones']);
-    expect(buttonsOf('201')).toEqual(['Ver informe']);
-    expect(buttonsOf('108')).toEqual(['Iniciar reparaciones']);
-    expect(buttonsOf('202')).toEqual(['Iniciar reparaciones']);
-    expect(buttonsOf('110')).toEqual(['Reportar daño']);
-    expect(buttonsOf('203')).toEqual([]);
+    expect(buttonsOf('105')).toEqual([
+      'Ver informe',
+      'Programar mantenimiento',
+      'Iniciar reparaciones',
+    ]);
+    expect(buttonsOf('201')).toEqual(['Ver informe', 'Programar mantenimiento']);
+    expect(buttonsOf('108')).toEqual([
+      'Ver informe',
+      'Programar mantenimiento',
+      'Iniciar reparaciones',
+    ]);
+    expect(buttonsOf('202')).toEqual([
+      'Ver informe',
+      'Programar mantenimiento',
+      'Iniciar reparaciones',
+    ]);
+    expect(buttonsOf('106')).toEqual(['Reportar daño', 'Ver informe', 'Programar mantenimiento']);
+    expect(buttonsOf('110')).toEqual(['Reportar daño', 'Programar mantenimiento']);
+    expect(buttonsOf('203')).toEqual(['Ver informe', 'Programar mantenimiento']);
+    // "Ver informe" es del daño en las inhabilitadas y del mantenimiento en las demás.
+    expect(
+      within(rowOf('105')).getByRole('button', { name: /Ver informe del daño/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(rowOf('108')).getByRole('button', { name: /Ver informe del mantenimiento/ }),
+    ).toBeInTheDocument();
   });
 
   it('busca por número exacto sin títulos de grupo y al vaciar vuelve el listado', async () => {
@@ -308,5 +341,60 @@ describe('MaintenancePanelPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Reporte de daño · Habitación 105' });
     expect(await within(dialog).findByText('Fuga en el lavamanos.')).toBeInTheDocument();
     expect(getLatestDamageReport).toHaveBeenCalledWith('r105');
+  });
+
+  it('"Programar mantenimiento" avisa con el resultado y recarga el panel', async () => {
+    vi.mocked(scheduleTechnicalBlock).mockResolvedValue({
+      technicalBlockId: 'b1',
+      status: 'Scheduled',
+    });
+    renderPanel();
+    await screen.findByText('110', { selector: 'div' });
+
+    await userEvent.click(
+      within(rowOf('110')).getByRole('button', { name: /Programar mantenimiento/ }),
+    );
+    const dialog = screen.getByRole('alertdialog', { name: 'Programar mantenimiento' });
+    expect(dialog).toHaveTextContent('Habitación 110 · Disponible.');
+    await userEvent.type(within(dialog).getByLabelText('Motivo del mantenimiento *'), 'Pintura');
+    fireEvent.change(within(dialog).getByLabelText('Fecha de inicio *'), {
+      target: { value: '2026-11-20' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Fecha estimada de fin *'), {
+      target: { value: '2026-11-22' },
+    });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Programar' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Mantenimiento programado del 20-11-2026 al 22-11-2026 para la habitación 110.',
+    );
+    expect(scheduleTechnicalBlock).toHaveBeenCalledWith('r110', {
+      reason: 'Pintura',
+      startDate: '2026-11-20',
+      estimatedEndDate: '2026-11-22',
+    });
+    await waitFor(() => expect(getMaintenancePanel).toHaveBeenCalledTimes(2));
+  });
+
+  it('"Ver informe" del mantenimiento muestra su informe', async () => {
+    vi.mocked(getCurrentTechnicalBlock).mockResolvedValue({
+      roomNumber: '108',
+      reason: 'Pintura y resane de paredes.',
+      responsibleName: 'Sara Gil',
+      startDate: '2026-11-08',
+      estimatedEndDate: '2026-11-11',
+      reportDateTime: '2026-11-03T14:10:00-05:00',
+    });
+    renderPanel();
+    await screen.findByText('108', { selector: 'div' });
+
+    await userEvent.click(
+      within(rowOf('108')).getByRole('button', { name: /Ver informe del mantenimiento/ }),
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Mantenimiento · Habitación 108' });
+    expect(await within(dialog).findByText('Pintura y resane de paredes.')).toBeInTheDocument();
+    expect(within(dialog).getByText('En curso')).toBeInTheDocument();
+    expect(getCurrentTechnicalBlock).toHaveBeenCalledWith('r108');
   });
 });

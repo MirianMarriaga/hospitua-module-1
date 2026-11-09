@@ -7,6 +7,8 @@ import { DamageReportViewDialog } from '@/components/DamageReportViewDialog';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { PageHeader } from '@/components/PageHeader';
 import { RoomNumberSearch } from '@/components/RoomNumberSearch';
+import { ScheduleTechnicalBlockDialog } from '@/components/ScheduleTechnicalBlockDialog';
+import { TechnicalBlockViewDialog } from '@/components/TechnicalBlockViewDialog';
 import { Alert } from '@/components/ui/alert';
 import { errorMessage } from '@/lib/errorMessages';
 import { MAINTENANCE_KEY } from '@/lib/queryKeys';
@@ -25,8 +27,9 @@ const EMPTY_PANEL_MESSAGE = 'No hay habitaciones para listar';
 
 /**
  * Panel de `mantenimiento/01-panel.html` (`plan-consultar-panel-mantenimiento.md` T010, T011):
- * conteos, búsqueda por número, la tabla con sus grupos, "Iniciar reparaciones", "Reportar daño" y
- * "Ver informe" del daño. Con una tarea activa lleva a su vista (FR-001).
+ * conteos, búsqueda por número, la tabla con sus grupos y sus acciones: "Iniciar reparaciones",
+ * "Programar mantenimiento", "Reportar daño" y "Ver informe" del daño o del mantenimiento. Con una
+ * tarea activa lleva a su vista (FR-001).
  */
 export function MaintenancePanelPage() {
   const session = useSessionStore((state) => state.session);
@@ -38,6 +41,8 @@ export function MaintenancePanelPage() {
   const [query, setQuery] = useState('');
   const [damageRoom, setDamageRoom] = useState<MaintenanceRoom | null>(null);
   const [viewDamageRoom, setViewDamageRoom] = useState<MaintenanceRoom | null>(null);
+  const [scheduleRoom, setScheduleRoom] = useState<MaintenanceRoom | null>(null);
+  const [viewBlockRoom, setViewBlockRoom] = useState<MaintenanceRoom | null>(null);
   // Aviso de éxito arriba del panel (el `.toast` de la vista); al volver de la tarea activa llega
   // con la navegación.
   const [notice, setNotice] = useState<string | null>(
@@ -102,6 +107,8 @@ export function MaintenancePanelPage() {
               onStart={startRepair}
               onReportDamage={setDamageRoom}
               onViewDamage={setViewDamageRoom}
+              onSchedule={setScheduleRoom}
+              onViewBlock={setViewBlockRoom}
             />
           )}
         </div>
@@ -124,6 +131,15 @@ export function MaintenancePanelPage() {
       />
 
       <DamageReportViewDialog room={viewDamageRoom} onClose={() => setViewDamageRoom(null)} />
+
+      <ScheduleTechnicalBlockDialog
+        room={scheduleRoom}
+        refreshKey={MAINTENANCE_KEY}
+        onClose={() => setScheduleRoom(null)}
+        onScheduled={setNotice}
+      />
+
+      <TechnicalBlockViewDialog room={viewBlockRoom} onClose={() => setViewBlockRoom(null)} />
     </div>
   );
 }
