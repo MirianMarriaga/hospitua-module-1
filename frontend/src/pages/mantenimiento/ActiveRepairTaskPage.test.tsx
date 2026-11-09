@@ -200,6 +200,31 @@ describe('ActiveRepairTaskPage', () => {
     expect(await screen.findByTestId('panel')).toHaveTextContent('sin aviso');
   });
 
+  it('cancelar la liberación no envía nada', async () => {
+    renderTask();
+    await userEvent.click(await screen.findByRole('button', { name: 'Liberar tarea' }));
+    const dialog = await screen.findByRole('alertdialog');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(releaseRepair).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Liberar tarea' })).toBeVisible();
+  });
+
+  it('si no se puede leer lo que hay que reparar, lo dice sin ocultar las acciones', async () => {
+    vi.mocked(getLatestDamageReport).mockRejectedValue(
+      new ApiRequestError(404, 'DAMAGE_REPORT_NOT_FOUND', 'sin reporte'),
+    );
+    renderTask();
+
+    expect(
+      await screen.findByText('Esta habitación no tiene un daño reportado.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar fin' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Liberar tarea' })).toBeVisible();
+  });
+
   it('libera la tarea y vuelve al panel con el aviso', async () => {
     vi.mocked(releaseRepair).mockResolvedValue(undefined);
     renderTask();
