@@ -84,8 +84,8 @@ export function ActiveCleaningTaskPage() {
       { taskId: dialog.task.taskId, damageDescription },
       {
         // El fin responde 204 sin el estado final: sin daño, la habitación puede quedar disponible,
-        // reservada o en bloqueo técnico, así que el aviso no dice cuál (opción A de
-        // ~/Documentos/decision-aviso-fin-de-limpieza.md). Con daño siempre queda fuera de servicio.
+        // reservada o en bloqueo técnico, así que el aviso no dice cuál (punto abierto 3 del plan
+        // base). Con daño siempre queda fuera de servicio.
         onSuccess: () =>
           backToPanel(
             damageDescription

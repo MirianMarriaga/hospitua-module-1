@@ -220,6 +220,18 @@ describe('ActiveCleaningTaskPage', () => {
     );
   });
 
+  it('cancelar la liberación no envía nada', async () => {
+    renderTask();
+    await userEvent.click(await screen.findByRole('button', { name: 'Liberar tarea' }));
+    const dialog = await screen.findByRole('alertdialog');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(releaseCleaning).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Liberar tarea' })).toBeVisible();
+  });
+
   it('al liberar muestra el texto de la tabla según el errorCode y el de la red', async () => {
     vi.mocked(releaseCleaning).mockRejectedValueOnce(
       new ApiRequestError(403, 'TASK_NOT_OWNED', 'otro'),

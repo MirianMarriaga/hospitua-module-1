@@ -968,7 +968,7 @@ frontend/                                                     # Árbol real revi
     │   ├── areaNavigation.ts                                 # Menú y pantalla de inicio de cada área
     │   └── useLogout.ts                                      # Cierra la sesión y vacía la caché de consultas
     ├── lib/
-    │   ├── errorMessages.ts                                  # errorMessage(error, tabla)
+    │   ├── errorMessages.ts                                  # errorMessage(error, tabla) e invalidRoomStateLabel (estado de ROOM_INVALID_STATE)
     │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
     │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
     │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
@@ -1444,6 +1444,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
   - `springdoc.default-flat-param-object: true`: los filtros que llegan como objeto (`@ModelAttribute`, por ejemplo `StaffListQuery`) se publican como parámetros sueltos.
   - `@Schema(implementation = String.class)` en los 6 métodos `@AssertTrue` que comparten nombre con un campo (`isPassword` de `RegisterStaffRequest` y `EditStaffRequest`, `isRoomId`, `isStartDate` e `isEndDate` de `MaintenanceAvailabilityQuery`, `isDate` de `RoomBaseRateQuery`): sin eso, el campo aparece como booleano.
   - Limitación conocida: los endpoints que responden `201 Created` con `ResponseEntity.status(...)` aparecen con `200` en el contrato. Los tipos que genera el frontend no cambian por eso. El frontend genera sus tipos desde ese archivo (lote C02 de su plan de fases).
+  - Limitación conocida (cierre de RF1, frontend): `CleaningPanelDto` y `MaintenancePanelDto` tienen cada uno un record anidado `ActiveTaskDto`, y el contrato publica un único esquema `ActiveTaskDto`, el de mantenimiento (`room` es `MaintenanceRoomDto` y falta `startDateTime`). `CleaningPanelDto.activeTask` queda mal descrito; el frontend escribe ese tipo a mano en `cleaningService.ts`. Pendiente de un lote del backend: dar nombres distintos a los dos records o configurar springdoc para que no los fusione, y regenerar `documentos/contrato/openapi.json`.
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
 

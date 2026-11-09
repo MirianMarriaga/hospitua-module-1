@@ -1,4 +1,5 @@
 import { ApiRequestError, NETWORK_ERROR } from '@/api/apiClient';
+import { isRoomStatus, ROOM_STATUS_LABELS } from '@/lib/labels';
 
 // Textos que ve el usuario según el errorCode. La interfaz nunca muestra el `message` técnico.
 
@@ -24,4 +25,19 @@ export function errorMessage(error: unknown, texts: ErrorTexts = {}): string {
     return FALLBACK_MESSAGE;
   }
   return texts[code] ?? COMMON_MESSAGES[code] ?? FALLBACK_MESSAGE;
+}
+
+/**
+ * Estado actual de un rechazo `ROOM_INVALID_STATE` (`details.currentStatus`) con su nombre de la
+ * interfaz (regla 12), para los textos "La habitación está {estado}; …" de las tablas de errores.
+ * `undefined` si el error es otro.
+ */
+export function invalidRoomStateLabel(error: unknown): string | undefined {
+  if (!(error instanceof ApiRequestError) || error.errorCode !== 'ROOM_INVALID_STATE') {
+    return undefined;
+  }
+  const current = error.details.currentStatus;
+  return typeof current === 'string' && isRoomStatus(current)
+    ? ROOM_STATUS_LABELS[current]
+    : 'en otro estado';
 }

@@ -22,7 +22,8 @@ interface CleaningRoomTableProps {
 
 /**
  * Tabla de `limpieza/01-panel.html`: número, tipo, estado, última limpieza y acciones (FR-003).
- * "Iniciar limpieza" en las dos y "Reportar daño" solo en las disponibles (FR-005).
+ * "Iniciar limpieza" en las dos y "Reportar daño" solo en las disponibles (FR-005). Por debajo de
+ * 900 px las filas se apilan, como en la vista.
  */
 export function CleaningRoomTable({
   rooms,
@@ -31,7 +32,7 @@ export function CleaningRoomTable({
   onReportDamage,
 }: CleaningRoomTableProps) {
   return (
-    <Table>
+    <Table className="table-stacked">
       <TableHeader>
         <TableRow>
           <TableHead>Hab.</TableHead>
@@ -72,7 +73,7 @@ export function CleaningRoomTable({
                 )}
               </TableCell>
               <TableCell>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 max-[900px]:mt-2 max-[900px]:justify-start">
                   {room.status === 'Available' && (
                     <Button
                       size="sm"

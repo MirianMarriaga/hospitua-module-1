@@ -94,7 +94,7 @@ describe('DamageReportDialog', () => {
 
     expect(
       await screen.findByText(
-        'La habitación está ocupada; ahora no se puede reportar un daño en ella.',
+        'La habitación está Ocupada; ahora no se puede reportar un daño en ella.',
       ),
     ).toBeInTheDocument();
     expect(field()).toHaveValue('Ventana rota');

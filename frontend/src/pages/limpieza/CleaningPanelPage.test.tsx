@@ -197,7 +197,7 @@ describe('CleaningPanelPage', () => {
     );
 
     expect(
-      await screen.findByText('La habitación está en limpieza; ahora no se puede limpiar.'),
+      await screen.findByText('La habitación está En limpieza; ahora no se puede limpiar.'),
     ).toBeInTheDocument();
     expect(screen.queryByText('técnico')).not.toBeInTheDocument();
     await waitFor(() => expect(getCleaningPanel).toHaveBeenCalledTimes(2));
