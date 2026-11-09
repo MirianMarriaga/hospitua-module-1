@@ -275,8 +275,13 @@ backend/src/
 frontend/src/
 ├── pages/mantenimiento/
 │   ├── ActiveRepairTaskPage.tsx
+│   ├── ActiveRepairTaskPage.test.tsx
 │   ├── ConfirmRepairEndDialog.tsx
-│   └── ReleaseRepairTaskDialog.tsx
+│   ├── ReleaseRepairTaskDialog.tsx
+│   ├── RepairReportCard.tsx                       # Lo que hay que reparar: reporte del daño o mantenimiento programado
+│   ├── MaintenanceStateBadge.tsx                  # Estado con "Bloqueo técnico (vencido)", compartido con la tabla del panel
+│   ├── maintenanceErrors.ts                       # Se agregan los textos de confirmar fin y liberar
+│   └── useMaintenancePanel.ts                     # Se agregan confirmar fin y liberar
 └── api/
     └── maintenanceService.ts
 ```
@@ -363,7 +368,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
   - Hecho (L30): en `CompleteRepairIntegrationTest`, que llama a los dos casos de uso desde dos hilos.
 - [x] T018 [US1] Integration test: un fallo forzado en `MarkPendingCleaningUseCase` revierte el cierre de la tarea y el informe, y no deja ningún aviso de mantenimiento en `outbox_notification` (caso límite 3; FR-019).
   - Hecho (L30): en `CompleteRepairIntegrationTest`, con un `@MockitoSpyBean` de `MarkPendingCleaningUseCase` que falla sobre una habitación `TechnicalBlock` (el informe ya se marcó `Completed` antes de la falla y vuelve a `Applied`). El espía queda detrás del proxy transaccional (`MANDATORY`), así que se programa sobre el objeto espiado (`AopTestUtils.getUltimateTargetObject`). El espía le da a la clase su propio contexto y su propia base.
-- [ ] T019 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel; si `GET /api/maintenance/panel` devuelve `activeTask` nulo, redirige al panel (FR-001, FR-004, FR-008, FR-016).
+- [x] T019 [P] [US1] Component test en `ActiveRepairTaskPage`: solo "Confirmar fin" y "Liberar tarea"; el diálogo de confirmación muestra "¿Está seguro que desea finalizar las reparaciones de la habitación X?" con la advertencia de la cola de limpieza; tras éxito redirige al panel; si `GET /api/maintenance/panel` devuelve `activeTask` nulo, redirige al panel (FR-001, FR-004, FR-008, FR-016).
 - [x] T020 [P] [US1] Unit test en `ReleaseRepairTaskServiceTest`: `releaseOpenTaskOf` sin tarea abierta no hace nada; con tarea abierta la cierra con `outcome = Released` sin validar el dueño, sin cambiar la habitación, sin escribir en el historial y sin publicar avisos; si al releerla tras el bloqueo ya está cerrada, no hace nada ni lanza excepción (FR-014, FR-016; caso límite 5).
 - [x] T021 [US1] Integration test con Testcontainers: invocar `releaseOpenTaskOf` dentro de una transacción abierta por la prueba (como la desactivación de *Gestionar personal*) para un miembro con tarea abierta deja la tarea con `outcome = Released` y la habitación y su informe sin cambios; si la transacción falla después, todo se revierte (FR-014; caso límite 5).
   - Hecho (L30): en `CompleteRepairIntegrationTest`, con un `TransactionTemplate`; también prueba que fuera de una transacción `releaseOpenTaskOf` se rechaza (`IllegalTransactionStateException`). T020 está en `ReleaseRepairTaskServiceTest`, incluido el caso en que la tarea releída es otra (mismo filtro por id que L21).
@@ -388,7 +393,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
   - Hecho (L30): `ReleaseRepairTaskService` sigue esta nota; el endpoint usa `LockedRepairTaskLoader` (ver T022).
 - [x] T024 [US1] Agregar a `MaintenanceController` `POST /api/maintenance/tasks/{taskId}/complete` y `POST /api/maintenance/tasks/{taskId}/release`, que responden `204` sin cuerpo (FR-001, FR-008).
   - Hecho (L30): `CompleteRepairIntegrationTest` prueba los dos endpoints sobre `DisabledForRepairs` y `TechnicalBlock` (habitación, historial, informe, tarea y el aviso en `outbox_notification`) y cada fila de sus tablas de errores con su texto.
-- [ ] T025 [US1] Construir `ActiveRepairTaskPage.tsx`, que toma sus datos de `GET /api/maintenance/panel` (`activeTask` con la fila del panel) y redirige al panel si `activeTask` es nulo (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-004, FR-005, FR-008, FR-016).
+- [x] T025 [US1] Construir `ActiveRepairTaskPage.tsx`, que toma sus datos de `GET /api/maintenance/panel` (`activeTask` con la fila del panel) y redirige al panel si `activeTask` es nulo (habitación con número, tipo y estado; botones "Confirmar fin" y "Liberar tarea"), `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` ("¿Está seguro que desea liberar la reparación de la habitación X?", advirtiendo que otro miembro podrá retomarla); tras éxito, redirigir al panel; mostrar los errores con el texto de las tablas y sugerir reintentar ante fallos de red (FR-001, FR-004, FR-005, FR-008, FR-016).
 
 **Checkpoint**: El ciclo de mantenimiento queda completo: tomar la habitación, confirmar o liberar.
 

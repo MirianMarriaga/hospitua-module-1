@@ -1,7 +1,6 @@
 import { Fragment } from 'react';
 
 import type { MaintenanceRoom } from '@/api/maintenanceService';
-import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/lib/format';
 import { ROOM_CATEGORY_LABELS } from '@/lib/labels';
+import { MaintenanceStateBadge } from '@/pages/mantenimiento/MaintenanceStateBadge';
 import { needsIntervention } from '@/pages/mantenimiento/useMaintenancePanel';
 
 interface MaintenanceRoomTableProps {
@@ -39,11 +39,7 @@ function groupOf(room: MaintenanceRoom) {
 function StateCell({ room }: { room: MaintenanceRoom }) {
   return (
     <div className="flex flex-col items-start gap-1.5">
-      {room.overdue ? (
-        <Badge tone="red">Bloqueo técnico (vencido)</Badge>
-      ) : (
-        <StatusBadge status={room.status} />
-      )}
+      <MaintenanceStateBadge room={room} />
       {room.hasOpenTask && <Badge tone="purple">En reparación</Badge>}
     </div>
   );

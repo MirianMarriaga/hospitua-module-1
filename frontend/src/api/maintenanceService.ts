@@ -40,3 +40,20 @@ export function startRepair(roomId: string): Promise<RepairTaskStarted> {
     body: { roomId },
   });
 }
+
+/**
+ * "Confirmar fin" (`plan-confirmar-reparacion-finalizada.md`): la habitación pasa a pendiente de
+ * limpieza y, si estaba en bloqueo técnico, su mantenimiento queda terminado. Responde 204.
+ */
+export function completeRepair(taskId: string): Promise<void> {
+  return apiRequest<void>(`/api/maintenance/tasks/${encodeURIComponent(taskId)}/complete`, {
+    method: 'POST',
+  });
+}
+
+/** "Liberar tarea": la habitación sigue fuera de servicio para otro compañero. Responde 204. */
+export function releaseRepair(taskId: string): Promise<void> {
+  return apiRequest<void>(`/api/maintenance/tasks/${encodeURIComponent(taskId)}/release`, {
+    method: 'POST',
+  });
+}

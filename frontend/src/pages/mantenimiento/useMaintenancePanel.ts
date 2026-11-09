@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
+  completeRepair,
   getMaintenancePanel,
+  releaseRepair,
   startRepair,
   type ActiveRepairTask,
   type MaintenancePanel,
@@ -50,6 +52,24 @@ export function useStartRepair() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (roomId: string) => startRepair(roomId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: MAINTENANCE_KEY }),
+  });
+}
+
+/** "Confirmar fin" de la reparación (FR-004). */
+export function useCompleteRepair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => completeRepair(taskId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: MAINTENANCE_KEY }),
+  });
+}
+
+/** "Liberar tarea": otro compañero podrá retomar la reparación (FR-016). */
+export function useReleaseRepair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => releaseRepair(taskId),
     onSettled: () => queryClient.invalidateQueries({ queryKey: MAINTENANCE_KEY }),
   });
 }
