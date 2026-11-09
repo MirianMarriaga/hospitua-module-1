@@ -18,3 +18,6 @@ export function settlementKey(stayId: string) {
 
 /** Panel de limpieza; iniciar, terminar o dejar una limpieza lo invalidan. */
 export const CLEANING_KEY = ['cleaning'] as const;
+
+/** Panel de mantenimiento; iniciar, terminar o dejar una reparación y reportar un daño lo invalidan. */
+export const MAINTENANCE_KEY = ['maintenance'] as const;

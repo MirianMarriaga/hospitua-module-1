@@ -934,6 +934,7 @@ frontend/                                                     # Árbol real revi
     │   ├── cleaningService.ts                                # Panel de limpieza e iniciar limpieza (plan-consultar-panel-limpieza.md)
     │   ├── damageReportService.ts                            # Reportar daño y ver el último reporte (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   ├── historyService.ts                                 # Historial de estados
+    │   ├── maintenanceService.ts                             # Panel de mantenimiento e iniciar reparaciones (plan-consultar-panel-mantenimiento.md)
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
     │   └── settlementService.ts
@@ -952,6 +953,7 @@ frontend/                                                     # Árbol real revi
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
     │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
     │   ├── StatusBadge.tsx
+    │   ├── SummaryCard.tsx                                   # Tarjeta de conteo de los paneles de limpieza y mantenimiento
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
@@ -1055,8 +1057,16 @@ frontend/                                                     # Árbol real revi
     │   │   ├── cleaningRoutes.ts                             # Rutas del área y aviso con el que se vuelve al panel
     │   │   ├── cleaningErrors.ts                             # Textos de iniciar, confirmar fin y liberar por errorCode
     │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select), iniciar, confirmar fin y liberar
+    │   ├── mantenimiento/                                    # Panel de mantenimiento (plan-consultar-panel-mantenimiento.md)
+    │   │   ├── MaintenancePanelPage.tsx                      # Conteos, búsqueda, tabla e "Iniciar reparaciones"; con tarea activa lleva a /mantenimiento/tarea
+    │   │   ├── MaintenancePanelPage.test.tsx
+    │   │   ├── MaintenanceSummary.tsx                        # Inhabilitadas, en bloqueo técnico (y vencidas) y con mantenimiento programado (FR-009)
+    │   │   ├── MaintenanceRoomTable.tsx                      # Grupos "Requieren intervención" y "Demás habitaciones"; acciones por estado
+    │   │   ├── maintenanceRoutes.ts                          # Rutas del área y aviso con el que se vuelve al panel
+    │   │   ├── maintenanceErrors.ts                          # Textos de iniciar reparaciones (plan-confirmar-reparacion-finalizada.md)
+    │   │   └── useMaintenancePanel.ts                        # Panel con sus conteos (select) e iniciar reparaciones
     │   └── placeholder/
-    │       └── AreaPlaceholderPage.tsx                       # Panel de mantenimiento hasta F06
+    │       └── AreaPlaceholderPage.tsx                       # Tarea activa de mantenimiento hasta F08
     ├── stores/
     │   ├── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
     │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>

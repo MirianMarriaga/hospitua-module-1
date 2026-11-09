@@ -150,8 +150,15 @@ backend/src/
 frontend/src/
 ├── pages/mantenimiento/
 │   ├── MaintenancePanelPage.tsx
+│   ├── MaintenancePanelPage.test.tsx
 │   ├── MaintenanceSummary.tsx
-│   └── MaintenanceRoomTable.tsx
+│   ├── MaintenanceRoomTable.tsx
+│   ├── maintenanceRoutes.ts                       # Rutas del área y aviso con el que se vuelve al panel
+│   ├── maintenanceErrors.ts                       # Textos de "Iniciar reparaciones" por errorCode
+│   └── useMaintenancePanel.ts                     # Consulta del panel, conteos e "Iniciar reparaciones"
+├── components/
+│   ├── RoomNumberSearch.tsx                       # Compartido con el panel de limpieza
+│   └── SummaryCard.tsx                            # Tarjeta de conteo, compartida con el panel de limpieza
 └── api/
     └── maintenanceService.ts                      # Compartido con los planes de mantenimiento
 ```

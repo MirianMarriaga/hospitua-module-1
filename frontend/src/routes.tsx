@@ -15,6 +15,11 @@ import { ReceptionPanel } from '@/pages/panel/ReceptionPanel';
 import { ActiveCleaningTaskPage } from '@/pages/limpieza/ActiveCleaningTaskPage';
 import { CleaningPanelPage } from '@/pages/limpieza/CleaningPanelPage';
 import { ACTIVE_CLEANING_TASK_PATH, CLEANING_PANEL_PATH } from '@/pages/limpieza/cleaningRoutes';
+import { MaintenancePanelPage } from '@/pages/mantenimiento/MaintenancePanelPage';
+import {
+  ACTIVE_REPAIR_TASK_PATH,
+  MAINTENANCE_PANEL_PATH,
+} from '@/pages/mantenimiento/maintenanceRoutes';
 import { AreaPlaceholderPage } from '@/pages/placeholder/AreaPlaceholderPage';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -56,9 +61,11 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<AreaLayout area="MANTENIMIENTO" />}>
+        <Route path={MAINTENANCE_PANEL_PATH} element={<MaintenancePanelPage />} />
+        {/* La vista de la tarea activa llega en F08; hasta entonces, la página "en preparación". */}
         <Route
-          path="/mantenimiento"
-          element={<AreaPlaceholderPage title="Panel de mantenimiento" />}
+          path={ACTIVE_REPAIR_TASK_PATH}
+          element={<AreaPlaceholderPage title="Tarea activa" />}
         />
       </Route>
 
