@@ -32,7 +32,7 @@ export function RegisterRoomSuccess({
           </div>
         </div>
         <dl className="grid gap-4 rounded-lg border border-line bg-paper-dim p-4 sm:grid-cols-3">
-          {/* FR-012: la confirmación muestra el ID (UUID generado por el servidor), aunque la vista 03 no lo trae. */}
+          {/* FR-012: el ID (UUID que genera el servidor) va primero, como en la vista 03. */}
           <InfoItem label="ID" className="sm:col-span-3">
             <span className="font-mono text-[13px] break-all">{room.roomId}</span>
           </InfoItem>
