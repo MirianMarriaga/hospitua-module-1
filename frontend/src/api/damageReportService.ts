@@ -16,13 +16,18 @@ export function reportDamage(
   roomId: string,
   damageDescription: string,
 ): Promise<DamageReportCreated> {
-  return apiRequest<DamageReportCreated>(`/api/rooms/${roomId}/damage-reports`, {
-    method: 'POST',
-    body: { damageDescription },
-  });
+  return apiRequest<DamageReportCreated>(
+    `/api/rooms/${encodeURIComponent(roomId)}/damage-reports`,
+    {
+      method: 'POST',
+      body: { damageDescription },
+    },
+  );
 }
 
 /** El reporte que dejó la habitación en DisabledForRepairs; 404 si ya no está en ese estado. */
 export function getLatestDamageReport(roomId: string): Promise<DamageReportView> {
-  return apiRequest<DamageReportView>(`/api/rooms/${roomId}/damage-reports/latest`);
+  return apiRequest<DamageReportView>(
+    `/api/rooms/${encodeURIComponent(roomId)}/damage-reports/latest`,
+  );
 }

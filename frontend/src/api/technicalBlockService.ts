@@ -22,13 +22,18 @@ export function scheduleTechnicalBlock(
   roomId: string,
   request: ScheduleTechnicalBlockRequest,
 ): Promise<TechnicalBlockCreated> {
-  return apiRequest<TechnicalBlockCreated>(`/api/rooms/${roomId}/technical-blocks`, {
-    method: 'POST',
-    body: request,
-  });
+  return apiRequest<TechnicalBlockCreated>(
+    `/api/rooms/${encodeURIComponent(roomId)}/technical-blocks`,
+    {
+      method: 'POST',
+      body: request,
+    },
+  );
 }
 
 /** El informe `Applied` de la habitación o, si no hay, su `Scheduled` más próximo. */
 export function getCurrentTechnicalBlock(roomId: string): Promise<TechnicalBlockView> {
-  return apiRequest<TechnicalBlockView>(`/api/rooms/${roomId}/technical-blocks/current`);
+  return apiRequest<TechnicalBlockView>(
+    `/api/rooms/${encodeURIComponent(roomId)}/technical-blocks/current`,
+  );
 }
