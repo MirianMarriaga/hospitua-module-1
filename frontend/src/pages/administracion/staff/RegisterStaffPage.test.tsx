@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,6 +64,29 @@ describe('RegisterStaffPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeInTheDocument();
     expect(registerStaff).not.toHaveBeenCalled();
+  });
+
+  it('una contraseña de solo espacios cuenta como vacía, como en el backend', async () => {
+    renderWithProviders(<RegisterStaffPage />);
+    await fillForm({ ...VALID, password: '        ' });
+
+    expect(await screen.findByText('Ingresa la contraseña.')).toBeInTheDocument();
+    expect(registerStaff).not.toHaveBeenCalled();
+  });
+
+  it('la contraseña no queda en la caché de mutaciones al salir de la pantalla', async () => {
+    vi.mocked(registerStaff).mockResolvedValue({
+      username: 'jramirez',
+      fullName: 'Jorge Ramírez',
+      area: 'LIMPIEZA',
+      active: true,
+    });
+    const { queryClient, unmount } = renderWithProviders(<RegisterStaffPage />);
+    await fillForm(VALID);
+    await screen.findByRole('heading', { name: 'Cuenta de Jorge Ramírez registrada' });
+
+    unmount();
+    await waitFor(() => expect(queryClient.getMutationCache().getAll()).toHaveLength(0));
   });
 
   it('la contraseña admite 72 bytes: una tilde ocupa dos', async () => {

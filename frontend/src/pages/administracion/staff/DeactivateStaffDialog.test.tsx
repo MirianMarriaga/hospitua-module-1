@@ -26,6 +26,13 @@ function renderDialog() {
   return screen.getByRole('alertdialog');
 }
 
+function renderDialogWithClient() {
+  const { queryClient } = renderWithProviders(
+    <DeactivateStaffDialog account={ACCOUNT} onClose={onClose} />,
+  );
+  return { dialog: screen.getByRole('alertdialog'), queryClient };
+}
+
 async function confirm(dialog: HTMLElement) {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Desactivar cuenta' }));
 }
@@ -81,6 +88,18 @@ describe('DeactivateStaffDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Desactivar cuenta' })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Cerrar' })).toBeEnabled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('si otro Administrador ya la desactivó, vuelve a consultar la lista', async () => {
+    vi.mocked(deactivateStaff).mockRejectedValue(
+      new ApiRequestError(409, 'ACCOUNT_INACTIVE', 'técnico'),
+    );
+    const { dialog, queryClient } = renderDialogWithClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    await confirm(dialog);
+
+    await within(dialog).findByText('La cuenta ya está desactivada.');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['staff'] });
   });
 
   it('ante un fallo de red deja reintentar', async () => {

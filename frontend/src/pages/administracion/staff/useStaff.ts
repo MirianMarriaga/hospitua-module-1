@@ -9,6 +9,7 @@ import {
   type EditStaffRequest,
   type StaffFilters,
 } from '@/api/staffService';
+import { PASSWORD_MUTATION } from '@/lib/queryClient';
 import { STAFF_KEY, staffAccountKey } from '@/lib/queryKeys';
 
 /** Página de la lista del personal; mientras llega la siguiente se sigue viendo la anterior. */
@@ -26,6 +27,7 @@ export function useRegisterStaff() {
   return useMutation({
     mutationFn: registerStaff,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: STAFF_KEY }),
+    ...PASSWORD_MUTATION,
   });
 }
 
@@ -38,7 +40,10 @@ export function useStaffAccount(username: string | undefined) {
   });
 }
 
-/** Guarda la edición; la lista y la cuenta se vuelven a consultar, también si otro la cambió. */
+/**
+ * Guarda la edición; al tener éxito, la lista y la cuenta se vuelven a consultar. Ante una edición
+ * simultánea (`CONCURRENT_UPDATE`), la página recarga la cuenta cuando el Administrador lo pide.
+ */
 export function useEditStaff(username: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -47,15 +52,19 @@ export function useEditStaff(username: string) {
       void queryClient.invalidateQueries({ queryKey: STAFF_KEY });
       void queryClient.invalidateQueries({ queryKey: staffAccountKey(username) });
     },
+    ...PASSWORD_MUTATION,
   });
 }
 
-/** Desactiva la cuenta; la lista y la cuenta se vuelven a consultar. */
+/**
+ * Desactiva la cuenta. Al terminar, bien o mal, la lista y la cuenta se vuelven a consultar: un
+ * rechazo como `ACCOUNT_INACTIVE` dice que otro Administrador ya la cambió.
+ */
 export function useDeactivateStaff(username: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => deactivateStaff(username),
-    onSuccess: () => {
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: STAFF_KEY });
       void queryClient.invalidateQueries({ queryKey: staffAccountKey(username) });
     },

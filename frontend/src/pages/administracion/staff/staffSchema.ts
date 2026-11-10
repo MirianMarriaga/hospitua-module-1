@@ -43,7 +43,7 @@ export const registerStaffSchema = z.object({
     ),
   password: z
     .string()
-    .min(1, 'Ingresa la contraseña.')
+    .refine((value) => value.trim() !== '', 'Ingresa la contraseña.')
     .min(MIN_PASSWORD_LENGTH, PASSWORD_RULE)
     .refine(fitsPasswordLimit, PASSWORD_LIMIT_RULE),
   fullName,

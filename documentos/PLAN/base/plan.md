@@ -943,7 +943,6 @@ frontend/                                                     # Árbol real revi
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
-    │   ├── PasswordInput.tsx                                 # Campo de contraseña con el ojo para verla (inicio de sesión y personal)
     │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
     │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño (panel de mantenimiento)
     │   ├── damageReportErrors.ts                             # Textos de los diálogos de daño por errorCode
@@ -953,6 +952,7 @@ frontend/                                                     # Árbol real revi
     │   ├── OptionSelect.tsx                                  # Select de shadcn con lista de vidrio y opción vacía ("Todos", "Selecciona…")
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
+    │   ├── PasswordInput.tsx                                 # Campo de contraseña con el ojo para verla (inicio de sesión y personal)
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja y bloqueo técnico)
     │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
     │   ├── ScheduleTechnicalBlockDialog.tsx                  # Programar mantenimiento (panel de mantenimiento)
@@ -981,7 +981,7 @@ frontend/                                                     # Árbol real revi
     │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
     │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
     │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
-    │   ├── queryClient.ts                                    # Reintentos solo ante errores de red
+    │   ├── queryClient.ts                                    # Reintentos solo ante errores de red; PASSWORD_MUTATION (gcTime 0) para las mutaciones con contraseña
     │   ├── queryKeys.ts                                      # Claves de consulta que comparten varias pantallas
     │   ├── roomNumberSearch.ts                               # Búsqueda por número exacto y su mensaje sin resultados
     │   └── utils.ts                                          # cn()
@@ -1463,6 +1463,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
 
 - [x] T020 Implementar el inicio de sesión (regla 14), después de T022: la tabla `user_account` completa en `V1__init_schema.sql` (ver modelo de datos); `LoginUseCase` y `LoginService`, que leen la cuenta con `StaffAccountRepositoryPort` y validan la contraseña con `PasswordEncoderPort` (ambos de T022) y rechazan las cuentas con `active = false`; `POST /api/auth/login` en `AuthController`; `CurrentUserResolver` para el encabezado `X-User` (rechaza usuarios inexistentes o desactivados); y `InvalidCredentialsException` (`401 INVALID_CREDENTIALS`) y `CurrentUserRequiredException` (`400 CURRENT_USER_REQUIRED`) en `GlobalExceptionHandler`. Los endpoints y las vistas de las cuentas los implementa `plan-gestionar-personal.md`
 - [x] T021 [P] Implementar en el frontend `LoginPage.tsx` y `authService.ts`: guardar el usuario del login, agregar `X-User` a cada petición desde `apiClient.ts` (T015), llevar a cada usuario a la pantalla de inicio de su `area` y volver al login si el backend responde `CURRENT_USER_REQUIRED`. No hay vista prototipo del inicio de sesión: `LoginPage.tsx` sigue el estilo de las vistas existentes (punto abierto 2)
+  - Ajuste (cierre de RF3 del frontend): el ojo para ver la contraseña es `components/PasswordInput.tsx`, compartido con registrar y editar personal, y `useLogin` usa `PASSWORD_MUTATION` (`gcTime: 0`) para que la contraseña no quede en la caché de mutaciones.
 - [x] T022 Implementar el núcleo de las cuentas del personal, que necesitan el inicio de sesión (T020) y todo endpoint con `X-User` (regla 14), según `spec-gestionar-personal.md` (FR-002 a FR-005 y FR-012):
   - `StaffAccount` (normalización y formato del usuario, área, activa) y `StaffArea`.
   - `StaffAccountRepositoryPort`, `SpringDataUserAccountJpaRepository` y `StaffAccountRepositoryAdapter`, con la consulta por usuario (`findByUsername`, que también usan los servicios de consulta que muestran el nombre de un responsable) y la consulta con bloqueo de las cuentas activas de Administración.
