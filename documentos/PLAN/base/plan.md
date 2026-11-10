@@ -938,6 +938,7 @@ frontend/                                                     # Árbol real revi
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
     │   ├── settlementService.ts
+    │   ├── staffService.ts                                   # Cuentas del personal (plan-gestionar-personal.md)
     │   └── technicalBlockService.ts                          # Programar mantenimiento y ver el informe del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
@@ -1041,9 +1042,18 @@ frontend/                                                     # Árbol real revi
     │   │   │   ├── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
     │   │   │   ├── decommissionSchema.ts                     # Motivo del catálogo y detalle (máximo 500; obligatorio con "Otro")
     │   │   │   └── useDecommissionRoom.ts
-    │   │   └── reactivation/
-    │   │       ├── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
-    │   │       └── useReactivation.ts                        # Baja vigente y reactivar
+    │   │   ├── reactivation/
+    │   │   │   ├── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
+    │   │   │   └── useReactivation.ts                        # Baja vigente y reactivar
+    │   │   └── staff/                                        # Personal (plan-gestionar-personal.md)
+    │   │       ├── StaffListPage.tsx                         # Lista del personal (vista 12)
+    │   │       ├── StaffListPage.test.tsx
+    │   │       ├── StaffFilters.tsx                          # Búsqueda, área y estado en la URL
+    │   │       ├── StaffTable.tsx
+    │   │       ├── StaffStateBadge.tsx                       # "Activa" o "Desactivada"
+    │   │       ├── staffParams.ts                            # Filtros de la URL
+    │   │       ├── staffRoutes.ts                            # Rutas de la sección
+    │   │       └── useStaff.ts                               # Consultas de las cuentas
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
     │   │   ├── RoomStateHistoryFilters.tsx

@@ -360,10 +360,16 @@ backend/src/main/
 │       └── config/
 │           └── StaffBootstrapProperties.java      # Plan base (T022): hospitua.bootstrap.admin.username, password y full-name
 frontend/src/
-├── components/
-│   └── staffAreaLabels.ts                         # RECEPCION → "Recepción", …
-├── pages/administracion/
+├── lib/
+│   └── labels.ts                                  # STAFF_AREA_LABELS: RECEPCION → "Recepción", …
+├── pages/administracion/staff/
 │   ├── StaffListPage.tsx                          # Lista, filtros, búsqueda y "Registrar personal"
+│   ├── StaffFilters.tsx                           # Búsqueda, área y estado en la URL
+│   ├── StaffTable.tsx                             # "Editar" y "Desactivar" solo en las cuentas activas
+│   ├── StaffStateBadge.tsx                        # "Activa" o "Desactivada"
+│   ├── staffParams.ts                             # Filtros de la URL
+│   ├── staffRoutes.ts                             # Rutas de la sección
+│   ├── useStaff.ts                                # Consultas y mutaciones de las cuentas
 │   ├── RegisterStaffPage.tsx
 │   ├── EditStaffPage.tsx
 │   ├── StaffConfirmation.tsx                      # Confirmación de registro y de edición
@@ -446,14 +452,14 @@ frontend/src/
   - Hecho (L35): el filtro, el orden y la paginación están en el adaptador (T005), así que T018 y T019 se prueban con datos reales en `StaffIntegrationTest` (12 cuentas con una marca única en el nombre, 2 desactivadas, en 2 páginas). `StaffAccountQueryServiceTest` prueba lo que agrega el servicio: 10 por página, la respuesta sin contraseña ni versión y la búsqueda de una cuenta.
 - [x] T019 [P] [US2] Unit test: los filtros por área y estado y la búsqueda por usuario o nombre se combinan (esc. 5; FR-007).
   - Hecho (L35): ver la nota de T018; incluye la búsqueda sin mayúsculas ni tildes ("RAMIREZ" encuentra "Ramírez").
-- [ ] T020 [P] [US2] Component test en `StaffListPage`: columnas usuario, nombre, área y estado en español; "Editar" y "Desactivar" solo en las cuentas activas; "Registrar personal" sobre la lista; "Mostrando X–Y de Z" (esc. 4 y 5; FR-007).
+- [x] T020 [P] [US2] Component test en `StaffListPage`: columnas usuario, nombre, área y estado en español; "Editar" y "Desactivar" solo en las cuentas activas; "Registrar personal" sobre la lista; "Mostrando X–Y de Z" (esc. 4 y 5; FR-007).
 
 ### Implementation for User Story 2
 
 - [x] T021 [US2] Implementar `StaffAccountQueryService` (`@Transactional(readOnly = true)`) y agregar a `StaffController` `GET /api/staff` y `GET /api/staff/{username}` (FR-007).
   - Hecho (L35): los parámetros son `StaffListQuery`; `area` y `active` llegan como texto para responder siempre "Revisa los filtros aplicados.". `GET /api/staff/{username}` normaliza el usuario antes de buscarlo y responde `version`.
   - Ajuste (revisión de L35): `page` también llega como texto (`[1-9][0-9]{0,8}`): como entero, `page=abc` fallaba al convertirse y respondía "Tipo de dato inválido para el campo: page".
-- [ ] T022 [US2] Construir `StaffListPage.tsx`, reutilizando `Pagination.tsx` (`plan-consultar-inventario-habitaciones.md`), y agregar "Personal" al menú de la vista del Administrador (FR-001, FR-007).
+- [x] T022 [US2] Construir `StaffListPage.tsx`, reutilizando `Pagination.tsx` (`plan-consultar-inventario-habitaciones.md`), y agregar "Personal" al menú de la vista del Administrador (FR-001, FR-007).
 
 **Checkpoint**: La sección "Personal" muestra al personal registrado.
 

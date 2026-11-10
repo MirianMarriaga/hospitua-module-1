@@ -61,6 +61,10 @@ describe('AreaLayout', () => {
     });
     renderWithProviders(<AreaLayout area="ADMINISTRACION" />, { route: '/' });
     expect(screen.getByRole('link', { name: 'Inventario' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Personal' })).toHaveAttribute(
+      'href',
+      '/administracion/personal',
+    );
     // Como en la vista 01: "Registrar habitación" es un botón del inventario, no una opción del menú
     expect(screen.queryByRole('link', { name: 'Registrar habitación' })).not.toBeInTheDocument();
   });
