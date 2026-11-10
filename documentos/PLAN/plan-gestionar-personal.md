@@ -370,6 +370,8 @@ frontend/src/
 │   ├── staffParams.ts                             # Filtros de la URL
 │   ├── staffRoutes.ts                             # Rutas de la sección
 │   ├── useStaff.ts                                # Consultas y mutaciones de las cuentas
+│   ├── staffSchema.ts                             # Reglas del usuario, la contraseña, el nombre y el área
+│   ├── StaffSummary.tsx                           # Usuario, nombre, área y estado de las confirmaciones
 │   ├── RegisterStaffPage.tsx
 │   ├── EditStaffPage.tsx
 │   ├── StaffConfirmation.tsx                      # Confirmación de registro y de edición
@@ -424,7 +426,7 @@ frontend/src/
   - Hecho (L35): ya lo prueba `StaffAccountIntegrationTest` (plan base): la cuenta inicial existe al arrancar, con `created_by` nulo, y una segunda ejecución no crea otra.
 - [x] T012 [US1] Integration test: la contraseña no aparece en ninguna respuesta ni en los logs (SC-002).
   - Hecho (L35): en `StaffIntegrationTest`, con `OutputCaptureExtension`: ni el registro, ni el login, ni la cuenta, ni la lista contienen la contraseña, y tampoco la salida capturada. `RegisterStaffRequest` redefine `toString` sin la contraseña.
-- [ ] T013 [P] [US1] Component test en `RegisterStaffPage`: señala cada campo con su error, restringe el área a las 5 opciones y muestra la confirmación con usuario, nombre, área y estado, sin contraseña (esc. 1 y 3; FR-006).
+- [x] T013 [P] [US1] Component test en `RegisterStaffPage`: señala cada campo con su error, restringe el área a las 5 opciones y muestra la confirmación con usuario, nombre, área y estado, sin contraseña (esc. 1 y 3; FR-006).
 
 ### Implementation for User Story 1
 
@@ -434,7 +436,7 @@ frontend/src/
   - Hecho (L35): `StaffBootstrapProperties` validaba la longitud con `@Size(min = 8)`, y Spring Boot escribe el valor rechazado en el log del arranque fallido (`Value: "…"`), así que una contraseña corta quedaba en el log. Ahora la valida `StaffAccountBootstrapper` al empezar (igual que el formato del usuario), con un mensaje sin la contraseña; `StaffAccountIntegrationTest` lo prueba. Se valida siempre, haya o no Administradores activos, como pide el plan base (T022): una configuración inválida no arranca. Las propiedades vacías las sigue rechazando `@NotBlank` (su valor vacío no expone nada).
 - [x] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
   - Hecho (L35): el cuerpo es `RegisterStaffRequest`. El usuario se valida con los espacios de los extremos permitidos, porque el servicio los quita antes de aplicar la misma regla. Además de la tabla, `fullName` admite máximo 150 caracteres (la columna de `user_account`): sin ese límite un nombre más largo terminaba en `500`. La respuesta es `StaffAccountDto` sin `version`, que solo viaja en `GET /api/staff/{username}` y en la edición (`non_null` del plan base).
-- [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
+- [x] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
 
 **Checkpoint**: El Administrador registra cuentas y el personal puede iniciar sesión.
 

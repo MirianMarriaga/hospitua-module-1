@@ -25,3 +25,13 @@ export function listStaff(filters: StaffFilters, page: number): Promise<PagedRes
 export function getStaffAccount(username: string): Promise<StaffAccountDetail> {
   return apiRequest<StaffAccountDetail>(`/api/staff/${encodeURIComponent(username)}`);
 }
+
+/** Cuerpo de `POST /api/staff`; el área es una de las cinco del catálogo. */
+export type RegisterStaffRequest = Omit<Schemas['RegisterStaffRequest'], 'area'> & {
+  area: StaffArea;
+};
+
+/** Registra una cuenta activa; la respuesta nunca trae la contraseña. */
+export function registerStaff(request: RegisterStaffRequest): Promise<StaffAccount> {
+  return apiRequest<StaffAccount>('/api/staff', { method: 'POST', body: request });
+}

@@ -1053,7 +1053,12 @@ frontend/                                                     # Árbol real revi
     │   │       ├── StaffStateBadge.tsx                       # "Activa" o "Desactivada"
     │   │       ├── staffParams.ts                            # Filtros de la URL
     │   │       ├── staffRoutes.ts                            # Rutas de la sección
-    │   │       └── useStaff.ts                               # Consultas de las cuentas
+    │   │       ├── useStaff.ts                               # Consultas y mutaciones de las cuentas
+    │   │       ├── staffSchema.ts                            # Reglas de las cuentas, como el backend
+    │   │       ├── StaffSummary.tsx                          # Datos de la cuenta en las confirmaciones
+    │   │       ├── StaffConfirmation.tsx                     # Confirmación de registro y de edición (vista 14)
+    │   │       ├── RegisterStaffPage.tsx                     # Registrar personal (vista 13)
+    │   │       └── RegisterStaffPage.test.tsx
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
     │   │   ├── RoomStateHistoryFilters.tsx
