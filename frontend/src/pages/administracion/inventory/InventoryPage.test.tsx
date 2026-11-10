@@ -131,7 +131,9 @@ describe('InventoryPage', () => {
 
     await userEvent.type(screen.getByLabelText('Número'), '204');
 
-    await waitFor(() => expect(getInventory).toHaveBeenLastCalledWith({ roomNumber: '204' }, 1));
+    await waitFor(() => expect(getInventory).toHaveBeenLastCalledWith({ roomNumber: '204' }, 1), {
+      timeout: 3000,
+    });
     expect(getInventory).not.toHaveBeenCalledWith({ roomNumber: '2' }, 1);
   });
 

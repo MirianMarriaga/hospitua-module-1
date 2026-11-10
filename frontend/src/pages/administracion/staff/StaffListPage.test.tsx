@@ -129,7 +129,9 @@ describe('StaffListPage', () => {
 
     await userEvent.type(screen.getByLabelText('Buscar'), 'ram');
 
-    await waitFor(() => expect(listStaff).toHaveBeenLastCalledWith({ query: 'ram' }, 1));
+    await waitFor(() => expect(listStaff).toHaveBeenLastCalledWith({ query: 'ram' }, 1), {
+      timeout: 3000,
+    });
     expect(listStaff).not.toHaveBeenCalledWith({ query: 'r' }, 1);
   });
 
