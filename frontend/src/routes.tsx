@@ -15,7 +15,12 @@ import { ReceptionPanel } from '@/pages/panel/ReceptionPanel';
 import { ActiveCleaningTaskPage } from '@/pages/limpieza/ActiveCleaningTaskPage';
 import { CleaningPanelPage } from '@/pages/limpieza/CleaningPanelPage';
 import { ACTIVE_CLEANING_TASK_PATH, CLEANING_PANEL_PATH } from '@/pages/limpieza/cleaningRoutes';
-import { AreaPlaceholderPage } from '@/pages/placeholder/AreaPlaceholderPage';
+import { ActiveRepairTaskPage } from '@/pages/mantenimiento/ActiveRepairTaskPage';
+import { MaintenancePanelPage } from '@/pages/mantenimiento/MaintenancePanelPage';
+import {
+  ACTIVE_REPAIR_TASK_PATH,
+  MAINTENANCE_PANEL_PATH,
+} from '@/pages/mantenimiento/maintenanceRoutes';
 import { useSessionStore } from '@/stores/sessionStore';
 
 function RootRedirect() {
@@ -56,10 +61,8 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<AreaLayout area="MANTENIMIENTO" />}>
-        <Route
-          path="/mantenimiento"
-          element={<AreaPlaceholderPage title="Panel de mantenimiento" />}
-        />
+        <Route path={MAINTENANCE_PANEL_PATH} element={<MaintenancePanelPage />} />
+        <Route path={ACTIVE_REPAIR_TASK_PATH} element={<ActiveRepairTaskPage />} />
       </Route>
 
       <Route path="*" element={<RootRedirect />} />

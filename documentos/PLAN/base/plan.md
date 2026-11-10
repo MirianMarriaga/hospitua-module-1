@@ -934,9 +934,11 @@ frontend/                                                     # Árbol real revi
     │   ├── cleaningService.ts                                # Panel de limpieza e iniciar limpieza (plan-consultar-panel-limpieza.md)
     │   ├── damageReportService.ts                            # Reportar daño y ver el último reporte (plan-marcar-habitacion-inhabilitada-por-reparaciones.md)
     │   ├── historyService.ts                                 # Historial de estados
+    │   ├── maintenanceService.ts                             # Panel de mantenimiento e iniciar reparaciones (plan-consultar-panel-mantenimiento.md)
     │   ├── receptionService.ts                               # KPI, llegadas y salidas del panel de recepción
     │   ├── roomService.ts                                    # Inventario, registrar, editar, baja y reactivación
-    │   └── settlementService.ts
+    │   ├── settlementService.ts
+    │   └── technicalBlockService.ts                          # Programar mantenimiento y ver el informe del bloqueo (plan-programar-bloqueo-tecnico-para-habitacion.md)
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
@@ -949,15 +951,20 @@ frontend/                                                     # Árbol real revi
     │   ├── OptionSelect.tsx                                  # Select de shadcn con lista de vidrio y opción vacía ("Todos", "Selecciona…")
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
-    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja; bloqueo técnico en F07)
+    │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja y bloqueo técnico)
     │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
+    │   ├── ScheduleTechnicalBlockDialog.tsx                  # Programar mantenimiento (panel de mantenimiento)
     │   ├── StatusBadge.tsx
+    │   ├── SummaryCard.tsx                                   # Tarjeta de conteo de los paneles de limpieza y mantenimiento
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
+    │   ├── TechnicalBlockViewDialog.tsx                      # Ver informe del mantenimiento (panel de mantenimiento)
+    │   ├── technicalBlockErrors.ts                           # Validación previa de fechas, aviso de éxito y textos de error del bloqueo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
+    │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     │   ├── useDebouncedValue.ts
     │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
     ├── layouts/
@@ -1055,8 +1062,20 @@ frontend/                                                     # Árbol real revi
     │   │   ├── cleaningRoutes.ts                             # Rutas del área y aviso con el que se vuelve al panel
     │   │   ├── cleaningErrors.ts                             # Textos de iniciar, confirmar fin y liberar por errorCode
     │   │   └── useCleaningPanel.ts                           # Panel con su conteo (select), iniciar, confirmar fin y liberar
-    │   └── placeholder/
-    │       └── AreaPlaceholderPage.tsx                       # Panel de mantenimiento hasta F06
+    │   ├── mantenimiento/                                    # Panel de mantenimiento (plan-consultar-panel-mantenimiento.md) y tarea activa (plan-confirmar-reparacion-finalizada.md)
+    │   │   ├── MaintenancePanelPage.tsx                      # Conteos, búsqueda, tabla e "Iniciar reparaciones"; con tarea activa lleva a /mantenimiento/tarea
+    │   │   ├── MaintenancePanelPage.test.tsx
+    │   │   ├── MaintenanceSummary.tsx                        # Inhabilitadas, en bloqueo técnico (y vencidas) y con mantenimiento programado (FR-009)
+    │   │   ├── MaintenanceRoomTable.tsx                      # Grupos "Requieren intervención" y "Demás habitaciones"; acciones por estado
+    │   │   ├── MaintenanceStateBadge.tsx                     # Estado con "Bloqueo técnico (vencido)" (tabla y tarea activa)
+    │   │   ├── ActiveRepairTaskPage.tsx                      # /mantenimiento/tarea: "Confirmar fin" y "Liberar tarea"; sin tarea vuelve al panel
+    │   │   ├── ActiveRepairTaskPage.test.tsx
+    │   │   ├── RepairReportCard.tsx                          # Lo que hay que reparar: reporte del daño o mantenimiento programado
+    │   │   ├── ConfirmRepairEndDialog.tsx
+    │   │   ├── ReleaseRepairTaskDialog.tsx
+    │   │   ├── maintenanceRoutes.ts                          # Rutas del área y aviso con el que se vuelve al panel
+    │   │   ├── maintenanceErrors.ts                          # Textos de iniciar, confirmar fin y liberar por errorCode (plan-confirmar-reparacion-finalizada.md)
+    │   │   └── useMaintenancePanel.ts                        # Panel con sus conteos (select), iniciar, confirmar fin y liberar
     ├── stores/
     │   ├── sessionStore.ts                                   # Sesión del usuario (Zustand, persistida)
     │   ├── themeStore.ts                                     # Tema Claro / Oscuro (Zustand, persistido); pone la clase dark en <html>
@@ -1472,7 +1491,7 @@ Los planes de feature dependen unos de otros. Este es el orden que evita impleme
    - Que el `username` sea el identificador único de cada persona en los tres módulos, para que los responsables que viajan en las notificaciones (por ejemplo, el recepcionista del check-in) se puedan cruzar entre módulos.
    - Si habrá un inicio de sesión compartido (SSO) y quién lo implementa. Mientras no haya respuesta, Módulo 1 mantiene su login provisional y no amplía *Gestionar personal* (sin políticas de contraseña ni recuperación de cuenta).
 2. **Vista prototipo del inicio de sesión** (T021). Falta en `documentos/vistas/`; la define el frente de vistas. Mientras tanto, `LoginPage.tsx` sigue el estilo de las vistas existentes.
-3. **Vistas de resultado de limpieza y mantenimiento**. `vistas/limpieza/03-limpieza-finalizada.html` y `vistas/mantenimiento/03-reparacion-finalizada.html` no las usa ningún plan: *Confirmar fin de limpieza* y *Confirmar fin de reparación* redirigen al panel tras el éxito. Hay que decidir si se muestra esa pantalla antes de volver al panel o si se retiran las vistas. Limpieza (F05): el contenido de `03-limpieza-finalizada.html` se muestra como aviso arriba del panel, sin pantalla propia; falta decidir mantenimiento (F08). Como `complete` responde `204` sin el estado final, el aviso no distingue `Reserved` de `Available`, que la vista 03 sí distingue; sin daño solo dice "Limpieza de la habitación X finalizada.", porque "lista para recibir huéspedes" sería falso si queda en `TechnicalBlock`.
+3. **Vistas de resultado de limpieza y mantenimiento**. `vistas/limpieza/03-limpieza-finalizada.html` y `vistas/mantenimiento/03-reparacion-finalizada.html` no las usa ningún plan: *Confirmar fin de limpieza* y *Confirmar fin de reparación* redirigen al panel tras el éxito. Hay que decidir si se muestra esa pantalla antes de volver al panel o si se retiran las vistas. Limpieza (F05): el contenido de `03-limpieza-finalizada.html` se muestra como aviso arriba del panel, sin pantalla propia. Mantenimiento (F08): igual con `03-reparacion-finalizada.html`; como el fin de reparación siempre deja la habitación en `PendingCleaning`, el aviso es exacto (el texto cambia si venía de `TechnicalBlock`, que se sabe por la tarea). Como `complete` responde `204` sin el estado final, el aviso no distingue `Reserved` de `Available`, que la vista 03 sí distingue; sin daño solo dice "Limpieza de la habitación X finalizada.", porque "lista para recibir huéspedes" sería falso si queda en `TechnicalBlock`.
 4. **Track de cambios de Módulo 2 (Channex)**. Checklist de confirmación de la solicitud de cambios de Módulo 2 (`Track_de_cambios_en_m1.md`, punto 8); la solicitud queda resuelta cuando todos los ítems están marcados:
    - [x] Rutas definitivas: acordadas con Módulo 2. Son `GET /api/rooms/{roomId}/maintenances` y la cola `m2.habitacion.mantenimiento.queue` (routing key `habitacion.mantenimiento`).
    - [x] `maintenanceStart` y `maintenanceEnd` son inclusivos (*Consultar información de mantenimientos* FR-010).

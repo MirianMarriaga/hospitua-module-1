@@ -1,38 +1,6 @@
 import { CircleCheck, Clock } from 'lucide-react';
-import type { ReactNode } from 'react';
 
-import { cn } from '@/lib/utils';
-
-function SummaryCard({
-  label,
-  value,
-  icon,
-  warn = false,
-}: {
-  label: string;
-  value?: number;
-  icon: ReactNode;
-  warn?: boolean;
-}) {
-  return (
-    <div className="glass-card flex items-center gap-4 rounded-card border p-4 sm:p-5">
-      <div
-        className={cn(
-          'flex size-12 shrink-0 items-center justify-center rounded-full',
-          warn ? 'bg-state-amber-bg text-state-amber' : 'bg-primary-bg text-primary',
-        )}
-      >
-        {icon}
-      </div>
-      <div>
-        <div className="font-sans text-[26px] leading-none font-bold text-ink tabular-nums">
-          {value ?? '—'}
-        </div>
-        <div className="mt-1 text-[13px] text-text-lo">{label}</div>
-      </div>
-    </div>
-  );
-}
+import { SummaryCard } from '@/components/SummaryCard';
 
 /** Conteo sobre el listado de `limpieza/01-panel.html` (FR-010), calculado en el frontend. */
 export function CleaningSummary({
@@ -48,7 +16,7 @@ export function CleaningSummary({
         label="Pendientes de limpieza"
         value={pendingCount}
         icon={<Clock className="size-6" aria-hidden />}
-        warn
+        tone="warn"
       />
       <SummaryCard
         label="Disponibles"
