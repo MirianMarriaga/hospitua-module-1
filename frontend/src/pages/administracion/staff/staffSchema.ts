@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { ApiRequestError } from '@/api/apiClient';
-import type { RegisterStaffRequest } from '@/api/staffService';
+import type { EditStaffRequest, RegisterStaffRequest, StaffAccount } from '@/api/staffService';
 import type { StaffArea } from '@/api/types';
 import { isStaffArea } from '@/lib/labels';
 
@@ -71,6 +71,35 @@ export function toRegisterStaffRequest(values: RegisterStaffValues): RegisterSta
     fullName: values.fullName.trim(),
     area: values.area as StaffArea,
   };
+}
+
+/** Al editar, la contraseña es opcional: en blanco conserva la actual (FR-008, esc. 7). */
+export const editStaffSchema = z.object({
+  password: z
+    .string()
+    .refine((value) => value.trim() === '' || value.length >= MIN_PASSWORD_LENGTH, PASSWORD_RULE)
+    .refine(fitsPasswordLimit, PASSWORD_LIMIT_RULE),
+  fullName,
+  area,
+});
+
+export type EditStaffValues = z.infer<typeof editStaffSchema>;
+
+/** Valores iniciales de la edición: la contraseña nunca se precarga. */
+export function toEditStaffValues(account: StaffAccount): EditStaffValues {
+  return { password: '', fullName: account.fullName, area: account.area };
+}
+
+export function toEditStaffRequest(values: EditStaffValues, version: number): EditStaffRequest {
+  const request: EditStaffRequest = {
+    version,
+    fullName: values.fullName.trim(),
+    area: values.area as StaffArea,
+  };
+  if (values.password.trim() !== '') {
+    request.password = values.password;
+  }
+  return request;
 }
 
 const GENERIC_FIELD_ERROR = 'Revisa este campo.';

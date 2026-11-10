@@ -1058,7 +1058,9 @@ frontend/                                                     # Árbol real revi
     │   │       ├── StaffSummary.tsx                          # Datos de la cuenta en las confirmaciones
     │   │       ├── StaffConfirmation.tsx                     # Confirmación de registro y de edición (vista 14)
     │   │       ├── RegisterStaffPage.tsx                     # Registrar personal (vista 13)
-    │   │       └── RegisterStaffPage.test.tsx
+    │   │       ├── RegisterStaffPage.test.tsx
+    │   │       ├── EditStaffPage.tsx                         # Editar personal (vista 15)
+    │   │       └── EditStaffPage.test.tsx
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
     │   │   ├── RoomStateHistoryFilters.tsx

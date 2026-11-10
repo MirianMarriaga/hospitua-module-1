@@ -35,3 +35,17 @@ export type RegisterStaffRequest = Omit<Schemas['RegisterStaffRequest'], 'area'>
 export function registerStaff(request: RegisterStaffRequest): Promise<StaffAccount> {
   return apiRequest<StaffAccount>('/api/staff', { method: 'POST', body: request });
 }
+
+/** Cuerpo de `PATCH /api/staff/{username}`: sin `password`, la contraseña actual se conserva. */
+export type EditStaffRequest = Omit<Schemas['EditStaffRequest'], 'area'> & { area: StaffArea };
+
+/** Edita el nombre, el área y, si se envía, la contraseña; responde la cuenta con su `version` nueva. */
+export function editStaff(
+  username: string,
+  request: EditStaffRequest,
+): Promise<StaffAccountDetail> {
+  return apiRequest<StaffAccountDetail>(`/api/staff/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    body: request,
+  });
+}
