@@ -21,3 +21,11 @@ export const CLEANING_KEY = ['cleaning'] as const;
 
 /** Panel de mantenimiento; iniciar, terminar o dejar una reparación y reportar un daño lo invalidan. */
 export const MAINTENANCE_KEY = ['maintenance'] as const;
+
+/** Lista del personal; registrar, editar y desactivar una cuenta la invalidan. */
+export const STAFF_KEY = ['staff'] as const;
+
+/** Una cuenta del personal (`GET /api/staff/{username}`). */
+export function staffAccountKey(username: string | undefined) {
+  return ['staff-account', username] as const;
+}

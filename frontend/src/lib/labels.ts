@@ -48,6 +48,8 @@ export const STAFF_AREA_LABELS: Record<StaffArea, string> = {
   MANTENIMIENTO: 'Mantenimiento',
 };
 
+export const STAFF_AREAS = Object.keys(STAFF_AREA_LABELS) as StaffArea[];
+
 export const STAFF_ROLE_LABELS: Record<StaffArea, string> = {
   RECEPCION: 'Recepcionista',
   ADMINISTRACION: 'Administrador',
@@ -91,4 +93,8 @@ export function isRoomStatus(value: string | null): value is RoomStatus {
 
 export function isRoomCategory(value: string | null): value is RoomCategory {
   return value !== null && value in ROOM_CATEGORY_LABELS;
+}
+
+export function isStaffArea(value: string | null): value is StaffArea {
+  return value !== null && value in STAFF_AREA_LABELS;
 }

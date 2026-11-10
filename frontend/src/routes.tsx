@@ -7,6 +7,10 @@ import { EditRoomPage } from '@/pages/administracion/edit/EditRoomPage';
 import { InventoryPage } from '@/pages/administracion/inventory/InventoryPage';
 import { ReactivationPage } from '@/pages/administracion/reactivation/ReactivationPage';
 import { RegisterRoomPage } from '@/pages/administracion/register/RegisterRoomPage';
+import { EditStaffPage } from '@/pages/administracion/staff/EditStaffPage';
+import { RegisterStaffPage } from '@/pages/administracion/staff/RegisterStaffPage';
+import { StaffListPage } from '@/pages/administracion/staff/StaffListPage';
+import { REGISTER_STAFF_PATH, STAFF_LIST_PATH } from '@/pages/administracion/staff/staffRoutes';
 import { CheckInPage } from '@/pages/checkin/CheckInPage';
 import { CheckOutPage } from '@/pages/checkout/CheckOutPage';
 import { RoomStateHistoryPage } from '@/pages/gerencia/RoomStateHistoryPage';
@@ -48,6 +52,9 @@ export function AppRoutes() {
           element={<ReactivationPage />}
         />
         <Route path="/administracion/habitaciones/:roomId/editar" element={<EditRoomPage />} />
+        <Route path={STAFF_LIST_PATH} element={<StaffListPage />} />
+        <Route path={REGISTER_STAFF_PATH} element={<RegisterStaffPage />} />
+        <Route path={`${STAFF_LIST_PATH}/:username/editar`} element={<EditStaffPage />} />
       </Route>
 
       <Route element={<AreaLayout area="GERENCIA" />}>

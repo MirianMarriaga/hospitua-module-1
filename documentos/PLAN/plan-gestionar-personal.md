@@ -360,10 +360,18 @@ backend/src/main/
 │       └── config/
 │           └── StaffBootstrapProperties.java      # Plan base (T022): hospitua.bootstrap.admin.username, password y full-name
 frontend/src/
-├── components/
-│   └── staffAreaLabels.ts                         # RECEPCION → "Recepción", …
-├── pages/administracion/
+├── lib/
+│   └── labels.ts                                  # STAFF_AREA_LABELS: RECEPCION → "Recepción", …
+├── pages/administracion/staff/
 │   ├── StaffListPage.tsx                          # Lista, filtros, búsqueda y "Registrar personal"
+│   ├── StaffFilters.tsx                           # Búsqueda, área y estado en la URL
+│   ├── StaffTable.tsx                             # "Editar" y "Desactivar" solo en las cuentas activas
+│   ├── StaffStateBadge.tsx                        # "Activa" o "Desactivada"
+│   ├── staffParams.ts                             # Filtros de la URL
+│   ├── staffRoutes.ts                             # Rutas de la sección
+│   ├── useStaff.ts                                # Consultas y mutaciones de las cuentas
+│   ├── staffSchema.ts                             # Reglas del usuario, la contraseña, el nombre y el área
+│   ├── StaffSummary.tsx                           # Usuario, nombre, área y estado de las confirmaciones
 │   ├── RegisterStaffPage.tsx
 │   ├── EditStaffPage.tsx
 │   ├── StaffConfirmation.tsx                      # Confirmación de registro y de edición
@@ -418,7 +426,8 @@ frontend/src/
   - Hecho (L35): ya lo prueba `StaffAccountIntegrationTest` (plan base): la cuenta inicial existe al arrancar, con `created_by` nulo, y una segunda ejecución no crea otra.
 - [x] T012 [US1] Integration test: la contraseña no aparece en ninguna respuesta ni en los logs (SC-002).
   - Hecho (L35): en `StaffIntegrationTest`, con `OutputCaptureExtension`: ni el registro, ni el login, ni la cuenta, ni la lista contienen la contraseña, y tampoco la salida capturada. `RegisterStaffRequest` redefine `toString` sin la contraseña.
-- [ ] T013 [P] [US1] Component test en `RegisterStaffPage`: señala cada campo con su error, restringe el área a las 5 opciones y muestra la confirmación con usuario, nombre, área y estado, sin contraseña (esc. 1 y 3; FR-006).
+- [x] T013 [P] [US1] Component test en `RegisterStaffPage`: señala cada campo con su error, restringe el área a las 5 opciones y muestra la confirmación con usuario, nombre, área y estado, sin contraseña (esc. 1 y 3; FR-006).
+  - Hecho (F10, F12b): `RegisterStaffPage.test.tsx`. Ajuste (cierre de RF3): una contraseña de solo espacios cuenta como vacía, como el `@NotBlank` de `RegisterStaffRequest`, y la contraseña no queda en la caché de mutaciones al salir de la pantalla.
 
 ### Implementation for User Story 1
 
@@ -428,7 +437,9 @@ frontend/src/
   - Hecho (L35): `StaffBootstrapProperties` validaba la longitud con `@Size(min = 8)`, y Spring Boot escribe el valor rechazado en el log del arranque fallido (`Value: "…"`), así que una contraseña corta quedaba en el log. Ahora la valida `StaffAccountBootstrapper` al empezar (igual que el formato del usuario), con un mensaje sin la contraseña; `StaffAccountIntegrationTest` lo prueba. Se valida siempre, haya o no Administradores activos, como pide el plan base (T022): una configuración inválida no arranca. Las propiedades vacías las sigue rechazando `@NotBlank` (su valor vacío no expone nada).
 - [x] T016 [US1] Agregar a `StaffController` el endpoint `POST /api/staff`.
   - Hecho (L35): el cuerpo es `RegisterStaffRequest`. El usuario se valida con los espacios de los extremos permitidos, porque el servicio los quita antes de aplicar la misma regla. Además de la tabla, `fullName` admite máximo 150 caracteres (la columna de `user_account`): sin ese límite un nombre más largo terminaba en `500`. La respuesta es `StaffAccountDto` sin `version`, que solo viaja en `GET /api/staff/{username}` y en la edición (`non_null` del plan base).
-- [ ] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
+- [x] T017 [US1] Construir en el frontend `RegisterStaffPage.tsx`, `StaffConfirmation.tsx` y `staffAreaLabels.ts` (FR-006).
+  - Hecho (F10): `RegisterStaffPage.tsx` y `StaffConfirmation.tsx` (con `StaffSummary.tsx`) en `pages/administracion/staff/`, con React Hook Form + Zod (`staffSchema.ts`, mismas reglas y textos que `RegisterStaffRequest`). Las etiquetas de área salen de `STAFF_AREA_LABELS` de `lib/labels.ts`, no de un `staffAreaLabels.ts` aparte. `USERNAME_ALREADY_EXISTS` y los `VALIDATION_ERROR` por `details.field` se marcan en su campo. F12b agrega el ojo para ver la contraseña (`components/PasswordInput.tsx`, compartido con el inicio de sesión).
+  - Ajuste (cierre de RF3): las mutaciones que llevan una contraseña (registrar, editar e iniciar sesión) usan `PASSWORD_MUTATION` (`gcTime: 0`, `lib/queryClient.ts`), así la contraseña sale del `QueryClient` en cuanto se deja la pantalla, en lugar de quedar 5 minutos en el estado global.
 
 **Checkpoint**: El Administrador registra cuentas y el personal puede iniciar sesión.
 
@@ -446,14 +457,16 @@ frontend/src/
   - Hecho (L35): el filtro, el orden y la paginación están en el adaptador (T005), así que T018 y T019 se prueban con datos reales en `StaffIntegrationTest` (12 cuentas con una marca única en el nombre, 2 desactivadas, en 2 páginas). `StaffAccountQueryServiceTest` prueba lo que agrega el servicio: 10 por página, la respuesta sin contraseña ni versión y la búsqueda de una cuenta.
 - [x] T019 [P] [US2] Unit test: los filtros por área y estado y la búsqueda por usuario o nombre se combinan (esc. 5; FR-007).
   - Hecho (L35): ver la nota de T018; incluye la búsqueda sin mayúsculas ni tildes ("RAMIREZ" encuentra "Ramírez").
-- [ ] T020 [P] [US2] Component test en `StaffListPage`: columnas usuario, nombre, área y estado en español; "Editar" y "Desactivar" solo en las cuentas activas; "Registrar personal" sobre la lista; "Mostrando X–Y de Z" (esc. 4 y 5; FR-007).
+- [x] T020 [P] [US2] Component test en `StaffListPage`: columnas usuario, nombre, área y estado en español; "Editar" y "Desactivar" solo en las cuentas activas; "Registrar personal" sobre la lista; "Mostrando X–Y de Z" (esc. 4 y 5; FR-007).
+  - Hecho (F09, F12): `StaffListPage.test.tsx`.
 
 ### Implementation for User Story 2
 
 - [x] T021 [US2] Implementar `StaffAccountQueryService` (`@Transactional(readOnly = true)`) y agregar a `StaffController` `GET /api/staff` y `GET /api/staff/{username}` (FR-007).
   - Hecho (L35): los parámetros son `StaffListQuery`; `area` y `active` llegan como texto para responder siempre "Revisa los filtros aplicados.". `GET /api/staff/{username}` normaliza el usuario antes de buscarlo y responde `version`.
   - Ajuste (revisión de L35): `page` también llega como texto (`[1-9][0-9]{0,8}`): como entero, `page=abc` fallaba al convertirse y respondía "Tipo de dato inválido para el campo: page".
-- [ ] T022 [US2] Construir `StaffListPage.tsx`, reutilizando `Pagination.tsx` (`plan-consultar-inventario-habitaciones.md`), y agregar "Personal" al menú de la vista del Administrador (FR-001, FR-007).
+- [x] T022 [US2] Construir `StaffListPage.tsx`, reutilizando `Pagination.tsx` (`plan-consultar-inventario-habitaciones.md`), y agregar "Personal" al menú de la vista del Administrador (FR-001, FR-007).
+  - Hecho (F09): `StaffListPage.tsx` con `StaffFilters`, `StaffTable` y `Pagination`; filtros y página en la URL (`staffParams.ts`), consulta con `keepPreviousData`. "Personal" en el menú de Administración (`areaNavigation.ts`, probado en `AreaLayout.test.tsx`). Como el inventario, la tabla se desplaza en horizontal en pantallas angostas.
 
 **Checkpoint**: La sección "Personal" muestra al personal registrado.
 
@@ -480,7 +493,8 @@ frontend/src/
 - [x] T027 [US3] Implementar `EditStaffAccountService` (`@Transactional`) y agregar a `StaffController` `PATCH /api/staff/{username}` (FR-006, FR-008, FR-013).
   - Hecho (L36): como *Editar habitación* (R9), el servicio bloquea la fila de la cuenta (`StaffAccountRepositoryPort.lockByUsername`, `MANDATORY`) y compara la `version`; si no coincide lanza `ConcurrentStaffUpdateException` (`CONCURRENT_UPDATE`) con el texto de la tabla. No se usa `ObjectOptimisticLockingFailureException`: su manejador responde el texto de la habitación ("La habitación acaba de cambiar…"), y con la fila bloqueada la segunda edición siempre ve la versión nueva. Orden de las validaciones: existencia, cuenta activa (una cuenta desactivada también cambió de versión, y `ACCOUNT_INACTIVE` explica mejor el rechazo), versión y datos. `StaffAccount.edit` cambia nombre, área y, si llega, la contraseña cifrada, y registra quién y cuándo. El cuerpo es `EditStaffRequest`; un `username` en el cuerpo se ignora. `EditStaffIntegrationTest` prueba el `200` con la versión nueva, el login con la contraseña nueva, la contraseña vacía que conserva la anterior, cada error de la tabla y la falta de `X-User`.
   - Ajuste (revisión de L36): la única cuenta activa de Administración no puede pasar a otra área (FR-010 ampliado en el spec; antes la edición dejaba el sistema sin Administrador hasta el próximo arranque). Si el área nueva no es Administración, el servicio bloquea primero las cuentas activas de Administración (`findActiveAdministratorsForUpdate`) y después la de la edición; si es la única, `LastAdministratorException` (`409 LAST_ADMINISTRATOR`). `LastAdministratorException` recibe el mensaje de cada operación. Además, una contraseña solo con espacios cuenta como vacía y conserva la actual (FR-008), y el patrón de `EditStaffRequest` usa `StaffAccount.MIN_PASSWORD_LENGTH`.
-- [ ] T028 [US3] Construir `EditStaffPage.tsx`, con el usuario de solo lectura y el campo de contraseña opcional (FR-008).
+- [x] T028 [US3] Construir `EditStaffPage.tsx`, con el usuario de solo lectura y el campo de contraseña opcional (FR-008).
+  - Hecho (F11, F12b): `EditStaffPage.tsx` y su prueba; carga la cuenta con su `version`, la contraseña nunca se precarga y en blanco (o solo espacios) se conserva. `CONCURRENT_UPDATE` muestra el aviso con "Cargar los datos actuales"; `LAST_ADMINISTRATOR` se marca en el área. Usa `PASSWORD_MUTATION` (ver T017).
 
 **Checkpoint**: Las cuentas se pueden corregir y las contraseñas restablecer.
 
@@ -502,15 +516,17 @@ frontend/src/
   - Hecho (L37): `DeactivateLastAdministratorIntegrationTest`, con su propio contexto y su propia base (`@TestPropertySource`) para no dejar sin Administrador a las demás pruebas: `admin` y `lrios` se desactivan uno al otro a la vez; uno tiene éxito, el otro recibe `LastAdministratorException` y queda una sola cuenta activa de Administración.
 - [x] T032 [US4] Integration test: una cuenta desactivada recibe `401 INVALID_CREDENTIALS` en `POST /api/auth/login`, su `X-User` recibe `400 CURRENT_USER_REQUIRED`, y `GET /api/room-state-history` sigue mostrando su nombre como responsable (SC-003).
   - Hecho (L37): en `DeactivateStaffIntegrationTest`, tras desactivar a un miembro de limpieza con una limpieza iniciada, el login responde `401 INVALID_CREDENTIALS`, su `X-User` `400 CURRENT_USER_REQUIRED` y el periodo `InCleaning` del historial sigue mostrando su nombre en `actorName`.
-- [ ] T033 [P] [US4] Component test en `DeactivateStaffDialog`: muestra usuario, nombre y área, advierte que la persona no podrá iniciar sesión y cancelar no envía nada (esc. 9; FR-009).
+- [x] T033 [P] [US4] Component test en `DeactivateStaffDialog`: muestra usuario, nombre y área, advierte que la persona no podrá iniciar sesión y cancelar no envía nada (esc. 9; FR-009).
+  - Hecho (F12): `DeactivateStaffDialog.test.tsx`.
 
 ### Implementation for User Story 4
 
 - [x] T034 [US4] Implementar `DeactivateStaffAccountService` (`@Transactional`): bloquear las cuentas activas de Administración, validar la propia cuenta y el último Administrador, y desactivar; en la misma transacción invocar `ReleaseCleaningTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId, String actorId)` (username de la cuenta y del Administrador) y `ReleaseRepairTaskOnDeactivationUseCase.releaseOpenTaskOf(String memberId)` (username de la cuenta; sin actor). No captura ni traduce los errores de los puertos: corren con propagación `MANDATORY` y un fallo revierte la desactivación; los dos puertos ignoran una tarea ya cerrada. Verificar `ReleaseCleaningTaskOnDeactivationUseCase` (`plan-confirmar-fin-de-limpieza.md`) y `ReleaseRepairTaskOnDeactivationUseCase` (`plan-confirmar-reparacion-finalizada.md`) (FR-009, FR-010, FR-011, FR-013).
   - Nota (revisión de L36): bloquear primero las cuentas activas de Administración y después la cuenta a desactivar, el mismo orden de la edición (T027), para que una desactivación y un cambio de área simultáneos no se bloqueen entre sí. `LastAdministratorException` recibe el texto de la tabla de este endpoint.
   - Hecho (L37): orden de las validaciones después de los bloqueos: existencia (`STAFF_NOT_FOUND`), cuenta ya desactivada (`ACCOUNT_INACTIVE`), propia cuenta y último Administrador, con su mensaje ("No se puede desactivar: es la única cuenta activa de Administración."). Se bloquean primero las cuentas activas de Administración (el mismo orden que el arranque y que la edición, según la nota de arriba) y después la cuenta, para que dos desactivaciones cruzadas se serialicen sin interbloqueo. `StaffAccount.deactivate` registra quién y cuándo; la respuesta es el resumen de la cuenta.
-- [ ] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
-  - Avance (L37): hecho `POST /api/staff/{username}/deactivation` (200 con el resumen de la cuenta, `active = false`). Falta `DeactivateStaffDialog.tsx` (frontend).
+- [x] T035 [US4] Agregar a `StaffController` `POST /api/staff/{username}/deactivation` y construir `DeactivateStaffDialog.tsx` (FR-009).
+  - Avance (L37): hecho `POST /api/staff/{username}/deactivation` (200 con el resumen de la cuenta, `active = false`).
+  - Hecho (F12): `DeactivateStaffDialog.tsx`, abierto desde "Desactivar" de la lista con la cuenta de la fila; un rechazo del backend solo deja cerrar y un fallo de red deja reintentar. Ajuste (cierre de RF3): la lista y la cuenta se vuelven a consultar también cuando la desactivación falla (`onSettled`), porque un `ACCOUNT_INACTIVE` o `STAFF_NOT_FOUND` dice que otro Administrador ya la cambió.
 
 **Checkpoint**: La gestión del personal queda completa.
 
@@ -521,7 +537,7 @@ frontend/src/
 - [x] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
   - Hecho (L37): solo escriben en `user_account` `StaffAccountRepositoryAdapter` (con su entidad, su mapper y `SpringDataUserAccountJpaRepository`, cuyas consultas son de lectura) y la migración `V1`. `RoomStateHistoryQueryRepository` solo la lee para el nombre del responsable.
 - [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
-  - Pendiente (frontend): se mide con `RegisterStaffPage` (T017). El backend responde el registro en una sola petición.
+  - Pendiente (F14 del plan de fases del frontend): se mide con `RegisterStaffPage` (T017). El backend responde el registro en una sola petición.
 
 ---
 
