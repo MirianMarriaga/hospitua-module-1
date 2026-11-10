@@ -1060,7 +1060,9 @@ frontend/                                                     # Árbol real revi
     │   │       ├── RegisterStaffPage.tsx                     # Registrar personal (vista 13)
     │   │       ├── RegisterStaffPage.test.tsx
     │   │       ├── EditStaffPage.tsx                         # Editar personal (vista 15)
-    │   │       └── EditStaffPage.test.tsx
+    │   │       ├── EditStaffPage.test.tsx
+    │   │       ├── DeactivateStaffDialog.tsx                 # Confirmación de desactivar, sobre la lista (contenido de la vista 16)
+    │   │       └── DeactivateStaffDialog.test.tsx
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
     │   │   ├── RoomStateHistoryFilters.tsx

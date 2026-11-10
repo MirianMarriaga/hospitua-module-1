@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  deactivateStaff,
   editStaff,
   getStaffAccount,
   listStaff,
@@ -42,6 +43,18 @@ export function useEditStaff(username: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: EditStaffRequest) => editStaff(username, request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: STAFF_KEY });
+      void queryClient.invalidateQueries({ queryKey: staffAccountKey(username) });
+    },
+  });
+}
+
+/** Desactiva la cuenta; la lista y la cuenta se vuelven a consultar. */
+export function useDeactivateStaff(username: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deactivateStaff(username),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: STAFF_KEY });
       void queryClient.invalidateQueries({ queryKey: staffAccountKey(username) });

@@ -3,13 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError } from '@/api/apiClient';
-import { listStaff, type StaffAccount } from '@/api/staffService';
+import { deactivateStaff, listStaff, type StaffAccount } from '@/api/staffService';
 import type { PagedResult } from '@/api/types';
 import { StaffListPage } from '@/pages/administracion/staff/StaffListPage';
 import { chooseOption } from '@/test/chooseOption';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
-vi.mock('@/api/staffService', () => ({ listStaff: vi.fn() }));
+vi.mock('@/api/staffService', () => ({ listStaff: vi.fn(), deactivateStaff: vi.fn() }));
 
 const ACCOUNTS: StaffAccount[] = [
   { username: 'jramirez', fullName: 'Jorge Ramírez', area: 'LIMPIEZA', active: true },
@@ -31,6 +31,7 @@ function rowOf(username: string) {
 describe('StaffListPage', () => {
   beforeEach(() => {
     vi.mocked(listStaff).mockReset();
+    vi.mocked(deactivateStaff).mockReset();
     vi.mocked(listStaff).mockResolvedValue(page(ACCOUNTS, { totalElements: 12, totalPages: 2 }));
   });
 
@@ -60,11 +61,27 @@ describe('StaffListPage', () => {
       'href',
       '/administracion/personal/jramirez/editar',
     );
-    expect(within(active).getByRole('link', { name: 'Desactivar' })).toHaveAttribute(
-      'href',
-      '/administracion/personal/jramirez/desactivar',
-    );
-    expect(within(rowOf('ovargas')).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(active).getByRole('button', { name: 'Desactivar' })).toBeInTheDocument();
+    const inactive = rowOf('ovargas');
+    expect(within(inactive).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(inactive).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('"Desactivar" abre la confirmación de esa cuenta y, al confirmar, vuelve a consultar la lista', async () => {
+    vi.mocked(deactivateStaff).mockResolvedValue({ ...ACCOUNTS[0]!, active: false });
+    renderWithProviders(<StaffListPage />);
+    await screen.findByText('Mostrando 1–10 de 12');
+
+    await userEvent.click(within(rowOf('jramirez')).getByRole('button', { name: 'Desactivar' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('¿Desactivar la cuenta de Jorge Ramírez?')).toBeVisible();
+    const calls = vi.mocked(listStaff).mock.calls.length;
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Desactivar cuenta' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(deactivateStaff).toHaveBeenCalledWith('jramirez');
+    await waitFor(() => expect(vi.mocked(listStaff).mock.calls.length).toBeGreaterThan(calls));
   });
 
   it('"Registrar personal" está sobre la lista', async () => {

@@ -1,6 +1,8 @@
 import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
+import type { StaffAccount } from '@/api/staffService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
@@ -8,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { errorMessage } from '@/lib/errorMessages';
 import { readPage } from '@/lib/pagination';
+import { DeactivateStaffDialog } from '@/pages/administracion/staff/DeactivateStaffDialog';
 import { StaffFilters } from '@/pages/administracion/staff/StaffFilters';
 import {
   FILTER_PARAMS,
@@ -30,6 +33,8 @@ export function StaffListPage() {
   const page = readPage(searchParams);
 
   const query = useStaffList(filters, page);
+  // La cuenta con la que se abrió el diálogo: sigue ahí aunque la lista se vuelva a consultar.
+  const [deactivating, setDeactivating] = useState<StaffAccount | null>(null);
 
   function goToPage(next: number) {
     setSearchParams((previous) => {
@@ -83,7 +88,11 @@ export function StaffListPage() {
         {query.isPending && <p className="p-6 text-sm text-text-lo">Cargando personal…</p>}
         {query.data && (
           <>
-            <StaffTable accounts={query.data.items} emptyMessage={emptyMessage} />
+            <StaffTable
+              accounts={query.data.items}
+              onDeactivate={setDeactivating}
+              emptyMessage={emptyMessage}
+            />
             <Pagination
               page={query.data.page}
               size={query.data.size}
@@ -94,6 +103,13 @@ export function StaffListPage() {
           </>
         )}
       </Card>
+      {deactivating && (
+        <DeactivateStaffDialog
+          key={deactivating.username}
+          account={deactivating}
+          onClose={() => setDeactivating(null)}
+        />
+      )}
     </div>
   );
 }

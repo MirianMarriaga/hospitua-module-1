@@ -11,16 +11,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { STAFF_AREA_LABELS } from '@/lib/labels';
-import { deactivateStaffPath, editStaffPath } from '@/pages/administracion/staff/staffRoutes';
+import { editStaffPath } from '@/pages/administracion/staff/staffRoutes';
 import { StaffStateBadge } from '@/pages/administracion/staff/StaffStateBadge';
 
 interface StaffTableProps {
   accounts: StaffAccount[];
+  onDeactivate: (account: StaffAccount) => void;
   emptyMessage: React.ReactNode;
 }
 
 /** Tabla de `12-personal.html`: "Editar" y "Desactivar" solo en las cuentas activas (FR-007). */
-export function StaffTable({ accounts, emptyMessage }: StaffTableProps) {
+export function StaffTable({ accounts, onDeactivate, emptyMessage }: StaffTableProps) {
   return (
     <Table className="min-w-[760px]">
       <TableHeader>
@@ -57,8 +58,8 @@ export function StaffTable({ accounts, emptyMessage }: StaffTableProps) {
                       <Button asChild size="sm">
                         <Link to={editStaffPath(account.username)}>Editar</Link>
                       </Button>
-                      <Button asChild size="sm" variant="ink">
-                        <Link to={deactivateStaffPath(account.username)}>Desactivar</Link>
+                      <Button size="sm" variant="ink" onClick={() => onDeactivate(account)}>
+                        Desactivar
                       </Button>
                     </>
                   ) : (

@@ -49,3 +49,10 @@ export function editStaff(
     body: request,
   });
 }
+
+/** Desactiva la cuenta sin borrarla; responde la cuenta con `active` en `false`. */
+export function deactivateStaff(username: string): Promise<StaffAccount> {
+  return apiRequest<StaffAccount>(`/api/staff/${encodeURIComponent(username)}/deactivation`, {
+    method: 'POST',
+  });
+}
