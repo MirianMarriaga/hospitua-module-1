@@ -22,7 +22,7 @@ interface FormValues {
 
 async function fillForm(values: FormValues) {
   if (values.username) await userEvent.type(screen.getByLabelText(/Usuario/), values.username);
-  if (values.password) await userEvent.type(screen.getByLabelText(/Contraseña/), values.password);
+  if (values.password) await userEvent.type(screen.getByLabelText(/^Contraseña/), values.password);
   if (values.fullName) {
     await userEvent.type(screen.getByLabelText(/Nombre completo/), values.fullName);
   }
@@ -73,6 +73,21 @@ describe('RegisterStaffPage', () => {
     expect(
       await screen.findByText('La contraseña admite máximo 72 caracteres.'),
     ).toBeInTheDocument();
+    expect(registerStaff).not.toHaveBeenCalled();
+  });
+
+  it('la contraseña empieza oculta y el ojo la muestra mientras se escribe', async () => {
+    renderWithProviders(<RegisterStaffPage />);
+    const password = screen.getByLabelText(/^Contraseña/);
+    await userEvent.type(password, 'Limpieza2026');
+    expect(password).toHaveAttribute('type', 'password');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver contraseña' }));
+    expect(password).toHaveAttribute('type', 'text');
+    expect(password).toHaveValue('Limpieza2026');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
+    expect(password).toHaveAttribute('type', 'password');
     expect(registerStaff).not.toHaveBeenCalled();
   });
 
@@ -135,7 +150,7 @@ describe('RegisterStaffPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Registrar otra persona' }));
 
     expect(screen.getByLabelText(/Usuario/)).toHaveValue('');
-    expect(screen.getByLabelText(/Contraseña/)).toHaveValue('');
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveValue('');
     expect(screen.getByLabelText(/Nombre completo/)).toHaveValue('');
   });
 
@@ -162,7 +177,7 @@ describe('RegisterStaffPage', () => {
     await fillForm(VALID);
 
     expect(await screen.findByText('Revisa este campo.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Contraseña/)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText('técnico')).not.toBeInTheDocument();
   });
 

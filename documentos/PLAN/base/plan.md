@@ -943,6 +943,7 @@ frontend/                                                     # Árbol real revi
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
+    │   ├── PasswordInput.tsx                                 # Campo de contraseña con el ojo para verla (inicio de sesión y personal)
     │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
     │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño (panel de mantenimiento)
     │   ├── damageReportErrors.ts                             # Textos de los diálogos de daño por errorCode

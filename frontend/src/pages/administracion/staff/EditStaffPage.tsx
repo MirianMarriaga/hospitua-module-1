@@ -7,6 +7,7 @@ import type { StaffAccountDetail } from '@/api/staffService';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { OptionSelect } from '@/components/OptionSelect';
 import { PageHeader } from '@/components/PageHeader';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -189,8 +190,7 @@ function EditStaffForm({
                     <FormItem>
                       <FormLabel>Contraseña nueva</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
+                        <PasswordInput
                           autoComplete="new-password"
                           placeholder="Déjala vacía para no cambiarla"
                           {...field}

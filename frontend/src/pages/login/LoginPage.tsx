@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
@@ -20,6 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/PasswordInput';
 import { homeOf } from '@/layouts/areaNavigation';
 import { errorMessage } from '@/lib/errorMessages';
 import { useLogin } from '@/pages/login/useLogin';
@@ -40,7 +39,6 @@ export function LoginPage() {
   const expired = useSessionStore((state) => state.expired);
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
-  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -135,31 +133,13 @@ export function LoginPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contraseña</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="current-password"
-                              placeholder="Tu contraseña"
-                              className="pr-10"
-                              {...field}
-                            />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-text-lo hover:text-ink"
-                            aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="size-4" aria-hidden />
-                            ) : (
-                              <Eye className="size-4" aria-hidden />
-                            )}
-                          </Button>
-                        </div>
+                        <FormControl>
+                          <PasswordInput
+                            autoComplete="current-password"
+                            placeholder="Tu contraseña"
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

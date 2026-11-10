@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { OptionSelect } from '@/components/OptionSelect';
 import { PageHeader } from '@/components/PageHeader';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
@@ -117,8 +118,7 @@ export function RegisterStaffPage() {
                     <FormItem>
                       <FormLabel>Contraseña *</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
+                        <PasswordInput
                           autoComplete="new-password"
                           placeholder="Mínimo 8 caracteres"
                           {...field}
