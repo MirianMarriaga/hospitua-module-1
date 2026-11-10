@@ -125,16 +125,16 @@ Como Recepcionista, quiero que el listado de llegadas y los indicadores reflejen
 14. **Escenario**: Lista del día no recibida
    - **Dado** que no se ha recibido la lista del día de las 00:00 o la copia local no está disponible
    - **Cuando** el Recepcionista visualiza la pestaña Llegadas
-   - **Entonces** el sistema muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." sin errores técnicos, mientras la pestaña Salidas y los KPIs de estancias y habitaciones siguen operando (FR-011).
+   - **Entonces** el sistema muestra el aviso "Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde." sin errores técnicos, mientras la pestaña Salidas y los KPIs de estancias y habitaciones siguen operando (FR-011).
 
 ---
 
 ### Casos Borde
 
-- **Sin reservas de llegada para el día**: Cuando no existen habitaciones pendientes de llegada en la copia local de la lista del día, la tabla de Llegadas muestra el mensaje "No hay reservas que mostrar." y el KPI "Llegadas de hoy" indica 0.
-- **Sin estancias activas para salida**: Cuando no existen estancias activas con salida programada o vencida, la tabla de Salidas muestra el mensaje "No hay reservas que mostrar." y los KPIs "Salidas de hoy" y "Salidas vencidas" indican 0.
-- **Lista de las 00:00 no recibida o copia local no disponible**: Si no se ha recibido la lista del día a las 00:00 o la copia local se encuentra vacía o dañada, el sistema presenta un aviso informativo controlado en la pestaña Llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") [pendiente de definición por Módulo 2 respecto a protocolo de reemisión o consulta de respaldo]; la pestaña Salidas y los KPIs locales de estancias y habitaciones continúan operando con total normalidad.
-- **Búsqueda sin coincidencias**: Cuando el texto ingresado en cualquiera de los dos buscadores no coincide con ningún registro, la tabla muestra el mensaje "No hay reservas que mostrar." sin emitir errores técnicos.
+- **Sin reservas de llegada para el día**: Cuando no existen habitaciones pendientes de llegada en la copia local de la lista del día, la tabla de Llegadas muestra el mensaje "No hay reservas de llegada que mostrar." y el KPI "Llegadas de hoy" indica 0.
+- **Sin estancias activas para salida**: Cuando no existen estancias activas con salida programada o vencida, la tabla de Salidas muestra el mensaje "No hay salidas que mostrar." y los KPIs "Salidas de hoy" y "Salidas vencidas" indican 0.
+- **Lista de las 00:00 no recibida o copia local no disponible**: Si no se ha recibido la lista del día a las 00:00 o la copia local se encuentra vacía o dañada, el sistema presenta un aviso informativo controlado en la pestaña Llegadas ("Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde.") [pendiente de definición por Módulo 2 respecto a protocolo de reemisión o consulta de respaldo]; la pestaña Salidas y los KPIs locales de estancias y habitaciones continúan operando con total normalidad.
+- **Búsqueda sin coincidencias**: Cuando el texto ingresado en cualquiera de los dos buscadores no coincide con ningún registro, la tabla muestra el mensaje de su pestaña ("No hay reservas de llegada que mostrar." en Llegadas y "No hay salidas que mostrar." en Salidas) sin emitir errores técnicos.
 - **Tolerancia de formato en la búsqueda**: El sistema elimina espacios iniciales y finales (trim) y es insensible a mayúsculas/minúsculas en ambos buscadores.
 
 ---
@@ -193,9 +193,9 @@ Como Recepcionista, quiero que el listado de llegadas y los indicadores reflejen
 
 - **FR-009**: Al pulsar el botón "Check-out" en una fila de Salidas, el sistema DEBE navegar al flujo de Registrar Check-Out transfiriendo la referencia de la estancia seleccionada, de modo que el proceso de salida inicie directamente en el paso 1 (Consultar reserva) sin solicitar nuevamente ningún criterio de búsqueda.
 
-- **FR-010**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar el mensaje "No hay reservas que mostrar." en el área de la tabla, sin emitir errores técnicos.
+- **FR-010**: Cuando cualquiera de las dos tablas no tiene registros que mostrar (sin resultados por defecto o sin coincidencias en la búsqueda), el sistema DEBE desplegar en el área de la tabla el mensaje de su pestaña: "No hay reservas de llegada que mostrar." en Llegadas y "No hay salidas que mostrar." en Salidas, sin emitir errores técnicos.
 
-- **FR-011**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Lista de llegadas no disponible. Esperando sincronización de Módulo 2.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
+- **FR-011**: Si la lista del día de las 00:00 no ha sido recibida o la copia local no está disponible, el sistema DEBE informar de forma controlada la indisponibilidad temporal de llegadas ("Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde.") sin propagar fallos técnicos y sin afectar la operación de la pestaña Salidas ni los KPIs calculados localmente.
 
 ---
 

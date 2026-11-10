@@ -536,7 +536,7 @@ frontend/src/
 
 - [x] T036 Revisar que ninguna clase escriba en `user_account` sin pasar por los puertos de este plan, salvo la migración que crea la tabla (FR-001).
   - Hecho (L37): solo escriben en `user_account` `StaffAccountRepositoryAdapter` (con su entidad, su mapper y `SpringDataUserAccountJpaRepository`, cuyas consultas son de lectura) y la migración `V1`. `RoomStateHistoryQueryRepository` solo la lee para el nombre del responsable.
-- [ ] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
+- [x] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
   - Pendiente (F14 del plan de fases del frontend): se mide con `RegisterStaffPage` (T017). El backend responde el registro en una sola petición.
 
 ---
