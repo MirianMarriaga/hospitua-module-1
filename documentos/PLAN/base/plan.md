@@ -914,10 +914,16 @@ frontend/                                                     # Árbol real revi
 ├── vite.config.ts                                            # Proxy de /api, compilador de React (Babel) y Vitest con cobertura
 ├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
 │   ├── README.md
-│   ├── inventario.spec.ts
-│   ├── recepcion.spec.ts
-│   ├── seed/                                                 # Cuentas de prueba (demo-users.sql) y llegada de demostración (demo-llegada.ts)
+│   ├── inventario.spec.ts                                    # Registrar, editar, dar de baja, reactivar e historial
+│   ├── ciclo-habitacion.spec.ts                              # Check-in y check-out, limpieza con daño y reparación, en orden
+│   ├── bloqueo-tecnico.spec.ts                               # Programar un bloqueo técnico y ver su informe
+│   ├── personal.spec.ts                                      # Registrar una cuenta, entrar con ella y desactivarla
+│   ├── seed/                                                 # Llegada de demostración (demo-llegada.ts)
 │   └── support/                                              # Datos de prueba contra el backend y RabbitMQ; inicio de sesión y capturas
+│       ├── backend.ts                                        # Cuentas por POST /api/staff, habitaciones, lista del día y estado de una habitación
+│       ├── globalSetup.ts                                    # Crea las cuentas de prueba y levanta Módulo 2 simulado
+│       ├── module2Stub.ts                                    # GET /api/reservations sin conflictos, en el puerto 8082
+│       └── session.ts                                        # Inicio y cierre de sesión, capturas y selects
 └── src/
     ├── main.tsx                                              # QueryClientProvider y BrowserRouter
     ├── routes.tsx                                            # Rutas por área dentro de AreaLayout, que tiene la guarda de sesión y de área

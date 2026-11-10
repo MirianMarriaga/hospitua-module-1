@@ -1,6 +1,6 @@
 # E2E y evidencias
 
-Flujos felices contra el backend real en perfil `dev`. No corren en el CI.
+Flujos felices de todas las áreas contra el backend real en perfil `dev`. No corren en el CI.
 
 1. Infraestructura y backend, desde la raíz del repositorio:
 
@@ -9,27 +9,40 @@ Flujos felices contra el backend real en perfil `dev`. No corren en el CI.
    (cd backend && ./mvnw spring-boot:run)
    ```
 
-2. Cuentas de Gerencia y Recepción, con la contraseña del admin (`admin123`), una sola vez:
-
-   ```bash
-   docker compose exec -T postgres psql -U hospitua -d hospitua_m1 < frontend/e2e/seed/demo-users.sql
-   ```
-
-3. Desde `frontend/`, la primera vez `npx playwright install chromium`, y después:
+2. Desde `frontend/`, la primera vez `npx playwright install chromium`, y después:
 
    ```bash
    npm run e2e
    ```
 
-   Playwright levanta `npm run dev` si no está corriendo. `recepcion.spec.ts` crea una habitación y
-   publica en RabbitMQ la lista del día con una reserva que llega hoy, así que no hace falta Módulo 2.
-   Sin Módulo 3, la liquidación del check-out llega `UNAVAILABLE` y se ve el banner de contingencia.
+   Playwright levanta `npm run dev` si no está corriendo.
+
+No hace falta preparar nada más: `e2e/support/globalSetup.ts` crea las cuentas de prueba por
+`POST /api/staff` (Gerencia, Recepción, Limpieza y Mantenimiento, con la contraseña del admin) y
+levanta un Módulo 2 simulado en el puerto 8082, que responde sin reservas en conflicto. Si ese puerto
+ya está ocupado (otro simulador o el Módulo 2 real), se usa el que esté.
+
+| Archivo                    | Flujo                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| `inventario.spec.ts`       | Administración registra, edita, da de baja y reactiva una habitación; Gerencia ve su historial     |
+| `ciclo-habitacion.spec.ts` | Recepción hace el check-in y el check-out; Limpieza limpia y reporta un daño; Mantenimiento repara |
+| `bloqueo-tecnico.spec.ts`  | Mantenimiento programa un bloqueo técnico y consulta su informe                                    |
+| `personal.spec.ts`         | Administración registra una cuenta, la persona inicia sesión, se desactiva y su ingreso se rechaza |
+
+Para tener en cuenta:
+
+- `ciclo-habitacion.spec.ts` crea una habitación y publica en RabbitMQ la lista del día con una
+  reserva que llega hoy, así que no hace falta el Módulo 2 real. **La lista reemplaza la copia local
+  de reservas del día.**
+- Sin Módulo 3, la liquidación del check-out llega `UNAVAILABLE` y se ve el banner de contingencia.
+- Cada corrida deja datos en la base local: habitaciones nuevas, una estadía y una cuenta
+  desactivada (`e2e…`), porque las cuentas no se borran.
 
 Las capturas de cada paso quedan en `e2e/capturas/` (fuera de git).
 
 ## Demostración en el navegador
 
-Con el backend y la base levantados (pasos 1 y 2), desde `frontend/`:
+Con el backend y la base levantados (paso 1), desde `frontend/`:
 
 ```bash
 npm run dev            # http://localhost:5173
