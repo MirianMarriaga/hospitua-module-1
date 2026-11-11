@@ -982,7 +982,8 @@ frontend/                                                     # Árbol real revi
     │   ├── Stepper.tsx
     │   ├── TechnicalBlockViewDialog.tsx                      # Ver informe del mantenimiento (panel de mantenimiento)
     │   ├── TechnicalBlockViewDialog.test.tsx
-    │   ├── technicalBlockErrors.ts                           # Validación previa de fechas, aviso de éxito y textos de error del bloqueo
+    │   ├── scheduleTechnicalBlockSchema.ts                   # Esquema Zod de "Programar mantenimiento": cada regla de fechas y de estado en su campo
+    │   ├── technicalBlockErrors.ts                           # Aviso de éxito, textos de error del bloqueo y campo de cada rechazo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts

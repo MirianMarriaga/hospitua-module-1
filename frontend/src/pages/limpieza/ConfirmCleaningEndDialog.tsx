@@ -48,7 +48,7 @@ export function ConfirmCleaningEndDialog({
         if (!next) close();
       }}
       title={`¿Está seguro que desea finalizar la limpieza de la habitación ${roomNumber}?`}
-      description="La habitación quedará lista para recibir huéspedes."
+      description="La limpieza quedará registrada como terminada."
       warning={
         damage.length > 0 && (
           <>
