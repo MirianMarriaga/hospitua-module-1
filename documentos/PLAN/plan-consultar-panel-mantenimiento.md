@@ -67,6 +67,7 @@ Accept: application/json
 | --- | --- | --- | --- |
 | `activeTask` | object (se omite si no hay) | Tarea activa del miembro; si viene, el frontend redirige a la vista de tarea activa, que toma sus datos de este campo, y `rooms` llega vacío (FR-001) | `null` |
 | `activeTask.taskId` | UUID | Tarea abierta del miembro | `"7e6d5c4b-…"` |
+| `activeTask.startDateTime` | string | Inicio de la reparación (agregado en L41) | `"2026-10-08T09:15:00-05:00"` |
 | `activeTask.room` | object | La habitación de la tarea, con los mismos campos de un ítem de `rooms[]` | |
 | `rooms` | array | Todas las habitaciones excepto las `Inactive`, en tres grupos: `TechnicalBlock` vencidos, el resto de `DisabledForRepairs` y `TechnicalBlock`, y las demás; partición estable sobre el orden natural por número (plan base, T008) (FR-002, FR-006). La búsqueda (FR-007) y los conteos (FR-009) los calcula el frontend sobre esta lista | |
 | `rooms[].roomId` | UUID | Identificador de la habitación | `"9b8a…"` |
@@ -182,6 +183,7 @@ No aplica: usa la infraestructura del plan base (layout de mantenimiento de T015
   - Hecho (L28): todo existe (L27 trajo `ReparationTaskRepositoryPort` y `MaintenanceController`).
 - [x] T002 [P] Implementar `MaintenancePanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetMaintenancePanelUseCase`.
   - Hecho (L28): `MaintenancePanelDto` con los records anidados `ActiveTaskDto`, `MaintenanceRoomDto` (el ítem de `rooms`, que también usa `activeTask.room`) y `MaintenanceRangeDto`, y `GetMaintenancePanelUseCase.getPanel(String memberId)`. Por `default-property-inclusion: non_null`, sin tarea `activeTask` no viaja en el JSON y una habitación sin mantenimiento no lleva `maintenance`, como en el panel de limpieza (L19); el contrato ya lo dice.
+  - Ajuste (L41): el record de la tarea pasa a llamarse `MaintenanceActiveTaskDto` y suma `startDateTime` (inicio de la `ReparationTask`), para la vista de tarea activa ("Empezaste" y "Tiempo transcurrido"). Con el nombre `ActiveTaskDto`, igual al de limpieza, springdoc publicaba un solo esquema para los dos paneles. Lo prueban `MaintenancePanelQueryServiceTest` (T005) y `MaintenancePanelIntegrationTest` (T009).
 
 ---
 

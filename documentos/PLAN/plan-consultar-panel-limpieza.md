@@ -167,6 +167,7 @@ No aplica: usa la infraestructura del plan base (layout de limpieza de T015, `Cl
   - Hecho (L19): los tres existen; `findLastCleaningEndByRoomIds` recibe los resultados que cuentan (`CleaningTaskOutcome.countsAsCleaning()`).
 - [x] T002 [P] Implementar `CleaningPanelDto` (con `activeTask`, que reutiliza el ítem de `rooms`) y el puerto `GetCleaningPanelUseCase`.
   - Hecho (L19): `CleaningPanelDto` con los records anidados `ActiveTaskDto` y `CleaningRoomDto` (el ítem de `rooms`, que también usa `activeTask.room`), y `GetCleaningPanelUseCase.getPanel(String memberId)`. Por `default-property-inclusion: non_null`, sin tarea `activeTask` no viaja en el JSON y una habitación sin limpiezas no lleva `lastCleaningDateTime`; el frontend toma la ausencia como `null`.
+  - Ajuste (L41): el record de la tarea pasa a llamarse `CleaningActiveTaskDto`. Con el nombre `ActiveTaskDto`, igual al de mantenimiento, springdoc publicaba un solo esquema (el de mantenimiento, sin `startDateTime`) y el contrato describía mal este panel. El JSON no cambia.
 
 ---
 

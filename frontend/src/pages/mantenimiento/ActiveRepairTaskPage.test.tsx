@@ -50,7 +50,7 @@ const BLOCKED: MaintenanceRoom = {
   maintenance: { startDate: '2026-11-01', estimatedEndDate: '2026-11-05' },
 };
 const withTask = (room: MaintenanceRoom): MaintenancePanel => ({
-  activeTask: { taskId: 't-1', room },
+  activeTask: { taskId: 't-1', startDateTime: '2026-11-09T09:15:00-05:00', room },
   rooms: [],
 });
 const WITHOUT_TASK: MaintenancePanel = { rooms: [] };

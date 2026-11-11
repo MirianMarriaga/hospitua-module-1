@@ -63,7 +63,9 @@ public class MaintenancePanelQueryService implements GetMaintenancePanelUseCase 
                 .findById(task.getRoomId())
                 .orElseThrow(() -> new IllegalStateException("La tarea " + task.getId() + " no tiene habitación"));
         return MaintenancePanelDto.withActiveTask(
-                task.getId(), rows(List.of(room), Set.of(room.getId())).getFirst());
+                task.getId(),
+                task.getStartDateTime(),
+                rows(List.of(room), Set.of(room.getId())).getFirst());
     }
 
     private List<MaintenanceRoomDto> rows(List<Room> rooms, Set<UUID> roomsWithOpenTask) {
