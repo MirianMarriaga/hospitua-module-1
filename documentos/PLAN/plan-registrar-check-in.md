@@ -452,6 +452,7 @@ La respuesta no depende de Módulo 2: la notificación queda en el outbox (FR-01
 - [x] T029 Validar que no exista referencia a `foreignGuestCount`, `m2.huespedes.extranjeros.queue` ni `SendForeignGuestsUseCase`.
   - Hecho (L38): no queda ninguna referencia en `backend/src`; solo las nombra este plan, para decir que no existen.
 - [x] T030 Pruebas E2E completas del wizard de Check-In con huéspedes nacionales y extranjeros.
+  - Hecho (F13): `frontend/e2e/ciclo-habitacion.spec.ts`, contra el backend en perfil `dev`: la titular colombiana y un acompañante con pasaporte de Estados Unidos (panel migratorio), y después el check-out, la limpieza con daño y la reparación de la misma habitación. Revisión de RF4: pasó dos veces seguidas sobre la misma base (6 de 6 E2E).
 
 ---
 

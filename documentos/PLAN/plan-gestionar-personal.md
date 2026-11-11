@@ -538,6 +538,8 @@ frontend/src/
   - Hecho (L37): solo escriben en `user_account` `StaffAccountRepositoryAdapter` (con su entidad, su mapper y `SpringDataUserAccountJpaRepository`, cuyas consultas son de lectura) y la migración `V1`. `RoomStateHistoryQueryRepository` solo la lee para el nombre del responsable.
 - [x] T037 Verificar con un usuario de prueba que el registro completo, desde "Registrar personal" hasta la confirmación, toma menos de 2 minutos (SC-001).
   - Pendiente (F14 del plan de fases del frontend): se mide con `RegisterStaffPage` (T017). El backend responde el registro en una sola petición.
+  - Ajuste (revisión de F14): vuelve a `[ ]`. F14 la marcó sin registrar la medición, y el E2E de personal no mide tiempos. Se marca con una nota "Hecho (F14)" que diga quién la midió, cuándo y cuánto tardó.
+  - Hecho (F14): medido a mano el 10-11-2026 por Rene, con la app levantada (backend en perfil `dev`), registrando una cuenta inventada desde "Registrar personal" hasta la confirmación: 1 min 20 s, bajo los 2 minutos de SC-001.
 
 ---
 

@@ -35,6 +35,9 @@ Para tener en cuenta:
   reserva que llega hoy, así que no hace falta el Módulo 2 real. **La lista reemplaza la copia local
   de reservas del día.**
 - Sin Módulo 3, la liquidación del check-out llega `UNAVAILABLE` y se ve el banner de contingencia.
+  Además, el evento de facturación (`facturacion.checkout`) no tiene cola que lo reciba
+  (`modulo3.checkout` la declara Módulo 3): queda en `outbox_notification` reintentándose y termina
+  en `FAILED`. Es lo esperado sin Módulo 3; no afecta a los E2E.
 - Cada corrida deja datos en la base local: habitaciones nuevas, una estadía y una cuenta
   desactivada (`e2e…`), porque las cuentas no se borran.
 
