@@ -987,6 +987,8 @@ frontend/                                                     # Árbol real revi
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
+    │   ├── useElapsedMinutes.ts                              # "Tiempo transcurrido" de las tareas activas de limpieza y mantenimiento (F15)
+    │   ├── useElapsedMinutes.test.tsx
     │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
     │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     │   ├── useDebouncedValue.ts
