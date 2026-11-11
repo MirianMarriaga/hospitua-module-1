@@ -3,9 +3,13 @@ import { defineConfig, devices } from '@playwright/test';
 // E2E contra el backend en perfil dev (ver e2e/README.md). Fuera del CI por defecto.
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/support/globalSetup.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  // Los flujos recorren varias pantallas y cambian de usuario: 30 s no alcanzan en un equipo lento.
+  timeout: 120_000,
+  expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',

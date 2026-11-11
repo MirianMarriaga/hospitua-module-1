@@ -60,8 +60,11 @@ describe('RoomStateHistoryPage', () => {
     await userEvent.clear(screen.getByLabelText('Habitación'));
     await userEvent.type(screen.getByLabelText('Habitación'), '101');
 
-    await waitFor(() =>
-      expect(getRoomStateHistory).toHaveBeenLastCalledWith({ roomNumber: '101' }, 1),
+    // Escribir y esperar los SEARCH_DEBOUNCE_MS del buscador pasa del segundo por defecto de
+    // waitFor con la máquina cargada; por eso fallaba de forma intermitente.
+    await waitFor(
+      () => expect(getRoomStateHistory).toHaveBeenLastCalledWith({ roomNumber: '101' }, 1),
+      { timeout: 3000 },
     );
   });
 

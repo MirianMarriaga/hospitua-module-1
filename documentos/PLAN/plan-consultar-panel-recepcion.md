@@ -22,7 +22,7 @@ Componentes y lógica operativa:
    - Buscador en tiempo real por nombre, documento o código de reserva contra la copia local (sin REST a Módulo 2).
    - Botón individual "Check-in" que transfiere `reservationRef` y `roomId` directamente al Paso 1 del flujo de admisión.
 3. **Pestaña Salidas (FR-004, FR-007, FR-009)**: Listado 100% local sobre la persistencia de Módulo 1 (`Stay` + `Room` + `RoomGuest`) de estancias activas con salida hoy o vencida (etiqueta "Vencida" destacada). Incluye buscador local (nombre, documento, código o número de habitación) y botón "Check-out" que transfiere la estancia directamente al Paso 1 del flujo de salida.
-4. **Resiliencia Total (FR-011)**: Cero llamadas REST a Módulo 2. Si la lista de las 00:00 no ha llegado, Llegadas muestra el aviso "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." mientras Salidas y los KPIs de estancias siguen operando.
+4. **Resiliencia Total (FR-011)**: Cero llamadas REST a Módulo 2. Si la lista de las 00:00 no ha llegado, Llegadas muestra el aviso "Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde." mientras Salidas y los KPIs de estancias siguen operando.
 5. **Pantalla de inicio de jornada (FR-001)**: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, las cuatro tarjetas y las pestañas.
 6. **Actualización (FR-006)**: las llegadas y los KPIs se vuelven a consultar cada 60 segundos y al volver de un Check-In o Check-Out.
 
@@ -43,7 +43,7 @@ Componentes y lógica operativa:
 - **Constraints**:
   - Sin operaciones de escritura ni transiciones de estado de habitaciones en esta pantalla (solo lectura).
   - Fechas expuestas sin horas (`LocalDate` / YYYY-MM-DD). Cero campo `nights` persistido (cálculo dinámico).
-  - Mensaje unificado ante búsqueda sin resultados: "No hay reservas que mostrar.".
+  - Mensaje ante búsqueda sin resultados, uno por pestaña: "No hay reservas de llegada que mostrar." y "No hay salidas que mostrar.".
 
 ---
 
@@ -84,7 +84,7 @@ Accept: application/json
 
 | Campo | Tipo | Descripción | Ejemplo |
 | --- | --- | --- | --- |
-| `listAvailable` | boolean | `false` si hoy no se ha recibido la lista de las 00:00 (no hay mensaje `reserva.lista-del-dia` con el `operationalDate` de hoy en `daily_reservation_message_log`); el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." y `groups` llega vacío (FR-011) | `true` |
+| `listAvailable` | boolean | `false` si hoy no se ha recibido la lista de las 00:00 (no hay mensaje `reserva.lista-del-dia` con el `operationalDate` de hoy en `daily_reservation_message_log`); el frontend muestra "Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde." y `groups` llega vacío (FR-011) | `true` |
 | `groups` | array | Una entrada por reserva con habitaciones pendientes de Check-In | |
 | `groups[].reservationRef` | string | Referencia de la reserva | `"RES-10482"` |
 | `groups[].pendingRooms` | entero | Habitaciones de la reserva sin `Stay` | `1` |
@@ -152,7 +152,7 @@ Accept: application/json
 }
 ```
 
-Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` vacío y el frontend muestra "No hay reservas que mostrar." (FR-010). "Check-in" navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-008).
+Sin reservas pendientes o sin coincidencias, la respuesta es `200` con `groups` vacío y el frontend muestra "No hay reservas de llegada que mostrar." (FR-010). "Check-in" navega a `/check-in?reservationRef={ref}&roomId={roomId}` (FR-008).
 
 ### Respuestas de error
 
@@ -231,7 +231,7 @@ Accept: application/json
 }
 ```
 
-Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "No hay reservas que mostrar." (FR-010). "Check-out" navega a `/check-out?reservationRef={ref}&roomId={roomId}` (FR-009).
+Sin estancias o sin coincidencias, `stays` llega vacío y el frontend muestra "No hay salidas que mostrar." (FR-010). "Check-out" navega a `/check-out?reservationRef={ref}&roomId={roomId}` (FR-009).
 
 ### Respuestas de error
 
@@ -461,12 +461,15 @@ frontend/src/
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [x] T025 Verificar que si la búsqueda no arroja coincidencias en ninguna pestaña se despliegue el mensaje unificado "No hay reservas que mostrar." (FR-010).
+- [x] T025 Verificar que si la búsqueda no arroja coincidencias se despliegue el mensaje de la pestaña: "No hay reservas de llegada que mostrar." o "No hay salidas que mostrar." (FR-010).
+  - Hecho (F14): `ArrivalsTab.tsx` y `DeparturesTab.tsx` muestran el mensaje de su pestaña, como `vistas/recepcionista/01-inicio.html`, con sus pruebas en `ReceptionPanel.test.tsx`. El spec (FR-010 y los casos borde) pedía un mensaje unificado que la vista no tenía: se alineó con la vista, que es la referencia de contenido.
 - [ ] T026 Garantizar que **ningún endpoint del panel realice llamadas REST a Módulo 2**; validar con pruebas de integración desacopladas de red, midiendo que el panel completo carga en menos de 2 segundos y cada búsqueda responde en menos de 0,5 segundos (SC-001 a SC-003).
   - Avance (L38): `CrossFlowRulesTest` comprueba que ninguna clase del panel consulta a Módulo 2 (solo la baja y los bloqueos técnicos lo hacen) y que `RestClient` solo se usa en los adaptadores REST. Falta medir los tiempos (fuera de los lotes; `@Tag("performance")` a pedido).
-- [ ] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
+- [x] T027 Asegurar que ninguna fecha exponga horas y que los textos institucionales concuerden con los wireframes.
   - Avance (L38): en el backend, `CrossFlowRulesTest` exige que todo campo `…Date` sea `LocalDate` (los instantes se llaman `…DateTime`). Falta revisar los textos contra los wireframes (frontend).
-- [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Lista de llegadas no disponible. Esperando sincronización de Módulo 2." (FR-011; SC-006).
+  - Hecho (F14): los textos del panel coinciden con la vista 01: el subtítulo "Estancias · llegadas y salidas del día", los KPI "Llegadas de hoy", "Salidas de hoy", "Salidas vencidas" y "Habitaciones ocupadas", las pestañas, la etiqueta "Vencida" y los mensajes vacíos. Las fechas usan `formatDate` (`DD-MM-YYYY`, sin hora).
+- [x] T028 Integration test: sin mensaje `reserva.lista-del-dia` de hoy, `GET /api/reception/arrivals` responde `listAvailable = false` y `groups` vacío, mientras `departures` y los KPIs de estancias responden normalmente; el frontend muestra "Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde." (FR-011; SC-006).
+  - Ajuste (F14): el aviso pasa a "Las llegadas de hoy no están disponibles en este momento. Inténtalo más tarde.", el texto que ya mostraba `ArrivalsTab.tsx`. El anterior nombraba a Módulo 2, y los mensajes al usuario no mencionan módulos ni colas (check-in T025). Se cambió también en el spec (escenario 14, caso borde y FR-011).
 - [x] T029 Integration test: tras procesar un `ADDED`, un `UPDATED` y un `REMOVED`, la siguiente consulta de `arrivals` y `panel/kpis` refleja los cambios; component test de `ReceptionPanel.tsx` que vuelve a consultar cada 60 segundos y al volver de un Check-In o Check-Out (FR-006).
   - Avance (cierre de R13): hecha la parte de backend en `ReceptionPanelUpdatesIntegrationTest`, con su propio contexto y su propia base (la ingesta descarta los mensajes de un día anterior al de la copia local, y las pruebas de la cola dejan días de 2200 en la base compartida). Tras la lista del día, un `ADDED`, un `UPDATED` que quita una habitación y un `REMOVED`, cada consulta de `arrivals` y `panel/kpis` refleja el cambio. Falta el component test de `ReceptionPanel.tsx`, que va con el frontend.
 - [x] T030 Construir `ReceptionPanel.tsx` según `vistas/recepcionista/01-inicio.html`: encabezado "Hotel Hospitua · Recepción" con el nombre del usuario actual, saludo con el nombre del Recepcionista, subtítulo "Estancias · llegadas y salidas del día", imagen institucional, `KpiCards.tsx` y las pestañas Llegadas y Salidas (FR-001).

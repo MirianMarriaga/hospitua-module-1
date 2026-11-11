@@ -903,27 +903,40 @@ backend/
         ├── TestcontainersConfiguration.java                           # Plan base
         └── TestHabitacionesApplication.java                           # Plan base
 
-frontend/                                                     # Árbol real revisado en F00 (07-11-2026); los archivos de las áreas que faltan los agregan sus lotes
+frontend/                                                     # Árbol real revisado en F00 (07-11-2026) y completo en F14 (10-11-2026)
+├── .gitignore
+├── .prettierignore
+├── .prettierrc
 ├── components.json                                           # Configuración de shadcn/ui
 ├── eslint.config.js
 ├── images/                                                   # Copias de imágenes sin uso: la app usa src/assets/ (se revisa en F14)
 ├── index.html                                                # Carga la fuente Geist (Google Fonts)
 ├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
+├── package-lock.json
 ├── playwright.config.ts
 ├── tsconfig.json                                             # Referencias a tsconfig.app.json (src/) y tsconfig.node.json (configuración y e2e/); paths @/* para el CLI de shadcn
+├── tsconfig.app.json
+├── tsconfig.node.json
 ├── vite.config.ts                                            # Proxy de /api, compilador de React (Babel) y Vitest con cobertura
 ├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
 │   ├── README.md
-│   ├── inventario.spec.ts
-│   ├── recepcion.spec.ts
-│   ├── seed/                                                 # Cuentas de prueba (demo-users.sql) y llegada de demostración (demo-llegada.ts)
+│   ├── inventario.spec.ts                                    # Registrar, editar, dar de baja, reactivar e historial
+│   ├── ciclo-habitacion.spec.ts                              # Check-in y check-out, limpieza con daño y reparación, en orden
+│   ├── bloqueo-tecnico.spec.ts                               # Programar un bloqueo técnico y ver su informe
+│   ├── personal.spec.ts                                      # Registrar una cuenta, entrar con ella y desactivarla
+│   ├── seed/                                                 # Llegada de demostración (demo-llegada.ts)
 │   └── support/                                              # Datos de prueba contra el backend y RabbitMQ; inicio de sesión y capturas
+│       ├── backend.ts                                        # Cuentas por POST /api/staff, habitaciones, lista del día y estado de una habitación
+│       ├── globalSetup.ts                                    # Crea las cuentas de prueba y levanta Módulo 2 simulado
+│       ├── module2Stub.ts                                    # GET /api/reservations sin conflictos, en el puerto 8082
+│       └── session.ts                                        # Inicio y cierre de sesión, capturas y selects
 └── src/
     ├── main.tsx                                              # QueryClientProvider y BrowserRouter
     ├── routes.tsx                                            # Rutas por área dentro de AreaLayout, que tiene la guarda de sesión y de área
     ├── index.css                                             # Tailwind 4 (@theme inline), tokens, tema oscuro (.dark), superficies de vidrio y .table-stacked
     ├── api/                                                  # Clientes HTTP y tipos TypeScript de los DTOs
     │   ├── apiClient.ts                                      # fetch con X-User; convierte el ApiError en ApiRequestError
+    │   ├── apiClient.test.ts
     │   ├── schema.d.ts                                       # Generado por npm run api:types desde documentos/contrato/openapi.json; no se edita
     │   ├── types.ts                                          # Alias de schema.d.ts con los nombres que usan los servicios
     │   ├── types.test.ts                                     # Las formas escritas a mano (PagedResult, ApiError) siguen al contrato
@@ -943,34 +956,45 @@ frontend/                                                     # Árbol real revi
     ├── assets/                                               # Logo, foto del login y variables.css (valores claros y oscuros de los tokens)
     ├── components/                                           # Componentes de dominio compartidos
     │   ├── ConfirmDialog.tsx                                 # Diálogo de confirmación de vidrio (título, texto, aviso, Cancelar y acción)
+    │   ├── ConfirmDialog.test.tsx
     │   ├── DamageReportDialog.tsx                            # Reportar daño (paneles de limpieza y mantenimiento)
+    │   ├── DamageReportDialog.test.tsx
     │   ├── DamageReportViewDialog.tsx                        # Ver informe del daño (panel de mantenimiento)
+    │   ├── DamageReportViewDialog.test.tsx
     │   ├── damageReportErrors.ts                             # Textos de los diálogos de daño por errorCode
     │   ├── ErrorAlert.tsx                                    # Muestra un ApiRequestError con el Alert de ui/
     │   ├── InfoItem.tsx
     │   ├── MissingReservation.tsx                            # Check-In o Check-Out abierto sin reserva
     │   ├── OptionSelect.tsx                                  # Select de shadcn con lista de vidrio y opción vacía ("Todos", "Selecciona…")
+    │   ├── OptionSelect.test.tsx
     │   ├── PageHeader.tsx
     │   ├── Pagination.tsx
+    │   ├── Pagination.test.tsx
     │   ├── PasswordInput.tsx                                 # Campo de contraseña con el ojo para verla (inicio de sesión y personal)
     │   ├── ReservationConflictList.tsx                       # Reservas en conflicto (baja y bloqueo técnico)
     │   ├── RoomNumberSearch.tsx                              # Buscador por número de los paneles de limpieza y mantenimiento
+    │   ├── RoomNumberSearch.test.tsx
     │   ├── ScheduleTechnicalBlockDialog.tsx                  # Programar mantenimiento (panel de mantenimiento)
+    │   ├── ScheduleTechnicalBlockDialog.test.tsx
     │   ├── StatusBadge.tsx
     │   ├── SummaryCard.tsx                                   # Tarjeta de conteo de los paneles de limpieza y mantenimiento
     │   ├── StepProgress.tsx
     │   ├── Stepper.tsx
     │   ├── TechnicalBlockViewDialog.tsx                      # Ver informe del mantenimiento (panel de mantenimiento)
-    │   ├── technicalBlockErrors.ts                           # Validación previa de fechas, aviso de éxito y textos de error del bloqueo
+    │   ├── TechnicalBlockViewDialog.test.tsx
+    │   ├── scheduleTechnicalBlockSchema.ts                   # Esquema Zod de "Programar mantenimiento": cada regla de fechas y de estado en su campo
+    │   ├── technicalBlockErrors.ts                           # Aviso de éxito, textos de error del bloqueo y campo de cada rechazo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
     │   ├── useDebouncedSearchParam.ts
     │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
     │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     │   ├── useDebouncedValue.ts
-    │   └── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
+    │   ├── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
+    │   └── usePanelQuery.test.tsx
     ├── layouts/
     │   ├── AreaLayout.tsx                                    # Guarda de área, Sidebar y panel principal de vidrio con TopBar y Outlet
+    │   ├── AreaLayout.test.tsx
     │   ├── Sidebar.tsx                                       # Barra lateral verde azulada: logo, área, menú del área y UserMenu (barra superior bajo 900 px)
     │   ├── TopBar.tsx                                        # Barra de vidrio con la ruta "Área › Opción del menú"
     │   ├── UserMenu.tsx                                      # Menú del usuario: tema Claro / Oscuro y "Salir"
@@ -978,19 +1002,25 @@ frontend/                                                     # Árbol real revi
     │   └── useLogout.ts                                      # Cierra la sesión y vacía la caché de consultas
     ├── lib/
     │   ├── errorMessages.ts                                  # errorMessage(error, tabla) e invalidRoomStateLabel (estado de ROOM_INVALID_STATE)
+    │   ├── errorMessages.test.ts
     │   ├── format.ts                                         # Fechas de negocio, marcas de tiempo y pesos
+    │   ├── format.test.ts
     │   ├── labels.ts                                         # Estados, categorías, áreas y tipos de documento en español
     │   ├── pagination.ts                                     # readPage(): página de la URL (inventario e historial)
     │   ├── queryClient.ts                                    # Reintentos solo ante errores de red; PASSWORD_MUTATION (gcTime 0) para las mutaciones con contraseña
+    │   ├── queryClient.test.ts
     │   ├── queryKeys.ts                                      # Claves de consulta que comparten varias pantallas
     │   ├── roomNumberSearch.ts                               # Búsqueda por número exacto y su mensaje sin resultados
+    │   ├── roomNumberSearch.test.ts
     │   └── utils.ts                                          # cn()
     ├── pages/
     │   ├── login/
     │   │   ├── LoginPage.tsx
+    │   │   ├── LoginPage.test.tsx
     │   │   └── useLogin.ts
     │   ├── panel/                                            # Vista 01 de recepción: KPI, Llegadas y Salidas
     │   │   ├── ReceptionPanel.tsx
+    │   │   ├── ReceptionPanel.test.tsx
     │   │   ├── KpiCards.tsx
     │   │   ├── ArrivalsTab.tsx
     │   │   ├── DeparturesTab.tsx
@@ -999,6 +1029,7 @@ frontend/                                                     # Árbol real revi
     │   │   └── useReceptionPanel.ts                          # KPI, llegadas (con select para la tabla) y salidas
     │   ├── checkin/                                          # Vistas 02-05: Check-In de 4 pasos
     │   │   ├── CheckInPage.tsx                               # Lleva el paso actual (checkInReducer.ts)
+    │   │   ├── CheckInPage.test.tsx
     │   │   ├── ReservationStep.tsx
     │   │   ├── GuestsStep.tsx
     │   │   ├── GuestBlock.tsx                                # Un bloque por ocupante, con el panel migratorio
@@ -1010,6 +1041,7 @@ frontend/                                                     # Árbol real revi
     │   │   └── useCheckIn.ts                                 # Validar la reserva y registrar el Check-In
     │   ├── checkout/                                         # Vistas 06-09: Check-Out con liquidación
     │   │   ├── CheckOutPage.tsx                              # Lleva el paso actual (checkOutReducer.ts)
+    │   │   ├── CheckOutPage.test.tsx
     │   │   ├── ActiveStayStep.tsx
     │   │   ├── SettlementStep.tsx                            # Pasos 2 y 3 con useSettlement.ts (una sola consulta)
     │   │   ├── SettlementCard.tsx
@@ -1027,24 +1059,29 @@ frontend/                                                     # Árbol real revi
     │   │   ├── useRoom.ts                                    # Una habitación (editar y dar de baja)
     │   │   ├── inventory/
     │   │   │   ├── InventoryPage.tsx                         # Inventario de Administración y de Gerencia (role admin o manager)
+    │   │   │   ├── InventoryPage.test.tsx
     │   │   │   ├── RoomInventoryFilters.tsx
     │   │   │   ├── RoomInventoryTable.tsx
     │   │   │   ├── inventoryParams.ts                        # Filtros y orden en la URL
     │   │   │   └── useInventory.ts
     │   │   ├── register/
     │   │   │   ├── RegisterRoomPage.tsx
+    │   │   │   ├── RegisterRoomPage.test.tsx
     │   │   │   ├── RegisterRoomSuccess.tsx
     │   │   │   └── useRegisterRoom.ts
     │   │   ├── edit/
     │   │   │   ├── EditRoomPage.tsx                          # Formulario y confirmación "Antes / Ahora"
+    │   │   │   ├── EditRoomPage.test.tsx
     │   │   │   ├── editRoomSchema.ts                         # Reglas de registerRoomSchema.ts con los textos de editar
     │   │   │   └── useEditRoom.ts
     │   │   ├── decommission/
     │   │   │   ├── DecommissionPage.tsx                      # Motivo, confirmación, verificación y resultado
+    │   │   │   ├── DecommissionPage.test.tsx
     │   │   │   ├── decommissionSchema.ts                     # Motivo del catálogo y detalle (máximo 500; obligatorio con "Otro")
     │   │   │   └── useDecommissionRoom.ts
     │   │   ├── reactivation/
     │   │   │   ├── ReactivationPage.tsx                      # Confirmación y resultado (vistas 10 y 11)
+    │   │   │   ├── ReactivationPage.test.tsx
     │   │   │   └── useReactivation.ts                        # Baja vigente y reactivar
     │   │   └── staff/                                        # Personal (plan-gestionar-personal.md)
     │   │       ├── StaffListPage.tsx                         # Lista del personal (vista 12)
@@ -1066,6 +1103,7 @@ frontend/                                                     # Árbol real revi
     │   │       └── DeactivateStaffDialog.test.tsx
     │   ├── gerencia/                                         # Historial de estados
     │   │   ├── RoomStateHistoryPage.tsx
+    │   │   ├── RoomStateHistoryPage.test.tsx
     │   │   ├── RoomStateHistoryFilters.tsx
     │   │   ├── RoomStateHistoryTable.tsx
     │   │   ├── historyParams.ts

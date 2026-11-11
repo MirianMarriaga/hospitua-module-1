@@ -6,10 +6,56 @@ const RABBIT_AUTH = 'Basic ' + Buffer.from('hospitua:hospitua').toString('base64
 
 export const PASSWORD = 'admin123';
 export const USERS = {
-  admin: { username: 'admin', fullName: 'Administrador' },
-  manager: { username: 'gerente', fullName: 'Andrés Rojas' },
-  reception: { username: 'recepcion', fullName: 'Ana Ramírez' },
+  admin: { username: 'admin', fullName: 'Administrador', area: 'ADMINISTRACION' },
+  manager: { username: 'gerente', fullName: 'Andrés Rojas', area: 'GERENCIA' },
+  reception: { username: 'recepcion', fullName: 'Ana Ramírez', area: 'RECEPCION' },
+  // Cuentas propias de los E2E: así ninguna tarea de una persona real estorba sus pantallas.
+  cleaning: { username: 'e2e.limpieza', fullName: 'Lina Pruebas', area: 'LIMPIEZA' },
+  maintenance: { username: 'e2e.mantenimiento', fullName: 'Mario Pruebas', area: 'MANTENIMIENTO' },
 } as const;
+
+type User = (typeof USERS)[keyof typeof USERS];
+
+/**
+ * Crea la cuenta por `POST /api/staff`, como lo haría el Administrador, si todavía no existe
+ * (`409 USERNAME_ALREADY_EXISTS`). La de `admin` la crea el backend al arrancar.
+ */
+export async function ensureStaffAccount(user: User): Promise<void> {
+  const response = await fetch(`${BACKEND}/api/staff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User': USERS.admin.username },
+    body: JSON.stringify({ ...user, password: PASSWORD }),
+  });
+  if (response.status !== 201 && response.status !== 409) {
+    throw new Error(`No se pudo crear la cuenta ${user.username}: ${response.status}`);
+  }
+}
+
+/**
+ * Deja libre a la cuenta de limpieza o de mantenimiento: si una corrida anterior falló con una
+ * tarea abierta, el panel la llevaría a "Tarea activa" y no a la lista.
+ */
+export async function releaseOpenTask(area: 'cleaning' | 'maintenance'): Promise<void> {
+  const headers = { 'X-User': USERS[area].username };
+  const panel = await fetch(`${BACKEND}/api/${area}/panel`, { headers });
+  if (!panel.ok) {
+    throw new Error(`No se pudo leer el panel de ${area}: ${panel.status}`);
+  }
+  const { activeTask } = (await panel.json()) as { activeTask?: { taskId: string } };
+  if (activeTask) {
+    await fetch(`${BACKEND}/api/${area}/tasks/${activeTask.taskId}/release`, {
+      method: 'POST',
+      headers,
+    });
+  }
+}
+
+/** Estado actual de la habitación (`RoomStatus`), para comprobar cómo la dejó un flujo. */
+export async function roomStatus(roomId: string): Promise<string> {
+  const response = await fetch(`${BACKEND}/api/rooms/inventory/${roomId}`);
+  const room = (await response.json()) as { status: string };
+  return room.status;
+}
 
 /** Número de habitación nuevo en cada corrida, de hasta 10 caracteres. */
 export function uniqueRoomNumber(prefix: string): string {
@@ -21,18 +67,19 @@ export function todayInBogota(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 }
 
-function addDays(isoDate: string, days: number): string {
+export function addDays(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
-interface CreatedRoom {
+export interface CreatedRoom {
   roomId: string;
   roomNumber: string;
 }
 
-async function createRoom(roomNumber: string): Promise<CreatedRoom> {
+/** Crea una habitación disponible por la API, para los flujos que no prueban el registro. */
+export async function createRoom(roomNumber: string): Promise<CreatedRoom> {
   const response = await fetch(`${BACKEND}/api/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-User': USERS.admin.username },
