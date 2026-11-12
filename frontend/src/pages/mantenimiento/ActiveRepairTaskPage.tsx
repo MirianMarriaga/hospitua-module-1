@@ -7,7 +7,9 @@ import { ErrorAlert } from '@/components/ErrorAlert';
 import { InfoItem } from '@/components/InfoItem';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import { useElapsedMinutes } from '@/hooks/useElapsedMinutes';
 import { errorMessage } from '@/lib/errorMessages';
+import { formatTimestamp } from '@/lib/format';
 import { ROOM_CATEGORY_LABELS } from '@/lib/labels';
 import { ConfirmRepairEndDialog } from '@/pages/mantenimiento/ConfirmRepairEndDialog';
 import { closeRepairErrorMessage } from '@/pages/mantenimiento/maintenanceErrors';
@@ -29,8 +31,8 @@ import { useSessionStore } from '@/stores/sessionStore';
  * Tarea activa de `mantenimiento/02-tarea-activa.html` (`plan-confirmar-reparacion-finalizada.md`
  * T025): la habitación que el miembro está reparando, lo que hay que reparar y "Confirmar fin" y
  * "Liberar tarea". Toma los datos de `activeTask` del panel y, si no hay tarea, vuelve al panel
- * (FR-001, FR-004, FR-016). La tarea de mantenimiento no trae la hora de inicio, así que no se
- * muestran "Empezaste" ni "Tiempo transcurrido" de la vista.
+ * (FR-001, FR-004, FR-016). "Empezaste" y "Tiempo transcurrido" salen de `activeTask.startDateTime`
+ * (L41), como en la tarea activa de limpieza.
  */
 export function ActiveRepairTaskPage() {
   const session = useSessionStore((state) => state.session);
@@ -47,6 +49,7 @@ export function ActiveRepairTaskPage() {
   } | null>(null);
 
   const task = panel.data?.activeTask;
+  const elapsed = useElapsedMinutes(task?.startDateTime);
 
   // Mientras se cierra la tarea, el panel se vuelve a consultar y ya no la trae: quien navega con el
   // aviso es el éxito, no esta redirección.
@@ -107,7 +110,7 @@ export function ActiveRepairTaskPage() {
             <h2 id="habitacion-en-reparacion" className="text-[16px] font-semibold text-ink">
               Habitación en reparación
             </h2>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-bg text-primary">
                 <Wrench aria-hidden className="size-6" />
               </div>
@@ -123,7 +126,9 @@ export function ActiveRepairTaskPage() {
                 <MaintenanceStateBadge room={task.room} />
               </div>
             </div>
-            <dl>
+            <dl className="grid gap-4 sm:grid-cols-3">
+              <InfoItem label="Empezaste">{formatTimestamp(task.startDateTime)}</InfoItem>
+              <InfoItem label="Tiempo transcurrido">{elapsed} min</InfoItem>
               <InfoItem label="A cargo de">{session?.fullName ?? '—'}</InfoItem>
             </dl>
           </section>

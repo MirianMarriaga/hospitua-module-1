@@ -1,5 +1,5 @@
 import { BedDouble, Info } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 
 import type { ActiveCleaningTask } from '@/api/cleaningService';
@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useElapsedMinutes } from '@/hooks/useElapsedMinutes';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatTimestamp } from '@/lib/format';
 import { ROOM_CATEGORY_LABELS } from '@/lib/labels';
@@ -25,18 +26,6 @@ import {
   useReleaseCleaning,
 } from '@/pages/limpieza/useCleaningPanel';
 import { useSessionStore } from '@/stores/sessionStore';
-
-/** Minutos desde que empezó la limpieza, como el contador de la vista; se actualiza solo. */
-function useElapsedMinutes(startDateTime: string | undefined): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, []);
-  if (!startDateTime) return 0;
-  const start = Date.parse(startDateTime);
-  return Number.isNaN(start) ? 0 : Math.max(0, Math.floor((now - start) / 60_000));
-}
 
 /**
  * Tarea activa de `limpieza/02-tarea-activa.html` (`plan-confirmar-fin-de-limpieza.md` T019, T020):
@@ -126,7 +115,7 @@ export function ActiveCleaningTaskPage() {
             Habitación en limpieza
           </h2>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-bg text-primary">
               <BedDouble aria-hidden className="size-6" />
             </div>

@@ -218,7 +218,11 @@ describe('MaintenancePanelPage', () => {
 
   it('con una tarea activa lleva a su vista', async () => {
     vi.mocked(getMaintenancePanel).mockResolvedValue({
-      activeTask: { taskId: 't1', room: { ...DISABLED, hasOpenTask: true } },
+      activeTask: {
+        taskId: 't1',
+        startDateTime: '2026-11-09T09:15:00-05:00',
+        room: { ...DISABLED, hasOpenTask: true },
+      },
       rooms: [],
     });
     renderPanel();

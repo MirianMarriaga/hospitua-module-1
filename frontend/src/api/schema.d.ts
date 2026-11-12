@@ -944,13 +944,15 @@ export interface components {
             listAvailable?: boolean;
             groups?: components["schemas"]["ArrivalGroup"][];
         };
-        ActiveTaskDto: {
+        MaintenanceActiveTaskDto: {
             /** Format: uuid */
             taskId?: string;
+            /** Format: date-time */
+            startDateTime?: string;
             room?: components["schemas"]["MaintenanceRoomDto"];
         };
         MaintenancePanelDto: {
-            activeTask?: components["schemas"]["ActiveTaskDto"];
+            activeTask?: components["schemas"]["MaintenanceActiveTaskDto"];
             rooms?: components["schemas"]["MaintenanceRoomDto"][];
         };
         MaintenanceRangeDto: {
@@ -971,8 +973,15 @@ export interface components {
             hasOpenTask?: boolean;
             maintenance?: components["schemas"]["MaintenanceRangeDto"];
         };
+        CleaningActiveTaskDto: {
+            /** Format: uuid */
+            taskId?: string;
+            /** Format: date-time */
+            startDateTime?: string;
+            room?: components["schemas"]["CleaningRoomDto"];
+        };
         CleaningPanelDto: {
-            activeTask?: components["schemas"]["ActiveTaskDto"];
+            activeTask?: components["schemas"]["CleaningActiveTaskDto"];
             rooms?: components["schemas"]["CleaningRoomDto"][];
         };
         CleaningRoomDto: {

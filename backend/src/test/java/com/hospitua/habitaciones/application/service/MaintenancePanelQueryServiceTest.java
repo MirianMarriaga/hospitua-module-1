@@ -124,7 +124,8 @@ class MaintenancePanelQueryServiceTest {
     }
 
     @Test
-    @DisplayName("T005: con tarea abierta devuelve activeTask con taskId y la fila de su habitación, y rooms vacío")
+    @DisplayName(
+            "T005: con tarea abierta devuelve activeTask con taskId, su inicio y la fila de su habitación, y rooms vacío")
     void activeTask() {
         Room room = room("301", RoomStatus.TechnicalBlock);
         ReparationTask task = ReparationTask.start(room.getId(), MEMBER, SCHEDULED_AT);
@@ -137,6 +138,7 @@ class MaintenancePanelQueryServiceTest {
 
         assertThat(panel.rooms()).isEmpty();
         assertThat(panel.activeTask().taskId()).isEqualTo(task.getId());
+        assertThat(panel.activeTask().startDateTime()).isEqualTo(task.getStartDateTime());
         assertThat(panel.activeTask().room())
                 .isEqualTo(new MaintenanceRoomDto(
                         room.getId(),

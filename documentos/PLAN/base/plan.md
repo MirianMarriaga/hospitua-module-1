@@ -986,12 +986,14 @@ frontend/                                                     # Árbol real revi
     │   ├── technicalBlockErrors.ts                           # Aviso de éxito, textos de error del bloqueo y campo de cada rechazo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
-    │   ├── useDebouncedSearchParam.ts
     │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
-    │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
+    │   ├── useDebouncedSearchParam.ts
     │   ├── useDebouncedValue.ts
+    │   ├── useElapsedMinutes.ts                              # "Tiempo transcurrido" de las tareas activas de limpieza y mantenimiento (F15)
+    │   ├── useElapsedMinutes.test.tsx
     │   ├── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
-    │   └── usePanelQuery.test.tsx
+    │   ├── usePanelQuery.test.tsx
+    │   └── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     ├── layouts/
     │   ├── AreaLayout.tsx                                    # Guarda de área, Sidebar y panel principal de vidrio con TopBar y Outlet
     │   ├── AreaLayout.test.tsx
@@ -1523,6 +1525,7 @@ Esta sección fija cómo se escribe el código de cada plan. No repite las regla
   - `@Schema(implementation = String.class)` en los 6 métodos `@AssertTrue` que comparten nombre con un campo (`isPassword` de `RegisterStaffRequest` y `EditStaffRequest`, `isRoomId`, `isStartDate` e `isEndDate` de `MaintenanceAvailabilityQuery`, `isDate` de `RoomBaseRateQuery`): sin eso, el campo aparece como booleano.
   - Limitación conocida: los endpoints que responden `201 Created` con `ResponseEntity.status(...)` aparecen con `200` en el contrato. Los tipos que genera el frontend no cambian por eso. El frontend genera sus tipos desde ese archivo (lote C02 de su plan de fases).
   - Limitación conocida (cierre de RF1, frontend): `CleaningPanelDto` y `MaintenancePanelDto` tienen cada uno un record anidado `ActiveTaskDto`, y el contrato publica un único esquema `ActiveTaskDto`, el de mantenimiento (`room` es `MaintenanceRoomDto` y falta `startDateTime`). `CleaningPanelDto.activeTask` queda mal descrito; el frontend escribe ese tipo a mano en `cleaningService.ts`. Pendiente de un lote del backend: dar nombres distintos a los dos records o configurar springdoc para que no los fusione, y regenerar `documentos/contrato/openapi.json`.
+  - Resuelto (L41): los records se llaman `CleaningActiveTaskDto` y `MaintenanceActiveTaskDto` (este suma `startDateTime`), el contrato publica los dos esquemas y el frontend toma ambos tipos de `schema.d.ts` (`ActiveCleaningTask` y `ActiveRepairTask`), sin escribirlos a mano.
 
 **Checkpoint Base**: Plataforma base lista, compilando y con pruebas de infraestructura verdes. Los planes de feature (uno por caso de uso) pueden desarrollarse sobre este cimiento común.
 

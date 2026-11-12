@@ -2775,12 +2775,16 @@
           }
         }
       },
-      "ActiveTaskDto" : {
+      "MaintenanceActiveTaskDto" : {
         "type" : "object",
         "properties" : {
           "taskId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "startDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
           },
           "room" : {
             "$ref" : "#/components/schemas/MaintenanceRoomDto"
@@ -2791,7 +2795,7 @@
         "type" : "object",
         "properties" : {
           "activeTask" : {
-            "$ref" : "#/components/schemas/ActiveTaskDto"
+            "$ref" : "#/components/schemas/MaintenanceActiveTaskDto"
           },
           "rooms" : {
             "type" : "array",
@@ -2843,11 +2847,27 @@
           }
         }
       },
+      "CleaningActiveTaskDto" : {
+        "type" : "object",
+        "properties" : {
+          "taskId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "startDateTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "room" : {
+            "$ref" : "#/components/schemas/CleaningRoomDto"
+          }
+        }
+      },
       "CleaningPanelDto" : {
         "type" : "object",
         "properties" : {
           "activeTask" : {
-            "$ref" : "#/components/schemas/ActiveTaskDto"
+            "$ref" : "#/components/schemas/CleaningActiveTaskDto"
           },
           "rooms" : {
             "type" : "array",
