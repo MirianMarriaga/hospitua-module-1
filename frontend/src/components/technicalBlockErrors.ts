@@ -6,7 +6,7 @@ import {
 } from '@/api/technicalBlockService';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatDate } from '@/lib/format';
-import { isRoomStatus, ROOM_STATUS_LABELS } from '@/lib/labels';
+import { isRoomStatus } from '@/lib/labels';
 import type { RoomStatus } from '@/api/types';
 
 // Textos del bloqueo técnico: el aviso de éxito y las tablas de errores de `plan-programar-bloqueo-tecnico-para-habitacion.md` y de los
@@ -59,14 +59,29 @@ const VIEW_ERRORS = {
 };
 
 /**
- * Rechazo por estado: dada de baja, o un inicio hoy en una habitación que no está disponible. El
- * estado va con su nombre de la interfaz, como `invalidRoomStateLabel` (regla 12 del plan base).
+ * Cada estado escrito para ir después de "Habitación" en el rechazo por estado (F20). No usa
+ * `ROOM_STATUS_LABELS`: esas etiquetas van con mayúscula y "Bloqueo técnico" no encaja en la frase.
+ */
+const STATUS_IN_SENTENCE: Record<Exclude<RoomStatus, 'Inactive'>, string> = {
+  Available: 'disponible',
+  Reserved: 'reservada',
+  Occupied: 'ocupada',
+  PendingCleaning: 'pendiente de limpieza',
+  InCleaning: 'en limpieza',
+  DisabledForRepairs: 'inhabilitada por reparaciones',
+  TechnicalBlock: 'en bloqueo técnico',
+};
+
+/**
+ * Rechazo por estado: dada de baja, o un inicio hoy en una habitación que no está disponible
+ * (FR-001, esc. 10: informa el estado actual). Solo se rechaza el inicio hoy, así que el aviso
+ * habla de hoy y pide otra fecha de inicio.
  */
 export function invalidStateMessage(status: RoomStatus): string {
   if (status === 'Inactive') {
     return 'La habitación está dada de baja; no se puede programar mantenimiento.';
   }
-  return `Hoy la habitación está ${ROOM_STATUS_LABELS[status]}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.`;
+  return `Habitación ${STATUS_IN_SENTENCE[status]} hoy. Elige otra fecha de inicio.`;
 }
 
 function maintenanceConflictMessage(details: Record<string, unknown>): string | undefined {
