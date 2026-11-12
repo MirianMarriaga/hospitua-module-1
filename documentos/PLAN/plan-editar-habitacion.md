@@ -128,7 +128,7 @@ Con `changed: false` el frontend muestra "No se modificó ningún dato" y no hay
 | 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` | Falta `version` (`details.field = version`) | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 | 404 | `ROOM_NOT_FOUND` | `RoomNotFoundException` | No existe la habitación (caso borde 3) | "No se encontró ninguna habitación con ese identificador." |
 | 409 | `ROOM_INVALID_STATE` | `InvalidRoomTransitionException` | La habitación no está en `Available` (FR-002 a FR-004, esc. 7 a 9); se comprueba antes que los datos | "La habitación no está disponible para edición (estado actual: {estado})." |
-| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Otra habitación, activa o inactiva, ya tiene ese número (FR-009, esc. 13) | "Ya existe una habitación con el número {número} (aunque esté inactiva)." |
+| 409 | `ROOM_NUMBER_ALREADY_EXISTS` | `RoomNumberAlreadyExistsException` | Otra habitación, activa o inactiva, ya tiene ese número (FR-009, esc. 13) | "Ya existe una habitación con el número {número}." |
 | 409 | `CONCURRENT_UPDATE` | `ConcurrentRoomUpdateException`: la `version` enviada no es la actual, comprobado con la fila bloqueada (`ObjectOptimisticLockingFailureException` queda como respaldo del `@Version` de JPA) | Otra edición, o cualquier cambio de la habitación, ocurrió después de abrir el formulario (caso borde "Ediciones simultáneas") | "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." |
 
 ```json
@@ -288,6 +288,7 @@ No aplica: usa la infraestructura del plan base.
 ### Implementation for User Story 3
 
 - [x] T019 [US3] Mostrar en el frontend los errores con el texto de la tabla, marcando el campo inválido y conservando los demás valores del formulario (SC-005).
+  - Ajuste (F17): el número repetido dice "Ya existe una habitación con el número {número}.", como al registrar. "(aunque esté inactiva)" del escenario 13 de la SPEC describe la regla (FR-009: único entre activas e inactivas), no el texto del aviso. Lo prueba `EditRoomPage.test.tsx`.
 
 **Checkpoint**: Las tres historias funcionan de forma independiente.
 

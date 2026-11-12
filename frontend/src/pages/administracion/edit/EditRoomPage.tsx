@@ -169,7 +169,7 @@ function EditRoomFormContainer({ room, onReload }: { room: Room; onReload: () =>
     const code = errorCodeOf(error);
     if (code === 'ROOM_NUMBER_ALREADY_EXISTS') {
       form.setError('roomNumber', {
-        message: `Ya existe una habitación con el número ${request.roomNumber?.toUpperCase()} (aunque esté inactiva).`,
+        message: `Ya existe una habitación con el número ${request.roomNumber?.toUpperCase()}.`,
       });
     } else if (code === 'VALIDATION_ERROR' && error instanceof ApiRequestError) {
       const field = error.details.field;

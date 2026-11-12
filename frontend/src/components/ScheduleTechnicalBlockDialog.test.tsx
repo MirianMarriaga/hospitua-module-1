@@ -164,11 +164,7 @@ describe('ScheduleTechnicalBlockDialog', () => {
 
     await submit(dialog);
 
-    expectFieldError(
-      dialog,
-      START,
-      'Hoy la habitación está Ocupada. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.',
-    );
+    expectFieldError(dialog, START, 'Habitación ocupada hoy. Elige otra fecha de inicio.');
     expect(scheduleTechnicalBlock).not.toHaveBeenCalled();
   });
 
@@ -324,7 +320,7 @@ describe('ScheduleTechnicalBlockDialog', () => {
     ],
     [
       new ApiRequestError(409, 'ROOM_INVALID_STATE', 's', { currentStatus: 'InCleaning' }),
-      'Hoy la habitación está En limpieza. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.',
+      'Habitación en limpieza hoy. Elige otra fecha de inicio.',
     ],
     [new ApiRequestError(404, 'ROOM_NOT_FOUND', 'n'), 'No se encontró la habitación.'],
     [

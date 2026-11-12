@@ -11,9 +11,13 @@ import {
 import { formatTimestamp } from '@/lib/format';
 import { ROOM_CATEGORY_LABELS } from '@/lib/labels';
 
+/**
+ * Periodos del historial. El flujo de origen (`sourceFlowName`) llega en la respuesta pero no se muestra:
+ * es información interna (F19, FR-003 de la especificación).
+ */
 export function RoomStateHistoryTable({ periods }: { periods: RoomStatePeriod[] }) {
   return (
-    <Table className="min-w-[960px]">
+    <Table className="min-w-[820px]">
       <TableHeader>
         <TableRow>
           <TableHead>Hab.</TableHead>
@@ -22,13 +26,12 @@ export function RoomStateHistoryTable({ periods }: { periods: RoomStatePeriod[] 
           <TableHead>Inicio</TableHead>
           <TableHead>Fin</TableHead>
           <TableHead>Responsable</TableHead>
-          <TableHead>Flujo de origen</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {periods.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="py-10 text-center text-text-lo">
+            <TableCell colSpan={6} className="py-10 text-center text-text-lo">
               No se encontraron resultados
             </TableCell>
           </TableRow>
@@ -55,7 +58,6 @@ export function RoomStateHistoryTable({ periods }: { periods: RoomStatePeriod[] 
               <TableCell>
                 {period.actorName ?? <span className="text-text-lo">Sistema</span>}
               </TableCell>
-              <TableCell>{period.sourceFlowName}</TableCell>
             </TableRow>
           ))
         )}

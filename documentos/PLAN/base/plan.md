@@ -910,7 +910,7 @@ frontend/                                                     # Árbol real revi
 ├── components.json                                           # Configuración de shadcn/ui
 ├── eslint.config.js
 ├── images/                                                   # Copias de imágenes sin uso: la app usa src/assets/ (se revisa en F14)
-├── index.html                                                # Carga la fuente Geist (Google Fonts)
+├── index.html                                                # Carga la fuente Geist (Google Fonts) y enlaza el favicon (F18)
 ├── package.json                                              # Script api:types (lote C02 del plan de fases del frontend)
 ├── package-lock.json
 ├── playwright.config.ts
@@ -919,6 +919,11 @@ frontend/                                                     # Árbol real revi
 ├── tsconfig.node.json
 ├── vite.config.ts                                            # Proxy de /api, compilador de React (Babel) y Vitest con cobertura
 ├── e2e/                                                      # Playwright contra el backend real en perfil dev; no corre en el CI
+├── public/                                                   # Se copia tal cual a dist/ (F18)
+│   ├── favicon-16.png                                        # Favicon: la "H" del logo sin el fondo blanco
+│   ├── favicon-32.png
+│   ├── favicon-48.png
+│   └── apple-touch-icon.png                                  # Ícono al guardar la página en la pantalla de inicio del celular
 │   ├── README.md
 │   ├── inventario.spec.ts                                    # Registrar, editar, dar de baja, reactivar e historial
 │   ├── ciclo-habitacion.spec.ts                              # Check-in y check-out, limpieza con daño y reparación, en orden

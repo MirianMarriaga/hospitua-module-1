@@ -40,7 +40,7 @@ describe('RoomStateHistoryPage', () => {
     vi.mocked(getRoomStateHistory).mockResolvedValue(page(PERIODS));
   });
 
-  it('muestra "En curso" y "Sistema", con las horas en DD-MM-YYYY HH:MM', async () => {
+  it('muestra "En curso" y "Sistema", con las horas en DD-MM-YYYY HH:MM, sin el flujo de origen', async () => {
     renderWithProviders(<RoomStateHistoryPage />);
 
     const open = (await screen.findByText('En curso')).closest('tr')!;
@@ -48,7 +48,8 @@ describe('RoomStateHistoryPage', () => {
     expect(within(open).getByText('Bloqueo técnico')).toBeInTheDocument();
     expect(within(open).getByText('30-10-2026 08:15')).toBeInTheDocument();
     expect(screen.getByText('Laura Méndez')).toBeInTheDocument();
-    expect(screen.getByText('Registrar habitación')).toBeInTheDocument();
+    expect(screen.queryByText('Flujo de origen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Registrar habitación')).not.toBeInTheDocument();
   });
 
   it('usa el roomId que llega desde "Ver historial" y lo quita al escribir otro número', async () => {

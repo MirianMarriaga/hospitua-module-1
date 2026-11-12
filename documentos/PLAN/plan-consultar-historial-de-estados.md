@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (FR-005), para el Gerente (FR-001). La vista muestra los periodos de `room_state_history`, uno por fila, con habitación, tipo, estado, inicio, fin (o "En curso" si el periodo sigue abierto), responsable (o "Sistema" si la transición fue autónoma) y flujo de origen (FR-003, FR-004). Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó. Se puede:
+Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (FR-005), para el Gerente (FR-001). La vista muestra los periodos de `room_state_history`, uno por fila, con habitación, tipo, estado, inicio, fin (o "En curso" si el periodo sigue abierto) y responsable (o "Sistema" si la transición fue autónoma) (FR-003, FR-004); el flujo de origen llega en la respuesta pero no se muestra. Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó. Se puede:
 
 - filtrar por habitación (número o identificador), tipo, estado y rango de fechas (FR-002), validando que "Desde" no sea posterior a "Hasta" (FR-006);
 - abrir desde "Ver historial" del inventario con la habitación ya filtrada (FR-007);
@@ -214,12 +214,13 @@ No aplica: usa la infraestructura del plan base.
 - [x] T007 [P] [US1] Unit test: la paginación devuelve 15 por página con `totalElements` y `totalPages` correctos (FR-008).
 - [x] T008 [US1] Integration test con Testcontainers: la consulta no modifica datos y no bloquea una transición que ocurre al mismo tiempo en otra habitación (FR-005, caso borde "Concurrente"; SC-004).
 - [x] T009 [P] [US1] Component test en `RoomStateHistoryPage`:
-  - Muestra habitación, tipo, estado en español, inicio, fin o "En curso", responsable o "Sistema", y flujo de origen.
+  - Muestra habitación, tipo, estado en español, inicio, fin o "En curso" y responsable o "Sistema"; no muestra el flujo de origen.
   - Al llegar con `roomId` en la URL, el filtro de habitación ya viene aplicado.
   - Con "Desde" posterior a "Hasta" muestra el error y no muestra resultados.
   - Sin coincidencias muestra "No se encontraron resultados".
   - Al cambiar un filtro vuelve a la página 1.
   - (esc. 3 y 4; FR-003, FR-004, FR-006 a FR-008)
+  - Ajuste (F19, 12-11-2026): la columna "Flujo de origen" se quita de la vista por decisión del usuario, porque es información interna; FR-003 de la especificación se corrigió con su permiso. `sourceFlow` y `sourceFlowName` siguen en la respuesta y en `room_state_history` (T003 no cambia). `RoomStateHistoryPage.test.tsx` comprueba que la columna no aparece.
 
 ### Implementation for User Story 1
 
