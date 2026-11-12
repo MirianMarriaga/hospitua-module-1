@@ -400,6 +400,7 @@ Se implementa primero porque HU-1 necesita una tarea abierta.
   - Diferencia con la vista 02: no se muestran "Empezaste" ni "Tiempo transcurrido", porque `activeTask` del panel de mantenimiento no trae la hora de inicio (`MaintenancePanelDto.ActiveTaskDto` solo tiene `taskId` y `room`; el de limpieza sí trae `startDateTime`). Mostrarlos requiere agregar `startDateTime` al contrato de `plan-consultar-panel-mantenimiento.md` en un lote del backend.
   - Ajuste (L41): `activeTask` del panel de mantenimiento ya trae `startDateTime` (`MaintenancePanelDto.MaintenanceActiveTaskDto`); falta mostrarlos en `ActiveRepairTaskPage.tsx` (F15 del plan de fases del frontend).
   - Hecho (F15): `ActiveRepairTaskPage.tsx` muestra "Empezaste" (`formatTimestamp`) y "Tiempo transcurrido" con `useElapsedMinutes` (`hooks/`), el mismo contador de la tarea activa de limpieza, que se movió de `ActiveCleaningTaskPage.tsx` a un hook compartido. Lo prueban `ActiveRepairTaskPage.test.tsx` y `useElapsedMinutes.test.tsx`. Ya no hay diferencia con la vista 02.
+  - Ajuste (cierre de R14): a 390 px la etiqueta del estado ("Inhabilitada por reparaciones") se salía de la tarjeta; la fila del encabezado ahora pasa la etiqueta a la línea siguiente cuando no cabe (`flex-wrap`). Mismo ajuste en la tarea activa de limpieza (`plan-confirmar-fin-de-limpieza.md` T019).
 
 **Checkpoint**: El ciclo de mantenimiento queda completo: tomar la habitación, confirmar o liberar.
 

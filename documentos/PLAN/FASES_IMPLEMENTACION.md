@@ -18,7 +18,7 @@
 | R11 `feature/m1-reparaciones` | L27–L30 | Integrada (PR #16) |
 | R12 `feature/m1-personal` | L35–L37 | Integrada (PR #17) |
 | R13 `feature/m1-cierre` | L38, L40 (L39 aplazado) | Integrada (PR #18, 07-11-2026) |
-| R14 `feature/m1-tarea-activa` | L41 | En local (10-11-2026), desde `develop` `51377ab` |
+| R14 `feature/m1-tarea-activa` | L41 (y F15 del frontend) | En revisión (11-11-2026), desde `develop` `7dc9ee1` |
 
 El frontend tiene su propio plan de fases (`FASES_IMPLEMENTACION_FRONTEND.md`); hoy está fuera del repositorio.
 

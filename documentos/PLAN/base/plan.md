@@ -986,14 +986,14 @@ frontend/                                                     # Árbol real revi
     │   ├── technicalBlockErrors.ts                           # Aviso de éxito, textos de error del bloqueo y campo de cada rechazo
     │   └── ui/                                               # shadcn/ui: alert, alert-dialog, badge, button, card, checkbox, dialog, dropdown-menu, form, input, label, select, table, tabs, textarea
     ├── hooks/
+    │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
     │   ├── useDebouncedSearchParam.ts
+    │   ├── useDebouncedValue.ts
     │   ├── useElapsedMinutes.ts                              # "Tiempo transcurrido" de las tareas activas de limpieza y mantenimiento (F15)
     │   ├── useElapsedMinutes.test.tsx
-    │   ├── useDamageReport.ts                                # Reportar daño y ver el último reporte
-    │   ├── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
-    │   ├── useDebouncedValue.ts
     │   ├── usePanelQuery.ts                                  # Consulta de un panel: cada 60 s y al volver a mostrarse (PANEL_REFRESH)
-    │   └── usePanelQuery.test.tsx
+    │   ├── usePanelQuery.test.tsx
+    │   └── useTechnicalBlock.ts                              # Programar mantenimiento y ver el informe del bloqueo
     ├── layouts/
     │   ├── AreaLayout.tsx                                    # Guarda de área, Sidebar y panel principal de vidrio con TopBar y Outlet
     │   ├── AreaLayout.test.tsx

@@ -110,7 +110,7 @@ export function ActiveRepairTaskPage() {
             <h2 id="habitacion-en-reparacion" className="text-[16px] font-semibold text-ink">
               Habitación en reparación
             </h2>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-bg text-primary">
                 <Wrench aria-hidden className="size-6" />
               </div>
