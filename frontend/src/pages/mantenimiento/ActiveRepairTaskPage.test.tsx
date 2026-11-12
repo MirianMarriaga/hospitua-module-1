@@ -50,7 +50,7 @@ const BLOCKED: MaintenanceRoom = {
   maintenance: { startDate: '2026-11-01', estimatedEndDate: '2026-11-05' },
 };
 const withTask = (room: MaintenanceRoom): MaintenancePanel => ({
-  activeTask: { taskId: 't-1', room },
+  activeTask: { taskId: 't-1', startDateTime: '2026-11-09T09:15:00-05:00', room },
   rooms: [],
 });
 const WITHOUT_TASK: MaintenancePanel = { rooms: [] };
@@ -99,7 +99,7 @@ describe('ActiveRepairTaskPage', () => {
     });
   });
 
-  it('muestra la habitación, el reporte del daño y solo "Confirmar fin" y "Liberar tarea"', async () => {
+  it('muestra la habitación, su inicio, el reporte del daño y solo "Confirmar fin" y "Liberar tarea"', async () => {
     renderTask();
 
     const card = await screen.findByRole('region', { name: 'Habitación en reparación' });
@@ -107,6 +107,10 @@ describe('ActiveRepairTaskPage', () => {
     expect(within(card).getByText('Suite')).toBeInTheDocument();
     expect(within(card).getByText('Inhabilitada por reparaciones')).toBeInTheDocument();
     expect(within(card).getByText('Jorge Castro')).toBeInTheDocument();
+    // "Empezaste" y "Tiempo transcurrido" de la vista 02 salen de activeTask.startDateTime (L41).
+    expect(within(card).getByText('09-11-2026 09:15')).toBeInTheDocument();
+    expect(within(card).getByText('Tiempo transcurrido')).toBeInTheDocument();
+    expect(within(card).getByText(/^\d+ min$/)).toBeInTheDocument();
 
     const report = screen.getByRole('region', { name: 'Reporte de daño' });
     expect(await within(report).findByText('Fuga en el lavamanos.')).toBeInTheDocument();

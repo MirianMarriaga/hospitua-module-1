@@ -40,7 +40,7 @@ describe('RoomStateHistoryPage', () => {
     vi.mocked(getRoomStateHistory).mockResolvedValue(page(PERIODS));
   });
 
-  it('muestra "En curso" y "Sistema", con las horas en DD-MM-YYYY HH:MM', async () => {
+  it('muestra "En curso" y "Sistema", con las horas en DD-MM-YYYY HH:MM, sin el flujo de origen', async () => {
     renderWithProviders(<RoomStateHistoryPage />);
 
     const open = (await screen.findByText('En curso')).closest('tr')!;
@@ -48,7 +48,8 @@ describe('RoomStateHistoryPage', () => {
     expect(within(open).getByText('Bloqueo técnico')).toBeInTheDocument();
     expect(within(open).getByText('30-10-2026 08:15')).toBeInTheDocument();
     expect(screen.getByText('Laura Méndez')).toBeInTheDocument();
-    expect(screen.getByText('Registrar habitación')).toBeInTheDocument();
+    expect(screen.queryByText('Flujo de origen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Registrar habitación')).not.toBeInTheDocument();
   });
 
   it('usa el roomId que llega desde "Ver historial" y lo quita al escribir otro número', async () => {
@@ -60,8 +61,11 @@ describe('RoomStateHistoryPage', () => {
     await userEvent.clear(screen.getByLabelText('Habitación'));
     await userEvent.type(screen.getByLabelText('Habitación'), '101');
 
-    await waitFor(() =>
-      expect(getRoomStateHistory).toHaveBeenLastCalledWith({ roomNumber: '101' }, 1),
+    // Escribir y esperar los SEARCH_DEBOUNCE_MS del buscador pasa del segundo por defecto de
+    // waitFor con la máquina cargada; por eso fallaba de forma intermitente.
+    await waitFor(
+      () => expect(getRoomStateHistory).toHaveBeenLastCalledWith({ roomNumber: '101' }, 1),
+      { timeout: 3000 },
     );
   });
 
@@ -92,6 +96,37 @@ describe('RoomStateHistoryPage', () => {
 
     expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument();
   });
+  it('alterna más reciente / más antiguo primero y vuelve a la página 1 (FR-009)', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=2' });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 2);
+    expect(screen.queryByLabelText('Ordenar por')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Orden: más antiguo primero/ }));
+    await waitFor(() =>
+      expect(getRoomStateHistory).toHaveBeenLastCalledWith({ direction: 'desc' }, 1),
+    );
+    expect(screen.getByRole('button', { name: /Orden: más reciente primero/ })).toHaveTextContent(
+      'Más reciente primero',
+    );
+  });
+
+  it('"Limpiar filtros" devuelve el orden por defecto', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, {
+      route: '/?direction=desc&status=Available',
+    });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith(
+      { status: 'Available', direction: 'desc' },
+      1,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+
+    await waitFor(() => expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 1));
+    expect(screen.getByRole('button', { name: /Orden: más antiguo primero/ })).toBeInTheDocument();
+  });
+
   it('al cambiar un filtro vuelve a la página 1', async () => {
     renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=3' });
     await screen.findByText('En curso');

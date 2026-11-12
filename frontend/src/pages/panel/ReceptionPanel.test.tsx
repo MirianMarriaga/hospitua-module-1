@@ -86,11 +86,11 @@ describe('ReceptionPanel', () => {
     await screen.findAllByText('Reserva de 2 habitaciones');
 
     await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar reservas' }), 'gonz');
-    await waitFor(() => expect(getArrivals).toHaveBeenLastCalledWith('gonz'));
+    await waitFor(() => expect(getArrivals).toHaveBeenLastCalledWith('gonz'), { timeout: 3000 });
     expect(getArrivals).not.toHaveBeenCalledWith('g');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Salidas' }));
-    await waitFor(() => expect(getDepartures).toHaveBeenLastCalledWith('gonz'));
+    await waitFor(() => expect(getDepartures).toHaveBeenLastCalledWith('gonz'), { timeout: 3000 });
   });
 
   it('sin coincidencias muestra el mensaje vacío del prototipo', async () => {

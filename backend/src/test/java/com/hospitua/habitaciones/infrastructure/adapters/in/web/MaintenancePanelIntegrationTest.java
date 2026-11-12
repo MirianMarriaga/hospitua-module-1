@@ -128,7 +128,7 @@ class MaintenancePanelIntegrationTest {
     }
 
     @Test
-    @DisplayName("T009: con tarea abierta responde activeTask con la fila de su habitación y rooms vacío")
+    @DisplayName("T009: con tarea abierta responde activeTask con su inicio y la fila de su habitación, y rooms vacío")
     void panel_activeTask() throws Exception {
         String member = newMaintenanceMember();
         Room room = newRoom(RoomStatus.DisabledForRepairs);
@@ -138,6 +138,7 @@ class MaintenancePanelIntegrationTest {
         mockMvc.perform(get("/api/maintenance/panel").header("X-User", member))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activeTask.taskId").value(task.getId().toString()))
+                .andExpect(jsonPath("$.activeTask.startDateTime").isNotEmpty())
                 .andExpect(
                         jsonPath("$.activeTask.room.roomId").value(room.getId().toString()))
                 .andExpect(jsonPath("$.activeTask.room.roomNumber").value(room.getRoomNumber()))

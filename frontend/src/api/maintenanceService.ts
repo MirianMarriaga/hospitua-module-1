@@ -15,11 +15,13 @@ export type MaintenanceRoom = Required<Omit<Schemas['MaintenanceRoomDto'], 'main
   maintenance?: MaintenanceRange;
 };
 
-/** Tarea de reparación abierta del miembro, con la fila de su habitación. */
-export interface ActiveRepairTask {
-  taskId: string;
+/**
+ * Tarea de reparación abierta del miembro (`MaintenanceActiveTaskDto`), con su inicio y la fila de
+ * su habitación. El contrato publica sus campos como opcionales; el backend siempre los envía.
+ */
+export type ActiveRepairTask = Required<Omit<Schemas['MaintenanceActiveTaskDto'], 'room'>> & {
   room: MaintenanceRoom;
-}
+};
 
 /** `GET /api/maintenance/panel`: con tarea activa, `rooms` llega vacío (FR-001). */
 export interface MaintenancePanel {

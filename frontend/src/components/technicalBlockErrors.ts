@@ -6,25 +6,46 @@ import {
 } from '@/api/technicalBlockService';
 import { errorMessage } from '@/lib/errorMessages';
 import { formatDate } from '@/lib/format';
-import { isRoomStatus, ROOM_STATUS_LABELS } from '@/lib/labels';
+import { isRoomStatus } from '@/lib/labels';
 import type { RoomStatus } from '@/api/types';
 
 // Textos del bloqueo técnico: el aviso de éxito y las tablas de errores de `plan-programar-bloqueo-tecnico-para-habitacion.md` y de los
 // "Mensajes por regla" de `plan-consultar-informacion-mantenimientos.md`.
 
 export const REASON_REQUIRED = `Escribe el motivo del mantenimiento (máximo ${TECHNICAL_BLOCK_REASON_MAX} caracteres).`;
-const INVALID_DATE = 'Elige una fecha válida (DD-MM-YYYY).';
+export const INVALID_DATE = 'Elige una fecha válida (DD-MM-YYYY).';
 export const RESERVATION_CONFLICT_TEXT =
   'La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas.';
 export const MODULE_2_UNAVAILABLE_TEXT =
   'Servicio de reservas temporalmente no disponible. No se programó el mantenimiento; inténtalo de nuevo.';
 
-const RULE_MESSAGES: Record<string, string> = {
+export const RULE_MESSAGES = {
   END_BEFORE_START: 'La fecha de fin no puede ser anterior a la fecha de inicio.',
   START_IN_PAST: 'La fecha de inicio no puede ser anterior a hoy.',
   RANGE_TOO_LONG: `El mantenimiento no puede durar más de ${MAINTENANCE_LIMITS.maxRangeDays} días.`,
   START_TOO_FAR: `Solo se puede programar con hasta ${MAINTENANCE_LIMITS.maxAdvanceDays} días de anticipación.`,
+} as const;
+
+type DateRule = keyof typeof RULE_MESSAGES;
+
+/** Campos del formulario de "Programar mantenimiento". */
+export type ScheduleField = 'reason' | 'startDate' | 'estimatedEndDate';
+
+/** Campo en el que se marca cada regla de fechas (regla de UI 2). */
+const RULE_FIELDS: Record<DateRule, ScheduleField> = {
+  END_BEFORE_START: 'estimatedEndDate',
+  START_IN_PAST: 'startDate',
+  RANGE_TOO_LONG: 'estimatedEndDate',
+  START_TOO_FAR: 'startDate',
 };
+
+function isDateRule(rule: unknown): rule is DateRule {
+  return typeof rule === 'string' && rule in RULE_MESSAGES;
+}
+
+function isScheduleField(field: unknown): field is ScheduleField {
+  return field === 'reason' || field === 'startDate' || field === 'estimatedEndDate';
+}
 
 const SCHEDULE_ERRORS = {
   ROOM_NOT_FOUND: 'No se encontró la habitación.',
@@ -38,14 +59,29 @@ const VIEW_ERRORS = {
 };
 
 /**
- * Rechazo por estado: dada de baja, o un inicio hoy en una habitación que no está disponible. El
- * estado va con su nombre de la interfaz, como `invalidRoomStateLabel` (regla 12 del plan base).
+ * Cada estado escrito para ir después de "Habitación" en el rechazo por estado (F20). No usa
+ * `ROOM_STATUS_LABELS`: esas etiquetas van con mayúscula y "Bloqueo técnico" no encaja en la frase.
+ */
+const STATUS_IN_SENTENCE: Record<Exclude<RoomStatus, 'Inactive'>, string> = {
+  Available: 'disponible',
+  Reserved: 'reservada',
+  Occupied: 'ocupada',
+  PendingCleaning: 'pendiente de limpieza',
+  InCleaning: 'en limpieza',
+  DisabledForRepairs: 'inhabilitada por reparaciones',
+  TechnicalBlock: 'en bloqueo técnico',
+};
+
+/**
+ * Rechazo por estado: dada de baja, o un inicio hoy en una habitación que no está disponible
+ * (FR-001, esc. 10: informa el estado actual). Solo se rechaza el inicio hoy, así que el aviso
+ * habla de hoy y pide otra fecha de inicio.
  */
 export function invalidStateMessage(status: RoomStatus): string {
   if (status === 'Inactive') {
     return 'La habitación está dada de baja; no se puede programar mantenimiento.';
   }
-  return `Hoy la habitación está ${ROOM_STATUS_LABELS[status]}. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.`;
+  return `Habitación ${STATUS_IN_SENTENCE[status]} hoy. Elige otra fecha de inicio.`;
 }
 
 function maintenanceConflictMessage(details: Record<string, unknown>): string | undefined {
@@ -66,8 +102,7 @@ export function scheduleErrorMessage(error: unknown): string {
       return details.field === 'reason' ? REASON_REQUIRED : INVALID_DATE;
     }
     if (errorCode === 'INVALID_DATE_RANGE') {
-      const rule = details.rule;
-      return (typeof rule === 'string' && RULE_MESSAGES[rule]) || errorMessage(error);
+      return isDateRule(details.rule) ? RULE_MESSAGES[details.rule] : errorMessage(error);
     }
     if (errorCode === 'ROOM_INVALID_STATE') {
       const current = details.currentStatus;
@@ -85,41 +120,29 @@ export function scheduleErrorMessage(error: unknown): string {
   return errorMessage(error, SCHEDULE_ERRORS);
 }
 
+/**
+ * Rechazo de "Programar" que corresponde a un campo: `VALIDATION_ERROR` por `details.field` e
+ * `INVALID_DATE_RANGE` por `details.rule` (regla de UI 2). Los demás van en el aviso del diálogo.
+ */
+export function scheduleFieldError(
+  error: unknown,
+): { field: ScheduleField; message: string } | null {
+  if (!(error instanceof ApiRequestError)) return null;
+  const { errorCode, details } = error;
+  if (errorCode === 'VALIDATION_ERROR' && isScheduleField(details.field)) {
+    return {
+      field: details.field,
+      message: details.field === 'reason' ? REASON_REQUIRED : INVALID_DATE,
+    };
+  }
+  if (errorCode === 'INVALID_DATE_RANGE' && isDateRule(details.rule)) {
+    return { field: RULE_FIELDS[details.rule], message: RULE_MESSAGES[details.rule] };
+  }
+  return null;
+}
+
 export function viewTechnicalBlockErrorMessage(error: unknown): string {
   return errorMessage(error, VIEW_ERRORS);
-}
-
-/** Días entre dos fechas `YYYY-MM-DD`, sin pasar por la zona del navegador. */
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
-}
-
-/**
- * Validación previa en el cliente, en el orden del backend (`MaintenanceDateRange.forScheduling` y
- * después el estado), para no gastar una petición; la decisión final es del backend (FR-011 a
- * FR-015, FR-006). Devuelve el texto de la primera regla incumplida o `null`.
- */
-export function validateSchedule(input: {
-  reason: string;
-  startDate: string;
-  estimatedEndDate: string;
-  today: string;
-  status: RoomStatus;
-}): string | null {
-  const { reason, startDate, estimatedEndDate, today, status } = input;
-  const text = reason.trim();
-  if (text.length === 0 || text.length > TECHNICAL_BLOCK_REASON_MAX) return REASON_REQUIRED;
-  if (!startDate || !estimatedEndDate) return INVALID_DATE;
-  if (estimatedEndDate < startDate) return RULE_MESSAGES.END_BEFORE_START;
-  if (startDate < today) return RULE_MESSAGES.START_IN_PAST;
-  if (daysBetween(startDate, estimatedEndDate) > MAINTENANCE_LIMITS.maxRangeDays) {
-    return RULE_MESSAGES.RANGE_TOO_LONG;
-  }
-  if (daysBetween(today, startDate) > MAINTENANCE_LIMITS.maxAdvanceDays) {
-    return RULE_MESSAGES.START_TOO_FAR;
-  }
-  if (startDate === today && status !== 'Available') return invalidStateMessage(status);
-  return null;
 }
 
 /** Aviso de éxito de `mantenimiento/01-panel.html` según el `status` de la respuesta (T024). */

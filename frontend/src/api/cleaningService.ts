@@ -12,15 +12,12 @@ export type CleaningRoom = Required<Omit<Schemas['CleaningRoomDto'], 'lastCleani
   Pick<Schemas['CleaningRoomDto'], 'lastCleaningDateTime'>;
 
 /**
- * Tarea abierta del miembro (`CleaningPanelDto.ActiveTaskDto` del backend). Se escribe a mano: el
- * contrato publica un único `ActiveTaskDto`, el del panel de mantenimiento, porque los dos records
- * se llaman igual, y le faltan `startDateTime` y la fila con `lastCleaningDateTime`.
+ * Tarea abierta del miembro (`CleaningActiveTaskDto`). El contrato publica sus campos como
+ * opcionales; el backend siempre los envía, con la fila de su habitación.
  */
-export interface ActiveCleaningTask {
-  taskId: string;
-  startDateTime: string;
+export type ActiveCleaningTask = Required<Omit<Schemas['CleaningActiveTaskDto'], 'room'>> & {
   room: CleaningRoom;
-}
+};
 
 /** `GET /api/cleaning/panel`: con tarea activa, `rooms` llega vacío (FR-001). */
 export interface CleaningPanel {

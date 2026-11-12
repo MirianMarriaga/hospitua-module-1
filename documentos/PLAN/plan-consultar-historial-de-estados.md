@@ -7,11 +7,12 @@
 
 ## Summary
 
-Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (FR-005), para el Gerente (FR-001). La vista muestra los periodos de `room_state_history`, uno por fila, con habitación, tipo, estado, inicio, fin (o "En curso" si el periodo sigue abierto), responsable (o "Sistema" si la transición fue autónoma) y flujo de origen (FR-003, FR-004). Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó. Se puede:
+Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (FR-005), para el Gerente (FR-001). La vista muestra los periodos de `room_state_history`, uno por fila, con habitación, tipo, estado, inicio, fin (o "En curso" si el periodo sigue abierto) y responsable (o "Sistema" si la transición fue autónoma) (FR-003, FR-004); el flujo de origen llega en la respuesta pero no se muestra. Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó. Se puede:
 
 - filtrar por habitación (número o identificador), tipo, estado y rango de fechas (FR-002), validando que "Desde" no sea posterior a "Hasta" (FR-006);
 - abrir desde "Ver historial" del inventario con la habitación ya filtrada (FR-007);
-- paginar de 15 en 15 (FR-008).
+- paginar de 15 en 15 (FR-008);
+- ordenar por fecha de inicio, más reciente o más antiguo primero (FR-009, esc. 5).
 
 ---
 
@@ -39,7 +40,7 @@ Implementar el caso de uso **Consultar Historial de Estados**, de solo lectura (
 
 ## GET /api/room-state-history
 
-**Descripción:** Devuelve los periodos del historial de estados con filtros y paginación (FR-002 a FR-006, FR-008).
+**Descripción:** Devuelve los periodos del historial de estados con filtros, orden y paginación (FR-002 a FR-006, FR-008, FR-009). El orden se aplica en la base antes de paginar; la fecha-hora completa desempata por hora, y con `sort=endDateTime` los periodos abiertos van primero en `desc` y al final en `asc`. La vista solo envía `direction`; `sort=endDateTime` queda disponible en la API.
 
 ### Petición (Request)
 
@@ -59,6 +60,8 @@ Accept: application/json
 | `status` | query | string | No | Uno de los 8 estados | `InCleaning` |
 | `from` | query | date | No | "Desde" | `2026-01-01` |
 | `to` | query | date | No | "Hasta" | `2026-01-31` |
+| `sort` | query | string | No | Fecha por la que se ordena: `startDateTime` (por defecto) o `endDateTime` (FR-009) | `endDateTime` |
+| `direction` | query | string | No | `asc` (por defecto: de la más antigua a la más reciente) o `desc` (FR-009) | `desc` |
 | `page` | query | integer | No | Página, desde 1 (por defecto 1); siempre de 15 registros (FR-008) | `1` |
 
 **Body (JSON):** No aplica.
@@ -117,7 +120,7 @@ Una consulta sin coincidencias responde `200` con `items` vacío y el frontend m
 | Status Code | errorCode | Excepción | Cuándo ocurre | Texto en la interfaz |
 | --- | --- | --- | --- | --- |
 | 400 | `INVALID_DATE_RANGE` | `InvalidDateRangeException` | `from` es posterior a `to` (FR-006, esc. 4); `details.rule` = `FROM_AFTER_TO` | "La fecha \"Desde\" no puede ser posterior a \"Hasta\"." |
-| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `categoryRoom` o `status` fuera de sus valores, fecha con formato inválido o `page` no es un entero positivo | "Revisa los filtros aplicados." |
+| 400 | `VALIDATION_ERROR` | `MethodArgumentNotValidException` o `ConstraintViolationException` | `categoryRoom`, `status`, `sort` o `direction` fuera de sus valores, fecha con formato inválido o `page` no es un entero positivo | "Revisa los filtros aplicados." |
 
 ```json
 {
@@ -214,12 +217,13 @@ No aplica: usa la infraestructura del plan base.
 - [x] T007 [P] [US1] Unit test: la paginación devuelve 15 por página con `totalElements` y `totalPages` correctos (FR-008).
 - [x] T008 [US1] Integration test con Testcontainers: la consulta no modifica datos y no bloquea una transición que ocurre al mismo tiempo en otra habitación (FR-005, caso borde "Concurrente"; SC-004).
 - [x] T009 [P] [US1] Component test en `RoomStateHistoryPage`:
-  - Muestra habitación, tipo, estado en español, inicio, fin o "En curso", responsable o "Sistema", y flujo de origen.
+  - Muestra habitación, tipo, estado en español, inicio, fin o "En curso" y responsable o "Sistema"; no muestra el flujo de origen.
   - Al llegar con `roomId` en la URL, el filtro de habitación ya viene aplicado.
   - Con "Desde" posterior a "Hasta" muestra el error y no muestra resultados.
   - Sin coincidencias muestra "No se encontraron resultados".
   - Al cambiar un filtro vuelve a la página 1.
   - (esc. 3 y 4; FR-003, FR-004, FR-006 a FR-008)
+  - Ajuste (F19, 12-11-2026): la columna "Flujo de origen" se quita de la vista por decisión del usuario, porque es información interna; FR-003 de la especificación se corrigió con su permiso. `sourceFlow` y `sourceFlowName` siguen en la respuesta y en `room_state_history` (T003 no cambia). `RoomStateHistoryPage.test.tsx` comprueba que la columna no aparece.
 
 ### Implementation for User Story 1
 
@@ -227,6 +231,17 @@ No aplica: usa la infraestructura del plan base.
 - [x] T011 [US1] Implementar `RoomStateHistoryController` con `GET /api/room-state-history` (FR-001).
 - [x] T012 [US1] Construir en el frontend `RoomStateHistoryFilters.tsx` y `RoomStateHistoryPage.tsx` con `Pagination.tsx`, leyendo `roomId` de la URL (FR-007).
 - [x] T013 [US1] Verificar que "Ver historial" de `ManagerRoomInventoryPage.tsx` navegue a esta página con el `roomId` (`plan-consultar-inventario-habitaciones.md`, T018).
+
+### Ampliación: orden por fecha (FR-009, esc. 5)
+
+- [x] T016 [P] [US1] Tests del orden:
+  - `RoomStateHistoryControllerTest`: `sort` y `direction` llegan al caso de uso; valores fuera de `startDateTime|endDateTime` y `asc|desc` responden 400 `VALIDATION_ERROR` con el campo.
+  - `RoomStateHistoryQueryIntegrationTest` (PostgreSQL real): inicio descendente con desempate por número a la misma hora; fin ascendente y descendente con desempate por hora y los periodos abiertos al final y al principio.
+  - Hecho (L42, 12-11-2026).
+- [x] T017 [US1] Aceptar `sort` y `direction` en `RoomStateHistoryQuery` y llevarlos en `RoomStateHistoryFilter` (`RoomStateHistorySort`); `RoomStateHistoryQueryRepository` arma el `ORDER BY` de cada combinación. Contrato y `schema.d.ts` regenerados.
+  - Hecho (L42, 12-11-2026): pedido por el usuario, con permiso explícito para tocar el backend.
+- [x] T018 [US1] Frontend: debajo del filtro de habitación, alineado con "Limpiar filtros", un botón que alterna "Más reciente primero" / "Más antiguo primero" por fecha de inicio; el orden va en la URL como los filtros, vuelve a la página 1 al cambiar y "Limpiar filtros" lo devuelve al de por defecto.
+  - Hecho (F21, 12-11-2026): `RoomStateHistoryFilters.tsx` con el botón en la fila de "Limpiar filtros"; `direction` en `historyParams.ts` y `HistoryFilters`. El orden por defecto no se escribe en la URL. Se probó también un selector "Ordenar por" (inicio / fin) y el usuario pidió quitarlo: solo queda el botón. Lo prueban dos casos nuevos de `RoomStateHistoryPage.test.tsx`.
 
 **Checkpoint**: El Gerente puede auditar el historial de estados de cualquier habitación.
 

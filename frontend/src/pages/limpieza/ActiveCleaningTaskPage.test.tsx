@@ -90,7 +90,7 @@ describe('ActiveCleaningTaskPage', () => {
     const dialog = await openConfirmEnd();
 
     expect(
-      within(dialog).getByText('La habitación quedará lista para recibir huéspedes.'),
+      within(dialog).getByText('La limpieza quedará registrada como terminada.'),
     ).toBeVisible();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
 

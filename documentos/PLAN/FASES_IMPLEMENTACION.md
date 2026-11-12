@@ -18,6 +18,8 @@
 | R11 `feature/m1-reparaciones` | L27–L30 | Integrada (PR #16) |
 | R12 `feature/m1-personal` | L35–L37 | Integrada (PR #17) |
 | R13 `feature/m1-cierre` | L38, L40 (L39 aplazado) | Integrada (PR #18, 07-11-2026) |
+| R14 `feature/m1-tarea-activa` | L41 (y F15 del frontend) | Integrada (PR #24, 11-11-2026) |
+| R17 `feature/m1-historial-orden` | L42 (y F21 del frontend) | En local (12-11-2026), desde `develop` `40422d9` |
 
 El frontend tiene su propio plan de fases (`FASES_IMPLEMENTACION_FRONTEND.md`); hoy está fuera del repositorio.
 
@@ -113,6 +115,8 @@ Puntos de choque entre ramas paralelas y cómo se evitan:
 | R11 | `feature/m1-reparaciones` | L27–L30 | R8, R10 | R9 |
 | R12 | `feature/m1-personal` | L35–L37 | R8, R11 (solo L37; L35–L36 solo necesitan R0) | — |
 | R13 | `feature/m1-cierre` | L38, L40 (L39 aplazado) | todas | — |
+| R14 | `feature/m1-tarea-activa` | L41 (y F15 del frontend) | R13 (contrato L40) | — |
+| R17 | `feature/m1-historial-orden` | L42 (y F21 del frontend) | R13 (contrato L40) | — |
 
 Aunque se pueda trabajar en paralelo, la sugerencia es ir **de a una rama a la vez** en el orden de la tabla (R0 → R13)
 mientras somos un solo desarrollador por sesión. El paralelismo queda disponible si el equipo se reparte ramas.
@@ -230,6 +234,8 @@ ArchUnit), tareas marcadas `[x]` en su `plan-*.md`, commit convencional en espa�
 | L38 | `test: verificaciones transversales` | Tareas de revisión de los planes: nadie asigna `Reserved` fuera de los puertos (reservada T015–T017), sin REST a M2 en check-in/panel, historial sin huecos entre todos los flujos (historial T015), sin horas en fechas expuestas; regla ArchUnit si alguna se puede automatizar |
 | L39 | `chore(db): datos sintéticos de desarrollo` (opcional) | **Aplazado (06-11-2026); se puede hacer más adelante.** `db/dev-data` con habitaciones en `DisabledForRepairs`/`TechnicalBlock` y sus informes, respetando invariantes (base T017, solo perfil `dev`). Mientras tanto, esos estados se generan con los propios flujos (reportar daño, programar bloqueo). Cuando se haga: rama pequeña desde `develop` (o la que esté abierta), `classpath:db/dev-data` en Flyway solo en el perfil `dev` (nota de T006) y numeración aparte de las migraciones `V1`–`V5`. En el plan base, `db/dev-data/` queda marcada como opcional y pendiente (árbol, T006 y punto abierto 6); L40 lo anota. |
 | L40 | `build(backend): contrato OpenAPI con springdoc` | Ver "Contrato OpenAPI" abajo. |
+| L41 | `fix(backend): tarea activa con nombre propio por panel e inicio de la reparación` | Ver "Tarea activa en el contrato" abajo. |
+| L42 | `feat(backend): ordenar el historial de estados por fecha de inicio o de fin` | Ver "Orden del historial" abajo. |
 
 **Fuera de estos lotes (opcional, a pedido):** pruebas `@Tag("performance")` de cada plan y todo el frontend (el frontend
 tiene su propio plan, `FASES_IMPLEMENTACION_FRONTEND.md`).
@@ -272,3 +278,47 @@ endpoint, DTO ni regla de negocio.
   `X-User: admin` contra los endpoints del lote (p. ej. `POST /api/rooms` → `GET /api/rooms/inventory` →
   `GET /api/room-state-history`); para la cola diaria, publicar un mensaje en `m1.reservas.diarias.queue` desde la consola
   de RabbitMQ (`:15672`) y ver la llegada en `GET /api/reception/arrivals`.
+
+### Tarea activa en el contrato (L41, agregado el 10-11-2026)
+
+Decidido por el usuario el 10-11-2026 (opción B de la decisión 2 abierta tras RF4 del frontend), con permiso para tocar
+`backend/` en este lote.
+
+**Problema**: `CleaningPanelDto` y `MaintenancePanelDto` tenían cada uno un record anidado `ActiveTaskDto`. springdoc
+nombra los esquemas por el nombre simple de la clase, así que el contrato publicaba uno solo, el de mantenimiento (sin
+`startDateTime`), para los dos paneles: el de limpieza quedaba mal descrito y el frontend escribía ese tipo a mano. Además,
+la tarea activa de mantenimiento no traía su inicio, y la vista `mantenimiento/02-tarea-activa.html` pide "Empezaste" y
+"Tiempo transcurrido".
+
+**L41**:
+- `CleaningPanelDto.ActiveTaskDto` pasa a `CleaningActiveTaskDto` (mismos campos; el JSON no cambia).
+- `MaintenancePanelDto.ActiveTaskDto` pasa a `MaintenanceActiveTaskDto` y suma `startDateTime` (`ReparationTask.getStartDateTime()`);
+  `withActiveTask` lo recibe de `MaintenancePanelQueryService`.
+- Pruebas: `MaintenancePanelQueryServiceTest` (T005) y `MaintenancePanelIntegrationTest` (T009) comprueban `startDateTime`.
+- Contrato regenerado con `OpenApiContractIntegrationTest -Dopenapi.update=true`: esquemas `CleaningActiveTaskDto` y
+  `MaintenanceActiveTaskDto`. En el frontend, `npm run api:types` regenera `schema.d.ts`, y `ActiveCleaningTask` y
+  `ActiveRepairTask` salen del contrato (antes, a mano); las pruebas de mantenimiento suman `startDateTime` a sus datos. Sin
+  cambios de pantalla: mostrar el inicio en mantenimiento es F15 del plan del frontend.
+- Planes: notas `Ajuste (L41)` en panel de limpieza T002, panel de mantenimiento T002 (con la fila
+  `activeTask.startDateTime` del contrato) y confirmar-reparación T025; `Resuelto (L41)` en la limitación conocida del
+  plan base (T026).
+
+### Orden del historial (L42, agregado el 12-11-2026)
+
+Pedido por el usuario el 12-11-2026, con permiso para tocar `backend/` y la especificación del historial en este lote.
+
+**Problema**: el historial llega paginado (15 por página) y el backend siempre lo ordenaba por fecha de inicio
+ascendente. Ordenar en el frontend solo reordenaría la página visible, no todo el historial.
+
+**L42**:
+- `GET /api/room-state-history` acepta `sort` (`startDateTime` por defecto, o `endDateTime`) y `direction` (`asc` por
+  defecto, o `desc`), validados con `@Pattern` como en el inventario (400 `VALIDATION_ERROR` con el campo).
+- `RoomStateHistoryFilter` lleva `RoomStateHistorySort` y el sentido (un constructor con los seis filtros conserva el orden
+  por defecto); `RoomStateHistoryQueryRepository` arma el `ORDER BY` de cada combinación. La fecha-hora completa
+  desempata por hora; con `endDateTime`, los periodos abiertos ("En curso") cuentan como los más recientes (`NULLS FIRST`
+  en `desc`, `NULLS LAST` en `asc`), como decidió el usuario.
+- Pruebas: `RoomStateHistoryControllerTest` (parámetros y validación) y `RoomStateHistoryQueryIntegrationTest`
+  (inicio descendente, fin ascendente y descendente contra PostgreSQL).
+- Contrato regenerado (`sort` y `direction` en la consulta) y `schema.d.ts` con `npm run api:types`.
+- SPEC: FR-009 y escenario 5 nuevos en `spec-consultar-historial-de-estados.md`. Plan: parámetros, error 400 y tareas
+  T016–T018 (`T018` es el frontend, F21 del plan de fases del frontend).

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +45,17 @@ async function fill(dialog: HTMLElement, reason: string, start: string, end: str
   });
 }
 
+const REASON = 'Motivo del mantenimiento *';
+const START = 'Fecha de inicio *';
+const END = 'Fecha estimada de fin *';
+
+/** El error se muestra debajo de su campo y el campo lo anuncia (regla de UI 2). */
+function expectFieldError(dialog: HTMLElement, label: string, message: string) {
+  const input = within(dialog).getByLabelText(label);
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(input).toHaveAccessibleDescription(expect.stringContaining(message));
+}
+
 function submit(dialog: HTMLElement, name = 'Programar') {
   return userEvent.click(within(dialog).getByRole('button', { name }));
 }
@@ -77,35 +88,61 @@ describe('ScheduleTechnicalBlockDialog', () => {
       '',
       '2026-11-20',
       '2026-11-22',
+      REASON,
       'Escribe el motivo del mantenimiento (máximo 500 caracteres).',
     ],
-    ['Pintura', '', '2026-11-22', 'Elige una fecha válida (DD-MM-YYYY).'],
+    ['Pintura', '', '2026-11-22', START, 'Elige una fecha válida (DD-MM-YYYY).'],
+    ['Pintura', '2026-11-20', '', END, 'Elige una fecha válida (DD-MM-YYYY).'],
     [
       'Pintura',
       '2026-11-22',
       '2026-11-20',
+      END,
       'La fecha de fin no puede ser anterior a la fecha de inicio.',
     ],
-    ['Pintura', '2026-11-08', '2026-11-10', 'La fecha de inicio no puede ser anterior a hoy.'],
-    ['Pintura', '2026-11-10', '2027-02-09', 'El mantenimiento no puede durar más de 90 días.'],
+    [
+      'Pintura',
+      '2026-11-08',
+      '2026-11-10',
+      START,
+      'La fecha de inicio no puede ser anterior a hoy.',
+    ],
+    ['Pintura', '2026-11-10', '2027-02-09', END, 'El mantenimiento no puede durar más de 90 días.'],
     [
       'Pintura',
       '2027-11-10',
       '2027-11-11',
+      START,
       'Solo se puede programar con hasta 365 días de anticipación.',
     ],
   ])(
-    'valida antes de enviar y dice la regla incumplida (%s, %s, %s)',
-    async (reason, start, end, message) => {
+    'valida antes de enviar y dice la regla incumplida en su campo (%s, %s, %s)',
+    async (reason, start, end, label, message) => {
       const { dialog } = renderDialog();
       await fill(dialog, reason, start, end);
 
       await submit(dialog);
 
-      expect(within(dialog).getByText(message)).toBeInTheDocument();
+      expectFieldError(dialog, label, message);
       expect(scheduleTechnicalBlock).not.toHaveBeenCalled();
     },
   );
+
+  it('con varias reglas incumplidas muestra todos los errores a la vez', async () => {
+    const { dialog } = renderDialog();
+    await fill(dialog, '', '2026-11-22', '2026-11-20');
+
+    await submit(dialog);
+
+    expectFieldError(
+      dialog,
+      REASON,
+      'Escribe el motivo del mantenimiento (máximo 500 caracteres).',
+    );
+    expectFieldError(dialog, END, 'La fecha de fin no puede ser anterior a la fecha de inicio.');
+    expect(within(dialog).getByLabelText(START)).toHaveAttribute('aria-invalid', 'false');
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
 
   it('acepta justo 90 días de rango y 365 de anticipación', async () => {
     vi.mocked(scheduleTechnicalBlock).mockResolvedValue({
@@ -127,11 +164,7 @@ describe('ScheduleTechnicalBlockDialog', () => {
 
     await submit(dialog);
 
-    expect(
-      within(dialog).getByText(
-        'Hoy la habitación está Ocupada. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.',
-      ),
-    ).toBeInTheDocument();
+    expectFieldError(dialog, START, 'Habitación ocupada hoy. Elige otra fecha de inicio.');
     expect(scheduleTechnicalBlock).not.toHaveBeenCalled();
   });
 
@@ -244,15 +277,42 @@ describe('ScheduleTechnicalBlockDialog', () => {
   it.each([
     [
       new ApiRequestError(400, 'VALIDATION_ERROR', 'v', { field: 'reason' }),
+      REASON,
       'Escribe el motivo del mantenimiento (máximo 500 caracteres).',
     ],
     [
       new ApiRequestError(400, 'VALIDATION_ERROR', 'v', { field: 'startDate' }),
+      START,
       'Elige una fecha válida (DD-MM-YYYY).',
     ],
     [
       new ApiRequestError(400, 'INVALID_DATE_RANGE', 'r', { rule: 'RANGE_TOO_LONG' }),
+      END,
       'El mantenimiento no puede durar más de 90 días.',
+    ],
+    [
+      new ApiRequestError(400, 'INVALID_DATE_RANGE', 'r', { rule: 'START_IN_PAST' }),
+      START,
+      'La fecha de inicio no puede ser anterior a hoy.',
+    ],
+  ])(
+    'marca en su campo el rechazo del backend que tiene uno (%s)',
+    async (error, label, message) => {
+      vi.mocked(scheduleTechnicalBlock).mockRejectedValue(error);
+      const { dialog } = renderDialog();
+      await fill(dialog, 'Pintura', '2026-11-20', '2026-11-22');
+
+      await submit(dialog);
+
+      await waitFor(() => expectFieldError(dialog, label, message));
+      expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    [
+      new ApiRequestError(400, 'VALIDATION_ERROR', 'v', { field: 'otro' }),
+      'Elige una fecha válida (DD-MM-YYYY).',
     ],
     [
       new ApiRequestError(409, 'ROOM_INVALID_STATE', 's', { currentStatus: 'Inactive' }),
@@ -260,7 +320,7 @@ describe('ScheduleTechnicalBlockDialog', () => {
     ],
     [
       new ApiRequestError(409, 'ROOM_INVALID_STATE', 's', { currentStatus: 'InCleaning' }),
-      'Hoy la habitación está En limpieza. Para empezar hoy debe estar disponible; elige una fecha de inicio posterior.',
+      'Habitación en limpieza hoy. Elige otra fecha de inicio.',
     ],
     [new ApiRequestError(404, 'ROOM_NOT_FOUND', 'n'), 'No se encontró la habitación.'],
     [
@@ -288,7 +348,19 @@ describe('ScheduleTechnicalBlockDialog', () => {
       target: { value: '2026-11-25' },
     });
 
-    expect(within(dialog).queryByText(message)).not.toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).queryByText(message)).not.toBeInTheDocument());
+  });
+
+  it('al cambiar la fecha de inicio vuelve a validar la de fin', async () => {
+    const { dialog } = renderDialog();
+    await fill(dialog, 'Pintura', '2026-11-22', '2026-11-20');
+    await submit(dialog);
+    const message = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+    expectFieldError(dialog, END, message);
+
+    fireEvent.change(within(dialog).getByLabelText(START), { target: { value: '2026-11-18' } });
+
+    await waitFor(() => expect(within(dialog).queryByText(message)).not.toBeInTheDocument());
   });
 
   it('cancelar no envía nada', async () => {

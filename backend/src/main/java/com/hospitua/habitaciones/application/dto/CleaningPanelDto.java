@@ -15,11 +15,11 @@ import java.util.UUID;
  * JSON ({@code default-property-inclusion: non_null}): sin tarea no viaja {@code activeTask}, y una habitación sin
  * limpiezas no lleva {@code lastCleaningDateTime}.
  */
-public record CleaningPanelDto(ActiveTaskDto activeTask, List<CleaningRoomDto> rooms) {
+public record CleaningPanelDto(CleaningActiveTaskDto activeTask, List<CleaningRoomDto> rooms) {
 
     public static CleaningPanelDto withActiveTask(CleaningTask task, Room room, OffsetDateTime lastCleaningDateTime) {
         return new CleaningPanelDto(
-                new ActiveTaskDto(
+                new CleaningActiveTaskDto(
                         task.getId(), task.getStartDateTime(), CleaningRoomDto.of(room, lastCleaningDateTime)),
                 List.of());
     }
@@ -33,7 +33,11 @@ public record CleaningPanelDto(ActiveTaskDto activeTask, List<CleaningRoomDto> r
                         .toList());
     }
 
-    public record ActiveTaskDto(UUID taskId, OffsetDateTime startDateTime, CleaningRoomDto room) {}
+    /**
+     * Tarea de limpieza abierta del miembro. Lleva el nombre del panel porque springdoc publica cada esquema por su
+     * nombre simple: con el mismo nombre que la de mantenimiento, el contrato solo tenía una de las dos (L41).
+     */
+    public record CleaningActiveTaskDto(UUID taskId, OffsetDateTime startDateTime, CleaningRoomDto room) {}
 
     public record CleaningRoomDto(
             UUID roomId,

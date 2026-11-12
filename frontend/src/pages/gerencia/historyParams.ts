@@ -10,6 +10,7 @@ export const HISTORY_FILTER_PARAMS = [
   'status',
   'from',
   'to',
+  'direction',
 ] as const;
 
 export const INVALID_DATE_RANGE_TEXT = 'La fecha "Desde" no puede ser posterior a "Hasta".';
@@ -28,6 +29,8 @@ export function readHistoryFilters(params: URLSearchParams): HistoryFilters {
   if (from && ISO_DATE.test(from)) filters.from = from;
   const to = params.get('to');
   if (to && ISO_DATE.test(to)) filters.to = to;
+  const direction = params.get('direction');
+  if (direction === 'asc' || direction === 'desc') filters.direction = direction;
   return filters;
 }
 

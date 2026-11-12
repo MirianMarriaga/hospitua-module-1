@@ -36,6 +36,11 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
    - **Cuando** selecciona una fecha "Desde" posterior a la fecha "Hasta"
    - **Entonces** el sistema informa que la fecha "Desde" no puede ser posterior a "Hasta" y no muestra resultados hasta que el rango sea válido.
 
+5. **Escenario**: Ordenar el historial por fecha
+   - **Dado** que el Gerente está consultando el historial
+   - **Cuando** elige ver primero los periodos más recientes o los más antiguos
+   - **Entonces** el sistema muestra los periodos ordenados por fecha de inicio en ese sentido en todas las páginas; si dos periodos tienen la misma fecha, los ordena por la hora.
+
 ---
 
 ### Casos Borde
@@ -56,12 +61,13 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
   - tipo de habitación
   - estado
   - rango de fechas (startTime / endTime).
-- **FR-003**: Cada fila de la vista DEBE mostrar: habitación, tipo de habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista), responsable (usuario que provocó la transición, o "Sistema" cuando la transición es autónoma) y flujo de origen (nombre del caso de uso que provocó la transición). Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó.
+- **FR-003**: Cada fila de la vista DEBE mostrar: habitación, tipo de habitación, estado, fecha/hora de inicio, fecha/hora de finalización (cuando exista) y responsable (usuario que provocó la transición, o "Sistema" cuando la transición es autónoma). El flujo de origen (nombre del caso de uso que provocó la transición) se conserva en `RoomStateHistory` pero no se muestra en la vista, porque es información interna. Así el Gerente puede auditar quién limpió o reparó una habitación y cuánto tardó.
 - **FR-004**: Cuando una transición no tiene fecha de finalización, la vista DEBE mostrar "En curso" como fecha de finalización.
 - **FR-005**: La consulta DEBE ser **solo lectura**; no debe modificar datos ni ejecutar transiciones de estado.
 - **FR-006**: El sistema DEBE validar que la fecha "Desde" no sea posterior a la fecha "Hasta"; si lo es, DEBE informar el error y no mostrar resultados hasta que el rango sea válido.
 - **FR-007**: El sistema DEBE permitir abrir la vista de historial con el filtro de habitación ya aplicado cuando el Gerente accede desde la opción "Ver historial" de una habitación en "Consultar inventario de habitaciones".
 - **FR-008**: El sistema DEBE paginar los resultados en páginas de 15 registros, mostrando el rango y el total ("Mostrando X–Y de Z") y los controles "Anterior", "Siguiente" y número de página. Al cambiar un filtro, los resultados vuelven a la primera página.
+- **FR-009**: El sistema DEBE permitir ordenar el historial por fecha de inicio, de la más reciente a la más antigua o de la más antigua a la más reciente, y aplicar el orden a todo el resultado antes de paginar. Dos periodos con la misma fecha se ordenan por la hora. Sin elegir un orden, el historial se muestra de la más antigua a la más reciente.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 

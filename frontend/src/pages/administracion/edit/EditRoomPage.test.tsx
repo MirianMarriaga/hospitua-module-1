@@ -268,4 +268,26 @@ describe('EditRoomPage', () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it('un 409 ROOM_NUMBER_ALREADY_EXISTS marca el número con el mismo texto que al registrar', async () => {
+    vi.mocked(editRoom).mockRejectedValue(
+      new ApiRequestError(409, 'ROOM_NUMBER_ALREADY_EXISTS', 'mensaje técnico'),
+    );
+    renderWithProviders(<EditRoomPage />, {
+      route: '/administracion/habitaciones/room-101/editar',
+      path: '/administracion/habitaciones/:roomId/editar',
+    });
+
+    await screen.findByText('Editar habitación 101');
+    const numberInput = screen.getByLabelText(/Número de habitación/);
+    await userEvent.clear(numberInput);
+    await userEvent.type(numberInput, '204a');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(
+      await screen.findByText('Ya existe una habitación con el número 204A.'),
+    ).toBeInTheDocument();
+    expect(numberInput).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(/aunque esté inactiva/)).not.toBeInTheDocument();
+  });
 });

@@ -3,6 +3,7 @@ package com.hospitua.habitaciones.application.dto;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,14 +13,15 @@ import java.util.UUID;
  * Los nulos se omiten del JSON ({@code default-property-inclusion: non_null}): sin tarea no viaja {@code activeTask},
  * y una habitación sin mantenimiento no lleva {@code maintenance} ("Sin programar").
  */
-public record MaintenancePanelDto(ActiveTaskDto activeTask, List<MaintenanceRoomDto> rooms) {
+public record MaintenancePanelDto(MaintenanceActiveTaskDto activeTask, List<MaintenanceRoomDto> rooms) {
 
     public MaintenancePanelDto {
         rooms = List.copyOf(rooms);
     }
 
-    public static MaintenancePanelDto withActiveTask(UUID taskId, MaintenanceRoomDto room) {
-        return new MaintenancePanelDto(new ActiveTaskDto(taskId, room), List.of());
+    public static MaintenancePanelDto withActiveTask(
+            UUID taskId, OffsetDateTime startDateTime, MaintenanceRoomDto room) {
+        return new MaintenancePanelDto(new MaintenanceActiveTaskDto(taskId, startDateTime, room), List.of());
     }
 
     /** {@code rooms} ya viene en el orden del panel. */
@@ -27,7 +29,11 @@ public record MaintenancePanelDto(ActiveTaskDto activeTask, List<MaintenanceRoom
         return new MaintenancePanelDto(null, rooms);
     }
 
-    public record ActiveTaskDto(UUID taskId, MaintenanceRoomDto room) {}
+    /**
+     * Tarea de reparación abierta del miembro, con su inicio para "Empezaste" y "Tiempo transcurrido" de la vista
+     * de tarea activa. Lleva el nombre del panel para que el contrato publique por separado la de limpieza (L41).
+     */
+    public record MaintenanceActiveTaskDto(UUID taskId, OffsetDateTime startDateTime, MaintenanceRoomDto room) {}
 
     /**
      * Una fila del panel. {@code overdue}: {@code TechnicalBlock} con el informe {@code Applied} vencido (FR-003);
