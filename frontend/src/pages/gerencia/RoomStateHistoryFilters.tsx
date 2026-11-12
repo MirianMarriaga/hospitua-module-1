@@ -1,3 +1,4 @@
+import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
@@ -13,10 +14,16 @@ import {
 } from '@/lib/labels';
 import { HISTORY_FILTER_PARAMS } from '@/pages/gerencia/historyParams';
 
-/** Filtros del historial en la URL. Escribir otro número quita el `roomId` que trajo "Ver historial". */
+/**
+ * Filtros y orden del historial en la URL. Escribir otro número quita el `roomId` que trajo "Ver
+ * historial". El botón de orden alterna la fecha de inicio entre más antiguo
+ * primero (por defecto, no se escribe en la URL) y más reciente primero; "Limpiar filtros" también
+ * lo devuelve al de por defecto (FR-009).
+ */
 export function RoomStateHistoryFilters({ rangeError }: { rangeError?: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const number = useDebouncedSearchParam('roomNumber', ['roomId']);
+  const descending = searchParams.get('direction') === 'desc';
 
   function setParam(name: string, value: string) {
     setSearchParams((previous) => {
@@ -104,6 +111,18 @@ export function RoomStateHistoryFilters({ rangeError }: { rangeError?: string })
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="outline"
+          aria-label={`Orden: ${descending ? 'más reciente primero' : 'más antiguo primero'}. Cambiar el orden`}
+          onClick={() => setParam('direction', descending ? '' : 'desc')}
+        >
+          {descending ? (
+            <ArrowDownWideNarrow aria-hidden className="size-4" />
+          ) : (
+            <ArrowUpNarrowWide aria-hidden className="size-4" />
+          )}
+          {descending ? 'Más reciente primero' : 'Más antiguo primero'}
+        </Button>
         {rangeError && (
           <p id="h-rango-error" role="alert" className="text-xs font-medium text-due">
             {rangeError}

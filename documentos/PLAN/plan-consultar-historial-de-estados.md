@@ -240,7 +240,8 @@ No aplica: usa la infraestructura del plan base.
   - Hecho (L42, 12-11-2026).
 - [x] T017 [US1] Aceptar `sort` y `direction` en `RoomStateHistoryQuery` y llevarlos en `RoomStateHistoryFilter` (`RoomStateHistorySort`); `RoomStateHistoryQueryRepository` arma el `ORDER BY` de cada combinación. Contrato y `schema.d.ts` regenerados.
   - Hecho (L42, 12-11-2026): pedido por el usuario, con permiso explícito para tocar el backend.
-- [ ] T018 [US1] Frontend: debajo del filtro de habitación, alineados con "Limpiar filtros", un selector "Ordenar por" (Fecha de inicio / Fecha de fin) y un botón que alterna "Más reciente primero" / "Más antiguo primero"; el orden va en la URL como los filtros, vuelve a la página 1 al cambiar y "Limpiar filtros" lo devuelve al de por defecto.
+- [x] T018 [US1] Frontend: debajo del filtro de habitación, alineado con "Limpiar filtros", un botón que alterna "Más reciente primero" / "Más antiguo primero" por fecha de inicio; el orden va en la URL como los filtros, vuelve a la página 1 al cambiar y "Limpiar filtros" lo devuelve al de por defecto.
+  - Hecho (F21, 12-11-2026): `RoomStateHistoryFilters.tsx` con el botón en la fila de "Limpiar filtros"; `direction` en `historyParams.ts` y `HistoryFilters`. El orden por defecto no se escribe en la URL. Se probó también un selector "Ordenar por" (inicio / fin) y el usuario pidió quitarlo: solo queda el botón. Lo prueban dos casos nuevos de `RoomStateHistoryPage.test.tsx`.
 
 **Checkpoint**: El Gerente puede auditar el historial de estados de cualquier habitación.
 

@@ -96,6 +96,37 @@ describe('RoomStateHistoryPage', () => {
 
     expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument();
   });
+  it('alterna más reciente / más antiguo primero y vuelve a la página 1 (FR-009)', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=2' });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 2);
+    expect(screen.queryByLabelText('Ordenar por')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Orden: más antiguo primero/ }));
+    await waitFor(() =>
+      expect(getRoomStateHistory).toHaveBeenLastCalledWith({ direction: 'desc' }, 1),
+    );
+    expect(screen.getByRole('button', { name: /Orden: más reciente primero/ })).toHaveTextContent(
+      'Más reciente primero',
+    );
+  });
+
+  it('"Limpiar filtros" devuelve el orden por defecto', async () => {
+    renderWithProviders(<RoomStateHistoryPage />, {
+      route: '/?direction=desc&status=Available',
+    });
+    await screen.findByText('En curso');
+    expect(getRoomStateHistory).toHaveBeenLastCalledWith(
+      { status: 'Available', direction: 'desc' },
+      1,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+
+    await waitFor(() => expect(getRoomStateHistory).toHaveBeenLastCalledWith({}, 1));
+    expect(screen.getByRole('button', { name: /Orden: más antiguo primero/ })).toBeInTheDocument();
+  });
+
   it('al cambiar un filtro vuelve a la página 1', async () => {
     renderWithProviders(<RoomStateHistoryPage />, { route: '/?page=3' });
     await screen.findByText('En curso');

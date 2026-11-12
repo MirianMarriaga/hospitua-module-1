@@ -13,6 +13,12 @@ export interface RoomStatePeriod {
   sourceFlowName: string;
 }
 
+/**
+ * Sentido del orden por fecha de inicio (FR-009): `asc`, de la más antigua a la más reciente (por
+ * defecto); `desc`, al revés. La vista no envía `sort`, así que el backend ordena por inicio.
+ */
+export type HistoryDirection = 'asc' | 'desc';
+
 export interface HistoryFilters {
   roomId?: string;
   roomNumber?: string;
@@ -20,6 +26,7 @@ export interface HistoryFilters {
   status?: RoomStatus;
   from?: string;
   to?: string;
+  direction?: HistoryDirection;
 }
 
 export function getRoomStateHistory(
