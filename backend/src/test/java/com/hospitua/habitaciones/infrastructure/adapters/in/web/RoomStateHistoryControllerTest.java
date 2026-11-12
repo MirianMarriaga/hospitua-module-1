@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RoomStateHistoryFilter;
 import com.hospitua.habitaciones.application.dto.RoomStateHistoryRowDto;
+import com.hospitua.habitaciones.application.dto.RoomStateHistorySort;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomStateHistoryUseCase;
 import com.hospitua.habitaciones.domain.exception.InvalidDateRangeException;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
@@ -106,6 +107,21 @@ class RoomStateHistoryControllerTest {
     }
 
     @Test
+    @DisplayName("FR-009: sort y direction llegan al caso de uso como columna y sentido")
+    void search_sortAndDirection() throws Exception {
+        RoomStateHistoryFilter filter = new RoomStateHistoryFilter(
+                null, null, null, null, null, null, RoomStateHistorySort.END_DATE_TIME, true);
+        when(useCase.search(filter, 1)).thenReturn(new PagedResultDto<>(List.of(), 1, 15, 0, 0));
+
+        mockMvc.perform(get("/api/room-state-history")
+                        .param("sort", "endDateTime")
+                        .param("direction", "desc"))
+                .andExpect(status().isOk());
+
+        verify(useCase).search(filter, 1);
+    }
+
+    @Test
     @DisplayName("esc. 4: \"Desde\" posterior a \"Hasta\" responde 400 INVALID_DATE_RANGE con la regla")
     void search_fromAfterTo_returns400() throws Exception {
         when(useCase.search(any(), anyInt())).thenThrow(InvalidDateRangeException.fromAfterTo());
@@ -127,7 +143,9 @@ class RoomStateHistoryControllerTest {
         "from, 14/01/2026",
         "to, 2026-13-01",
         "page, 0",
-        "page, uno"
+        "page, uno",
+        "sort, roomNumber",
+        "direction, up"
     })
     @DisplayName("un parámetro fuera de sus valores responde 400 VALIDATION_ERROR con el campo, sin consultar")
     void search_invalidParameter_returns400(String field, String value) throws Exception {

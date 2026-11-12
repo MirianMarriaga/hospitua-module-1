@@ -2088,6 +2088,8 @@ export interface operations {
                 status?: "Available" | "Reserved" | "Occupied" | "PendingCleaning" | "InCleaning" | "DisabledForRepairs" | "TechnicalBlock" | "Inactive";
                 from?: string;
                 to?: string;
+                sort?: string;
+                direction?: string;
                 page?: number;
             };
             header?: never;
