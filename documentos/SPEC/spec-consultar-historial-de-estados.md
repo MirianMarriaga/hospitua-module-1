@@ -36,6 +36,11 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
    - **Cuando** selecciona una fecha "Desde" posterior a la fecha "Hasta"
    - **Entonces** el sistema informa que la fecha "Desde" no puede ser posterior a "Hasta" y no muestra resultados hasta que el rango sea válido.
 
+5. **Escenario**: Ordenar el historial por fecha
+   - **Dado** que el Gerente está consultando el historial
+   - **Cuando** elige ver primero los periodos más recientes o los más antiguos
+   - **Entonces** el sistema muestra los periodos ordenados por fecha de inicio en ese sentido en todas las páginas; si dos periodos tienen la misma fecha, los ordena por la hora.
+
 ---
 
 ### Casos Borde
@@ -62,6 +67,7 @@ Como **Gerente**, quiero consultar la evolución histórica de los estados de un
 - **FR-006**: El sistema DEBE validar que la fecha "Desde" no sea posterior a la fecha "Hasta"; si lo es, DEBE informar el error y no mostrar resultados hasta que el rango sea válido.
 - **FR-007**: El sistema DEBE permitir abrir la vista de historial con el filtro de habitación ya aplicado cuando el Gerente accede desde la opción "Ver historial" de una habitación en "Consultar inventario de habitaciones".
 - **FR-008**: El sistema DEBE paginar los resultados en páginas de 15 registros, mostrando el rango y el total ("Mostrando X–Y de Z") y los controles "Anterior", "Siguiente" y número de página. Al cambiar un filtro, los resultados vuelven a la primera página.
+- **FR-009**: El sistema DEBE permitir ordenar el historial por fecha de inicio, de la más reciente a la más antigua o de la más antigua a la más reciente, y aplicar el orden a todo el resultado antes de paginar. Dos periodos con la misma fecha se ordenan por la hora. Sin elegir un orden, el historial se muestra de la más antigua a la más reciente.
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 

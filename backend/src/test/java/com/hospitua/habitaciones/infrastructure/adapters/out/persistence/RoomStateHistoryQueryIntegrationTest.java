@@ -6,6 +6,7 @@ import com.hospitua.habitaciones.TestcontainersConfiguration;
 import com.hospitua.habitaciones.application.dto.PagedResultDto;
 import com.hospitua.habitaciones.application.dto.RoomStateHistoryFilter;
 import com.hospitua.habitaciones.application.dto.RoomStateHistoryRowDto;
+import com.hospitua.habitaciones.application.dto.RoomStateHistorySort;
 import com.hospitua.habitaciones.application.ports.in.ConsultRoomStateHistoryUseCase;
 import com.hospitua.habitaciones.application.ports.in.TransitionRoomStateUseCase;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
@@ -120,6 +121,69 @@ class RoomStateHistoryQueryIntegrationTest {
         assertThat(page.items()).extracting(RoomStateHistoryRowDto::actorName).containsExactly("Ana Gómez", null, null);
         // T005: el periodo abierto llega sin fin
         assertThat(page.items().getLast().endDateTime()).isNull();
+    }
+
+    @Test
+    @DisplayName("FR-009: por inicio descendente, el más reciente primero; a la misma hora desempata el número")
+    void search_startDescending() {
+        String a = roomA.getRoomNumber();
+        String b = roomB.getRoomNumber();
+        boolean aFirst = a.compareTo(b) < 0;
+
+        PagedResultDto<RoomStateHistoryRowDto> page =
+                history.search(sorted(RoomStateHistorySort.START_DATE_TIME, true), 1);
+
+        // 10:05 A, 09:15 A y B (mismo inicio), cuatro días antes A
+        assertThat(page.items())
+                .extracting(RoomStateHistoryRowDto::roomNumber)
+                .containsExactly(a, aFirst ? a : b, aFirst ? b : a, a);
+        assertThat(page.items().getFirst().startDateTime().toInstant())
+                .isEqualTo(at(0, 10, 5).toInstant());
+        assertThat(page.items().getLast().startDateTime().toInstant())
+                .isEqualTo(at(-4, 8, 0).toInstant());
+    }
+
+    @Test
+    @DisplayName("FR-009: por fin ascendente desempata la hora y los periodos en curso van al final")
+    void search_endAscending_openPeriodsLast() {
+        PagedResultDto<RoomStateHistoryRowDto> page =
+                history.search(sorted(RoomStateHistorySort.END_DATE_TIME, false), 1);
+
+        // Terminan el mismo día a las 09:15 y a las 10:05; los abiertos, por inicio: B (09:15) y A (10:05)
+        assertThat(page.items())
+                .extracting(row -> row.roomNumber() + " " + row.status())
+                .containsExactly(
+                        roomA.getRoomNumber() + " Available",
+                        roomA.getRoomNumber() + " InCleaning",
+                        roomB.getRoomNumber() + " Available",
+                        roomA.getRoomNumber() + " Available");
+        assertThat(page.items().get(0).endDateTime().toInstant())
+                .isEqualTo(at(0, 9, 15).toInstant());
+        assertThat(page.items().get(1).endDateTime().toInstant())
+                .isEqualTo(at(0, 10, 5).toInstant());
+        assertThat(page.items().subList(2, 4))
+                .extracting(RoomStateHistoryRowDto::endDateTime)
+                .containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("FR-009: por fin descendente los periodos en curso cuentan como los más recientes")
+    void search_endDescending_openPeriodsFirst() {
+        PagedResultDto<RoomStateHistoryRowDto> page =
+                history.search(sorted(RoomStateHistorySort.END_DATE_TIME, true), 1);
+
+        assertThat(page.items())
+                .extracting(row -> row.roomNumber() + " " + row.status())
+                .containsExactly(
+                        roomA.getRoomNumber() + " Available",
+                        roomB.getRoomNumber() + " Available",
+                        roomA.getRoomNumber() + " InCleaning",
+                        roomA.getRoomNumber() + " Available");
+        assertThat(page.items().subList(0, 2))
+                .extracting(RoomStateHistoryRowDto::endDateTime)
+                .containsOnlyNulls();
+        assertThat(page.items().get(2).endDateTime().toInstant())
+                .isEqualTo(at(0, 10, 5).toInstant());
     }
 
     @Test
@@ -294,6 +358,11 @@ class RoomStateHistoryQueryIntegrationTest {
 
     private static RoomStateHistoryFilter byId(Room room) {
         return new RoomStateHistoryFilter(room.getId(), null, null, null, null, null);
+    }
+
+    /** Solo los periodos del día de la prueba (A y B), con el orden pedido. */
+    private RoomStateHistoryFilter sorted(RoomStateHistorySort sort, boolean descending) {
+        return new RoomStateHistoryFilter(null, null, null, null, day, day, sort, descending);
     }
 
     private static RoomStateHistoryFilter range(LocalDate from, LocalDate to, UUID roomId) {

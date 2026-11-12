@@ -33,8 +33,21 @@ public class RoomStateHistoryQueryRepository {
                     + FROM
                     + " LEFT JOIN UserAccountJpaEntity u ON u.username = h.actorId";
 
-    private static final String ORDER_BY =
-            " ORDER BY h.startDateTime, r.roomNumber, h.endDateTime ASC NULLS LAST, h.id";
+    /**
+     * Orden de FR-009. La fecha-hora completa ya desempata por hora dentro del mismo día. Al ordenar por fin, un
+     * periodo abierto ("En curso") cuenta como el más reciente: primero en descendente y al final en ascendente.
+     */
+    private static final String START_ASC =
+            " ORDER BY h.startDateTime ASC, r.roomNumber, h.endDateTime ASC NULLS LAST, h.id";
+
+    private static final String START_DESC =
+            " ORDER BY h.startDateTime DESC, r.roomNumber, h.endDateTime DESC NULLS FIRST, h.id DESC";
+
+    private static final String END_ASC =
+            " ORDER BY h.endDateTime ASC NULLS LAST, h.startDateTime ASC, r.roomNumber, h.id";
+
+    private static final String END_DESC =
+            " ORDER BY h.endDateTime DESC NULLS FIRST, h.startDateTime DESC, r.roomNumber, h.id DESC";
 
     private final EntityManager entityManager;
 
@@ -47,7 +60,7 @@ public class RoomStateHistoryQueryRepository {
         long totalElements = count.getSingleResult();
 
         TypedQuery<RoomStateHistoryRowDto> rows =
-                entityManager.createQuery(SELECT_ROWS + where + ORDER_BY, RoomStateHistoryRowDto.class);
+                entityManager.createQuery(SELECT_ROWS + where + orderBy(filter), RoomStateHistoryRowDto.class);
         parameters.forEach(rows::setParameter);
         List<RoomStateHistoryRowDto> items =
                 rows.setFirstResult((page - 1) * size).setMaxResults(size).getResultList();
@@ -87,6 +100,13 @@ public class RoomStateHistoryQueryRepository {
             parameters.put("toEnd", startOf(filter.to().plusDays(1)));
         }
         return conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
+    }
+
+    private static String orderBy(RoomStateHistoryFilter filter) {
+        return switch (filter.sort()) {
+            case START_DATE_TIME -> filter.descending() ? START_DESC : START_ASC;
+            case END_DATE_TIME -> filter.descending() ? END_DESC : END_ASC;
+        };
     }
 
     private static OffsetDateTime startOf(LocalDate day) {
