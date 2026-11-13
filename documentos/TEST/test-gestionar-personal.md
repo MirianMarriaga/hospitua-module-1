@@ -1,107 +1,103 @@
-# Test Case: Gestionar Personal
+### Test Case Specification: Gestionar Personal
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-gestionar-personal.md](../SPEC/spec-gestionar-personal.md) / [plan-gestionar-personal.md](../PLAN/plan-gestionar-personal.md)  **Status** : Draft
 
-**Created**: 2026-11-07  
-**Spec/Plan Link**: [spec-gestionar-personal.md](../SPEC/spec-gestionar-personal.md) | [plan-gestionar-personal.md](../PLAN/plan-gestionar-personal.md)  
-**Status**: Draft  
+#### Test Overview
 
----
+**Test Case ID** : TC-023-GestionarPersonal
+**Product Name & Version** : Hospitua Módulo 1 v0.1
+**Author** : Equipo Módulo 1
+**Current Owner** : Por asignar
+**Priority** : P2 - Major
 
-## Test Overview
+--------------------------------------------------------------------------------
 
-| Field | Value |
-| --- | --- |
-| **Test Case ID** | TC-023-GestionarPersonal |
-| **Product Name & Version** | Hospitua Módulo 1 v0.1 |
-| **Author** | Equipo Módulo 1 |
-| **Current Owner** | Por asignar |
-| **Execution Type** | Manual |
-| **Priority** | P2 |
+#### Objectives & Context
 
----
+##### Test Objectives
+Este caso de prueba verifica la gestión integral de cuentas de usuario del personal hotelero (`/administracion/personal`), abarcando el registro de cuentas (`POST /api/staff`), consulta paginada (`GET /api/staff`), edición de perfil (`PATCH /api/staff/{username}`), desactivación lógica (`POST /api/staff/{username}/deactivation`), y el inicio de sesión (`POST /api/auth/login`) asegurando que una cuenta desactivada recibe exactamente el mismo código y mensaje de error que unas credenciales incorrectas (HTTP 401 `INVALID_CREDENTIALS`, "Usuario o contraseña incorrectos.").
 
-## Test Objectives and Document References
+##### Document References
+| Reference Name | Type of Reference | Document Location / Link |
+| ------ | ------ | ------ |
+| Especificación de Gestionar Personal | Specification Document | [documentos/SPEC/spec-gestionar-personal.md](../SPEC/spec-gestionar-personal.md) |
+| Plan de Implementación de Gestionar Personal | Plan Document | [documentos/PLAN/plan-gestionar-personal.md](../PLAN/plan-gestionar-personal.md) |
 
-### Objectives
-Verificar la capacidad del Administrador para registrar nuevas cuentas de usuario del personal en sus diferentes áreas operativas, consultar y filtrar la lista de personal, editar datos y contraseñas de cuentas activas, desactivar cuentas de forma segura protegiendo al último administrador y a la propia cuenta activa, y garantizar el aprovisionamiento de la cuenta inicial de administración en el arranque del sistema.
+--------------------------------------------------------------------------------
 
-### Document References
-| Document Type | Document Name & Link |
-| --- | --- |
-| Functional Specification | [spec-gestionar-personal.md](../SPEC/spec-gestionar-personal.md) |
-| Implementation Plan | [plan-gestionar-personal.md](../PLAN/plan-gestionar-personal.md) |
+#### Prerequisites & Environment
 
----
+##### Test Case Limitations
+* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos. Las pantallas `/administracion/personal`, `/administracion/personal/nuevo` y `/administracion/personal/:username/editar` se encuentran implementadas.
 
-## Prerequisites and Test Environment
+##### Dependencies & Assumptions
+* Requiere sesión activa con rol Administrador para mutaciones.
 
-### Assumptions and Limitations
-- Requiere el sistema Hospitua Módulo 1 con sus servicios activos y la base de datos PostgreSQL inicializada con la tabla `user_account`.
-- Las pantallas de gestión de personal (`/administracion/personal`, `/administracion/personal/nuevo`, `/administracion/personal/:username/editar` y el diálogo de desactivación) están completamente implementadas en React y conectadas a los endpoints REST `/api/staff`.
+##### Preconditions & Default Setup
+* **Initial State** : Cuenta administradora principal activa (`admin`).
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
 
-### Dependencies
-- El servicio de autenticación (`POST /api/auth/login`) debe estar configurado para validar las credenciales registradas.
+--------------------------------------------------------------------------------
 
-### Test Environment Requirements
-- Navegador web moderno con acceso a la aplicación Hospitua.
-- Base de datos con al menos dos cuentas de Administrador activas (ej. `admin` y `lmendez`).
+#### Test Execution Flow
 
-### Test Data and Accounts
-- Cuenta Administrador de prueba: `lmendez` (Administración).
-- Cuenta a registrar: `jramirez`, nombre "Jorge Ramírez", área "Limpieza", contraseña "Limpieza2026".
-- Credenciales de pruebas del equipo.
+##### Sección A — Cómo llegar a la pantalla (interfaz)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Redirige al inventario en `/administracion/inventario` | [ ] | |
+| 2 | Navegar a gestión de personal | En el menú lateral o superior, hacer clic en "Personal" | Menú "Personal" | Carga el listado de colaboradores en `/administracion/personal` | [ ] | |
 
----
+##### Sección B — Flujo principal en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Visualizar lista de colaboradores | En `/administracion/personal`, inspeccionar la tabla de cuentas | Cuentas existentes | Se despliegan filas con: Usuario, Nombre completo, Área (ADMINISTRACION, RECEPCION, LIMPIEZA, MANTENIMIENTO, GERENCIA), Estado (Activa/Desactivada) y Acciones | [ ] | |
+| 2 | Abrir formulario de nueva cuenta | En `/administracion/personal`, hacer clic en el botón "Nuevo colaborador" | Botón "Nuevo colaborador" | Navega a `/administracion/personal/nuevo` | [ ] | |
+| 3 | Registrar nuevo colaborador | Diligenciar formulario:<br>- Nombre completo: "Juan López"<br>- Usuario: "jlopez"<br>- Área: "LIMPIEZA"<br>- Contraseña: "Password123*"<br>Hacer clic en "Registrar cuenta" | Datos válidos | Se envía `POST /api/staff`, se crea la cuenta activa y redirige a `/administracion/personal` con mensaje: "Cuenta jlopez registrada exitosamente." | [ ] | |
+| 4 | Editar cuenta existente | En la lista de personal, pulsar "Editar" en la fila de "jlopez" | Cuenta "jlopez" | Navega a `/administracion/personal/jlopez/editar` con datos precargados y campo de contraseña opcional | [ ] | |
+| 5 | Guardar cambios en colaborador | Modificar el Nombre completo a "Juan Carlos López" y pulsar "Guardar cambios" | Nuevo nombre | Se actualiza el perfil vía `PATCH /api/staff/jlopez` y redirige al listado con notificación: "Cuenta jlopez actualizada exitosamente." | [ ] | |
+| 6 | Desactivar cuenta de personal | En la fila de "jlopez", hacer clic en "Desactivar" y confirmar el diálogo "¿Desactivar la cuenta de Juan Carlos López?" | Confirmación modal | Se envía `POST /api/staff/jlopez/deactivation`, la cuenta pasa a estado inactivo (badge "Desactivada") | [ ] | |
 
-## Test Execution Flow
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Campos obligatorios vacíos | Dejar campos en blanco al registrar personal | Formulario vacío | Mensaje de validación: "Completa los campos obligatorios: {campos}." | [ ] | |
+| 2 | Formato de usuario inválido | Ingresar usuario con tildes o menos de 3 caracteres (ej. "pe") | Usuario "pe" | Mensaje de validación: "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo." | [ ] | |
+| 3 | Contraseña con longitud menor a 8 caracteres | Ingresar contraseña "12345" | Contraseña corta | Mensaje de validación: "La contraseña debe tener al menos 8 caracteres." | [ ] | |
+| 4 | Contraseña de más de 72 bytes | Ingresar contraseña de más de 72 caracteres | Contraseña excesiva | Mensaje de validación: "La contraseña admite máximo 72 caracteres." | [ ] | |
+| 5 | Área no permitida | Seleccionar valor no admitido | Área inválida | Mensaje de validación: "Selecciona un área válida." | [ ] | |
+| 6 | Nombre de usuario duplicado | Intentar registrar con usuario "admin" | Usuario existente | Mensaje de conflicto: "Ya existe una cuenta con el usuario admin." | [ ] | |
+| 7 | Auto-desactivación del propio usuario | Intentar presionar "Desactivar" sobre la fila del usuario actualmente conectado (`admin`) | Propia cuenta | El botón se encuentra deshabilitado en pantalla o alerta: "No puedes desactivar tu propia cuenta." | [ ] | |
+| 8 | Desactivación del único administrador | Intentar desactivar al único administrador activo del sistema | Último administrador | Mensaje de rechazo: "No se puede desactivar: es la única cuenta activa de Administración." | [ ] | |
+| 9 | Cambio de área del único administrador | Intentar cambiar el área del único administrador a otra área | Cambio de área | Mensaje de rechazo: "No se puede cambiar el área: es la única cuenta activa de Administración." | [ ] | |
+| 10 | Edición de cuenta desactivada | Intentar abrir formulario de edición para una cuenta inactiva | Cuenta desactivada | Mensaje de rechazo: "La cuenta está desactivada; no se puede editar." | [ ] | |
+| 11 | Concurrencia en edición de personal | Guardar cambios con versión desactualizada | Versión obsoleta | Mensaje de conflicto: "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [ ] | |
 
-### Section 1: Flujo Principal - Registro y Consulta de Personal
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Creación exitosa de cuenta | `POST {BASE_URL}/api/staff`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"username": "jlopez", "fullName": "Juan López", "area": "LIMPIEZA", "password": "Password123*"}` | Datos válidos | HTTP 201 Created con JSON conteniendo `username: "jlopez"`, `fullName`, `area: "LIMPIEZA"`, `active: true` | [ ] | |
+| 2 | Consulta general de cuentas | `GET {BASE_URL}/api/staff?page=1&size=10`<br>Headers: (sin X-User obligatorio) | Paginación estándar | HTTP 200 OK con JSON `PagedResultDto<StaffAccountDto>` | [ ] | |
+| 3 | Consulta individual con versión | `GET {BASE_URL}/api/staff/jlopez`<br>Headers: (sin X-User obligatorio) | Usuario existente | HTTP 200 OK con datos de la cuenta y atributo `version` | [ ] | |
+| 4 | Actualización de perfil | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "fullName": "Juan Carlos López", "area": "LIMPIEZA"}` | Versión válida | HTTP 200 OK con cuenta actualizada y versión incrementada | [ ] | |
+| 5 | Desactivación lógica de cuenta | `POST {BASE_URL}/api/staff/jlopez/deactivation`<br>Headers: `X-User: admin` | Cuenta activa | HTTP 200 OK con `{ "username": "jlopez", "active": false }` | [ ] | |
+| 6 | Intento de login con cuenta desactivada | `POST {BASE_URL}/api/auth/login`<br>Content-Type: application/json<br>Body: `{"username": "jlopez", "password": "Password123*"}` | Cuenta desactivada | HTTP 401 Unauthorized, `errorCode: "INVALID_CREDENTIALS"`, mensaje idéntico a contraseña incorrecta: "Usuario o contraseña incorrectos." | [ ] | |
+| 7 | Error por falta de X-User en mutaciones | `POST {BASE_URL}/api/staff`<br>Headers: (sin X-User)<br>Body: `{"username": "test", ...}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [ ] | |
+| 8 | Error usuario duplicado | `POST {BASE_URL}/api/staff`<br>Headers: `X-User: admin`<br>Body: `{"username": "admin", ...}` | Usuario "admin" | HTTP 409 Conflict, `errorCode: "USERNAME_ALREADY_EXISTS"`, mensaje: "Ya existe una cuenta con el usuario admin." | [ ] | |
+| 9 | Error auto-desactivación | `POST {BASE_URL}/api/staff/admin/deactivation`<br>Headers: `X-User: admin` | Propia cuenta | HTTP 409 Conflict, `errorCode: "CANNOT_DEACTIVATE_SELF"`, mensaje: "No puedes desactivar tu propia cuenta." | [ ] | |
+| 10 | Error último administrador | `POST {BASE_URL}/api/staff/admin/deactivation`<br>Headers: `X-User: otro_admin` (si fuera el único) | Último admin | HTTP 409 Conflict, `errorCode: "LAST_ADMINISTRATOR"`, mensaje: "No se puede desactivar: es la única cuenta activa de Administración." | [ ] | |
+| 11 | Error cuenta desactivada no editable | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 1, "fullName": "Otro"}` | Cuenta ya inactiva | HTTP 409 Conflict, `errorCode: "ACCOUNT_INACTIVE"`, mensaje: "La cuenta está desactivada; no se puede editar." | [ ] | |
+| 12 | Error colisión concurrente en cuenta | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 99, "fullName": "Otro"}` | Versión inválida | HTTP 409 Conflict, `errorCode: "CONCURRENT_UPDATE"`, mensaje: "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [ ] | |
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Iniciar sesión como Administrador y navegar a Personal | Menú principal > Administración > Personal `/administracion/personal` | Usuario `lmendez` | Se visualiza la pantalla "Personal" con el subtítulo "Registra, edita o desactiva las cuentas con las que el personal inicia sesión.", el botón "Registrar personal" y la tabla con columnas: Usuario, Nombre completo, Área, Estado, Acciones. | [ ] | |
-| 2 | Abrir formulario de registro | Pantalla de Personal > Clic en botón "Registrar personal" | - | Se abre la pantalla "Registrar personal" (`/administracion/personal/nuevo`) con los campos obligatorios: Usuario, Contraseña, Nombre completo y Área. | [ ] | |
-| 3 | Completar formulario de registro y confirmar | Formulario de registro > Diligenciar campos > Clic en botón "Registrar personal" | Usuario: "jramirez", Contraseña: "Limpieza2026", Nombre: "Jorge Ramírez", Área: "Limpieza" | El sistema valida la información, cifra la contraseña con BCrypt, crea la cuenta activa y muestra la tarjeta de confirmación con los datos registrados y botón para volver a la lista. | [ ] | |
-| 4 | Verificar cuenta recién creada en el listado | Pantalla de Personal `/administracion/personal` | Usuario `jramirez` | La cuenta `jramirez` figura en la tabla con Nombre "Jorge Ramírez", Área "Limpieza", badge verde "Activa" y los botones de acción "Editar" y "Desactivar". | [ ] | |
-| 5 | Probar inicio de sesión con la cuenta creada | Cerrar sesión > Ir a login > Ingresar credenciales de `jramirez` | Usuario: "jramirez", Contraseña: "Limpieza2026" | Inicio de sesión exitoso; el usuario accede al área correspondiente a Limpieza (`/limpieza`). | [ ] | |
+--------------------------------------------------------------------------------
 
-### Section 2: Edición y Desactivación de Cuenta
+##### Edge Cases & Boundary Conditions
+* **EC-001 (Interfaz)** : Deshabilitación defensiva en la fila del propio usuario: la interfaz comprueba la sesión activa y desactiva el botón "Desactivar" para el usuario que tiene la sesión abierta.
+* **EC-002 (API)** : Intento de inicio de sesión con cuenta desactivada: verificar que tras desactivar una cuenta, la llamada a `POST /api/auth/login` con sus credenciales correctas rechaza el acceso con HTTP 401 Unauthorized (`INVALID_CREDENTIALS`) con el mensaje genérico `"Usuario o contraseña incorrectos."`.
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6 | Abrir edición de cuenta activa | Iniciar sesión como Administrador > Personal > Fila de `jramirez` > Clic en "Editar" | Cuenta `jramirez` | Se despliega la pantalla "Editar personal" (`/administracion/personal/jramirez/editar`) con el campo Usuario bloqueado en solo lectura, el nombre y área precargados y el campo de contraseña vacío para ingreso opcional. | [ ] | |
-| 7 | Modificar área y actualizar contraseña | Pantalla de edición > Cambiar área a "Mantenimiento" > Ingresar nueva contraseña > Clic en "Guardar cambios" | Área: "Mantenimiento", Nueva contraseña: "Mantenimiento2026" | El sistema guarda los cambios, actualiza el área y cifra la nueva contraseña, mostrando la confirmación exitosa con botón para volver al personal. | [ ] | |
-| 8 | Solicitar desactivación de la cuenta | Lista de Personal > Fila de `jramirez` > Clic en botón "Desactivar" | Cuenta `jramirez` | Se despliega el diálogo modal "Desactivar cuenta" mostrando el usuario, nombre y área, junto con la advertencia: "La persona no podrá iniciar sesión. La cuenta no se borra: el historial seguirá mostrando su nombre." | [ ] | |
-| 9 | Confirmar desactivación | Diálogo modal > Clic en botón "Desactivar" | - | La cuenta pasa a estado "Desactivada" (active: false). En el listado se muestra con badge gris "Desactivada" y la columna de acciones muestra "—" sin botones de edición ni desactivación. | [ ] | |
-| 10 | Verificar bloqueo de inicio de sesión de cuenta desactivada | Cerrar sesión > Intentar login con `jramirez` | `jramirez` y su contraseña | El sistema rechaza el acceso informando que las credenciales son inválidas o la cuenta está desactivada. | [ ] | |
+#### Defect Severity Reference
 
-### Section 3: Validaciones, Unicidad y Reglas de Seguridad
-
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 11 | Intentar registrar usuario duplicado | Formulario "Registrar personal" > Ingresar usuario existente | Usuario: "jramirez" | El sistema rechaza el registro y muestra el mensaje: "Ya existe una cuenta con el usuario jramirez." | [Pass] | Verificado por test automatizado (`StaffIntegrationTest` y `RegisterStaffPage.test.tsx`) |
-| 12 | Intentar registrar con contraseña menor a 8 caracteres | Formulario "Registrar personal" > Contraseña de 6 caracteres | Contraseña: "12345" | El sistema bloquea el guardado y muestra el mensaje de validación: "La contraseña debe tener al menos 8 caracteres." | [Pass] | Verificado por test automatizado (`RegisterStaffPage.test.tsx`) |
-| 13 | Intentar desactivar la propia cuenta en sesión | Fila de la cuenta activa en sesión (`lmendez`) > Intentar desactivar | Usuario en sesión | El sistema rechaza la operación y muestra la alerta: "No puedes desactivar tu propia cuenta." | [Pass] | Verificado por test automatizado (`StaffIntegrationTest` y `StaffListPage.test.tsx`) |
-| 14 | Intentar desactivar la única cuenta activa de Administración | Intentar desactivar al único Administrador existente | Última cuenta de Administración | El sistema bloquea la acción e informa: "No se puede desactivar: es la única cuenta activa de Administración." | [Pass] | Verificado por test automatizado (`StaffIntegrationTest` y `StaffListPage.test.tsx`) |
-
----
-
-## Edge Cases & Boundary Conditions
-
-| Case # | Description | Preconditions | Inputs / Actions | Expected Results | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| EC-001 | Normalización de usuario con mayúsculas y espacios | Formulario de registro | Usuario: " JRamirez " | El sistema normaliza el valor a "jramirez", comprobando unicidad y guardándolo en minúsculas. | [Pass] | Verificado por test automatizado (`StaffIntegrationTest`) |
-| EC-002 | Desactivación de personal con tarea de limpieza abierta | Cuenta de limpieza asignada a una habitación en limpieza | Desactivar la cuenta | El sistema libera la tarea, la habitación regresa a `PendingCleaning` y no se pierde trazabilidad. | [Pass] | Verificado por test automatizado (`StaffIntegrationTest`) |
-| EC-003 | Arranque inicial del sistema sin administradores activos | Base de datos limpia sin cuentas | Iniciar aplicación | El sistema crea automáticamente la cuenta inicial `admin` con contraseña predeterminada para el primer acceso. | [Pass] | Verificado por test automatizado (`StaffIntegrationTest`) |
-| EC-004 | Edición simultánea de la misma cuenta por dos administradores | Dos sesiones abren la edición de la misma cuenta | Guardar cambios casi en simultáneo | La segunda operación recibe error de concurrencia optimista (`CONCURRENT_UPDATE`) exigiendo recargar los datos. | [Pass] | Verificado por test automatizado (`StaffIntegrationTest`) |
-
----
-
-## Defect Severity Reference
-
-| Severity | Description | Examples |
-| --- | --- | --- |
-| **Critical (P1)** | Impide la operación total de una función básica, causa pérdida o corrupción de datos sin solución alternativa inmediata. | Se permite desactivar al último administrador dejando el sistema sin posibilidad de gestión. |
-| **Major (P2)** | Falla mayor en una funcionalidad relevante con solución temporal disponible pero no ideal. | Las contraseñas se almacenan en texto plano en la base de datos o se devuelven en los endpoints REST. |
-| **Moderate (P3)** | Defecto que afecta un flujo secundario o una validación no crítica. | Filtro de búsqueda por texto sensible a mayúsculas o tildes. |
-| **Minor (P4)** | Inconsistencias estéticas menores o errores tipográficos en etiquetas que no impiden la comprensión. | Alineación del selector de área en el formulario de edición. |
-
+| Severity Level | Code | Definition & Impact |
+| ------ | :---: | ------ |
+| **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
+| **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
+| **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |

@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el flujo guiado de 4 pasos para la admisión presencial de huéspedes (Check-In), asegurando la validación local de la reserva, la captura de ocupantes nacionales y extranjeros con panel migratorio, la transición síncrona a Occupied, la creación de la estancia (Stay) y el encolamiento de la notificación asíncrona hacia Módulo 2.
+Este caso de prueba verifica el flujo de Check-In en 4 pasos (validación de reserva, captura de huéspedes, confirmación y pantalla de éxito), la transición atómica de la habitación a Occupied, el registro de estancia y ocupantes, y la emisión asíncrona mediante Outbox del mensaje plano hacia Módulo 2 con routing key `habitacion.checkin` en el exchange `hospitua.events`.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,53 +27,67 @@ Este caso de prueba verifica el flujo guiado de 4 pasos para la admisión presen
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere backend Spring Boot y frontend en funcionamiento, base de datos PostgreSQL y broker RabbitMQ con la cola `m2.habitacion.checkin.queue` configurada.
+* Requiere base de datos PostgreSQL, broker RabbitMQ y servicio backend Spring Boot en ejecución.
 
 ##### Dependencies & Assumptions
-* TC-001 Consultar reservas (ingesta de lista diaria) y TC-007 Marcar habitación como reservada deben haber dejado la habitación de prueba en estado Reserved apartada para la reserva.
-* El recepcionista debe contar con una cuenta activa con área Recepción.
+* La habitación debe encontrarse previamente en estado `Reserved` vinculada a la reserva del día (`reservedByReservationRef`).
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 201 en estado Reserved asignada a la reserva `RSV-3F9A1C7B` (Titular: Ana Pérez, CC 123456, 2 personas, fecha de inicio hoy). Habitación 101 en estado Available.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Usuario recepcionista autenticado; ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 101 en estado `Reserved` con reserva asignada para hoy (`RSV-HAB-101`).
+* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario con área Recepción (`recepcionista`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Check-In con Huésped Nacional y Extranjero)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar flujo desde el Panel de Recepción | En `/panel`, localizar la llegada de la habitación 201 y hacer clic en el botón "Check-in" | Reserva: `RSV-3F9A1C7B`, Habitación: 201 | El sistema redirige a `/check-in?reservationRef=RSV-3F9A1C7B&roomId=a0000000-0000-0000-0000-000000000201` y muestra el paso "1. Información de la reserva" con los datos del titular (Ana Pérez, CC 123456), fechas, categoría y estado "Reservada" | [ ] | [ ] |
-| 2 | Continuar a datos de huéspedes | En el paso 1, hacer clic en el botón "Continuar" | Clic en botón "Continuar" | El wizard avanza al paso "2. Datos de huéspedes — Habitación 201", mostrando bloques de captura correspondientes a las 2 personas asignadas | [ ] | [ ] |
-| 3 | Capturar datos de huésped titular alojado (nacional) | En el bloque 1, marcar "El titular se aloja en esta habitación", verificar datos precargados e ingresar fecha de nacimiento | Fecha nacimiento: `1990-05-15` | Los campos del titular quedan confirmados y no se despliega panel migratorio por ser nacionalidad Colombia | [ ] | [ ] |
-| 4 | Capturar datos de acompañante extranjero | En el bloque 2, ingresar nombres, apellidos, tipo de documento, número de documento, nacionalidad extranjera, fecha de nacimiento, procedencia y destino | Nombres: John, Apellidos: Doe, Tipo: PAS, Número: `E98765432`, Nac: Estados Unidos, Nacimiento: `1988-10-20`, Procedencia: `Miami, Estados Unidos`, Destino: `Medellín, Colombia` | Al seleccionar nacionalidad extranjera se abre el panel migratorio solicitando obligatoriamente lugar de procedencia y destino | [ ] | [ ] |
-| 5 | Continuar a confirmación | Hacer clic en el botón "Continuar" del formulario de huéspedes | Clic en botón "Continuar" | El wizard avanza al paso "3. Resumen y confirmación", resumiendo 2 huéspedes, habitación 201, fechas de estadía y el aviso informativo de cambio a Ocupada | [ ] | [ ] |
-| 6 | Confirmar el Check-In | Hacer clic en el botón "Confirmar Check-In" | Clic en "Confirmar Check-In" | El botón muestra "Registrando…", se registra la estancia, la habitación transiciona a Occupied, se encola la notificación hacia Módulo 2 y se avanza a la pantalla "Check-in completado" con insignias "Habitación: Ocupada" y "Reserva: En curso" | [ ] | [ ] |
-| 7 | Regresar al inicio | En la pantalla de éxito, hacer clic en "Volver al inicio" | Clic en "Volver al inicio" | El sistema navega a la pantalla principal de recepción y la llegada de la habitación 201 ya no aparece como pendiente | [ ] | [ ] |
+| 1 | Iniciar sesión y acceder a recepción | Iniciar sesión como recepcionista y abrir `/recepcion` | Usuario: `recepcionista` | Se carga el Panel de Recepción con la lista de llegadas del día | [ ] | |
+| 2 | Iniciar Check-in desde la fila de llegada | En la pestaña Llegadas, ubicar la reserva `RSV-HAB-101` y hacer clic en "Check-in" | Reserva `RSV-HAB-101` | Redirige a `/check-in?reservationRef=RSV-HAB-101&roomId=a0000000-0000-0000-0000-000000000101` | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Errores, Validaciones y Rechazos
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de Check-In con habitación no reservada | Intentar validar Check-In para una habitación en estado Available | Habitación 101 (Available) | El paso 1 muestra la alerta de error: "La habitación está Disponible; solo se puede hacer el check-in de una habitación Reservada para esta reserva." y el botón "Continuar" permanece deshabilitado | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx` y `CheckInIntegrationTest`) |
-| 2 | Intento de Check-In con reserva de fecha futura | Intentar validar Check-In con una reserva cuya fecha de inicio es posterior a hoy | Reserva con `startDate = hoy + 1 día` | Se muestra el mensaje de error: "Esta reserva no llega hoy. El check-in solo se hace el día de llegada." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx` y `CheckInIntegrationTest`) |
-| 3 | Intento de Check-In duplicado para la misma habitación | Intentar iniciar Check-In para una habitación que ya tiene estancia registrada (habitación 201 procesada en la sección 1) | Reserva y habitación 201 ya admitidas | Se despliega el mensaje de error: "Esta habitación ya tiene el check-in registrado." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx` y `CheckInIntegrationTest`) |
-| 4 | Discrepancia en cantidad de huéspedes | En el paso 2, intentar avanzar con un número de huéspedes distinto de `guestCount` | Discrepancia en cantidad de ocupantes | El sistema bloquea el avance mostrando: "La cantidad de huéspedes no coincide con la reserva." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx`) |
-| 5 | Superar capacidad máxima de la habitación | Intentar ingresar más huéspedes que la capacidad máxima física de la unidad | Cantidad de ocupantes > `maxCapacity` | Se bloquea la acción indicando: "La cantidad de huéspedes supera la capacidad de la habitación." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx` y `CheckInIntegrationTest`) |
-| 6 | Documentos duplicados en la misma habitación | Registrar dos ocupantes con el mismo tipo y número de documento | Dos huéspedes con CC 123456 | El sistema bloquea la confirmación mostrando: "Dos huéspedes de la habitación tienen el mismo documento." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx` y `CheckInIntegrationTest`) |
-| 7 | Datos migratorios incompletos o fecha de nacimiento inválida | Omitir el lugar de procedencia o ingresar fecha de nacimiento futura en un huésped | Fecha nacimiento: fecha de mañana, o procedencia vacía | Se resalta el campo inválido y se muestra el mensaje: "Revisa los datos de los huéspedes." | [Pass] | Verificado por test automatizado (`CheckInPage.test.tsx`) |
+| 1 | Paso 1: Validar reserva | En `/check-in`, revisar los datos precargados de la reserva (Titular, Habitación 101, Fechas) | Reserva `RSV-HAB-101` | El sistema valida automáticamente contra la copia local y habilita el botón "Continuar a huéspedes" | [ ] | |
+| 2 | Paso 2: Datos de huéspedes | Completar los datos del titular y acompañantes:<br>- Nombre: Carlos, Apellido: Gómez<br>- Tipo Doc: CC, Número: 1098765432<br>- Nacionalidad: Colombiana, Fecha Nac: 1988-05-14<br>- Origen: Bogotá, Destino: Cartagena | Datos de 1 huésped | Los campos se validan y se habilita el botón "Continuar a confirmación" | [ ] | |
+| 3 | Paso 3: Confirmación | Revisar el resumen completo de la estancia (habitación, fechas, ocupantes y tarifa pactada) | Resumen de estancia | Se presenta el botón "Confirmar Check-In" | [ ] | |
+| 4 | Confirmar Check-In | Hacer clic en "Confirmar Check-In" | Acción en pantalla | Se envía `POST /api/check-in`, se crea la estancia, la habitación pasa a `Occupied` y se pasa a la pantalla de éxito | [ ] | |
+| 5 | Paso 4: Pantalla de éxito (Check-In completado) | Visualizar pantalla de confirmación `CheckInSuccess` | Resultado exitoso | Muestra tarjeta de éxito con título "Check-in completado", número de habitación 101, badge "Ocupada" y botón "Volver al panel" | [ ] | |
+| 6 | Retorno a recepción | Hacer clic en "Volver al panel" | Botón de retorno | Redirige a `/recepcion`; la reserva desaparece de Llegadas y la habitación 101 figura como Ocupada | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Huésped con datos obligatorios incompletos | Dejar el número de documento en blanco en el paso 2 | Documento vacío | Se resalta el campo con mensaje: "El número de documento es obligatorio." | [ ] | |
+| 2 | Fecha de nacimiento en el futuro | Ingresar una fecha de nacimiento posterior a hoy | Fecha futura | Mensaje de validación: "La fecha de nacimiento no puede ser futura." | [ ] | |
+| 3 | Documentos duplicados entre ocupantes | Ingresar el mismo tipo y número de documento para dos huéspedes | Documento repetido | Mensaje de error: "Hay documentos de identidad duplicados entre los huéspedes." | [ ] | |
+| 4 | Superar la capacidad máxima de la habitación | Intentar registrar 2 ocupantes en habitación 101 (capacidad máxima: 1) | 2 huéspedes en sencilla | Mensaje de rechazo: "El número de huéspedes supera la capacidad máxima de la habitación (1)." | [ ] | |
+| 5 | Habitación ya no disponible (conflicto concurrente) | Intentar confirmar check-in sobre habitación que cambió de estado | Habitación en `Occupied` | Diálogo de conflicto: "La habitación no está disponible para check-in (estado actual: Ocupada)." | [ ] | |
+| 6 | Reserva no encontrada en la copia local | Abrir check-in con referencia inexistente | Referencia "RSV-999" | Mensaje de error: "No se encontró la reserva indicada." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Validar reserva para check-in (Paso 1) | `GET {BASE_URL}/api/check-in/validate?reservationRef=RSV-HAB-101&roomId=a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User obligatorio) | Parámetros válidos | HTTP 200 OK con JSON `CheckInValidationDto` conteniendo `valid: true`, datos de titular y habitación | [ ] | |
+| 2 | Registro exitoso de Check-In (Paso 2) | `POST {BASE_URL}/api/check-in`<br>Headers: `X-User: recepcionista`, `Content-Type: application/json`<br>Body: `{"reservationRef": "RSV-HAB-101", "roomId": "a0000000-0000-0000-0000-000000000101", "guests": [{"firstName": "Carlos", "lastName": "Gómez", "documentType": "CC", "documentNumber": "1098765432", "nationality": "Colombiana", "birthDate": "1988-05-14", "originPlace": "Bogotá", "destinationPlace": "Cartagena", "isReservationGuest": true}]}` | Datos válidos | HTTP 201 Created con JSON `CheckInResultDto` conteniendo `stayId`, `roomNumber: "101"`, `roomStatus: "Occupied"` | [ ] | |
+| 3 | Error por falta de encabezado X-User | `POST {BASE_URL}/api/check-in`<br>Headers: (sin X-User)<br>Body: (payload válido) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
+| 4 | Error por capacidad de habitación excedida | `POST {BASE_URL}/api/check-in`<br>Headers: `X-User: recepcionista`<br>Body: (payload con 2 huéspedes para hab. 101) | Capacidad excedida | HTTP 400 Bad Request, `errorCode: "ROOM_CAPACITY_EXCEEDED"`, mensaje: "El número de huéspedes supera la capacidad máxima de la habitación (1)." | [ ] | |
+| 5 | Error por documentos duplicados | `POST {BASE_URL}/api/check-in`<br>Headers: `X-User: recepcionista`<br>Body: (payload con 2 huéspedes con mismo doc) | Doc duplicado | HTTP 400 Bad Request, `errorCode: "DUPLICATE_GUEST_DOCUMENT"` | [ ] | |
+| 6 | Error por habitación en estado inválido | `POST {BASE_URL}/api/check-in`<br>Headers: `X-User: recepcionista`<br>Body: (roomId de habitación en `InCleaning`) | Habitación no reservada | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está disponible para check-in (estado actual: En limpieza)." | [ ] | |
+| 7 | Error por estancia ya registrada | `POST {BASE_URL}/api/check-in`<br>Headers: `X-User: recepcionista`<br>Body: (misma reserva ya procesada) | Check-in repetido | HTTP 409 Conflict, `errorCode: "STAY_ALREADY_EXISTS"`, mensaje: "Ya existe un check-in registrado para esta reserva." | [ ] | |
+
+##### Sección E — Mensajería
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Emisión de mensaje plano de Check-In hacia Módulo 2 | Completar exitosamente `POST /api/check-in` | Check-in registrado | Módulo 1 encola en Outbox y publica en exchange `hospitua.events` con routing key `habitacion.checkin` hacia la cola `m2.habitacion.checkin.queue` el payload plano con `reservationRef`, `roomId`, `movementType: ENTRY`, `movementDate` y la lista de ocupantes | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Caída temporal del broker RabbitMQ al momento de confirmar el Check-In: la transacción local de base de datos se completa (estancia creada, habitación transiciona a Occupied) y el mensaje queda guardado en la tabla de outbox para entrega diferida por reintentos en segundo plano.
-* **EC-002** : Titular de la reserva que no se aloja en la habitación: se ingresan los datos de los ocupantes reales sin marcar al titular; la estancia guarda al titular para facturación pero la nómina de huéspedes (`RoomGuest`) y la notificación a Módulo 2 contienen únicamente a los ocupantes presentes.
-* **EC-003** : Concurrencia de recepción: dos recepcionistas abren simultáneamente el flujo para la misma habitación reservada; el primero confirma exitosamente y el segundo recibe control optimista informando que el estado de la habitación cambió.
-
---------------------------------------------------------------------------------
+* **EC-001 (Interfaz)** : Doble clic consecutivo en "Confirmar Check-In": el frontend desactiva el botón durante el envío impidiendo peticiones concurrentes duplicadas desde el mismo cliente.
+* **EC-002 (API)** : Concurrencia de dos recepcionistas sobre la misma habitación: el bloqueo pesimista en base de datos asegura que la primera transacción confirma y la segunda recibe HTTP 409 `ROOM_INVALID_STATE`.
 
 #### Defect Severity Reference
 

@@ -1,101 +1,93 @@
-# Test Case: Registrar Habitación
+### Test Case Specification: Registrar Habitación
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-registrar-habitacion.md](../SPEC/spec-registrar-habitacion.md) / [plan-registrar-habitacion.md](../PLAN/plan-registrar-habitacion.md)  **Status** : Draft
 
-**Created**: 2026-11-07  
-**Spec/Plan Link**: [spec-registrar-habitacion.md](../SPEC/spec-registrar-habitacion.md) | [plan-registrar-habitacion.md](../PLAN/plan-registrar-habitacion.md)  
-**Status**: Draft  
+#### Test Overview
 
----
+**Test Case ID** : TC-018-RegistrarHabitacion
+**Product Name & Version** : Hospitua Módulo 1 v0.1
+**Author** : Equipo Módulo 1
+**Current Owner** : Por asignar
+**Priority** : P2 - Major
 
-## Test Overview
+--------------------------------------------------------------------------------
 
-| Field | Value |
-| --- | --- |
-| **Test Case ID** | TC-018-RegistrarHabitacion |
-| **Product Name & Version** | Hospitua Módulo 1 v0.1 |
-| **Author** | Equipo Módulo 1 |
-| **Current Owner** | Por asignar |
-| **Execution Type** | Manual |
-| **Priority** | P2 |
+#### Objectives & Context
 
----
+##### Test Objectives
+Este caso de prueba verifica el registro de nuevas habitaciones en el inventario hotelero (`POST /api/rooms`), validando las reglas de unicidad de número, pisos mayores a cero, capacidades enteras positivas, categorías admitidas (SENCILLA, DOBLE, SUITE, BOUTIQUE), tarifas con hasta dos decimales, y la inicialización automática en estado Available con registro en el historial.
 
-## Test Objectives and Document References
+##### Document References
+| Reference Name | Type of Reference | Document Location / Link |
+| ------ | ------ | ------ |
+| Especificación de Registrar Habitación | Specification Document | [documentos/SPEC/spec-registrar-habitacion.md](../SPEC/spec-registrar-habitacion.md) |
+| Plan de Implementación de Registrar Habitación | Plan Document | [documentos/PLAN/plan-registrar-habitacion.md](../PLAN/plan-registrar-habitacion.md) |
 
-### Objectives
-Verificar la capacidad del administrador para registrar nuevas habitaciones en el sistema, validando los campos obligatorios de identificación, categorización y tarifa base, asegurando la unicidad del número de habitación sin importar mayúsculas ni espacios, comprobando la asignación inicial del estado "Disponible" (`Available`), la apertura del periodo correspondiente en el historial de estados y la visualización de la confirmación con opciones de continuidad.
+--------------------------------------------------------------------------------
 
-### Document References
-| Document Type | Document Name & Link |
-| --- | --- |
-| Functional Specification | [spec-registrar-habitacion.md](../SPEC/spec-registrar-habitacion.md) |
-| Implementation Plan | [plan-registrar-habitacion.md](../PLAN/plan-registrar-habitacion.md) |
+#### Prerequisites & Environment
 
----
+##### Test Case Limitations
+* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos. La ruta `/administracion/habitaciones/nueva` se encuentra implementada.
 
-## Prerequisites and Test Environment
+##### Dependencies & Assumptions
+* Requiere sesión activa de Administrador enviando encabezado `X-User`.
 
-### Assumptions and Limitations
-- Requiere el sistema Hospitua Módulo 1 con sus servicios activos y la base de datos PostgreSQL inicializada con la semilla de habitaciones.
-- La pantalla de registro `/administracion/registrar-habitacion` está implementada en React y conectada al backend REST `/api/rooms`.
+##### Preconditions & Default Setup
+* **Initial State** : Base de datos con semilla V2 cargada (14 habitaciones iniciales); número "407" disponible para registro.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario Administrador (`admin`); ver credenciales de pruebas del equipo.
 
-### Dependencies
-- El inventario de habitaciones debe estar operativo para comprobar la visualización inmediata de la nueva unidad.
+--------------------------------------------------------------------------------
 
-### Test Environment Requirements
-- Navegador web moderno con acceso a la aplicación Hospitua.
-- Base de datos con las habitaciones semilla ya cargadas (incluyendo habitaciones 101 a 105, 201 a 205, etc.).
+#### Test Execution Flow
 
-### Test Data and Accounts
-- Habitación existente en semilla: "204" (Inactiva) y "101" (Disponible).
-- Nueva habitación a registrar: "407", Piso 4, Tipo Doble, Capacidad 2, Tarifa $250.000.
-- Cuenta con rol de Administrador (ver credenciales de pruebas del equipo).
+##### Sección A — Cómo llegar a la pantalla (interfaz)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login`, ingresar credenciales de Administrador | Usuario: `admin` | Redirige al inventario físico en `/administracion/inventario` | [ ] | |
+| 2 | Navegar al formulario de registro | En `/administracion/inventario`, hacer clic en el botón superior "Nueva habitación" | Botón "Nueva habitación" | Carga el formulario de creación en `/administracion/habitaciones/nueva` | [ ] | |
 
----
+##### Sección B — Flujo principal en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Diligenciar datos de la habitación | En `/administracion/habitaciones/nueva`, completar:<br>- Número de habitación: "407"<br>- Piso: 4<br>- Tipo: "Boutique"<br>- Capacidad máxima: 2<br>- Tarifa base por noche: 320000.00 | Datos válidos | Los campos validan el formato y habilitan el botón "Guardar habitación" | [ ] | |
+| 2 | Guardar registro | Hacer clic en "Guardar habitación" | Envío de formulario | Se envía la petición vía `POST /api/rooms`, se crea la habitación en `Available` y redirige a `/administracion/inventario` con la notificación: "Habitación 407 registrada exitosamente." | [ ] | |
+| 3 | Verificar presencia en inventario | En `/administracion/inventario`, filtrar por número "407" | Habitación 407 | La fila muestra número 407, Piso 4, Boutique, Capacidad 2, Tarifa $320.000 y estado "Disponible" | [ ] | |
 
-## Test Execution Flow
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Campos obligatorios vacíos | Dejar campos en blanco y pulsar "Guardar habitación" | Formulario vacío | Mensaje de validación: "Completa los campos obligatorios: {campos}." | [ ] | |
+| 2 | Número de más de 10 caracteres | Ingresar número "12345678901" | Número de 11 caracteres | Mensaje de validación: "El número de habitación debe tener máximo 10 caracteres." | [ ] | |
+| 3 | Piso menor o igual a 0 | Ingresar piso "0" o "-1" | Piso 0 | Mensaje de validación: "El piso debe ser un número entero mayor a 0." | [ ] | |
+| 4 | Capacidad menor o igual a 0 | Ingresar capacidad "0" o "-2" | Capacidad 0 | Mensaje de validación: "La capacidad máxima debe ser un número entero mayor a 0." | [ ] | |
+| 5 | Tarifa menor o igual a cero o decimales excesivos | Ingresar tarifa "0.00" o "150000.555" | Tarifa 0 o 3 decimales | Mensaje de validación: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [ ] | |
+| 6 | Tipo fuera del catálogo | Forzar tipo no estándar (ej. "Presidencial") | Tipo no admitido | Mensaje de validación: "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." | [ ] | |
+| 7 | Número de habitación ya existente | Ingresar número "101" (ya existente en la semilla) | Habitación 101 duplicada | Mensaje de conflicto: "Ya existe una habitación con el número 101." | [ ] | |
+| 8 | Sesión expirada | Enviar formulario con token expirado o sin sesión activa | Sesión caducada | Mensaje de advertencia: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
 
-### Section 1: Flujo Principal - Registro Exitoso y Confirmación
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Registro exitoso de habitación | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"roomNumber": "407", "floor": 4, "categoryRoom": "BOUTIQUE", "maxCapacity": 2, "baseRate": 320000.00}` | Datos válidos | HTTP 201 Created con JSON `RoomDto` conteniendo `id`, `roomNumber: "407"`, `floor: 4`, `categoryRoom: "BOUTIQUE"`, `maxCapacity: 2`, `baseRate": 320000.00`, `status: "Available"` | [ ] | |
+| 2 | Error por falta de X-User | `POST {BASE_URL}/api/rooms`<br>Headers: (sin X-User)<br>Body: `{"roomNumber": "408", ...}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
+| 3 | Error por campos obligatorios faltantes | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"floor": 4}` | Faltan campos | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.fields` enumera los campos faltantes | [ ] | |
+| 4 | Error por número mayor a 10 caracteres | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"roomNumber": "HABITACION407", "floor": 4, "categoryRoom": "BOUTIQUE", "maxCapacity": 2, "baseRate": 320000.00}` | Longitud 13 | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "roomNumber"` | [ ] | |
+| 5 | Error por piso menor o igual a cero | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"roomNumber": "409", "floor": 0, "categoryRoom": "BOUTIQUE", "maxCapacity": 2, "baseRate": 320000.00}` | Piso 0 | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "floor"` | [ ] | |
+| 6 | Error por tarifa no positiva | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"roomNumber": "409", "floor": 4, "categoryRoom": "BOUTIQUE", "maxCapacity": 2, "baseRate": -50.00}` | Tarifa negativa | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "baseRate"` | [ ] | |
+| 7 | Error por categoría inexistente | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"roomNumber": "409", "floor": 4, "categoryRoom": "PENTHOUSE", "maxCapacity": 2, "baseRate": 500000.00}` | Categoría inválida | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "categoryRoom"` | [ ] | |
+| 8 | Error por número ya existente | `POST {BASE_URL}/api/rooms`<br>Headers: `X-User: admin`<br>Body: `{"roomNumber": "101", "floor": 1, "categoryRoom": "SENCILLA", "maxCapacity": 1, "baseRate": 150000.00}` | Hab. 101 duplicada | HTTP 409 Conflict, `errorCode: "ROOM_NUMBER_ALREADY_EXISTS"`, mensaje: "Ya existe una habitación con el número 101." | [ ] | |
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Iniciar sesión como Administrador y navegar al formulario de registro | Menú principal > Administración > Inventario de Habitaciones `/administracion/inventario` > Clic en botón "Registrar habitación" | Usuario Administrador | Se despliega la pantalla "Registrar habitación" con el subtítulo "La habitación quedará disponible en el inventario apenas se registre." y el formulario vacío. | [ ] | |
-| 2 | Completar datos obligatorios de identificación | Formulario de registro > Grupo "Identificación" > Diligenciar campos | Número de habitación: "407", Piso: "4" | Los campos aceptan los valores y se muestran formateados sin errores. | [ ] | |
-| 3 | Completar categorización y tarifa base | Formulario de registro > Grupo "Categorización y tarifa" > Seleccionar y diligenciar | Tipo de habitación: "Doble", Capacidad máxima: "2", Tarifa base: "250000" | Se seleccionan las opciones válidas del selector y se ingresan valores enteros y decimales válidos. | [ ] | |
-| 4 | Confirmar guardado de la habitación | Formulario de registro > Clic en botón "Registrar habitación" | Datos completos de la habitación 407 | El sistema persiste la habitación con estado inicial "Disponible" (`Available`), genera su identificador UUID, abre el historial de estados y muestra la tarjeta de confirmación de éxito. | [ ] | |
-| 5 | Verificar pantalla de confirmación | Pantalla de confirmación de registro | Habitación 407 registrada | Se visualiza el encabezado "Habitación 407 registrada", el texto "Ya aparece en el inventario en estado Disponible.", la ficha con Estado: Disponible, Número: 407, Piso: Piso 4, Tipo: Doble, Capacidad máxima: 2 personas, Tarifa base: $ 250.000, y los botones "Registrar otra" y "Volver al inventario". | [ ] | |
-| 6 | Volver al inventario y verificar la nueva habitación | Pantalla de confirmación > Clic en botón "Volver al inventario" | - | Se redirige a `/administracion/inventario` y la habitación 407 figura en la tabla en estado Disponible con su tipo Doble y tarifa $250.000. | [ ] | |
+--------------------------------------------------------------------------------
 
-### Section 2: Validaciones y Rechazos por Duplicidad o Datos Inválidos
+##### Edge Cases & Boundary Conditions
+* **EC-001 (Interfaz)** : Doble pulsación en botón Guardar: el botón queda en estado disabled durante la petición HTTP impidiendo dobles inserciones.
+* **EC-002 (API)** : Registro simultáneo de dos habitaciones con el mismo número: la restricción única `uk_room_room_number` asegura que una responde 201 y la otra 409 `ROOM_NUMBER_ALREADY_EXISTS`.
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 7 | Intentar registrar con número de habitación duplicado existente | Formulario "Registrar habitación" > Ingresar número ya existente en semilla > Clic en "Registrar habitación" | Número de habitación: "204" (o "101"), Piso: 2, Tipo: Doble, Capacidad: 2, Tarifa: 200000 | El sistema rechaza el guardado y muestra el mensaje de error: "Ya existe una habitación con el número 204." marcando el campo en rojo. | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx` y `RegisterRoomIntegrationTest`) |
-| 8 | Intentar registrar número duplicado con espacios y minúsculas | Formulario "Registrar habitación" > Ingresar número existente con espacios | Número: " 101 ", Piso: 1, Tipo: Sencilla, Capacidad: 1, Tarifa: 120000 | El sistema normaliza a mayúsculas y sin espacios y rechaza indicando: "Ya existe una habitación con el número 101." | [Pass] | Verificado por test automatizado (`RegisterRoomIntegrationTest`) |
-| 9 | Intentar registrar con campos obligatorios vacíos | Formulario "Registrar habitación" > Dejar campos vacíos > Clic en "Registrar habitación" | Formulario en blanco | El sistema bloquea el envío y muestra los mensajes de validación requeridos bajo cada campo obligatorio. | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx`) |
-| 10 | Intentar registrar número de habitación con más de 10 caracteres | Formulario "Registrar habitación" > Ingresar número largo | Número: "HABITACION101" (13 caracteres) | El sistema muestra el mensaje de validación: "El número de habitación debe tener máximo 10 caracteres." | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx`) |
-| 11 | Intentar registrar con piso cero o negativo | Formulario "Registrar habitación" > Ingresar piso 0 | Piso: "0" | El sistema muestra el mensaje de validación: "El piso debe ser un número entero mayor a 0." | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx`) |
-| 12 | Intentar registrar con capacidad máxima cero o negativa | Formulario "Registrar habitación" > Ingresar capacidad 0 | Capacidad máxima: "0" | El sistema muestra el mensaje de validación: "La capacidad máxima debe ser un número entero mayor a 0." | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx`) |
-| 13 | Intentar registrar con tarifa base cero o negativa | Formulario "Registrar habitación" > Ingresar tarifa 0 | Tarifa base: "0" | El sistema muestra el mensaje de validación: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [Pass] | Verificado por test automatizado (`RegisterRoomPage.test.tsx`) |
+#### Defect Severity Reference
 
----
-
-## Edge Cases & Boundary Conditions
-
-| Case # | Description | Preconditions | Inputs / Actions | Expected Results | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| EC-001 | Registro de habitación alfanumérica válida | Formulario de registro | Número: "204A" (o "PH-1") | El sistema acepta el identificador alfanumérico dentro del límite de 10 caracteres y lo guarda en mayúsculas. | [Pass] | Verificado por test automatizado (`RegisterRoomIntegrationTest`) |
-| EC-002 | Duplicado contra habitación en estado Inactiva (`Inactive`) | Habitación 104 está en estado `Inactive` | Intentar registrar nueva habitación con número "104" | El sistema rechaza el registro: la unicidad del número aplica sobre la totalidad del inventario, incluidas las bajas. | [Pass] | Verificado por test automatizado (`RegisterRoomIntegrationTest`) |
-| EC-003 | Tarifa base con centavos (dos decimales) | Formulario de registro | Tarifa base: 185000.50 | El sistema acepta el valor numérico con dos decimales y lo almacena correctamente. | [Pass] | Verificado por test automatizado (`RegisterRoomIntegrationTest`) |
-| EC-004 | Concurrencia al registrar la misma habitación | Dos administradores intentando registrar "501" simultáneamente | Enviar guardado al mismo tiempo | Una de las operaciones tiene éxito y la segunda recibe el error `ROOM_NUMBER_ALREADY_EXISTS`. | [Pass] | Verificado por test automatizado (`RegisterRoomIntegrationTest`) |
-
----
-
-## Defect Severity Reference
-
-| Severity | Description | Examples |
-| --- | --- | --- |
-| **Critical (P1)** | Impide la operación total de una función básica, causa pérdida o corrupción de datos sin solución alternativa inmediata. | No se genera el UUID de la habitación, no se crea el estado inicial `Available` o se permite duplicar números. |
-| **Major (P2)** | Falla mayor en una funcionalidad relevante con solución temporal disponible pero no ideal. | Tras registrar la habitación, no aparece en el inventario hasta recargar la página manualmente. |
-| **Moderate (P3)** | Defecto que afecta un flujo secundario o una validación no crítica. | Mensaje de validación de tarifa no aclara el límite de decimales permitidos. |
-| **Minor (P4)** | Inconsistencias estéticas menores o errores tipográficos en etiquetas que no impiden la comprensión. | Texto de ayuda o espaciado desalineado en el formulario de registro. |
-
+| Severity Level | Code | Definition & Impact |
+| ------ | :---: | ------ |
+| **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
+| **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
+| **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |

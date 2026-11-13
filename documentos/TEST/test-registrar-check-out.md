@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el flujo guiado de formalización de salida (Check-Out), asegurando la consulta de la estancia activa local, la integración con la liquidación informativa de Módulo 3, la exigencia de confirmación explícita, el cierre de la estancia (`Stay`), la transición física a Pendiente de limpieza (`PendingCleaning`) y la emisión asíncrona de los eventos hacia Módulo 2 y Módulo 3.
+Este caso de prueba verifica el flujo de Check-Out en pantalla (consulta de estancia, liquidación, confirmación y liberación de habitación), la transición atómica de Occupied a PendingCleaning, el cierre de la estancia en base de datos, y la emisión asíncrona vía Outbox de dos mensajes en `hospitua.events`: `habitacion.checkout` (hacia Módulo 2) y `facturacion.checkout` (hacia Módulo 3).
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,50 +27,65 @@ Este caso de prueba verifica el flujo guiado de formalización de salida (Check-
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere backend Spring Boot y frontend en funcionamiento, base de datos PostgreSQL y broker RabbitMQ con los bindings hacia `m2.habitacion.checkout.queue` y `modulo3.checkout`.
+* Requiere base de datos PostgreSQL, broker RabbitMQ y servicios backend Spring Boot en marcha.
 
 ##### Dependencies & Assumptions
-* TC-003 Registrar check-in debe haber creado la estancia física activa (`Stay` con habitación en `Occupied`).
-* TC-004 Consultar liquidación debe estar operativo para la visualización del desglose financiero.
+* La habitación debe encontrarse en estado `Occupied` con estancia activa registrada.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 201 en estado Occupied con estancia activa registrada (`stayId`: UUID, reserva `RSV-3F9A1C7B`, titular Ana Pérez, huésped extranjero registrado).
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Usuario recepcionista autenticado; ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 101 en estado `Occupied` con reserva `RSV-HAB-101`.
+* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario de Recepción (`recepcionista`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Check-Out en fecha y liberación a limpieza)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar flujo desde el Panel de Recepción | En `/panel`, ir a la pestaña "Salidas", ubicar la estancia de la habitación 201 y hacer clic en el botón "Check-out" | Reserva: `RSV-3F9A1C7B`, Habitación: 201 | El sistema redirige a `/check-out?reservationRef=RSV-3F9A1C7B&roomId=...` cargando el paso "1. Información de la reserva y estadía" con los datos del titular, habitación 201 en estado Ocupada y la lista de huéspedes alojados | [ ] | [ ] |
-| 2 | Continuar a liquidación | En el paso 1, hacer clic en "Continuar" | Clic en "Continuar" | El wizard avanza al paso 2 consultando síncronamente `GET /api/stays/{stayId}/settlement` y muestra "Información de la liquidación" con desglose de comisión e ingreso neto | [ ] | [ ] |
-| 3 | Continuar a revisión de pago | En el paso 2, hacer clic en "Continuar" | Clic en "Continuar" | El wizard avanza al paso 3 "Revisión de pago" mostrando el total de hospedaje liquidado por M3 y la nota "La factura se emite al confirmar la salida." | [ ] | [ ] |
-| 4 | Continuar a confirmación | En el paso 3, hacer clic en "Continuar" | Clic en "Continuar" | El wizard avanza al paso "4. Confirmación de salida", mostrando el resumen de la habitación, fechas y la casilla obligatoria de confirmación | [ ] | [ ] |
-| 5 | Validar confirmación obligatoria | Marcar la casilla "Confirmo la entrega de la habitación y la salida física de todos los huéspedes" | Casilla marcada (`confirmed = true`) | El botón "Confirmar salida y liberar habitación" se habilita | [ ] | [ ] |
-| 6 | Confirmar salida física | Hacer clic en "Confirmar salida y liberar habitación" | Clic en botón de confirmación | Se cierra la estancia con `checkOutDate` = hoy, la habitación transiciona a `PendingCleaning`, se encolan las notificaciones hacia M2 y M3, y se despliega la pantalla "Check-out completado" con la leyenda: "La habitación 201 quedó en estado Pendiente de limpieza y ya está en la bandeja del personal de limpieza." | [ ] | [ ] |
-| 7 | Regresar al inicio | En la pantalla de éxito, hacer clic en "Volver al inicio" | Clic en "Volver al inicio" | El sistema navega a la vista principal y la habitación 201 ya no figura en la lista de salidas activas | [ ] | [ ] |
+| 1 | Iniciar sesión como recepcionista | Navegar a `/login` e ingresar credenciales | Usuario: `recepcionista` | Carga el Panel de Recepción en `/recepcion` | [ ] | |
+| 2 | Seleccionar pestaña Salidas | En `/recepcion`, hacer clic en la pestaña "Salidas" | Pestaña Salidas | Se listan las habitaciones ocupadas con salida programada | [ ] | |
+| 3 | Iniciar proceso de Check-out | Hacer clic en "Check-out" en la fila de la habitación 101 | Habitación 101 | Navega a `/check-out?reservationRef=RSV-HAB-101&roomId=a0000000-0000-0000-0000-000000000101` | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Errores, Validaciones y Rechazos
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de Check-Out sobre habitación no ocupada | Intentar ejecutar el flujo de Check-Out sobre una habitación que está en estado Available o Reserved | Habitación 101 (Available) | El paso 1 bloquea la operación mostrando: "La habitación está Disponible; solo se puede hacer el check-out de una habitación Ocupada." | [Pass] | Verificado por test automatizado (`CheckOutPage.test.tsx` y `CheckOutIntegrationTest`) |
-| 2 | Intento de Check-Out sin estancia activa asociada | Intentar consultar Check-Out con una referencia de reserva que no posee estancia activa abierta | Reserva sin estancia activa | El sistema responde mostrando: "No encontramos una estadía activa para esta habitación." | [Pass] | Verificado por test automatizado (`CheckOutPage.test.tsx` y `CheckOutIntegrationTest`) |
-| 3 | Intento de confirmación sin marcar casilla obligatoria | En el paso 4, intentar despachar la solicitud sin marcar la casilla de confirmación | `confirmed = false` | El botón de confirmación permanece deshabilitado en la interfaz y el intento directo produce el mensaje: "Marca la casilla para confirmar la salida del huésped." | [Pass] | Verificado por test automatizado (`CheckOutPage.test.tsx`) |
-| 4 | Salida en contingencia por indisponibilidad de Módulo 3 | Simular caída o timeout de Módulo 3 durante los pasos de liquidación/pago | Módulo 3 no responde | Se despliega el banner de contingencia advirtiendo que el servicio de facturación no respondió y permitiendo avanzar hasta el paso 4 para liberar la habitación a limpieza sin retener al huésped | [Pass] | Verificado por test automatizado (`CheckOutPage.test.tsx` y `CheckOutIntegrationTest`) |
+| 1 | Paso 1: Consultar reserva | Verificar los datos de la estancia activa precargados | Habitación 101 | Muestra número de habitación, titular y fechas; habilita "Continuar a liquidación" | [ ] | |
+| 2 | Paso 2: Liquidación | Revisar el resumen de cobro de hospedaje | Datos de liquidación | Se muestra desglose y se pulsa "Continuar a pago" | [ ] | |
+| 3 | Paso 3: Pago | Validar estado de pago | Pago confirmado | Se habilita botón "Continuar a confirmación" | [ ] | |
+| 4 | Paso 4: Confirmación | Revisar resumen final antes de liberar la habitación física | Resumen de cierre | Se muestra el botón "Confirmar Check-Out y liberar habitación" | [ ] | |
+| 5 | Confirmar salida física | Hacer clic en "Confirmar Check-Out y liberar habitación" | Confirmación | Se envía `POST /api/check-out`, la habitación pasa a `PendingCleaning` y se despliega `CheckOutSuccess` | [ ] | |
+| 6 | Paso 5: Pantalla de éxito (Check-out completado) | Visualizar tarjeta de confirmación de salida | Pantalla de éxito | Muestra título "Check-out completado", texto "La habitación 101 quedó en estado Pendiente de limpieza y ya está en la bandeja del personal de limpieza", badge y botón "Volver al inicio" | [ ] | |
+| 7 | Retorno a recepción | Hacer clic en "Volver al inicio" | Botón "Volver al inicio" | Redirige a `/recepcion`; la habitación 101 ya no figura en Salidas y aparece como Pendiente de limpieza en el sistema | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Habitación no se encuentra ocupada | Intentar abrir check-out sobre una habitación en `Available` o `InCleaning` | Habitación no `Occupied` | Mensaje de rechazo: "La habitación no está ocupada; no se puede registrar check-out." | [ ] | |
+| 2 | Estancia no encontrada | Ingresar referencia de reserva inexistente | Referencia no válida | Mensaje de error: "No se encontró una estancia activa para la habitación." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Consultar estancia activa para check-out | `GET {BASE_URL}/api/check-out/active-stay?reservationRef=RSV-HAB-101&roomId=a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User obligatorio) | Parámetros válidos | HTTP 200 OK con JSON `ActiveStayResponseDto` con datos locales de la estancia | [ ] | |
+| 2 | Registro exitoso de Check-Out | `POST {BASE_URL}/api/check-out`<br>Headers: `X-User: recepcionista`, `Content-Type: application/json`<br>Body: `{"reservationRef": "RSV-HAB-101", "roomId": "a0000000-0000-0000-0000-000000000101"}` | Datos válidos | HTTP 200 OK con JSON `CheckOutResultDto` conteniendo `stayId`, `roomNumber: "101"`, `roomStatus: "PendingCleaning"` | [ ] | |
+| 3 | Error por falta de X-User | `POST {BASE_URL}/api/check-out`<br>Headers: (sin X-User)<br>Body: `{"reservationRef": "RSV-HAB-101", "roomId": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
+| 4 | Error por campos obligatorios faltantes | `POST {BASE_URL}/api/check-out`<br>Headers: `X-User: recepcionista`<br>Body: `{"reservationRef": ""}` | Falta roomId | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [ ] | |
+| 5 | Error habitación no ocupada | `POST {BASE_URL}/api/check-out`<br>Headers: `X-User: recepcionista`<br>Body: `{"reservationRef": "RSV-HAB-102", "roomId": "a0000000-0000-0000-0000-000000000102"}` | Hab. en `Available` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está ocupada; no se puede registrar check-out." | [ ] | |
+| 6 | Error estancia activa no encontrada | `POST {BASE_URL}/api/check-out`<br>Headers: `X-User: recepcionista`<br>Body: `{"reservationRef": "RSV-INEXISTENTE", "roomId": "a0000000-0000-0000-0000-000000000101"}` | Referencia no registrada | HTTP 404 Not Found, `errorCode: "ACTIVE_STAY_NOT_FOUND"`, mensaje: "No se encontró una estancia activa para la habitación." | [ ] | |
+
+##### Sección E — Mensajería
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Emisión de aviso de Check-Out hacia Módulo 2 | Ejecutar `POST /api/check-out` exitoso | Check-Out confirmado | Outbox encola y publica en exchange `hospitua.events` con routing key `habitacion.checkout` hacia `m2.habitacion.checkout.queue` con `reservationRef`, `roomId`, `movementType: DEPARTURE`, `movementDate` y ocupantes | [ ] | |
+| 2 | Emisión de evento para facturación hacia Módulo 3 | Ejecutar `POST /api/check-out` exitoso | Check-Out confirmado | Outbox publica en exchange `hospitua.events` con routing key `facturacion.checkout` con `stayId`, `reservationRef`, `roomId`, `categoryRoom`, `checkInDate`, `checkOutDate` y `billingCustomer: { name, taxId }` | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Salida anticipada (Early Check-Out): la fecha de salida esperada era posterior a hoy; el sistema registra `checkOutDate` en el día actual y Módulo 3 liquida con el valor cotizado completo sin reducciones.
-* **EC-002** : Falla de red o caída de RabbitMQ al momento de confirmar: la transacción local se compromete (habitación pasa a `PendingCleaning`, `checkOutDate` registrado en base de datos) y las notificaciones a Módulo 2 y Módulo 3 se guardan en el outbox para reintento automático.
-* **EC-003** : Reutilización de datos migratorios para extranjeros: la notificación de salida hacia Módulo 2 recupera automáticamente la procedencia y el destino registrados en `RoomGuest` durante el Check-In, sin volver a pedirlos en pantalla.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Desacoplamiento de Módulo 3 durante el Check-Out: si Facturación no responde, el Check-Out físico no se bloquea; se completa la salida, la habitación pasa a limpieza y el evento de facturación queda en Outbox para reintento automático.
+* **EC-002 (API)** : Concurrencia de check-out: si dos usuarios intentan cerrar la misma estancia en simultáneo, el bloqueo pesimista garantiza que el segundo recibe `ROOM_INVALID_STATE` o `ACTIVE_STAY_NOT_FOUND`.
 
 #### Defect Severity Reference
 

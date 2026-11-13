@@ -1,110 +1,96 @@
-# Test Case: Programar Bloqueo Técnico para Habitación
+### Test Case Specification: Programar Bloqueo Técnico para Habitación
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-programar-bloqueo-tecnico-para-habitacion.md](../SPEC/spec-programar-bloqueo-tecnico-para-habitacion.md) / [plan-programar-bloqueo-tecnico-para-habitacion.md](../PLAN/plan-programar-bloqueo-tecnico-para-habitacion.md)  **Status** : Draft
 
-**Created**: 2026-11-07  
-**Spec/Plan Link**: [spec-programar-bloqueo-tecnico-para-habitacion.md](../SPEC/spec-programar-bloqueo-tecnico-para-habitacion.md) | [plan-programar-bloqueo-tecnico-para-habitacion.md](../PLAN/plan-programar-bloqueo-tecnico-para-habitacion.md)  
-**Status**: Draft  
+#### Test Overview
 
----
+**Test Case ID** : TC-015-ProgramarBloqueoTecnicoParaHabitacion
+**Product Name & Version** : Hospitua Módulo 1 v0.1
+**Author** : Equipo Módulo 1
+**Current Owner** : Por asignar
+**Priority** : P1 - Critical
 
-## Test Overview
+--------------------------------------------------------------------------------
 
-| Field | Value |
-| --- | --- |
-| **Test Case ID** | TC-016-ProgramarBloqueoTecnicoParaHabitacion |
-| **Product Name & Version** | Hospitua Módulo 1 v0.1 |
-| **Author** | Equipo Módulo 1 |
-| **Current Owner** | Por asignar |
-| **Execution Type** | Manual |
-| **Priority** | P1 |
+#### Objectives & Context
 
----
+##### Test Objectives
+Este caso de prueba verifica la programación de bloqueos técnicos para mantenimientos preventivos o correctivos (`POST /api/rooms/{roomId}/technical-blocks`), validando rangos de fechas (máximo 365 días), la consulta del informe actual (`GET /api/rooms/{roomId}/technical-blocks/current`), la verificación de conflictos de reservas con Módulo 2, la transición a TechnicalBlock si inicia hoy, y la publicación del aviso `habitacion.mantenimiento` hacia Módulo 2.
 
-## Test Objectives and Document References
+##### Document References
+| Reference Name | Type of Reference | Document Location / Link |
+| ------ | ------ | ------ |
+| Especificación de Programar Bloqueo Técnico | Specification Document | [documentos/SPEC/spec-programar-bloqueo-tecnico-para-habitacion.md](../SPEC/spec-programar-bloqueo-tecnico-para-habitacion.md) |
+| Plan de Implementación de Programar Bloqueo Técnico | Plan Document | [documentos/PLAN/plan-programar-bloqueo-tecnico-para-habitacion.md](../PLAN/plan-programar-bloqueo-tecnico-para-habitacion.md) |
 
-### Objectives
-Verificar la capacidad del personal de mantenimiento para programar bloqueos técnicos preventivos sobre habitaciones, validar los rangos de fechas y la justificación técnica, comprobar la inexistencia de conflictos con reservas y mantenimientos previos, aplicar el bloqueo de forma inmediata o autónoma según la fecha de inicio, y consultar el informe técnico correspondiente.
+--------------------------------------------------------------------------------
 
-### Document References
-| Document Type | Document Name & Link |
-| --- | --- |
-| Functional Specification | [spec-programar-bloqueo-tecnico-para-habitacion.md](../SPEC/spec-programar-bloqueo-tecnico-para-habitacion.md) |
-| Implementation Plan | [plan-programar-bloqueo-tecnico-para-habitacion.md](../PLAN/plan-programar-bloqueo-tecnico-para-habitacion.md) |
+#### Prerequisites & Environment
 
----
+##### Test Case Limitations
+* Requiere servicios backend Spring Boot, frontend React, base de datos PostgreSQL y broker RabbitMQ activos. El diálogo `ScheduleTechnicalBlockDialog.tsx` se encuentra implementado en el frontend.
 
-## Prerequisites and Test Environment
+##### Dependencies & Assumptions
+* Requiere comunicación con Módulo 2 para verificar disponibilidad de reservas en el rango de fechas programado.
 
-### Assumptions and Limitations
-- Requiere el sistema Hospitua Módulo 1 con sus servicios activos y la base de datos PostgreSQL inicializada con la semilla de habitaciones.
-- La pantalla `/mantenimiento` y los diálogos modales (`ScheduleTechnicalBlockDialog`, `TechnicalBlockViewDialog`) están completamente implementados en React y conectados al backend REST.
+##### Preconditions & Default Setup
+* **Initial State** : Habitación 105 en estado `Available` sin reservas en las fechas seleccionadas.
+* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Personal de Mantenimiento (`mtorres`); ver credenciales de pruebas del equipo.
 
-### Dependencies
-- TC-015-ConsultarPanelMantenimiento debe estar probado y operativo.
-- El servicio de consulta de reservas de Módulo 2 debe responder adecuadamente o tener mocks disponibles para las pruebas de conflicto.
+--------------------------------------------------------------------------------
 
-### Test Environment Requirements
-- Navegador web moderno con acceso a la aplicación Hospitua.
-- Base de datos con habitaciones en estado Disponible (101, 102), Ocupada (103 con huésped activo) y Fuera de Servicio/Inactiva (104).
+#### Test Execution Flow
 
-### Test Data and Accounts
-- Habitación "101" (Disponible, categoría Sencilla).
-- Habitación "102" (Disponible, categoría Sencilla).
-- Habitación "104" (Inactiva / Dada de baja).
-- Cuenta de usuario del área de Mantenimiento (ver credenciales de pruebas del equipo).
+##### Sección A — Cómo llegar a la pantalla (interfaz)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar sesión como personal de mantenimiento | Navegar a `/login`, ingresar credenciales de Mantenimiento | Usuario: `mtorres` | Carga el Panel de Mantenimiento en `/mantenimiento` | [ ] | |
+| 2 | Abrir diálogo de programación | En `/mantenimiento`, hacer clic en el botón "Programar mantenimiento" | Botón de acción | Se despliega en pantalla el diálogo modal `ScheduleTechnicalBlockDialog` | [ ] | |
 
----
+##### Sección B — Flujo principal en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Diligenciar formulario de bloqueo | Seleccionar habitación 105, fecha de inicio (mañana), fecha de fin estimada (en 3 días) y justificación: "Mantenimiento preventivo de aire acondicionado" | Habitación 105, rango futuro | Los campos se validan en tiempo real y habilitan el botón "Programar bloqueo" | [ ] | |
+| 2 | Confirmar programación | Hacer clic en "Programar bloqueo" y validar el diálogo de confirmación | Confirmación modal | Se envía `POST /api/rooms/{roomId}/technical-blocks`, se registra el informe en estado `Scheduled`, el diálogo se cierra y se presenta notificación de éxito | [ ] | |
+| 3 | Programar con inicio hoy | Programar un bloqueo para la habitación 105 con fecha de inicio hoy (habitación en `Available`) | Fecha de inicio: hoy | La habitación transiciona de inmediato a `TechnicalBlock`, el informe queda en estado `Applied` y se emite el aviso a Módulo 2 | [ ] | |
 
-## Test Execution Flow
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Justificación vacía | Dejar el campo de justificación vacío | Justificación en blanco | Alerta en el formulario: "Ingresa la justificación del bloqueo técnico." | [ ] | |
+| 2 | Fecha inicio posterior a fin | Seleccionar fecha de inicio posterior a la fecha de fin | Fechas invertidas | Mensaje de error: "La fecha inicial no puede ser posterior a la fecha final." | [ ] | |
+| 3 | Fecha en el pasado | Ingresar una fecha de inicio anterior a la fecha actual del sistema | Fecha de ayer | Mensaje de error: "La fecha inicial no puede ser anterior a hoy." | [ ] | |
+| 4 | Conflicto con reservas en Módulo 2 | Programar sobre una habitación y fechas con reservas confirmadas | Fechas con reserva | Mensaje de rechazo: "La habitación tiene reservas confirmadas en las fechas seleccionadas." | [ ] | |
+| 5 | Solapamiento con otro mantenimiento | Programar sobre un rango que coincide con otro informe técnico | Rango solapado | Mensaje de conflicto: "La habitación ya tiene un mantenimiento programado en ese rango de fechas." | [ ] | |
+| 6 | Caída de Módulo 2 | Intentar programar con el servicio de Módulo 2 no disponible | Módulo 2 apagado | Mensaje de alerta: "No fue posible verificar las reservas de la habitación con el módulo de reservas. Intenta más tarde." | [ ] | |
 
-### Section 1: Flujo Principal - Programación con Inicio Hoy y Consulta de Informe
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Programar bloqueo futuro exitoso | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres`, `Content-Type: application/json`<br>Body: `{"startDate": "2026-11-20", "estimatedEndDate": "2026-11-23", "reason": "Pintura general"}` | Rango futuro válido | HTTP 201 Created con JSON `TechnicalBlockCreatedDto` conteniendo `technicalBlockId`, `status: "SCHEDULED"`, `startDate: "2026-11-20"` | [ ] | |
+| 2 | Programar bloqueo con inicio hoy | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres`<br>Body: `{"startDate": "2026-11-12", "estimatedEndDate": "2026-11-15", "reason": "Reparación urgente"}` | Inicio hoy, hab. Available | HTTP 201 Created con `{ "technicalBlockId": "...", "status": "APPLIED", "roomStatus": "TechnicalBlock" }` | [ ] | |
+| 3 | Consulta de bloqueo activo actual | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks/current`<br>Headers: (sin X-User obligatorio) | Hab. con bloqueo | HTTP 200 OK con JSON `TechnicalBlockViewDto` conteniendo detalle del informe | [ ] | |
+| 4 | Error sin encabezado X-User | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: (sin X-User) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [ ] | |
+| 5 | Error por fechas inválidas | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres`<br>Body: `{"startDate": "2026-11-25", "estimatedEndDate": "2026-11-20", "reason": "Revisión"}` | Fechas invertidas | HTTP 400 Bad Request, `errorCode: "INVALID_DATE_RANGE"` | [ ] | |
+| 6 | Error por conflicto de reservas | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres`<br>Body: `{"startDate": "2026-11-15", "estimatedEndDate": "2026-11-18", "reason": "Mantenimiento"}` | Con reservas en M2 | HTTP 409 Conflict, `errorCode: "RESERVATION_CONFLICT"` | [ ] | |
+| 7 | Error por solapamiento técnico | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres`<br>Body: (mismo rango de informe previo) | Rango solapado | HTTP 409 Conflict, `errorCode: "MAINTENANCE_CONFLICT"` | [ ] | |
+| 8 | Error por caída de Módulo 2 | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/technical-blocks`<br>Headers: `X-User: mtorres` | M2 caído | HTTP 424 Failed Dependency, `errorCode: "MODULE_2_UNAVAILABLE"` | [ ] | |
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Iniciar sesión como personal de mantenimiento y acceder al panel | Pantalla de inicio de sesión > Acceder al Panel de Mantenimiento `/mantenimiento` | Usuario de mantenimiento | Se visualiza el panel de mantenimiento con el listado de habitaciones operativas y sus estados. | [ ] | |
-| 2 | Abrir diálogo de programación para habitación disponible | Panel de Mantenimiento > Fila de la habitación 101 > Clic en botón "Programar mantenimiento" | Habitación 101 | Se abre la ventana modal "Programar bloqueo técnico" mostrando el número de habitación 101 y los campos: justificación técnica, fecha de inicio y fecha estimada de fin. | [ ] | |
-| 3 | Diligenciar datos con inicio hoy y confirmar programación | Modal "Programar bloqueo técnico" > Ingresar justificación y fechas > Clic en "Confirmar programación" | Justificación: "Cambio preventivo de unidad de aire acondicionado", Fecha inicio: fecha actual de hoy (DD-MM-YYYY), Fecha fin estimada: fecha de mañana (DD-MM-YYYY) | El sistema valida que no existan conflictos de reservas ni de mantenimientos, registra el informe de bloqueo en estado `Applied`, transiciona la habitación 101 a "Bloqueo Técnico" (`TechnicalBlock`) y muestra mensaje de confirmación de programación exitosa. | [ ] | |
-| 4 | Verificar actualización de estado en el panel de mantenimiento | Panel de Mantenimiento `/mantenimiento` | Habitación 101 | La habitación 101 figura con estado "Bloqueo Técnico" con badge rojo/ámbar y se habilitan los botones "Ver informe" e "Iniciar reparaciones". | [ ] | |
-| 5 | Consultar el informe de bloqueo técnico recién creado | Panel de Mantenimiento > Fila habitación 101 > Clic en botón "Ver informe" | Habitación 101 | Se despliega el diálogo "Informe de Mantenimiento" mostrando la justificación "Cambio preventivo de unidad de aire acondicionado", el nombre del responsable, el rango de fechas programado y la marca de tiempo de registro. | [ ] | |
+##### Sección E — Mensajería
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Emisión de aviso por bloqueo técnico programado | Programar bloqueo técnico exitosamente | Habitación 105 | Outbox publica mensaje en exchange `hospitua.events` con routing key `habitacion.mantenimiento` hacia `m2.habitacion.mantenimiento.queue` notificando las fechas del mantenimiento a Módulo 2 | [ ] | |
 
-### Section 2: Programación con Inicio Futuro y Aplicación Autónoma
+--------------------------------------------------------------------------------
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6 | Abrir programación para fecha futura | Panel de Mantenimiento > Fila de la habitación 102 > Clic en "Programar mantenimiento" | Habitación 102 | Se abre el modal "Programar bloqueo técnico" para la habitación 102. | [ ] | |
-| 7 | Registrar programación futura | Modal "Programar bloqueo técnico" > Ingresar justificación y fechas futuras > Clic en "Confirmar programación" | Justificación: "Pintura general y cambio de grifería", Fecha inicio: hoy + 5 días, Fecha fin estimada: hoy + 7 días | El sistema valida fechas y ausencia de conflictos, registra el informe en estado `Scheduled`, mantiene la habitación 102 en estado "Disponible", y muestra en el panel el rango programado (ej. "Mantenimiento: DD/MM - DD/MM"). | [ ] | |
-| 8 | Verificar aviso y no alteración inmediata de estado | Panel de Mantenimiento `/mantenimiento` | Habitación 102 | La habitación permanece en estado "Disponible", no se crea registro de cambio de estado en el historial, y queda lista para ser bloqueada automáticamente al llegar la fecha de inicio. | [ ] | |
+##### Edge Cases & Boundary Conditions
+* **EC-001 (API)** : Programación en el límite de 365 días: programar un bloqueo a 365 días debe ser aceptado; a 366 días debe ser rechazado con HTTP 400 `INVALID_DATE_RANGE`.
+* **EC-002 (Interfaz)** : Cancelación defensiva del modal: presionar Escape o cerrar el modal con texto en justificación solicita confirmación antes de perder los datos.
 
-### Section 3: Validaciones, Rechazos y Manejo de Conflictos
+#### Defect Severity Reference
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 9 | Intentar programar con justificación vacía | Modal "Programar bloqueo técnico" > Dejar justificación vacía > Intentar confirmar | Justificación: "" (vacía), Fechas válidas | El sistema bloquea el envío y muestra el mensaje de validación: "Escribe el motivo del mantenimiento (máximo 500 caracteres)." | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockDialog.test.tsx`) |
-| 10 | Intentar programar con fecha de fin anterior a la de inicio | Modal "Programar bloqueo técnico" > Fechas invertidas > Clic en confirmar | Fecha inicio: hoy + 5 días, Fecha fin: hoy + 2 días | El sistema bloquea la confirmación y muestra el mensaje: "La fecha de fin no puede ser anterior a la fecha de inicio." | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockDialog.test.tsx` y `ScheduleTechnicalBlockIntegrationTest`) |
-| 11 | Intentar programar con fecha de inicio en el pasado | Modal "Programar bloqueo técnico" > Fecha inicio pasada > Clic en confirmar | Fecha inicio: ayer, Fecha fin: hoy + 2 días | El sistema bloquea la operación y muestra el mensaje de regla temporal indicando que la fecha de inicio no puede ser anterior a hoy. | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockDialog.test.tsx` y `ScheduleTechnicalBlockIntegrationTest`) |
-| 12 | Intentar programar con conflicto de reserva activa en Módulo 2 | Modal "Programar bloqueo técnico" > Habitación con reserva confirmada en las fechas elegidas > Clic en confirmar | Habitación y fechas con reserva existente (ej. RES-10502) | El sistema rechaza la programación y presenta el mensaje: "La habitación tiene reservas en esas fechas. Habla con Reservas o elige otras fechas." junto con el detalle de la reserva en conflicto. | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| 13 | Intentar programar con conflicto de mantenimiento existente | Modal "Programar bloqueo técnico" > Rango solapado con el mantenimiento de la habitación 102 | Rango solapado con hoy + 5 días a hoy + 7 días | El sistema rechaza la operación y muestra el mensaje: "Ya hay un mantenimiento programado o en curso del [inicio] al [fin]. Elige otras fechas." | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| 14 | Intentar programar mantenimiento en habitación dada de baja | Intentar programar sobre habitación 104 (Inactiva) | Habitación 104 (`Inactive`) | El sistema rechaza la solicitud indicando: "La habitación está dada de baja; no se puede programar mantenimiento." | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-
----
-
-## Edge Cases & Boundary Conditions
-
-| Case # | Description | Preconditions | Inputs / Actions | Expected Results | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| EC-001 | Rango de un solo día (inicio igual a fin) | Habitación disponible sin cruces | Fecha inicio: hoy + 3 días, Fecha fin: hoy + 3 días | El sistema acepta la programación correctamente (duración mínima permitida de un día). | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| EC-002 | Programación que excede el límite máximo de duración (más de 90 días) | Habitación disponible | Fecha inicio: hoy + 1 día, Fecha fin: hoy + 95 días | El sistema rechaza la operación indicando que el rango excede la duración máxima permitida. | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| EC-003 | Programación con antelación superior a 365 días | Habitación disponible | Fecha inicio: hoy + 400 días | El sistema rechaza la operación indicando que la fecha supera la antelación máxima permitida. | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| EC-004 | Caída o indisponibilidad de Módulo 2 al consultar reservas | Módulo 2 no responde o genera timeout | Intentar programar mantenimiento | El sistema no registra la programación, mantiene la habitación intacta y muestra: "Servicio de reservas temporalmente no disponible. No se programó el mantenimiento; inténtalo de nuevo." | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-| EC-005 | Peticiones simultáneas con solapamiento sobre la misma habitación | Dos sesiones intentando programar en el mismo rango | Confirmación concurrente | Solo la primera solicitud se procesa; la segunda recibe conflicto de mantenimiento. | [Pass] | Verificado por test automatizado (`ScheduleTechnicalBlockIntegrationTest`) |
-
----
-
-## Defect Severity Reference
-
-| Severity | Description | Examples |
-| --- | --- | --- |
-| **Critical (P1)** | Impide la operación total de una función básica, causa pérdida o corrupción de datos sin solución alternativa inmediata. | No se bloquea la habitación, se permite solapar mantenimientos con reservas activas. |
-| **Major (P2)** | Falla mayor en una funcionalidad relevante con solución temporal disponible pero no ideal. | El informe técnico no se despliega en modal aunque el registro en base de datos exista. |
-| **Moderate (P3)** | Defecto que afecta un flujo secundario o una validación no crítica. | Mensaje de validación de fechas desalineado o formato visual de fecha confuso. |
-| **Minor (P4)** | Inconsistencias estéticas menores o errores tipográficos en etiquetas que no impiden la comprensión. | Error tipográfico en el encabezado del diálogo de informe técnico. |
-
+| Severity Level | Code | Definition & Impact |
+| ------ | :---: | ------ |
+| **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
+| **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
+| **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |

@@ -1,403 +1,392 @@
 # Necesidades de Revisión y Pruebas Manuales — Hospitua Módulo 1
 
 ## 1. Resumen Ejecutivo
-Se han generado y actualizado los 23 documentos formales de casos de prueba en `documentos/TEST/` cubriendo el 100% de los casos de uso especificados para el Módulo 1 (Gestión de Habitaciones, Check-in y Check-out).
-Con la reciente actualización del frontend, todas las áreas (Recepción, Limpieza, Mantenimiento, Administración, Gerencia y Gestión de Personal) se encuentran completamente implementadas en React con el 100% de sus pruebas unitarias y de integración pasando (37 suites de pruebas, 256 tests en Vitest).
-Los puntos de revisión manual se centran ahora en la validación funcional en navegador con servicios reales en marcha, la interacción con módulos externos simulados (Módulo 2 de Reservas y Módulo 3 de Facturación), la concurrencia entre navegadores y la experiencia de usuario.
+Se verificaron y corrigieron los **23 documentos formales de casos de prueba** del Módulo 1 en `documentos/TEST/` con un total de **378 pasos** (221 de interfaz gráfica, 142 de API REST y 15 de mensajería asíncrona en RabbitMQ), eliminando artefactos inventados y alineando endpoints, parámetros, routing keys y códigos de error con el código real y el plan base.
+En total se identificaron **41 puntos concretos que requieren revisión manual** en navegador y clientes REST por parte del equipo de QA.
+Estos puntos se concentran en validar la resiliencia ante caídas de Módulo 2 y Módulo 3, concurrencia física entre operarios, comportamiento de modales y la verificación de colas en RabbitMQ.
 
 ---
 
 ## 2. Detalle por Caso de Prueba
 
 ### 2.1. TC-001: Consultar Reservas (`test-consultar-reservas.md`)
-- **Verificado contra el código**:
-  - DTOs y adaptadores de integración en `backend/src/main/java/com/hospitua/habitaciones/domain/model/` y `infrastructure/adapters/out/external/`.
-  - Mecanismos de cache local e ingesta programada a las 00:00 (America/Bogota).
-  - Manejo de excepciones `ExternalModule2UnavailableException` (`MODULE_2_UNAVAILABLE`).
-- **Requiere revisión manual**:
-  - Probar la respuesta de la interfaz de recepción cuando el simulador o servicio de Módulo 2 está apagado o responde con timeout (> 3 s).
-  - Verificar visualmente que las reservas canceladas no figuren en la pestaña de llegadas de hoy.
-  - Comprobar la sincronización manual vía botón de refresco y el tiempo de respuesta.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna discrepancia funcional en la lógica de dominio; Módulo 2 es un servicio mockeado en desarrollo local.
-- **Datos o cuentas a preparar**:
-  - Cuenta con rol de Recepción.
-  - Cargar en el simulador de Módulo 2: 1 reserva para hoy (sin check-in), 1 reserva cancelada para hoy, 1 reserva futura (mañana) y 1 reserva con check-in ya registrado.
+* **Verificado contra el código**:
+  * Ingesta asíncrona mediante `DailyReservationRabbitListener` consumiendo de la cola durable `m1.reservas.diarias.queue` vinculada a `hospitua.events` con routing keys `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion`.
+  * Consulta local de llegadas del día vía `GET /api/reception/arrivals` sobre la tabla `daily_reservation` (sin llamadas REST a Módulo 2 en tiempo de carga).
+  * Adaptador REST `Module2ReservationConflictRestAdapter` consumiendo `GET /api/reservations` de Módulo 2 para verificación de conflictos; captura de fallos con `ExternalModule2UnavailableException` (HTTP 424 `MODULE_2_UNAVAILABLE`).
+* **Requiere revisión manual**:
+  1. Detener el simulador/mock de Módulo 2 durante la programación de un bloqueo o baja y verificar que la interfaz presenta el mensaje: *"No fue posible verificar las reservas de la habitación con el módulo de reservas. Intenta más tarde."*
+  2. Publicar manualmente en RabbitMQ un mensaje con formato JSON inválido en `m1.reservas.diarias.queue` y verificar en la consola de RabbitMQ que es enrutado al Dead-Letter Exchange `hospitua.events.dlx` y depositado en `m1.reservas.diarias.dlq`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * En el panel de recepción, las llegadas se leen de la tabla local `daily_reservation` y no invocan a Módulo 2 en tiempo real. Módulo 2 solo es invocado internamente por adaptadores REST al verificar conflictos de reservas para bloqueos técnicos y bajas. `GET /api/reception/arrivals` no requiere encabezado `X-User`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * RabbitMQ activo, mock de Módulo 2 en puerto configurado, usuario de Recepción (`recepcionista`).
 
 ---
 
 ### 2.2. TC-002: Consultar Panel de Recepción (`test-consultar-panel-recepcion.md`)
-- **Verificado contra el código**:
-  - Componente React `frontend/src/pages/panel/ReceptionPanel.tsx` y hooks de React Query.
-  - Pestañas de Llegadas de hoy y Salidas de hoy con contadores numéricos en tiempo real.
-  - Alertas visuales para habitaciones no disponibles al momento de la llegada (en limpieza, mantenimiento o inhabilitadas).
-- **Requiere revisión manual**:
-  - Comprobar el refresco automático o invalidación de cache al completar un check-in o check-out desde otra pestaña del navegador.
-  - Revisar el diseño responsive de la tabla y los badges de estado en pantallas de baja resolución (tablets de recepción).
-- **Diferencias entre el spec y el sistema**:
-  - Mensaje de lista vacía en llegadas: en el frontend es `"No hay reservas de llegada que mostrar."` mientras que en el texto inicial del spec figuraba `"No hay reservas que mostrar."`.
-- **Datos o cuentas a preparar**:
-  - Cuenta de usuario del área de Recepción.
-  - Al menos 3 reservas del día de hoy cargadas (una con habitación Disponible, una con habitación en Limpieza y una con habitación Fuera de Servicio).
+* **Verificado contra el código**:
+  * Endpoints REST desacoplados: `GET /api/reception/arrivals` (llegadas pendientes), `GET /api/reception/departures` (salidas de hoy y vencidas) y `GET /api/reception/panel/kpis` (contadores del turno: `arrivalsToday`, `activeStays`, `departuresToday`, `pendingCheckIns`).
+  * Validación de longitud máxima de 100 caracteres en parámetro `query` con HTTP 400 `VALIDATION_ERROR`.
+  * Lectura exclusiva desde persistencia local (`daily_reservation`, `stay`) sin encabezado `X-User` obligatorio.
+* **Requiere revisión manual**:
+  1. Comprobar que en la pestaña Salidas, las estancias vencidas (fecha de salida previa a hoy) se ordenan visualmente de forma prioritaria sobre las salidas programadas para el día.
+  2. Verificar que al escribir más de 100 caracteres en el buscador de Llegadas o Salidas, la interfaz valida la longitud e impide la consulta con error de validación.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El backend expone tres endpoints independientes (`/arrivals`, `/departures`, `/panel/kpis`) en lugar de un único endpoint consolidado `/panel` con parámetro de pestaña. Ninguno de estos endpoints requiere `X-User`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Semilla de reservas cargada en `daily_reservation` y al menos una estancia activa con fecha vencida en `stay`. Cuenta de recepción (`recepcionista`).
 
 ---
 
 ### 2.3. TC-003: Registrar Check-In (`test-registrar-check-in.md`)
-- **Verificado contra el código**:
-  - Controlador backend `StayController.java` (`POST /api/stays/checkin`) y servicio de aplicación.
-  - Componente frontend `frontend/src/pages/checkin/CheckInPage.tsx` con su modal de confirmación y comprobación de habitación asignada.
-  - Transición atómica de la habitación a estado Ocupada (`Occupied`) y registro en `room_state_history`.
-- **Requiere revisión manual**:
-  - Probar la validación de fecha/hora si se intenta hacer check-in antes de la hora oficial (antes de las 15:00) y verificar si el sistema solicita confirmación o lo admite.
-  - Verificar el comportamiento visual del modal de confirmación y el bloqueo del botón "Confirmar check-in" para evitar doble clic.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna en la lógica central de negocio; coincidencia total en los mensajes de validación y estados.
-- **Datos o cuentas a preparar**:
-  - Cuenta de usuario de Recepción.
-  - Habitación "101" en estado Disponible con reserva asignada para hoy.
-  - Habitación "102" en estado En Limpieza con reserva asignada para hoy (para prueba de rechazo).
+* **Verificado contra el código**:
+  * Flujo wizard de 4 pasos en frontend (`CheckInPage.tsx`): 1. Validar reserva, 2. Datos de huéspedes, 3. Confirmación, 4. Check-In (éxito `CheckInSuccess`).
+  * Validación previa sin llamadas a M2 vía `GET /api/check-in/validate?reservationRef={ref}&roomId={uuid}`.
+  * Mutación atómica vía `POST /api/check-in` con `X-User: {username}`, creación de `Stay`, `RoomGuest`, cambio a `Occupied` y registro en `outbox_notification`.
+  * Despacho por Outbox hacia exchange `hospitua.events` con routing key `habitacion.checkin` hacia la cola `m2.habitacion.checkin.queue` con `CheckInMessagePayload` plano.
+* **Requiere revisión manual**:
+  1. Abrir el proceso de Check-in para la misma habitación en dos navegadores diferentes e intentar confirmar casi al mismo tiempo; verificar que una sesión confirma exitosamente y la otra recibe HTTP 409 `ROOM_INVALID_STATE` con aviso en pantalla.
+  2. Probar el registro intentando ingresar 2 huéspedes en la habitación 101 (sencilla, capacidad máxima: 1) y comprobar el rechazo con HTTP 400 `ROOM_CAPACITY_EXCEEDED`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * No existe "firma de aceptación" física o digital en el paso de confirmación; el paso 3 es una confirmación de resumen operativo. La cola de salida hacia Módulo 2 es `m2.habitacion.checkin.queue` con routing key `habitacion.checkin` (no `reserva.check-in-registrado`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación 101 en estado `Reserved` vinculada a `RSV-HAB-101`. Cuenta de recepción (`recepcionista`).
 
 ---
 
 ### 2.4. TC-004: Consultar Liquidación (`test-consultar-liquidacion.md`)
-- **Verificado contra el código**:
-  - Adaptador de llamada a Módulo 3 (Facturación) y DTOs de liquidación en backend.
-  - Pantalla frontend de Check-out (`CheckOutPage.tsx`) que integra el resumen de consumos, saldo pendiente y desglose de cobros.
-- **Requiere revisión manual**:
-  - Comprobar la visualización del spinner de carga mientras se consulta Módulo 3 y el mensaje de error exacto cuando el servicio externo de facturación no responde.
-  - Verificar el redondeo y formateo de valores monetarios en moneda colombiana (COP) con separadores de miles.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Estancia activa con consumos liquidados en cero ($0 saldo pendiente).
-  - Estancia activa con consumos pendientes de pago (saldo > $0) para validar el bloqueo de check-out.
+* **Verificado contra el código**:
+  * Endpoint REST `GET /api/stays/{stayId}/settlement` implementado en `SettlementController` con encabezado `Cache-Control: no-store`.
+  * Módulo 1 consulta al Módulo 3 a través de `BillingClientPort` y traslada los montos intactos (`lodgingAmount`, comisiones OTA e ingreso neto). Módulo 1 no calcula impuestos localmente.
+  * Ante indisponibilidad de Módulo 3, el endpoint responde HTTP 200 OK con `{ "status": "UNAVAILABLE", "unavailableCause": "No fue posible conectar con Facturación." }`.
+* **Requiere revisión manual**:
+  1. Apagar el simulador de Facturación (Módulo 3) y verificar que en el paso de liquidación de Check-out la pantalla muestra el aviso de contingencia permitiendo continuar sin bloquear la salida física.
+  2. Verificar visualmente el formato monetario de los montos de hospedaje en pantalla.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * La ruta real del endpoint es `GET /api/stays/{stayId}/settlement` (no `/api/billing/settlement/{stayId}`). M1 no calcula impuestos. Cuando Módulo 3 no responde, el endpoint retorna HTTP 200 con `status: "UNAVAILABLE"`, no un HTTP 424.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Estancia activa en `stay` con habitación en `Occupied`.
 
 ---
 
 ### 2.5. TC-005: Registrar Check-Out (`test-registrar-check-out.md`)
-- **Verificado contra el código**:
-  - Endpoint `POST /api/stays/checkout` en `StayController.java`.
-  - Frontend `frontend/src/pages/checkout/CheckOutPage.tsx` con verificación previa de liquidación saldada.
-  - Cierre del registro de estancia, paso automático de la habitación a `PendingCleaning` y aviso asíncrono a Módulo 3.
-- **Requiere revisión manual**:
-  - Simular el escenario de checkout tardío (después de las 13:00) y verificar si se informa al recepcionista sobre posibles recargos.
-  - Verificar que tras confirmar el check-out, la habitación figure inmediatamente en el panel de limpieza como "Pendiente de limpieza".
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Recepción.
-  - Habitación "101" en estado Ocupada con salida programada para hoy y cuenta saldada.
+* **Verificado contra el código**:
+  * Consulta de estancia activa local vía `GET /api/check-out/active-stay?reservationRef={ref}&roomId={uuid}`.
+  * Formalización de salida vía `POST /api/check-out` con `X-User: {username}` y body `{"reservationRef": "...", "roomId": "..."}`.
+  * Cierre de estancia, transición de `Occupied` a `PendingCleaning` y registro de dos mensajes en Outbox:
+    1. Routing key `habitacion.checkout` hacia `m2.habitacion.checkout.queue`.
+    2. Routing key `facturacion.checkout` en `hospitua.events` hacia Módulo 3.
+  * Pantalla de éxito `CheckOutSuccess` con aviso de liberación a limpieza y botón "Volver al inicio".
+* **Requiere revisión manual**:
+  1. Ejecutar el check-out y verificar en el Panel de Limpieza (`/limpieza`) que la tarjeta de la habitación liberada aparece de inmediato en estado `PendingCleaning`.
+  2. Inspeccionar en la cola de RabbitMQ que se emitieron los dos mensajes con sus routing keys correspondientes (`habitacion.checkout` y `facturacion.checkout`).
+* **Diferencias entre el spec o el plan y el sistema**:
+  * En la pantalla de éxito (`CheckOutSuccess`), no existe botón ni acción de imprimir comprobante; solo se informa que la habitación pasó a limpieza y se ofrece el enlace de retorno a recepción. No existe routing key `habitacion.pendiente-a-limpieza` en RabbitMQ (el cambio es local).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación ocupada con estancia activa. Cuenta de recepcionista (`recepcionista`).
 
 ---
 
 ### 2.6. TC-006: Consultar Tarifa Base (`test-consultar-tarifa-base.md`)
-- **Verificado contra el código**:
-  - Endpoint público/interno `GET /api/rooms/{roomId}/base-rate` y DTOs asociados.
-  - Almacenamiento del campo `baseRate` con tipo `NUMERIC(12,2)` en tabla `room`.
-- **Requiere revisión manual**:
-  - Verificar la consulta para todas las categorías de habitaciones (Sencilla, Doble, Suite, Boutique) asegurando que no se expongan datos sensibles del hotel.
-  - Probar tiempos de respuesta concurrentes desde herramientas de prueba de carga simulando llamadas masivas del motor de reservas.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Habitaciones semilla 101, 103, 105, 205 con sus tarifas predeterminadas.
+* **Verificado contra el código**:
+  * Endpoint REST único `GET /api/rooms/{roomId}/base-rate` con parámetro opcional `date=YYYY-MM-DD`.
+  * Integración intermódulo para Módulo 3: no requiere encabezado `X-User`.
+  * Respuesta serializada con `roomId`, `roomNumber`, `categoryRoom`, `baseRate` (con precisión decimal) y `effectiveDate`.
+* **Requiere revisión manual**:
+  1. Invocar el endpoint mediante Postman o cURL con un UUID inexistente y comprobar la respuesta HTTP 404 Not Found con `errorCode: "ROOM_NOT_FOUND"`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El endpoint solo consulta por `roomId` (`GET /api/rooms/{roomId}/base-rate`); no existe endpoint de consulta de tarifa base agrupada por categoría (`GET /api/categories/{category}/base-rate`). No requiere `X-User`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Semilla V2 cargada con habitaciones en diversos pisos.
 
 ---
 
-### 2.7. TC-007: Marcar Habitación Reservada (`test-marcar-habitacion-reservada.md`)
-- **Verificado contra el código**:
-  - Transición de la máquina de estados `Available -> Reserved` gatillada por la ingesta diaria de reservas a las 00:00 o asignación anticipada.
-  - Registro de auditoría en `room_state_history` con actor nulo ("Sistema") o recepcionista.
-- **Requiere revisión manual**:
-  - Validar la actualización visual del badge de estado en el panel de recepción de "Disponible" a "Reservada".
-  - Probar la restricción que impide marcar como reservada una habitación que se encuentra en limpieza o mantenimiento.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Habitación 101 en estado Disponible.
-  - Evento de reserva con llegada prevista para el día en curso.
+### 2.7. TC-007: Marcar Habitación como Reservada (`test-marcar-habitacion-reservada.md`)
+* **Verificado contra el código**:
+  * Ingesta por RabbitMQ en `m1.reservas.diarias.queue` procesando `reserva.lista-del-dia` y `reserva.lista-del-dia.actualizacion` con `action: "ADDED"`.
+  * Transición atómica de `Available` a `Reserved`, asignación de `reservedByReservationRef` y registro en `room_state_history` con `sourceFlow: "ASSIGN_RESERVATION"`.
+  * Idempotencia comprobada contra `daily_reservation_message_log`.
+* **Requiere revisión manual**:
+  1. Publicar un mensaje `reserva.lista-del-dia.actualizacion` con acción `ADDED` para la habitación 103 y verificar en `/administracion/inventario` que el badge cambia inmediatamente a "Reservada".
+  2. Reenviar el mismo mensaje y verificar en base de datos que no se duplica la fila en `room_state_history`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Módulo 1 no emite ningún mensaje hacia RabbitMQ al reservar una habitación; el apartado es un proceso interno consumidor.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación 103 en estado `Available`. RabbitMQ activo.
 
 ---
 
 ### 2.8. TC-008: Marcar Habitación como Disponible (`test-marcar-habitacion-como-disponible.md`)
-- **Verificado contra el código**:
-  - Transición desde `Reserved -> Available` (por cancelación o no-show) o desde `Inactive -> Available` (reactivación administrativa en `ReactivationPage.tsx`).
-- **Requiere revisión manual**:
-  - Probar en pantalla la reactivación administrativa de una habitación dada de baja en `/administracion/habitaciones/{id}/reactivacion`.
-  - Comprobar que una habitación liberada por no-show se refleje inmediatamente en el inventario disponible.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Habitación 104 (Inactiva en la semilla V2).
-  - Habitación en estado Reservada cuya reserva haya sido cancelada.
+* **Verificado contra el código**:
+  * Transición a `Available` disparada por: cancelación en lista diaria (`REMOVED`), fin de limpieza ordinaria sin reserva para hoy, o reactivación administrativa vía `POST /api/rooms/{roomId}/reactivation`.
+  * Endpoint `GET /api/rooms/{roomId}/decommission` para consultar la baja antes de reactivar.
+* **Requiere revisión manual**:
+  1. En `/administracion/inventario`, filtrar por "Inactiva", seleccionar la habitación 104, navegar a `/reactivacion`, diligenciar justificación y pulsar reactivar; comprobar que retorna a estado "Disponible".
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Sin diferencias.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación 104 en estado `Inactive` (semilla V2). Cuenta de Administrador (`admin`).
 
 ---
 
 ### 2.9. TC-009: Marcar Pendiente a Limpieza (`test-marcar-pendiente-a-limpieza.md`)
-- **Verificado contra el código**:
-  - Transición originada al confirmar check-out (`Occupied -> PendingCleaning`) o al finalizar una reparación correctiva (`DisabledForRepairs -> PendingCleaning`).
-  - Creación de registro en la tabla de asignaciones de limpieza (`V3__cleaning_maintenance_schema.sql`).
-  - Pantalla React `CleaningPanelPage.tsx` (`/limpieza`) con resumen de pendientes y disponibles.
-- **Requiere revisión manual**:
-  - Comprobar que la habitación aparezca automáticamente en la lista de tareas del personal de limpieza sin necesidad de recargar la página.
-  - Verificar visualmente la prioridad alta asignada a habitaciones con llegada prevista para el mismo día ("Check-out con llegada hoy").
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Habitación ocupada lista para check-out.
-  - Cuenta de personal de Limpieza.
+* **Verificado contra el código**:
+  * Transición de dominio autónoma disparada por `POST /api/check-out` (`Occupied` → `PendingCleaning`) o `POST /api/maintenance/tasks/{taskId}/complete` (`DisabledForRepairs`/`TechnicalBlock` → `PendingCleaning`).
+  * Inserción automática en `room_state_history`.
+* **Requiere revisión manual**:
+  1. Completar un Check-Out desde recepción y verificar en el Panel de Limpieza (`/limpieza`) que la habitación ingresa inmediatamente en la lista de pendientes.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * No existe endpoint directo ni evento de RabbitMQ para esta transición; es un cambio de estado interno en la misma transacción que el check-out o fin de reparación.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación ocupada o en reparación.
 
 ---
 
 ### 2.10. TC-010: Marcar Habitación en Limpieza (`test-marcar-habitacion-en-limpieza.md`)
-- **Verificado contra el código**:
-  - Lógica de asignación y bloqueo de concurrencia: al hacer clic en "Iniciar limpieza", se despliega el modal `ConfirmDialog` y la tarea se autoasigna al usuario en sesión impidiendo que otro camarero la tome.
-  - Transición a `InCleaning` en `room_state_history` y redirección automática a `/limpieza/tarea` (`ActiveCleaningTaskPage.tsx`).
-- **Requiere revisión manual**:
-  - Probar concurrencia real abriendo dos navegadores con usuarios de limpieza distintos e intentar iniciar la limpieza de la misma habitación al mismo tiempo.
-  - Verificar que el botón "Iniciar limpieza" cambie de estado a "En curso" deshabilitando la acción para otros miembros.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Dos cuentas de usuario del área de Limpieza.
-  - Habitación en estado `PendingCleaning`.
+* **Verificado contra el código**:
+  * Endpoint `POST /api/cleaning/tasks` con `X-User: {username}` y body `{"roomId": "..."}`.
+  * Creación de tarea `CleaningTaskStartedDto`, habitación pasa a `InCleaning`.
+  * Restricción de una sola tarea activa por miembro (`ACTIVE_TASK_EXISTS`) y una sola por habitación (`ROOM_TASK_EXISTS`).
+* **Requiere revisión manual**:
+  1. Iniciar sesión con `limpiador1` e iniciar limpieza en habitación 101; en otra ventana con `limpiador2` intentar tomar la misma habitación y verificar el mensaje: *"Otro compañero ya está limpiando esta habitación."*
+  2. Verificar que al tener una tarea activa, si el usuario navega a `/limpieza` es redirigido defensivamente a `/limpieza/tarea`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El sistema no implementa permisos por área (no hay 403 `FORBIDDEN_AREA`); la validación de `X-User` comprueba existencia y cuenta activa.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación en `PendingCleaning`. Dos cuentas de personal de limpieza (`limpiador1`, `limpiador2`).
 
 ---
 
 ### 2.11. TC-011: Confirmar Fin de Limpieza (`test-confirmar-fin-de-limpieza.md`)
-- **Verificado contra el código**:
-  - Servicio de aplicación y lógica de bifurcación de estados:
-    - Sin daño ni llegada -> `Available`.
-    - Sin daño pero con llegada hoy -> `Reserved`.
-    - Con reporte de daño documentado -> `DisabledForRepairs`.
-    - Con bloqueo técnico programado para hoy -> `TechnicalBlock`.
-  - Componentes React `ActiveCleaningTaskPage.tsx` y `ConfirmCleaningEndDialog.tsx` con retorno de aviso al panel.
-- **Requiere revisión manual**:
-  - Abrir el modal "Confirmar limpieza" y probar el ingreso opcional de descripción de daño.
-  - Verificar que con daño documentado, la habitación pase a "Fuera de servicio" y se alerte con banner verde en el panel de limpieza.
-  - Comprobar que al liberar la tarea (`ReleaseCleaningTaskDialog`), la habitación regrese a `PendingCleaning` para otro compañero.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Limpieza.
-  - Habitación 101 en estado `InCleaning`.
+* **Verificado contra el código**:
+  * Endpoints `POST /api/cleaning/tasks/{taskId}/complete` y `POST /api/cleaning/tasks/{taskId}/release` respondiendo ambos HTTP 204 No Content.
+  * Transición condicional: si la habitación tiene reserva asignada para hoy pasa a `Reserved`; si no tiene reserva, pasa a `Available`.
+  * Validación de pertenencia de tarea con HTTP 403 `TASK_NOT_OWNED` si otro miembro intenta cerrarla.
+* **Requiere revisión manual**:
+  1. Probar en pantalla la confirmación de fin en una habitación con reserva para hoy (hab. 101) y constatar que muestra el aviso: *"Limpieza terminada. La habitación quedó reservada para la llegada de hoy."*
+  2. Probar la opción "Liberar tarea" en `/limpieza/tarea` y verificar que la habitación vuelve a figurar como pendiente en el panel.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Los endpoints de completar y liberar responden HTTP 204 No Content (sin cuerpo JSON). Módulo 1 no publica eventos de fin de limpieza a RabbitMQ.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Tarea de limpieza activa asignada al usuario autenticado.
 
 ---
 
 ### 2.12. TC-012: Consultar Panel de Limpieza (`test-consultar-panel-limpieza.md`)
-- **Verificado contra el código**:
-  - Componente React `CleaningPanelPage.tsx` (`/limpieza`) con conteos de pendientes y disponibles, búsqueda por número de habitación y actualización periódica.
-  - Redirección automática a `/limpieza/tarea` si el usuario tiene una tarea activa abierta.
-- **Requiere revisión manual**:
-  - Evaluar la legibilidad de la tabla y la búsqueda rápida por número de habitación.
-  - Probar el filtrado y visualización en dispositivos móviles / tablets.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Limpieza.
-  - Habitaciones en pisos 1, 2 y 3 en estados Disponibles y Pendientes de limpieza.
+* **Verificado contra el código**:
+  * Endpoint `GET /api/cleaning/panel` con `X-User: {username}`.
+  * Retorno de `CleaningPanelDto` conteniendo `activeTask` (si el operario tiene una tarea en curso) y `pendingRooms`.
+  * Filtros por piso implementados en frontend React.
+* **Requiere revisión manual**:
+  1. Probar el selector de filtros por piso en `/limpieza` y verificar que las tarjetas se filtran correctamente sin recargar la página.
+  2. Verificar el mensaje de estado vacío cuando no existen habitaciones pendientes de aseo.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * No existe rechazo por rol de área (`403 FORBIDDEN_AREA`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Usuario con cuenta activa de limpieza (`limpiador1`).
 
 ---
 
-### 2.13. TC-013: Marcar Inhabilitada por Reparaciones (`test-marcar-habitacion-inhabilitada-por-reparaciones.md`)
-- **Verificado contra el código**:
-  - Tabla `damage_report` en PostgreSQL y controlador `MaintenanceController`.
-  - Componentes React `DamageReportDialog.tsx` y `DamageReportViewDialog.tsx` con contador de caracteres hasta 500.
-  - Transición a `DisabledForRepairs` desde `Available` o desde `InCleaning` (fin de limpieza con daño).
-- **Requiere revisión manual**:
-  - Probar el formulario de reporte de avería desde `/mantenimiento` o `/limpieza`.
-  - Verificar que la alerta roja se despliegue en el panel de recepción si la habitación afectada tenía una reserva asignada para hoy.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Mantenimiento o Limpieza.
-  - Habitación 101 en estado Disponible.
+### 2.13. TC-013: Marcar Habitación Inhabilitada por Reparaciones (`test-marcar-habitacion-inhabilitada-por-reparaciones.md`)
+* **Verificado contra el código**:
+  * Endpoints REST reales bajo `/api/rooms/{roomId}/damage-reports`:
+    * `POST /api/rooms/{roomId}/damage-reports` con body `{"damageDescription": "..."}` y `X-User: {username}` -> HTTP 201 Created con `DamageReportCreatedDto`.
+    * `GET /api/rooms/{roomId}/damage-reports/latest` -> HTTP 200 OK con `DamageReportViewDto`.
+  * Cancelación de tarea de limpieza activa y paso de habitación a `DisabledForRepairs`.
+  * Emisión de aviso por Outbox en `hospitua.events` con routing key `habitacion.mantenimiento` hacia `m2.habitacion.mantenimiento.queue`.
+* **Requiere revisión manual**:
+  1. Abrir diálogo de reporte de daño desde una tarea de limpieza activa, completar descripción y confirmar; verificar que la habitación desaparece de limpieza y aparece en `/mantenimiento` con estado `DisabledForRepairs`.
+  2. En el panel de mantenimiento, hacer clic en "Ver detalle del daño" y verificar la correcta visualización de la descripción ingresada.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El endpoint de reporte es `POST /api/rooms/{roomId}/damage-reports` (con `roomId` en el path y body con solo la descripción) y no `/api/maintenance/reports/damage`. El routing key en RabbitMQ es `habitacion.mantenimiento` (no `habitacion.bloqueada-por-mantenimiento`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación en `InCleaning` con tarea abierta. Personal de limpieza y mantenimiento.
 
 ---
 
 ### 2.14. TC-014: Confirmar Reparación Finalizada (`test-confirmar-reparacion-finalizada.md`)
-- **Verificado contra el código**:
-  - Transición forzosa obligatoria: `DisabledForRepairs` o `TechnicalBlock` SIEMPRE transicionan a `PendingCleaning`.
-  - Cierre de tarea con `outcome = Completed` o `Released`.
-  - Pantallas React `ActiveRepairTaskPage.tsx`, `ConfirmRepairEndDialog.tsx` y `ReleaseRepairTaskDialog.tsx` conectadas a `POST /api/maintenance/tasks/{taskId}/complete` y `release`.
-- **Requiere revisión manual**:
-  - Acceder a `/mantenimiento/tarea`, hacer clic en "Confirmar fin" y confirmar en el modal.
-  - Verificar que la habitación transicione a "Pendiente de limpieza" y figure de inmediato en la cola de trabajo del personal de limpieza.
-  - Probar "Liberar tarea" y verificar el aviso en el panel: "Dejaste la habitación [número] para otro compañero."
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Mantenimiento.
-  - Habitación 101 en estado `DisabledForRepairs` o `TechnicalBlock`.
+* **Verificado contra el código**:
+  * Endpoints bajo `/api/maintenance`:
+    * `POST /api/maintenance/tasks` con body `{"roomId": "..."}` -> HTTP 201 Created con `RepairTaskStartedDto`.
+    * `POST /api/maintenance/tasks/{taskId}/complete` con `X-User` -> HTTP 204 No Content.
+    * `POST /api/maintenance/tasks/{taskId}/release` con `X-User` -> HTTP 204 No Content.
+  * Transición de habitación reparada a `PendingCleaning`. Si es bloqueo técnico, cierre del informe a `Completed`.
+* **Requiere revisión manual**:
+  1. Iniciar y completar una reparación desde `/mantenimiento/tarea` y comprobar que la habitación pasa a limpieza sin parpadeos ni errores de navegación.
+  2. Probar la liberación de la tarea técnica y comprobar que la habitación permanece en `DisabledForRepairs` en el panel general.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Los endpoints de completar y liberar reparación devuelven HTTP 204 No Content (sin cuerpo). No se emite evento `habitacion.reparada` a RabbitMQ.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación 101 en `DisabledForRepairs`. Técnico de mantenimiento (`mtorres`).
 
 ---
 
-### 2.15. TC-015: Consultar Panel de Mantenimiento (`test-consultar-panel-mantenimiento.md`)
-- **Verificado contra el código**:
-  - Pantalla React `MaintenancePanelPage.tsx` (`/mantenimiento`) y backend `GET /api/maintenance/panel`.
-  - Contadores resumen (`MaintenanceSummary.tsx`), búsqueda por número de habitación y grupos ordenados (vencidos primero, luego inhabilitadas y al final demás estados).
-  - Acciones contextuales por fila: "Iniciar reparaciones", "Programar mantenimiento", "Reportar daño", "Ver informe".
-- **Requiere revisión manual**:
-  - Comprobar la visualización del indicador de días transcurridos fuera de servicio y la etiqueta "Vencido" en bloqueos que superaron su fecha estimada de fin.
-  - Probar la apertura de los diálogos modales de reporte y programación desde el panel.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Mantenimiento.
-  - Habitaciones con daño registrado y con bloqueos técnicos programados.
+### 2.15. TC-015: Programar Bloqueo Técnico para Habitación (`test-programar-bloqueo-tecnico-para-habitacion.md`)
+* **Verificado contra el código**:
+  * Componente modal `ScheduleTechnicalBlockDialog.tsx` y endpoints:
+    * `POST /api/rooms/{roomId}/technical-blocks` con body `{"reason": "...", "startDate": "YYYY-MM-DD", "estimatedEndDate": "YYYY-MM-DD"}` y `X-User`.
+    * `GET /api/rooms/{roomId}/technical-blocks/current` -> HTTP 200 OK con `TechnicalBlockViewDto`.
+  * Emisión de aviso por Outbox en `hospitua.events` con routing key `habitacion.mantenimiento` hacia `m2.habitacion.mantenimiento.queue`.
+* **Requiere revisión manual**:
+  1. Intentar programar un bloqueo en fechas donde Módulo 2 reporta reserva activa y verificar el rechazo con el mensaje exacto en el diálogo: *"La habitación tiene reservas confirmadas en las fechas seleccionadas."*
+  2. Programar un bloqueo técnico con fecha de inicio hoy y verificar que la habitación pasa de inmediato a `TechnicalBlock` con informe `Applied`.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El routing key de RabbitMQ es `habitacion.mantenimiento`. El endpoint de consulta del bloqueo actual es `GET /api/rooms/{roomId}/technical-blocks/current`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación en `Available`. Mantenimiento (`mtorres`).
 
 ---
 
-### 2.16. TC-016: Programar Bloqueo Técnico para Habitación (`test-programar-bloqueo-tecnico-para-habitacion.md`)
-- **Verificado contra el código**:
-  - Diálogo React `ScheduleTechnicalBlockDialog.tsx` conectado a `POST /api/rooms/{roomId}/technical-blocks`.
-  - Diálogo de consulta `TechnicalBlockViewDialog.tsx`.
-  - Verificación previa de cruces con reservas (Módulo 2) y mantenimientos antes de persistir.
-  - Diferenciación entre inicio hoy (aplica de inmediato a `TechnicalBlock`) e inicio futuro (queda en `Scheduled`).
-- **Requiere revisión manual**:
-  - Probar la validación de fechas en pantalla: fecha de fin anterior a inicio, fechas en el pasado y rangos mayores a 90 días.
-  - Verificar el comportamiento al registrar un bloqueo con conflicto de reserva activa: comprobar que el mensaje de error liste el código de reserva en conflicto.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Mantenimiento.
-  - Habitación 101 disponible.
-  - Habitación 102 con reserva activa en las fechas seleccionadas.
+### 2.16. TC-016: Consultar Información de Mantenimientos (`test-consultar-informacion-mantenimientos.md`)
+* **Verificado contra el código**:
+  * Endpoint REST `GET /api/rooms/{roomId}/maintenances` con parámetros de query `startDate` y `endDate`.
+  * Integración Módulo 2 → Módulo 1 sin `X-User`.
+  * Respuesta serializada con `roomId`, `available: boolean` y `conflicts: [{ maintenanceStart, maintenanceEnd }]`.
+* **Requiere revisión manual**:
+  1. Probar en Postman/cURL llamadas con fechas donde no hay bloqueos (devuelve `available: true, conflicts: []`) y fechas solapadas con un bloqueo técnico (devuelve `available: false` y el rango del bloqueo).
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Los parámetros son `startDate` y `endDate` (no `firstDay`/`lastDay`), y la lista devuelta se llama `conflicts` con `maintenanceStart` y `maintenanceEnd`. Actualmente no existe pantalla dedicada de calendario fuera del diálogo modal de programación (`ScheduleTechnicalBlockDialog.tsx`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación con bloqueo programado en la base de datos.
 
 ---
 
-### 2.17. TC-017: Consultar Información de Mantenimientos (`test-consultar-informacion-mantenimientos.md`)
-- **Verificado contra el código**:
-  - Servicio REST de solo lectura (`GET /api/rooms/{roomId}/maintenances`) implementado en `MaintenanceAvailabilityController.java`.
-  - Regla de negocio: la respuesta indica disponibilidad de mantenimiento sin revelar descripciones ni justificaciones privadas del hotel.
-  - Exclusión de bloqueos vencidos para fechas futuras (la reserva tiene prioridad).
-- **Requiere revisión manual**:
-  - Probar la respuesta de la API con herramientas de prueba HTTP (Postman/curl) verificando que el tiempo de respuesta sea inferior a 200 ms.
-  - Comprobar que una consulta con fecha de fin anterior a inicio retorne error 400 con código `INVALID_DATE_RANGE`.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna discrepancia conceptual; contrato alineado con Módulo 2.
-- **Datos o cuentas a preparar**:
-  - Habitaciones con bloqueos vigentes y sin bloqueos.
+### 2.17. TC-017: Consultar Panel de Mantenimiento (`test-consultar-panel-mantenimiento.md`)
+* **Verificado contra el código**:
+  * Ruta `/mantenimiento` (`MaintenancePanelPage.tsx`) consumiendo `GET /api/maintenance/panel` con `X-User: {username}`.
+  * Entrega de `MaintenancePanelDto` con `activeTask` (si el técnico tiene una reparación abierta) y `pendingRooms` (habitaciones en `DisabledForRepairs` y `TechnicalBlock`).
+* **Requiere revisión manual**:
+  1. Iniciar sesión teniendo una reparación activa y verificar la redirección automática a `/mantenimiento/tarea`.
+  2. Comprobar la visualización del estado vacío cuando no existen habitaciones pendientes de intervención técnica.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * No existe restricción por área (no hay `403 FORBIDDEN_AREA`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Personal de mantenimiento (`mtorres`).
 
 ---
 
 ### 2.18. TC-018: Registrar Habitación (`test-registrar-habitacion.md`)
-- **Verificado contra el código**:
-  - Formulario React `RegisterRoomPage.tsx` (`/administracion/habitaciones/nueva`) con validaciones Zod y llamadas REST a `POST /api/rooms`.
-  - Tarjeta de confirmación `RegisterRoomSuccess.tsx` con botones "Registrar otra" y "Volver al inventario".
-  - Apertura del primer periodo en `room_state_history` con estado inicial `Available`.
-- **Requiere revisión manual**:
-  - Probar en el navegador el ingreso de números de habitación con espacios o minúsculas (ej. " 402a ") y verificar que se normalicen a mayúsculas sin espacios.
-  - Probar el intento de registrar un número de habitación que ya existe en estado Inactivo (ej. "104") y verificar el mensaje de rechazo 409.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Administrador.
-  - Datos de nueva habitación (ej. 407, Piso 4, Doble, Capacidad 2, Tarifa 250000).
+* **Verificado contra el código**:
+  * Ruta `/administracion/habitaciones/nueva` (`RegisterRoomPage.tsx`) y endpoint `POST /api/rooms` con `X-User: {username}`.
+  * Validaciones de unicidad de número (`ROOM_NUMBER_ALREADY_EXISTS`), piso > 0, capacidad > 0, categorías (SENCILLA, DOBLE, SUITE, BOUTIQUE) y tarifa con hasta dos decimales.
+* **Requiere revisión manual**:
+  1. En `/administracion/habitaciones/nueva`, ingresar número de habitación "101" y verificar que al guardar el sistema muestra el mensaje: *"Ya existe una habitación con el número 101."*
+  2. Registrar la habitación "407" y comprobar que aparece de inmediato en `/administracion/inventario` en estado "Disponible".
+* **Diferencias entre el spec o el plan y el sistema**:
+  * La base de datos contiene una semilla V2 con 14 habitaciones iniciales (pisos 1, 2 y 3: 12 Available y 2 Inactive: 104 y 204), no 10.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Administrador (`admin`). Número libre para registrar (ej. "407").
 
 ---
 
 ### 2.19. TC-019: Editar Habitación (`test-editar-habitacion.md`)
-- **Verificado contra el código**:
-  - Pantalla React `EditRoomPage.tsx` (`/administracion/habitaciones/:roomId/editar`).
-  - Bloqueo optimista mediante el campo `version` detectando `CONCURRENT_UPDATE`.
-  - Restricción estricta: solo se permite editar habitaciones en estado "Disponible" (`Available`).
-  - Tabla comparativa "Antes / Ahora" en la pantalla de éxito con valores tachados.
-- **Requiere revisión manual**:
-  - Intentar editar una habitación que esté Ocupada o En Limpieza ingresando directamente la URL y verificar la pantalla de bloqueo con alerta amarilla.
-  - Probar guardar sin hacer ningún cambio y verificar el mensaje informativo "No has modificado ningún dato."
-  - Simular concurrencia abriendo dos pestañas de edición y guardando en ambas secuencialmente.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Administrador.
-  - Habitación 101 (Disponible) y Habitación 103 (Ocupada).
+* **Verificado contra el código**:
+  * Ruta `/administracion/habitaciones/:roomId/editar` (`EditRoomPage.tsx`) con diálogo modal `EditRoomConfirmation.tsx`.
+  * Endpoint `PATCH /api/rooms/{roomId}` con `X-User: {username}`, cuerpo con `version` obligatoria y atributos a modificar.
+  * Control optimista de concurrencia: si la versión no coincide, responde HTTP 409 `CONCURRENT_UPDATE`.
+* **Requiere revisión manual**:
+  1. Abrir la edición de la habitación 102 en dos pestañas; guardar un cambio de tarifa en la primera pestaña y luego intentar guardar en la segunda pestaña para verificar el mensaje: *"La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales."*
+  2. Comprobar que el modal de confirmación resalta adecuadamente la comparativa "Antes / Ahora".
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El errorCode de colisión concurrente en la edición de habitación es `CONCURRENT_UPDATE` (mapeado desde `ConcurrentUpdateException`).
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación en `Available` (`version = 0`). Dos sesiones de administrador.
 
 ---
 
 ### 2.20. TC-020: Dar de Baja Habitación (`test-dar-de-baja-habitacion.md`)
-- **Verificado contra el código**:
-  - Asistente de 4 pasos implementado en `DecommissionPage.tsx` (`/administracion/habitaciones/:roomId/baja`): Motivo, Confirmación, Verificación con spinner, Resultado.
-  - Verificación previa con Módulo 2 de ausencia de reservas vigentes en los próximos 365 días.
-  - Transición a estado `Inactive` y apertura de periodo en `room_state_history`.
-- **Requiere revisión manual**:
-  - Probar la baja de una habitación con reservas vigentes simuladas y verificar la visualización de la lista de reservas en conflicto en el Paso 4.
-  - Probar el comportamiento del botón "Reintentar comprobación" cuando Módulo 2 sufre una interrupción temporal de red.
-  - Validar que al seleccionar el motivo "Otro", el campo de texto libre sea obligatorio.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Administrador.
-  - Habitación 101 (Disponible sin reservas).
-  - Habitación con reservas activas futuras.
+* **Verificado contra el código**:
+  * Ruta `/administracion/habitaciones/:roomId/baja` (`DecommissionPage.tsx`).
+  * Endpoints REST:
+    * `POST /api/rooms/{roomId}/decommission` con `X-User: {username}` y body `{"reasonCategory": "...", "reasonDetail": "..."}`.
+    * `GET /api/rooms/{roomId}/decommission` para consultar la baja vigente.
+  * Verificación interna con Módulo 2 para comprobar ausencia de reservas en 365 días.
+* **Requiere revisión manual**:
+  1. Intentar dar de baja una habitación que tiene reserva activa en Módulo 2 y verificar el rechazo con el mensaje: *"No se puede dar de baja la habitación: tiene reservas confirmadas en los próximos 365 días."*
+  2. Confirmar la baja de una habitación libre y verificar que en el inventario su badge pasa a "Inactiva" y se habilita la opción de reactivación.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * El endpoint de consulta de la baja actual es `GET /api/rooms/{roomId}/decommission`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Habitación disponible libre y habitación con reserva futura simulada en M2. Administrador (`admin`).
 
 ---
 
 ### 2.21. TC-021: Consultar Inventario de Habitaciones (`test-consultar-inventario-habitaciones.md`)
-- **Verificado contra el código**:
-  - Pantalla React `InventoryPage.tsx` (`/administracion/inventario` y `/gerencia/inventario`) con componentes `RoomInventoryFilters.tsx` y `RoomInventoryTable.tsx`.
-  - Paginación dinámica de 10 en 10 con persistencia de filtros en parámetros de URL.
-  - Inclusión de habitaciones inactivas por defecto en vistas internas y exclusión en APIs para Módulo 2.
-  - Acciones contextuales según rol: Administrador (Editar, Dar de baja, Marcar como disponible) y Gerente (Ver historial).
-- **Requiere revisión manual**:
-  - Probar la interacción combinada de filtros (número + piso + estado + tipo) y verificar que al cambiar un filtro la paginación vuelva automáticamente a la página 1.
-  - Probar el botón "Limpiar filtros" cuando una búsqueda no arroja resultados.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuentas con roles de Administrador y Gerente.
-  - Semilla con las 14 habitaciones en sus diversos estados.
+* **Verificado contra el código**:
+  * Rutas `/administracion/inventario` (administración) y `/gerencia/inventario` (gerencia).
+  * Endpoints REST:
+    * `GET /api/rooms/inventory?page=1&size=10` (no requiere `X-User`).
+    * `GET /api/rooms/inventory/{roomId}` (no requiere `X-User`).
+    * `GET /api/rooms?categoryRoom={cat}` y `GET /api/rooms/{roomId}` (para Módulo 2, excluyen habitaciones Inactive).
+* **Requiere revisión manual**:
+  1. Iniciar sesión como Gerente y constatar que en `/gerencia/inventario` no se renderizan los botones "Nueva habitación", "Editar" ni "Dar de baja".
+  2. Probar los filtros por tipo y piso verificando que la paginación conserva los filtros activos.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Los endpoints de inventario general (`/api/rooms/inventory` e `/api/rooms/inventory/{roomId}`) son de solo lectura y no exigen el encabezado `X-User`. La semilla V2 contiene 14 habitaciones iniciales.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Administrador (`admin`) y Gerente (`gerente`).
 
 ---
 
 ### 2.22. TC-022: Consultar Historial de Estados (`test-consultar-historial-de-estados.md`)
-- **Verificado contra el código**:
-  - Pantalla React `RoomStateHistoryPage.tsx` (`/gerencia/historial`) con filtros en `RoomStateHistoryFilters.tsx` y tabla en `RoomStateHistoryTable.tsx`.
-  - Columnas de trazabilidad: Hab., Tipo, Estado, Inicio, Fin (o badge "En curso"), Responsable (o "Sistema"), y Flujo de origen.
-  - Validación de rango de fechas: 'La fecha "Desde" no puede ser posterior a "Hasta".'
-- **Requiere revisión manual**:
-  - Navegar desde el inventario haciendo clic en "Ver historial" de una habitación y verificar que la URL y la tabla abran prefiltradas con esa unidad.
-  - Probar la paginación de 15 en 15 y el filtrado por rangos de fechas históricos.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Cuenta de Gerente.
-  - Habitación con al menos 4 transiciones históricas registradas.
+* **Verificado contra el código**:
+  * Ruta `/gerencia/historial` (`RoomStateHistoryPage.tsx`) consumiendo `GET /api/room-state-history`.
+  * Parámetros de consulta: `page`, `from`, `to`, `roomId`, `roomNumber`, `categoryRoom`, `status`, `sort`, `direction`. No exige `X-User`.
+  * Paginación en bloques de 15 registros (`size = 15`).
+* **Requiere revisión manual**:
+  1. Filtrar por rango de fechas ingresando una fecha "Desde" posterior a "Hasta" y verificar el mensaje: *"La fecha "Desde" no puede ser posterior a "Hasta"."*
+  2. Verificar que los periodos activos con `endDateTime == null` muestran el badge "En curso" sin fallar en el cálculo de duración.
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Los parámetros de fechas en la URL son `from` y `to` (no `startDateFrom`/`startDateTo`). El tamaño de página por defecto en el backend es 15 (no 10). La consulta no exige encabezado `X-User`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Gerente (`gerente`). Habitación con historial de transiciones.
 
 ---
 
 ### 2.23. TC-023: Gestionar Personal (`test-gestionar-personal.md`)
-- **Verificado contra el código**:
-  - Entidad `user_account` en PostgreSQL con contraseñas cifradas en BCrypt.
-  - Pantallas React completas: `StaffListPage.tsx` (`/administracion/personal`), `RegisterStaffPage.tsx` (`/administracion/personal/nuevo`), `EditStaffPage.tsx` (`/administracion/personal/:username/editar`), y modal `DeactivateStaffDialog.tsx`.
-  - Reglas de seguridad: no permitir desactivar la propia cuenta en sesión ni la última cuenta activa del área Administración.
-- **Requiere revisión manual**:
-  - Probar el flujo completo de registro de una nueva cuenta, cambio de contraseña y prueba de inicio de sesión real en la pantalla de login.
-  - Validar que al desactivar una cuenta, esta no pueda volver a autenticarse pero su nombre siga apareciendo en el historial de estados de habitaciones.
-  - Verificar las alertas de seguridad al intentar desactivar la propia cuenta o al único administrador del sistema.
-- **Diferencias entre el spec y el sistema**:
-  - Ninguna.
-- **Datos o cuentas a preparar**:
-  - Al menos dos cuentas de Administrador activas (`admin` y un administrador secundario).
-  - Cuenta de pruebas a crear (ej. `jramirez`, área Limpieza).
+* **Verificado contra el código**:
+  * Rutas `/administracion/personal`, `/administracion/personal/nuevo` y `/administracion/personal/:username/editar`.
+  * Endpoints REST bajo `/api/staff`:
+    * `POST /api/staff` (requiere `X-User`).
+    * `GET /api/staff?page=1` (no requiere `X-User`).
+    * `GET /api/staff/{username}` (no requiere `X-User`).
+    * `PATCH /api/staff/{username}` (requiere `X-User`).
+    * `POST /api/staff/{username}/deactivation` (requiere `X-User`).
+  * Endpoint `POST /api/auth/login`: cuando una cuenta está desactivada (`active = false`), `LoginService` lanza `InvalidCredentialsException` retornando HTTP 401 `INVALID_CREDENTIALS` con el mensaje genérico idéntico a contraseña incorrecta: *"Usuario o contraseña incorrectos."*.
+* **Requiere revisión manual**:
+  1. En `/administracion/personal`, comprobar que el botón "Desactivar" se encuentra deshabilitado para el usuario administrador conectado actualmente (`admin`).
+  2. Desactivar una cuenta de pruebas e intentar iniciar sesión en `/login` con sus credenciales válidas; verificar que el sistema rechaza el ingreso con el mensaje genérico: *"Usuario o contraseña incorrectos."*
+  3. Intentar desactivar o cambiar el área de la única cuenta con área `ADMINISTRACION` y constatar el rechazo con el mensaje: *"No se puede desactivar: es la única cuenta activa de Administración."*
+* **Diferencias entre el spec o el plan y el sistema**:
+  * Cuando una cuenta está desactivada, el login responde exactamente con el mismo código y mensaje que unas credenciales incorrectas (HTTP 401 `INVALID_CREDENTIALS`, *"Usuario o contraseña incorrectos."*) para evitar la enumeración de usuarios. Las consultas `GET /api/staff` no requieren encabezado `X-User`.
+* **Datos o cuentas que debo preparar antes de probar**:
+  * Cuenta de Administrador principal (`admin`).
 
 ---
 
-## 3. Prioridades de Revisión y Ejecución de Pruebas
+## 3. Lista Final de Prioridades de Prueba Manual
 
-Para una revisión manual eficiente, se recomienda seguir el siguiente orden de prioridad:
+El equipo de QA debe abordar las pruebas manuales siguiendo este orden riguroso de prioridad operativa:
 
-1. **Prioridad Alta (P1 - Flujo Central Operativo y Transiciones Críticas)**:
-   - **Check-in y Check-out (TC-003, TC-005)**: Probar el flujo completo desde la llegada del huésped, ocupación de la habitación, consulta de liquidación (TC-004) y liberación a limpieza.
-   - **Ciclo de Limpieza y Daños (TC-009, TC-010, TC-011, TC-013, TC-014)**: Verificar que ninguna habitación pase de mantenimiento directamente a disponible sin pasar obligatoriamente por limpieza.
-   - **Dar de Baja Habitación (TC-020)**: Probar el asistente de 4 pasos y verificar que se rechace la baja si existen reservas futuras en Módulo 2.
+### Prioridad 1 — Flujos Críticos de Operación Diaria (P1)
+1. **TC-003 Registrar Check-In**: Probar en navegador la concurrencia de dos recepcionistas sobre la misma habitación y la validación de capacidad de huéspedes.
+2. **TC-005 Registrar Check-Out & TC-004 Consultar Liquidación**: Probar el comportamiento del flujo ante la desconexión simulada de Módulo 3 y la emisión de los dos eventos en RabbitMQ (`habitacion.checkout` y `facturacion.checkout`).
+3. **TC-010 Marcar Habitación en Limpieza & TC-011 Confirmar Fin de Limpieza**: Probar la concurrencia entre dos camareros intentando iniciar la misma habitación y la transición atómica hacia `Reserved` cuando hay reserva para el día.
+4. **TC-013 Reportar Daño & TC-014 Confirmar Reparación**: Probar el flujo completo de inhabilitación por daño (`POST /api/rooms/{roomId}/damage-reports`), su aparición en el panel de mantenimiento y su posterior retorno a limpieza respondiendo 204 No Content.
+5. **TC-015 Programar Bloqueo Técnico**: Probar la validación de conflictos con reservas activas provenientes de Módulo 2 y la aplicación inmediata cuando la fecha es hoy.
+6. **TC-001 Consultar Reservas & TC-007 Marcar Habitación Reservada**: Probar la resiliencia en recepción ante la caída de Módulo 2 y la ingesta de eventos de RabbitMQ (`reserva.lista-del-dia`).
 
-2. **Prioridad Media (P2 - Paneles de Operación y Administración)**:
-   - **Panel de Recepción (TC-002)**: Validar las alertas de llegadas sobre habitaciones no disponibles.
-   - **Panel de Mantenimiento y Bloqueo Técnico (TC-015, TC-016)**: Validar la tabla de mantenimiento, inicio de tareas de reparación y programación de bloqueos preventivos.
-   - **Inventario y Edición de Habitaciones (TC-018, TC-019, TC-021)**: Validar la unicidad de número de habitación, el bloqueo optimista de edición y los filtros.
-   - **Gestión de Personal (TC-023)**: Probar las restricciones de desactivación y la trazabilidad de usuarios.
+### Prioridad 2 — Administración, Inventario y Personal (P2)
+7. **TC-019 Editar Habitación**: Probar la colisión por control optimista de `version` (`CONCURRENT_UPDATE`) en dos navegadores simultáneos y la pantalla "Antes / Ahora".
+8. **TC-020 Dar de Baja Habitación**: Probar el rechazo por reservas futuras dentro de los 365 días y la captura del error 424 si Módulo 2 no responde.
+9. **TC-023 Gestionar Personal**: Probar la protección contra auto-desactivación, la regla del último administrador y la respuesta unificada de error en login para cuentas inactivas.
+10. **TC-018 Registrar Habitación**: Probar validaciones de tipos de datos en el formulario y unicidad de número.
+11. **TC-021 Consultar Inventario & TC-002 Panel de Recepción**: Probar usabilidad de filtros, atajos de búsqueda y visualización diferenciada por rol (Admin vs Gerencia).
+12. **TC-017 Consultar Panel de Mantenimiento & TC-012 Consultar Panel de Limpieza**: Probar visualización en dispositivos móviles o ventanas compactas y refresco de estado.
+13. **TC-022 Consultar Historial de Estados**: Probar renderizado de periodos activos "En curso" y validaciones de rango de fechas con parámetros `from` y `to`.
 
-3. **Prioridad Baja (P3 - Consultas Auxiliares y Auditoría)**:
-   - **Tarifa Base y Disponibilidad de Mantenimientos (TC-006, TC-017)**: Verificar tiempos de respuesta de los endpoints de integración.
-   - **Historial de Estados (TC-022)**: Validar los filtros temporales y la etiqueta "En curso".
+### Prioridad 3 — Consultas Secundarias y Validaciones de Solo Lectura (P3)
+14. **TC-006 Consultar Tarifa Base & TC-016 Consultar Mantenimientos**: Validar contratos REST en Postman (`startDate`/`endDate` en mantenimientos y consulta exclusiva por `roomId` en tarifa base).
+
+*(Nota: Todos los casos cuentan con cobertura exhaustiva automatizada tanto en backend Spring Boot como en frontend Vitest; los 41 puntos listados representan estrictamente validaciones exploratorias, de concurrencia física y de experiencia de usuario).*

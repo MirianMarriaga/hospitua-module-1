@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica que durante el flujo de Check-Out el sistema consulte de manera síncrona y reactiva la liquidación de la estancia a Módulo 3 (`GET /api/settlements`), estructurando el desglose informativo para recepción y pago sin realizar cálculos financieros locales ni retener al huésped ante contingencias del servicio externo.
+Este caso de prueba verifica la consulta de liquidación de la estancia (`GET /api/stays/{stayId}/settlement`) durante el proceso de Check-Out, asegurando la presentación de los montos financieros provistos por Módulo 3 sin alteraciones ni cálculo local de impuestos en Módulo 1, y garantizando la entrega de respuesta HTTP 200 con estado UNAVAILABLE cuando Módulo 3 no está disponible.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,45 +27,51 @@ Este caso de prueba verifica que durante el flujo de Check-Out el sistema consul
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere el backend de Módulo 1 en ejecución y disponibilidad de un mock o instancia activa de Módulo 3 para responder en `/api/settlements`.
+* Módulo 1 no calcula impuestos ni recargos; los valores financieros provienen intactos del Módulo 3 (Facturación).
 
 ##### Dependencies & Assumptions
-* TC-003 Registrar check-in debe haber creado la estancia física de prueba (`Stay`) para la habitación a liquidar.
-* Módulo 1 actúa exclusivamente como consumidor de los montos y no efectúa recálculos ni cobros de facturación.
+* Estancia activa en base de datos. Simulador o servicio de Módulo 3 disponible para respuestas AVAILABLE.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Estancia activa registrada en base de datos para la habitación 201 (`stayId`: UUID válido, reserva `RSV-3F9A1C7B`, `source`: BOOKING o DIRECTA).
-* **Environment** : Ambiente de pruebas del equipo / Sandbox con simulador de Módulo 3.
-* **Test Accounts** : Usuario recepcionista autenticado; ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 101 en estado `Occupied` con estancia activa (`stayId`).
+* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario de Recepción (`recepcionista`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Consulta para Reserva Directa y OTA)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consultar liquidación de estancia con canal OTA | En el flujo de Check-Out, avanzar a la etapa de liquidación para una estancia originada en OTA | Estancia en hab. 201 (`source`: BOOKING, estancia de 2 noches) | Módulo 1 invoca `GET /api/settlements?reservationRef=RSV-3F9A1C7B&roomId=...` a M3; en pantalla se despliega "Información de la liquidación" con: Tipo de liquidación: "Liquidación informativa", Fuente: "Booking", Comisión Booking: "15 %", Valor comisión Booking: monto calculado por M3, e Ingreso neto exacto | [ ] | [ ] |
-| 2 | Verificar tarjeta de revisión de pago | Observar la sección "Revisión de pago" en el mismo paso de liquidación | Datos de la estancia | Se muestra el valor de Hospedaje liquidado, noches de estadía, fechas de entrada y salida, y la nota informativa: "La factura se emite al confirmar la salida." sin mostrar IVA ni total fiscal | [ ] | [ ] |
-| 3 | Consultar liquidación de estancia con canal Directo | Ejecutar la consulta para una estancia con origen Directo (`source`: DIRECTA) | Estancia directa sin intermediarios | El sistema muestra: Tipo de liquidación: "Liquidación informativa", Fuente: "Directa", Comisión: "No aplica", Valor comisión: "No aplica", e Ingreso neto igual al valor total de hospedaje | [ ] | [ ] |
+| 1 | Iniciar sesión y navegar a recepción | Iniciar sesión como recepcionista e ingresar a `/recepcion` | Usuario: `recepcionista` | Se carga el Panel de Recepción | [ ] | |
+| 2 | Iniciar Check-out desde Salidas | En pestaña Salidas, pulsar "Check-out" en la estancia de hab. 101 | Estancia hab. 101 | Carga el wizard `/check-out` en el Paso 2: Liquidación | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Manejo de Contingencias e Indisponibilidad de Módulo 3
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Caída de conexión o timeout con Módulo 3 | Simular indisponibilidad o demora superior a 3 segundos en el servicio `/api/settlements` de Módulo 3 | Simular timeout / caída en M3 | Módulo 1 entrega un resultado controlado de estado `UNAVAILABLE` y la pantalla de Check-Out presenta el banner de contingencia: "La liquidación no está disponible en este momento. El servicio de facturación no respondió. Puedes continuar con la salida del huésped y liberar la habitación para limpieza; el cobro se revisa después con facturación." | [Pass] | Verificado por test automatizado (`SettlementClientAdapterTest` y `CheckOutPage.test.tsx`) |
-| 2 | Error 404 de Módulo 3 (reserva o cotización no encontrada) | Simular respuesta HTTP 404 con `errorCode: "RESERVATION_NOT_FOUND"` desde Módulo 3 | Error controlado de M3 | El sistema traduce la respuesta a `UNAVAILABLE` sin interrumpir la interfaz con excepciones técnicas y muestra el banner de contingencia permitiendo continuar con la salida física | [Pass] | Verificado por test automatizado (`SettlementClientAdapterTest`) |
-| 3 | Solicitud interna con identificador de estancia inexistente | Consultar el endpoint interno `GET /api/stays/{stayId}/settlement` con un UUID que no corresponde a una estancia activa | `stayId`: `00000000-0000-0000-0000-000000000000` | El sistema responde HTTP 404 con mensaje: "No hay una estancia activa con ese identificador." | [Pass] | Verificado por test automatizado (`SettlementControllerTest`) |
+| 1 | Visualizar desglose de liquidación | En `/check-out` (Paso 2), revisar la tabla de liquidación | Datos de liquidación | Se muestran las noches calculadas, fecha de ingreso, fecha de salida, monto de hospedaje, comisión OTA (si aplica) e ingreso neto | [ ] | |
+| 2 | Visualizar liquidación con Módulo 3 no disponible | Consultar liquidación cuando el servicio de Módulo 3 está caído | M3 desconectado | La interfaz muestra advertencia: "No fue posible conectar con Facturación." permitiendo avanzar con contingencia operativa | [ ] | |
+| 3 | Continuar hacia el pago | Hacer clic en "Continuar a pago" | Botón continuar | Avanza al Paso 3 (Pago) del flujo de Check-Out | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Estancia no encontrada o cerrada | Abrir liquidación con un `stayId` inexistente o ya finalizado | UUID no válido | Se muestra mensaje de error: "No se encontró la estancia activa para liquidación." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Consulta de liquidación exitosa (AVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | `stayId` de estancia activa | HTTP 200 OK con JSON `SettlementResponseDto` conteniendo `status: "AVAILABLE"`, `settlementType`, `reservationInfo`, `guestSummary` y `stayData` | [ ] | |
+| 2 | Consulta con Módulo 3 caído (UNAVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | Módulo 3 apagado | HTTP 200 OK con JSON `{ "status": "UNAVAILABLE", "unavailableCause": "No fue posible conectar con Facturación." }` | [ ] | |
+| 3 | Encabezado de caché en respuesta | Verificar encabezados de respuesta HTTP en `GET /api/stays/{stayId}/settlement` | Estancia activa | Contiene encabezado `Cache-Control: no-store` para garantizar datos financieros en tiempo real | [ ] | |
+| 4 | Error por estancia inexistente | `GET {BASE_URL}/api/stays/b0000000-0000-0000-0000-000000000999/settlement` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ACTIVE_STAY_NOT_FOUND"`, mensaje: "No se encontró una estancia activa para la habitación." | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Salida anticipada del huésped: Módulo 3 calcula el hospedaje por lo cotizado originalmente sin reducción; Módulo 1 presenta el valor tal como lo recibe sin aplicar descuentos por noches no consumidas.
-* **EC-002** : Salidas múltiples simultáneas: varias consultas de liquidación concurrentes son atendidas de forma independiente sin interferir entre estancias ni alterar saldos en base de datos.
-* **EC-003** : Circuito abierto (Circuit Breaker): ante reiteradas caídas de Módulo 3, el circuito pasa a estado abierto y responde de inmediato con contingencia sin saturar la red externa.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Salida el mismo día de llegada (`checkInDate == checkOutDate`): el cálculo de noches pernoctadas devuelve 0 sin romper el desglose financiero entregado por Módulo 3.
+* **EC-002 (API)** : Reserva directa sin intermediario: `otaCommissionPercentage` y `otaCommissionAmount` son nulos, reflejando "No aplica" en la interfaz.
 
 #### Defect Severity Reference
 

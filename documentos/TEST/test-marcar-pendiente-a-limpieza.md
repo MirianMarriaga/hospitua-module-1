@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica que el servicio interno centralizado `MarkPendingCleaningUseCase` transicione correctamente y de forma atómica las habitaciones físicas al estado PendingCleaning tras un check-out, la finalización de reparaciones o la liberación de una tarea de limpieza activa, registrando el cambio en el historial de estados (`RoomStateHistory`) y rechazando orígenes no autorizados.
+Este caso de prueba verifica la transición autónoma de habitaciones al estado PendingCleaning como resultado directo de dos eventos de negocio: la formalización de un Check-Out (`POST /api/check-out`) o la confirmación de finalización de una reparación técnica (`POST /api/maintenance/tasks/{taskId}/complete`), garantizando el ingreso inmediato al panel de limpieza y la trazabilidad en el historial.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,46 +27,51 @@ Este caso de prueba verifica que el servicio interno centralizado `MarkPendingCl
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Servicio interno transaccional sin endpoint REST propio ni pantalla dedicada: se prueba a través de la integración con sus flujos invocadores o mediante pruebas de backend con la base de datos PostgreSQL en marcha.
+* Transición de dominio autónoma; no posee endpoint de mutación directa ni formulario interactivo propio.
 
 ##### Dependencies & Assumptions
-* `RoomStateTransitionService` y la máquina de estados deben validar los orígenes permitidos hacia `PendingCleaning`.
-* El flujo invocador debe ejecutar la llamada dentro de una transacción activa.
+* Requiere TC-005 Registrar Check-Out o TC-014 Confirmar Reparación Finalizada.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación en estado Occupied, habitación en DisabledForRepairs o TechnicalBlock, y habitación en InCleaning con tarea de limpieza abierta.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Actor identificado según el flujo invocador (Recepcionista, Personal de mantenimiento, Personal de limpieza o Administrador).
+* **Initial State** : Habitación 101 en estado `Occupied`. Habitación 102 en estado `DisabledForRepairs`.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario de Recepción (`recepcionista`), Mantenimiento (`mtorres`), Limpieza (`limpiador`).
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Transiciones Válidas hacia PendingCleaning)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Transición automática desde Check-Out | Confirmar la salida física de un huésped en una habitación ocupada | Habitación en `Occupied`, flujo: `CHECK_OUT`, actor: recepcionista | Verificar en el sistema que la habitación transiciona atómicamente a `PendingCleaning` y se registra el periodo en `room_state_history` con `source_flow = CHECK_OUT` | [Pass] | Verificado por test automatizado (`CheckOutIntegrationTest`) |
-| 2 | Transición automática desde Fin de Reparación | Confirmar la finalización de una reparación sobre una habitación inhabilitada o con bloqueo | Habitación en `DisabledForRepairs` o `TechnicalBlock`, flujo: `CONFIRM_REPAIR_END` | Verificar en el sistema que la habitación pasa a `PendingCleaning` y queda lista para el personal de aseo | [Pass] | Verificado por test automatizado (`CompleteRepairIntegrationTest`) |
-| 3 | Transición por liberación de tarea de limpieza | Liberar una tarea de limpieza activa desde la vista de tarea de limpieza | Habitación en `InCleaning`, flujo: `RELEASE_CLEANING_TASK`, actor: personal de limpieza | Verificar en el sistema que la habitación vuelve de `InCleaning` a `PendingCleaning` para ser retomada por otro miembro | [Pass] | Verificado por test automatizado (`ReleaseCleaningTaskServiceTest`) |
-| 4 | Transición por desactivación de cuenta de personal | Desactivar la cuenta de un miembro de limpieza que tiene una tarea activa abierta | Habitación en `InCleaning`, flujo: `RELEASE_CLEANING_TASK`, actor: administrador | Verificar en el sistema que la tarea se cierra con resultado `Released` y la habitación pasa a `PendingCleaning` con el Administrador como actor | [Pass] | Verificado por test automatizado (`StaffIntegrationTest`) |
-| 5 | Visibilidad inmediata en Panel de Limpieza | Acceder al Panel de Limpieza tras cualquiera de las transiciones anteriores | Rol: Personal de limpieza, ruta: `/limpieza` | La habitación aparece inmediatamente listada en la sección de pendientes de limpieza | [ ] | |
+| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales de limpieza | Usuario: `limpiador` | Redirige al Panel de Limpieza en `/limpieza` | [ ] | |
+| 2 | Visualizar habitaciones pendientes | Observar la cuadrícula o lista en `/limpieza` | Bandeja de aseo | Muestra las tarjetas de habitaciones en estado `PendingCleaning` con botón "Iniciar limpieza" | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Errores y Validaciones de Estado Inválido
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de transición desde estado no permitido | Invocar el puerto sobre una habitación que se encuentra en estado Available | Habitación en `Available` | El sistema rechaza la operación lanzando `InvalidRoomTransitionException` informando el estado actual de la habitación sin alterar los registros | [Pass] | Verificado por test automatizado (`MarkPendingCleaningServiceTest`) |
-| 2 | Intento de paso desde InCleaning con flujo no autorizado | Invocar el puerto sobre una habitación en `InCleaning` utilizando un flujo distinto a `RELEASE_CLEANING_TASK` | Habitación en `InCleaning`, flujo: `CHECK_OUT` | El sistema bloquea la transición por regla de negocio FR-001 y mantiene la habitación en `InCleaning` | [Pass] | Verificado por test automatizado (`MarkPendingCleaningServiceTest`) |
-| 3 | Rollback ante falla en el flujo invocador | Simular una caída de base de datos o error de validación en el flujo padre tras solicitar el marcado a limpieza | Fallo transaccional posterior | La transacción completa es revertida (rollback) y la habitación permanece en su estado de origen previo sin inconsistencias | [Pass] | Verificado por test automatizado (`MarkPendingCleaningIntegrationTest`) |
+| 1 | Generación de pendiente por Check-Out | Realizar el Check-Out de la habitación 101 desde recepción | Check-out completado | En `/limpieza`, la tarjeta de la habitación 101 aparece de inmediato como "Pendiente de limpieza" | [ ] | |
+| 2 | Generación de pendiente por reparación técnica | Completar la reparación de la habitación 102 desde mantenimiento | Reparación finalizada | En `/limpieza`, la habitación 102 ingresa en la bandeja de pendientes de limpieza | [ ] | |
+| 3 | Visualización en Inventario | Consultar `/administracion/inventario` | Inventario | Las habitaciones reflejan el badge ámbar "Pendiente de limpieza" | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Intento de check-in en habitación pendiente | Intentar iniciar check-in sobre habitación en `PendingCleaning` | Habitación no limpia | La fila de recepción alerta: "No disponible: Pendiente de limpieza" y bloquea el check-in | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Verificación de estado tras Check-Out | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101` | Hab. tras check-out | HTTP 200 OK con `{ "status": "PendingCleaning" }` | [ ] | |
+| 2 | Verificación en Panel de Limpieza | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador` | Usuario de limpieza | HTTP 200 OK con `CleaningPanelDto` conteniendo la habitación 101 en `pendingRooms` | [ ] | |
+| 3 | Rechazo de asignación comercial para M2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101` | Habitación pendiente | HTTP 200 OK con datos físicos pero no disponible para ocupación inmediata | [ ] | |
+| 4 | Verificación de trazabilidad en historial | `GET {BASE_URL}/api/room-state-history?roomId=a0000000-0000-0000-0000-000000000101` | Historial | HTTP 200 OK mostrando transición con `sourceFlow: "CHECK_OUT"` o `sourceFlow: "COMPLETE_REPAIR"` | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Concurrencia de check-out sobre la misma habitación ocupada: dos recepcionistas intentan confirmar la salida en el mismo milisegundo; el control de bloqueo optimista permite la primera mutación a `PendingCleaning` y rechaza la segunda informando el cambio de estado.
-* **EC-002** : Generación de marca de tiempo en servidor: la fecha y hora de la transición es generada exclusivamente por el reloj del sistema (`Clock`), garantizando orden cronológico estricto en `RoomStateHistory`.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Atomicidad transaccional: el paso a `PendingCleaning` se ejecuta en la misma transacción que el check-out o fin de reparación; si el cambio de estado falla, toda la operación se revierte.
+* **EC-002 (API)** : Inmutabilidad de pendientes: la habitación permanece en `PendingCleaning` hasta que un camarero inicia explícitamente su tarea vía `POST /api/cleaning/tasks`.
 
 #### Defect Severity Reference
 

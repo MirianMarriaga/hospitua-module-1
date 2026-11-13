@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el inicio de intervenciones técnicas (`POST /api/maintenance/tasks`) y la posterior confirmación del fin de reparación (`POST /api/maintenance/tasks/{taskId}/complete`), asegurando el cierre de la tarea (`ReparationTask`), la transición de la habitación a PendingCleaning mediante *Marcar Pendiente a Limpieza*, el cierre del informe de bloqueo técnico cuando aplique, la emisión del aviso a Módulo 2 y la opción de liberar la tarea activa (`POST /api/maintenance/tasks/{taskId}/release`).
+Este caso de prueba verifica el ciclo de intervenciones técnicas bajo `/api/maintenance`: inicio de tarea (`POST /api/maintenance/tasks`), confirmación de fin de reparación (`POST /api/maintenance/tasks/{taskId}/complete`) respondiendo HTTP 204 No Content y transicionando la habitación a PendingCleaning, y la opción de liberación (`POST /api/maintenance/tasks/{taskId}/release`) respondiendo HTTP 204 No Content.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,48 +27,58 @@ Este caso de prueba verifica el inicio de intervenciones técnicas (`POST /api/m
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere backend Spring Boot y frontend React en funcionamiento, con las tablas de mantenimiento y base de datos PostgreSQL en marcha. La pantalla `/mantenimiento` y `/mantenimiento/tarea` están completamente implementadas en React.
+* Requiere PostgreSQL, Spring Boot y frontend React en marcha. Las vistas `/mantenimiento` y `/mantenimiento/tarea` se encuentran implementadas.
 
 ##### Dependencies & Assumptions
-* La habitación objetivo debe encontrarse en estado DisabledForRepairs o TechnicalBlock.
-* TC-009 Marcar pendiente a limpieza debe estar implementado para recibir la habitación reparada.
+* La habitación debe encontrarse en estado `DisabledForRepairs` o `TechnicalBlock`.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en estado DisabledForRepairs (por daño reportado). Habitación 103 en TechnicalBlock con informe de bloqueo técnico en estado Applied.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Usuario con área Mantenimiento autenticado (ej. `mtorres`); ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 101 en estado `DisabledForRepairs`. Habitación 103 en `TechnicalBlock` con informe `Applied`.
+* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Personal de Mantenimiento (`mtorres`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Inicio, confirmación de fin y liberación de reparación)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar reparaciones desde el Panel de Mantenimiento | En el Panel de Mantenimiento `/mantenimiento`, ubicar la habitación 101 (`DisabledForRepairs`) y hacer clic en "Iniciar reparaciones" | Habitación 101, usuario: `mtorres` | Se envía `POST /api/maintenance/tasks`, se crea la tarea de reparación con fecha/hora de inicio del servidor y el usuario es redirigido a la vista de tarea activa `/mantenimiento/tarea` | [ ] | [ ] |
-| 2 | Confirmar fin de reparaciones | En la vista de tarea activa `/mantenimiento/tarea`, hacer clic en "Confirmar fin" y confirmar en el modal de confirmación | Diálogo: "¿Confirmas que terminaste la reparación de la habitación 101?" con advertencia "La habitación pasará a limpieza antes de volver a recibir huéspedes." | Se envía `POST /api/maintenance/tasks/{taskId}/complete`, se cierra la tarea, la habitación transiciona a `PendingCleaning`, se emite el aviso a Módulo 2 y se redirige a `/mantenimiento` con el aviso: "Reparación de la habitación 101 finalizada. La habitación pasó a limpieza antes de volver a recibir huéspedes." | [ ] | [ ] |
-| 3 | Confirmar fin de reparación en bloqueo técnico | Iniciar y confirmar reparación sobre la habitación 103 en estado TechnicalBlock | Habitación 103 (`TechnicalBlock`) | El sistema transiciona la habitación a `PendingCleaning`, marca el informe `TechnicalBlockReport` como `Completed`, notifica a Módulo 2 y muestra el aviso en el panel: "Reparación de la habitación 103 finalizada. La habitación pasó a limpieza y el mantenimiento quedó terminado." | [Pass] | Verificado por test automatizado (`CompleteRepairIntegrationTest`) |
-| 4 | Liberar tarea de reparación activa | Iniciar reparaciones en una habitación inhabilitada, hacer clic en "Liberar tarea" en `/mantenimiento/tarea` y confirmar en el diálogo | Diálogo: "¿Quieres dejar la reparación de la habitación 101 para otro compañero?" con texto "La habitación seguirá fuera de servicio para que otro compañero la tome." | Se envía `POST /api/maintenance/tasks/{taskId}/release`, se cierra la tarea como liberada, la habitación permanece en `DisabledForRepairs` sin cambios de estado y se redirige al panel con el aviso: "Dejaste la habitación 101 para otro compañero." | [ ] | [ ] |
+| 1 | Iniciar sesión como personal de mantenimiento | Navegar a `/login`, autenticarse con usuario de área Mantenimiento | Usuario: `mtorres` | Carga el Panel de Mantenimiento en `/mantenimiento` | [ ] | |
+| 2 | Iniciar tarea de reparación | En `/mantenimiento`, ubicar la habitación 101 y pulsar botón "Iniciar reparaciones" | Habitación 101 | Se genera la tarea vía API y se redirige a `/mantenimiento/tarea` | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Errores, Validaciones y Rechazos
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de inicio sobre habitación en estado no permitido | Intentar iniciar reparaciones sobre una habitación que se encuentra en estado Available u Occupied | Habitación en `Available` | El sistema rechaza la petición con HTTP 409 `ROOM_INVALID_STATE` informando: "La habitación está Disponible; no necesita reparación." | [Pass] | Verificado por test automatizado (`StartMaintenanceIntegrationTest`) |
-| 2 | Miembro con tarea activa intenta tomar otra habitación | Intentar iniciar una segunda reparación teniendo ya una `ReparationTask` abierta | Usuario con tarea de reparación activa | El sistema rechaza la operación con HTTP 409 `ACTIVE_TASK_EXISTS` mostrando: "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." | [Pass] | Verificado por test automatizado (`StartMaintenanceIntegrationTest`) |
-| 3 | Habitación con reparación activa por otro compañero | Intentar iniciar reparaciones en una habitación que ya está siendo intervenida por otro técnico | Habitación con tarea abierta por otro usuario | El sistema responde HTTP 409 `ROOM_TASK_EXISTS` mostrando: "Otro compañero ya está reparando esta habitación." | [Pass] | Verificado por test automatizado (`StartMaintenanceIntegrationTest`) |
-| 4 | Intento de confirmación o liberación de tarea ajena | Intentar confirmar o liberar la tarea perteneciente a otro técnico de mantenimiento | `taskId` perteneciente a otro usuario | El sistema responde HTTP 403 `TASK_NOT_OWNED` con mensaje: "Esta reparación la está haciendo otro compañero." | [Pass] | Verificado por test automatizado (`CompleteRepairIntegrationTest`) |
-| 5 | Intento de acción sobre tarea ya cerrada | Reenviar la petición de confirmar o liberar sobre una tarea que ya fue completada o liberada | `taskId` ya cerrado | El sistema responde HTTP 409 `TASK_ALREADY_CLOSED` con mensaje: "Esta tarea ya fue cerrada." | [Pass] | Verificado por test automatizado (`CompleteRepairIntegrationTest`) |
+| 1 | Visualizar tarea activa | En `/mantenimiento/tarea`, revisar los detalles de la habitación 101, motivo del daño y cronómetro | Habitación 101 | Se muestran los controles "Confirmar fin" y "Liberar tarea" | [ ] | |
+| 2 | Confirmar fin de reparaciones | Hacer clic en "Confirmar fin" y confirmar en el diálogo "¿Confirmas que terminaste la reparación de la habitación 101?" | Diálogo de confirmación | Se envía `POST /api/maintenance/tasks/{taskId}/complete` (204), la habitación pasa a `PendingCleaning` y redirige a `/mantenimiento` con el mensaje: "Reparación de la habitación 101 finalizada. La habitación pasó a limpieza antes de volver a recibir huéspedes." | [ ] | |
+| 3 | Finalizar reparación en bloqueo técnico | Iniciar y confirmar reparación en hab. 103 con estado `TechnicalBlock` | Habitación 103 | La habitación pasa a `PendingCleaning`, el informe `TechnicalBlockReport` pasa a `Completed` y se muestra: "Reparación de la habitación 103 finalizada. La habitación pasó a limpieza y el mantenimiento quedó terminado." | [ ] | |
+| 4 | Liberar tarea de reparación | En `/mantenimiento/tarea`, pulsar "Liberar tarea" y confirmar en el modal | Diálogo de liberación | Se envía `POST /api/maintenance/tasks/{taskId}/release` (204), la tarea se libera, la habitación se mantiene en su estado previo para otro técnico y se redirige al panel con aviso: "Dejaste la habitación 101 para otro compañero." | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Técnico con tarea ya activa | Intentar iniciar una segunda reparación teniendo ya una tarea en curso | Usuario con tarea activa | Mensaje de advertencia: "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." | [ ] | |
+| 2 | Habitación tomada por otro técnico | Intentar iniciar reparación sobre habitación con tarea abierta por otro usuario | Habitación en curso | Mensaje de advertencia: "Otro compañero ya está reparando esta habitación." | [ ] | |
+| 3 | Habitación en estado no reparable | Intentar iniciar reparación en habitación disponible | Habitación en `Available` | Mensaje de rechazo: "La habitación está Disponible; no necesita reparación." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`, `Content-Type: application/json`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000101"}` | Hab. 101 en `DisabledForRepairs` | HTTP 201 Created con JSON `RepairTaskStartedDto` conteniendo `taskId`, `roomId`, `status: "IN_PROGRESS"` | [ ] | |
+| 2 | Completar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/complete`<br>Headers: `X-User: mtorres` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [ ] | |
+| 3 | Liberar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/release`<br>Headers: `X-User: mtorres` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [ ] | |
+| 4 | Error por falta de X-User | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: (sin X-User)<br>Body: `{"roomId": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [ ] | |
+| 5 | Error habitación en estado inválido | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000102"}` | Hab. en `Available` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación está Disponible; no necesita reparación." | [ ] | |
+| 6 | Error técnico con tarea activa | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`<br>Body: `{"roomId": "..."}` | Con tarea abierta | HTTP 409 Conflict, `errorCode: "ACTIVE_TASK_EXISTS"` | [ ] | |
+| 7 | Error tarea no encontrada | `POST {BASE_URL}/api/maintenance/tasks/b0000000-0000-0000-0000-000000000999/complete`<br>Headers: `X-User: mtorres` | Task ID inexistente | HTTP 404 Not Found, `errorCode: "TASK_NOT_FOUND"` | [ ] | |
+| 8 | Error completar tarea de otro técnico | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/complete`<br>Headers: `X-User: otro_tecnico` | Tarea de `mtorres` | HTTP 403 Forbidden, `errorCode: "TASK_NOT_OWNED"`, mensaje: "La tarea pertenece a otro miembro del personal." | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Invariante cronológica: `EndDateTime` de la tarea de reparación es generado exclusivamente por el servidor al momento de la confirmación o liberación y nunca puede ser anterior a `StartDateTime`.
-* **EC-002** : Falla de red o caída de base de datos durante la confirmación: la transacción se cancela (rollback completo) y la habitación permanece en `DisabledForRepairs` con la tarea activa para reintentar la acción.
-* **EC-003** : Desactivación de cuenta de técnico con tarea abierta: al desactivarse la cuenta desde *Gestionar personal*, la `ReparationTask` se cierra automáticamente con `outcome = Released` sin alterar el estado físico de la habitación.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Concurrencia entre técnicos: el bloqueo pesimista en base de datos garantiza que solo un técnico inicia la tarea y el segundo recibe HTTP 409 `ROOM_TASK_EXISTS`.
+* **EC-002 (API)** : Transición a PendingCleaning tras reparación: verificar que la habitación queda inmediatamente visible para el personal de aseo sin requerir intervención manual adicional.
 
 #### Defect Severity Reference
 

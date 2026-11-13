@@ -1,107 +1,95 @@
-# Test Case: Editar Habitación
+### Test Case Specification: Editar Habitación
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-editar-habitacion.md](../SPEC/spec-editar-habitacion.md) / [plan-editar-habitacion.md](../PLAN/plan-editar-habitacion.md)  **Status** : Draft
 
-**Created**: 2026-11-07  
-**Spec/Plan Link**: [spec-editar-habitacion.md](../SPEC/spec-editar-habitacion.md) | [plan-editar-habitacion.md](../PLAN/plan-editar-habitacion.md)  
-**Status**: Draft  
+#### Test Overview
 
----
+**Test Case ID** : TC-019-EditarHabitacion
+**Product Name & Version** : Hospitua Módulo 1 v0.1
+**Author** : Equipo Módulo 1
+**Current Owner** : Por asignar
+**Priority** : P2 - Major
 
-## Test Overview
+--------------------------------------------------------------------------------
 
-| Field | Value |
-| --- | --- |
-| **Test Case ID** | TC-019-EditarHabitacion |
-| **Product Name & Version** | Hospitua Módulo 1 v0.1 |
-| **Author** | Equipo Módulo 1 |
-| **Current Owner** | Por asignar |
-| **Execution Type** | Manual |
-| **Priority** | P2 |
+#### Objectives & Context
 
----
+##### Test Objectives
+Este caso de prueba verifica la modificación de los atributos físicos y comerciales de una habitación (`PATCH /api/rooms/{roomId}`), exigiendo que la habitación se encuentre exclusivamente en estado Available, el control de concurrencia optimista mediante el atributo `version`, la pantalla de confirmación "Antes / Ahora", y el rechazo en cualquier otro estado del ciclo de vida.
 
-## Test Objectives and Document References
+##### Document References
+| Reference Name | Type of Reference | Document Location / Link |
+| ------ | ------ | ------ |
+| Especificación de Editar Habitación | Specification Document | [documentos/SPEC/spec-editar-habitacion.md](../SPEC/spec-editar-habitacion.md) |
+| Plan de Implementación de Editar Habitación | Plan Document | [documentos/PLAN/plan-editar-habitacion.md](../PLAN/plan-editar-habitacion.md) |
 
-### Objectives
-Verificar la capacidad del administrador para modificar los datos de identificación, categorización y tarifa base de una habitación existente únicamente cuando esta se encuentra en estado "Disponible" (`Available`), validando el bloqueo optimista frente a concurrencia, la unicidad del número modificado, el registro de la bitácora de cambios y la visualización de la confirmación con la tabla comparativa "Antes / Ahora".
+--------------------------------------------------------------------------------
 
-### Document References
-| Document Type | Document Name & Link |
-| --- | --- |
-| Functional Specification | [spec-editar-habitacion.md](../SPEC/spec-editar-habitacion.md) |
-| Implementation Plan | [plan-editar-habitacion.md](../PLAN/plan-editar-habitacion.md) |
+#### Prerequisites & Environment
 
----
+##### Test Case Limitations
+* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos. La ruta `/administracion/habitaciones/:roomId/editar` se encuentra implementada.
 
-## Prerequisites and Test Environment
+##### Dependencies & Assumptions
+* La habitación debe encontrarse en estado `Available`. Habitaciones en `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive` no deben permitir edición.
 
-### Assumptions and Limitations
-- Requiere el sistema Hospitua Módulo 1 con sus servicios activos y la base de datos PostgreSQL inicializada con la semilla de habitaciones.
-- La pantalla `/administracion/habitaciones/:roomId/editar` está implementada en React y conectada al backend REST `PUT /api/rooms/{roomId}`.
+##### Preconditions & Default Setup
+* **Initial State** : Habitación 102 en estado `Available` con versión inicial `version = 0`.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
 
-### Dependencies
-- TC-018-RegistrarHabitacion y TC-021-ConsultarInventarioHabitaciones deben estar operativos.
+--------------------------------------------------------------------------------
 
-### Test Environment Requirements
-- Navegador web moderno con acceso a la aplicación Hospitua.
-- Base de datos con habitaciones en diferentes estados: Disponible (101), Ocupada (103), Inactiva (104).
+#### Test Execution Flow
 
-### Test Data and Accounts
-- Habitación "101" (Disponible, categoría Sencilla, Tarifa $120.000).
-- Habitación "103" (Ocupada o Reservada).
-- Habitación "104" (Inactiva).
-- Cuenta con rol de Administrador (ver credenciales de pruebas del equipo).
+##### Sección A — Cómo llegar a la pantalla (interfaz)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [ ] | |
+| 2 | Seleccionar habitación a editar | En `/administracion/inventario`, ubicar la habitación 102 (`Available`) y hacer clic en el botón "Editar" | Habitación 102 | Navega a `/administracion/habitaciones/a0000000-0000-0000-0000-000000000102/editar` con el formulario precargado | [ ] | |
 
----
+##### Sección B — Flujo principal en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Modificar atributos de la habitación | En el formulario de edición, cambiar:<br>- Tarifa base: de $140.000 a $220.000<br>- Capacidad máxima: de 2 a 3 | Nuevos valores | Los campos validan el formato y habilitan el botón "Revisar cambios" | [ ] | |
+| 2 | Visualizar diálogo de confirmación Antes / Ahora | Hacer clic en "Revisar cambios" | Acción en pantalla | Se despliega el diálogo de confirmación `EditRoomConfirmation` contrastando los valores actuales ("Antes") vs nuevos ("Ahora") | [ ] | |
+| 3 | Confirmar actualización | Hacer clic en "Confirmar cambios" en el diálogo | Confirmación modal | Se ejecuta la actualización vía `PATCH /api/rooms/{roomId}`, incrementa la versión y redirige a `/administracion/inventario` con la notificación: "Habitación 102 actualizada exitosamente." | [ ] | |
+| 4 | Verificar reflejo inmediato | Consultar la fila de la habitación 102 en `/administracion/inventario` | Habitación 102 | Refleja de inmediato Tarifa: $220.000 y Capacidad: 3 | [ ] | |
 
-## Test Execution Flow
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Número de habitación vacío | Borrar el número de habitación en el formulario | Campo vacío | Mensaje de validación: "El número de habitación es obligatorio." | [ ] | |
+| 2 | Número de más de 10 caracteres | Ingresar número de 11 caracteres | 11 caracteres | Mensaje de validación: "El número de habitación debe tener máximo 10 caracteres." | [ ] | |
+| 3 | Piso menor o igual a 0 | Modificar piso a 0 o negativo | Piso 0 | Mensaje de validación: "El piso debe ser un número entero mayor a 0." | [ ] | |
+| 4 | Tipo fuera de catálogo | Seleccionar valor no admitido | Tipo inválido | Mensaje de validación: "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." | [ ] | |
+| 5 | Tarifa base inválida | Ingresar tarifa negativa o con 3 decimales | Tarifa inválida | Mensaje de validación: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [ ] | |
+| 6 | Capacidad menor o igual a 0 | Ingresar capacidad 0 | Capacidad 0 | Mensaje de validación: "La capacidad máxima debe ser un número entero mayor a 0." | [ ] | |
+| 7 | Habitación en estado no editable | Intentar abrir formulario de edición de una habitación en `Occupied` o `Reserved` | Habitación no `Available` | Mensaje de rechazo: "La habitación no está disponible para edición (estado actual: {estado})." | [ ] | |
+| 8 | Conflicto por actualización concurrente | Enviar cambios habiendo sido modificada previamente por otro usuario | Versión desfasada | Mensaje de conflicto: "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [ ] | |
+| 9 | Número duplicado con otra habitación | Cambiar número de habitación 102 a "101" | Número ya existente | Mensaje de conflicto: "Ya existe una habitación con el número 101." | [ ] | |
+| 10 | Habitación inexistente | Navegar a ruta de edición con UUID inexistente | UUID no registrado | Mensaje de error: "No se encontró ninguna habitación con ese identificador." | [ ] | |
 
-### Section 1: Flujo Principal - Edición Exitosa con Cambios y Confirmación
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Edición exitosa de habitación | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"version": 0, "baseRate": 220000.00, "maxCapacity": 3}` | Hab. 102 en `Available` | HTTP 200 OK con JSON `EditRoomResultDto` `{ "room": { "id": "...", "roomNumber": "102", "baseRate": 220000.00, "maxCapacity": 3, "version": 1 }, "changes": [...] }` | [ ] | |
+| 2 | Error por falta de X-User | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: (sin X-User)<br>Body: `{"version": 0, "baseRate": 220000.00}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [ ] | |
+| 3 | Error por falta de versión obligatoria | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"baseRate": 220000.00}` | Sin version | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "version"` | [ ] | |
+| 4 | Error habitación inexistente | `PATCH {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "baseRate": 220000.00}` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [ ] | |
+| 5 | Error habitación no en Available | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "baseRate": 220000.00}` | Habitación en `Occupied` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está disponible para edición (estado actual: Occupied)." | [ ] | |
+| 6 | Error por colisión de versión optimista | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"version": 99, "baseRate": 220000.00}` | Versión obsoleta | HTTP 409 Conflict, `errorCode: "CONCURRENT_UPDATE"`, mensaje: "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [ ] | |
+| 7 | Error por duplicidad de número | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "roomNumber": "101"}` | Número duplicado | HTTP 409 Conflict, `errorCode: "ROOM_NUMBER_ALREADY_EXISTS"`, mensaje: "Ya existe una habitación con el número 101." | [ ] | |
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Iniciar sesión como Administrador y acceder al inventario | Menú principal > Administración > Inventario de Habitaciones `/administracion/inventario` | Usuario Administrador | Se visualiza la tabla de inventario con las habitaciones listadas y sus botones de acción. | [ ] | |
-| 2 | Seleccionar acción de edición sobre habitación disponible | Fila de la habitación 101 > Clic en botón "Editar" | Habitación 101 (`Available`) | Se despliega la pantalla "Editar habitación 101" con el subtítulo "Modifica los datos que necesites; los demás se conservan.", badge de estado "Disponible" y los campos precargados con los valores actuales. | [ ] | |
-| 3 | Modificar tarifa base y capacidad máxima | Pantalla de edición > Modificar campos Tarifa base y Capacidad máxima | Capacidad máxima: "2", Tarifa base: "150000" | Los campos reflejan los nuevos valores digitados. | [ ] | |
-| 4 | Confirmar guardado de los cambios | Pantalla de edición > Clic en botón "Guardar cambios" | Cambios válidos sobre habitación 101 | El sistema valida que la habitación siga en Disponible, actualiza los campos, registra la bitácora con los cambios realizados y muestra la pantalla de confirmación. | [ ] | |
-| 5 | Verificar pantalla de confirmación y tabla comparativa | Pantalla de éxito de edición | Habitación 101 actualizada | Se muestra el encabezado "Habitación 101 actualizada", el texto "Los cambios ya se reflejan en el inventario.", la tabla comparativa con columnas "Dato", "Antes" y "Ahora" (mostrando Capacidad máxima: 1 -> 2 personas, Tarifa base: $ 120.000 -> $ 150.000 tachado/nuevo) y la ficha resumen con los datos actuales. | [ ] | |
-| 6 | Volver al inventario y comprobar persistencia | Pantalla de confirmación > Clic en "Volver al inventario" | - | Se redirige a `/administracion/inventario` y la habitación 101 refleja la nueva tarifa de $150.000 y capacidad 2. | [ ] | |
+--------------------------------------------------------------------------------
 
-### Section 2: Restricción por Estado No Disponible
+##### Edge Cases & Boundary Conditions
+* **EC-001 (Interfaz)** : Habitación cambia de estado a `Reserved` mientras el administrador tiene abierto el formulario de edición: al presionar confirmar cambios, el backend responde HTTP 409 `ROOM_INVALID_STATE` y la interfaz alerta que el estado cambió.
+* **EC-002 (API)** : Edición parcial de atributos: al enviar únicamente `baseRate`, el resto de campos (piso, capacidad, tipo, número) se preservan intactos sin sobreescribirse con nulos.
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 7 | Intentar acceder a edición de habitación ocupada o reservada | Inventario > Fila habitación no disponible (ej. 103) o acceder directamente por URL a `/administracion/habitaciones/{id103}/editar` | Habitación 103 (`Occupied`) | La pantalla bloquea el formulario y muestra la alerta: "No se puede editar la habitación 103. La habitación está en estado Ocupada. Solo se pueden editar habitaciones disponibles." con botón "Volver al inventario". | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx` y `UpdateRoomIntegrationTest`) |
-| 8 | Intentar acceder a edición de habitación inactiva | Acceder a edición de habitación 104 (`Inactive`) | Habitación 104 (`Inactive`) | Se bloquea el formulario informando que la habitación está en estado Fuera de servicio (Inactiva) y solo se pueden editar habitaciones disponibles. | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx` y `UpdateRoomIntegrationTest`) |
+#### Defect Severity Reference
 
-### Section 3: Validaciones, Rechazos y Control de Concurrencia
-
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 9 | Intentar guardar sin modificar ningún dato | Pantalla de edición > Sin alterar ningún campo > Clic en "Guardar cambios" | Mismos valores actuales | El sistema no envía petición al backend y muestra el mensaje informativo: "No has modificado ningún dato." | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx`) |
-| 10 | Intentar cambiar número por uno ya existente en otra habitación | Pantalla de edición habitación 101 > Cambiar número a "102" > Clic en "Guardar cambios" | Número: "102" | El sistema rechaza la edición indicando: "Ya existe una habitación con el número 102 en el inventario." | [Pass] | Verificado por test automatizado (`UpdateRoomIntegrationTest`) |
-| 11 | Intentar ingresar tarifa base cero o negativa | Pantalla de edición > Tarifa base: "0" > Clic en "Guardar cambios" | Tarifa base: 0 | El sistema muestra el mensaje de error: "La tarifa base debe ser mayor a cero." | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx`) |
-| 12 | Intentar ingresar capacidad o piso cero o negativo | Pantalla de edición > Capacidad: "0" | Capacidad: 0 | El sistema muestra el mensaje de error: "La capacidad debe ser un número entero mayor a cero." | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx`) |
-| 13 | Detección de actualización concurrente (bloqueo optimista) | Dos sesiones de administración abren la edición de la habitación 101 simultáneamente. La Sesión A guarda un cambio primero. | Sesión B intenta guardar con la versión desactualizada | El sistema detecta el conflicto de versión (`CONCURRENT_UPDATE`) y muestra la advertencia: "Otro usuario actualizó la información de esta habitación mientras la editabas. No se guardaron tus cambios. Cargar los datos actuales". | [Pass] | Verificado por test automatizado (`UpdateRoomIntegrationTest`) |
-
----
-
-## Edge Cases & Boundary Conditions
-
-| Case # | Description | Preconditions | Inputs / Actions | Expected Results | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| EC-001 | Modificación de número de habitación que difiere solo en mayúsculas/espacios | Habitación 101 | Ingresar " 101 " | El sistema normaliza el valor, detecta que es el mismo número asignado a la propia habitación y no reporta error de duplicado. | [Pass] | Verificado por test automatizado (`UpdateRoomIntegrationTest`) |
-| EC-002 | Modificación a un número que pertenece a una habitación inactiva (`Inactive`) | Habitación 104 está dada de baja con número 104 | Intentar renombrar la habitación 101 a "104" | El sistema rechaza la modificación por colisión con la habitación inactiva. | [Pass] | Verificado por test automatizado (`UpdateRoomIntegrationTest`) |
-| EC-003 | Habitación cambia de estado mientras el formulario está abierto | La habitación pasa de Disponible a Reservada por una asignación en recepción | El administrador intenta guardar cambios | El backend rechaza la operación informando que la habitación no está disponible para edición (`ROOM_INVALID_STATE`). | [Pass] | Verificado por test automatizado (`UpdateRoomIntegrationTest`) |
-| EC-004 | Acceso con identificador UUID inexistente | URL `/administracion/habitaciones/uuid-falso/editar` | Navegación directa | El sistema presenta la tarjeta "Habitación no encontrada. No existe ninguna habitación con ese identificador." con enlace para volver al inventario. | [Pass] | Verificado por test automatizado (`EditRoomPage.test.tsx`) |
-
----
-
-## Defect Severity Reference
-
-| Severity | Description | Examples |
-| --- | --- | --- |
-| **Critical (P1)** | Impide la operación total de una función básica, causa pérdida o corrupción de datos sin solución alternativa inmediata. | Se permite editar una habitación que está actualmente ocupada por un huésped. |
-| **Major (P2)** | Falla mayor en una funcionalidad relevante con solución temporal disponible pero no ideal. | El conflicto de concurrencia sobrescribe silenciosamente los cambios del otro usuario sin avisar. |
-| **Moderate (P3)** | Defecto que afecta un flujo secundario o una validación no crítica. | La tabla comparativa "Antes / Ahora" no muestra el valor tachado del dato modificado. |
-| **Minor (P4)** | Inconsistencias estéticas menores o errores tipográficos en etiquetas que no impiden la comprensión. | Etiqueta de moneda con espaciado irregular en la tarjeta de confirmación. |
-
+| Severity Level | Code | Definition & Impact |
+| ------ | :---: | ------ |
+| **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
+| **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
+| **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |

@@ -14,59 +14,71 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica que el caso de uso interno y autónomo transicione reactivamente las habitaciones físicas del estado Available a Reserved asignando la referencia de reserva (`reserved_by_reservation_ref`), procese eventos duplicados de forma estrictamente idempotente y preserve la situación física real de la unidad ante estados conflictivos registrando el evento en la bitácora de auditoría.
+Este caso de prueba verifica el apartado autónomo de habitaciones en estado Available hacia Reserved ante la llegada de reservas del día vía RabbitMQ (`m1.reservas.diarias.queue`), la asignación del campo `reservedByReservationRef`, el registro del periodo en `room_state_history` con `sourceFlow: ASSIGN_RESERVATION`, y la idempotencia ante mensajes duplicados sin emisión de eventos salientes en esta fase.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Marcar Habitación como Reservada | Specification Document | [documentos/SPEC/spec-marcar-habitacion-reservada.md](../SPEC/spec-marcar-habitacion-reservada.md) |
-| Plan de Implementación de Marcar Habitación como Reservada | Plan Document | [documentos/PLAN/plan-marcar-habitacion-reservada.md](../PLAN/plan-marcar-habitacion-reservada.md) |
+| Especificación de Marcar Habitación Reservada | Specification Document | [documentos/SPEC/spec-marcar-habitacion-reservada.md](../SPEC/spec-marcar-habitacion-reservada.md) |
+| Plan de Implementación de Marcar Habitación Reservada | Plan Document | [documentos/PLAN/plan-marcar-habitacion-reservada.md](../PLAN/plan-marcar-habitacion-reservada.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Caso de uso interno sin interfaz gráfica directa: se verifica a través del backend, la base de datos PostgreSQL y los flujos consumidores (ingesta de reservas diarias y fin de limpieza).
+* Transición de dominio autónoma sin pantalla interactiva propia; sus efectos se observan en el Panel de Recepción e Inventario.
 
 ##### Dependencies & Assumptions
-* El catálogo de habitaciones de la semilla V2 debe estar cargado.
-* No existe invocación manual ni formularios de usuario para asignar directamente el estado Reserved.
+* Requiere broker RabbitMQ, base de datos PostgreSQL y servicio backend en ejecución.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 103 en estado Available. Habitación 104 en estado Inactive. Habitación 201 en estado Reserved con reserva `RSV-3F9A1C7B`.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Operación autónoma del sistema (sin actor humano directo; `actorId` nulo).
+* **Initial State** : Habitación 103 en estado `Available` con semilla V2 cargada.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Usuario de Recepción (`recepcionista`) y Administrador (`admin`).
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso y Transición Encadenada
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Apartado por lista diaria a las 00:00 | Ejecutar la ingesta de la lista diaria conteniendo una reserva para hoy asignada a una habitación disponible | Habitación: 103 (Available), Reserva: `RSV-NEW-103`, trigger: `DAILY_LIST` | Verificar en el sistema que la habitación 103 transiciona atómicamente a Reserved, asigna `reserved_by_reservation_ref` = `RSV-NEW-103` y se crea el periodo en `room_state_history` con `source_flow = MARK_RESERVED` | [Pass] | Verificado por test automatizado (`MarkRoomReservedServiceTest`) |
-| 2 | Verificación de aptitud para Check-In | Consultar el estado de la habitación apartada en el paso anterior desde el Panel de Recepción | Habitación: 103 | La habitación se muestra con botón "Check-in" habilitado y es aceptada por el flujo de admisión física | [ ] | |
-| 3 | Transición encadenada al terminar limpieza | Simular confirmación de fin de limpieza en una habitación con llegada pendiente hoy sin daño reportado | Habitación saliendo de `InCleaning` con reserva del día pendiente | Verificar en el sistema que dentro de la misma transacción la habitación pasa de `InCleaning` a `Available` y de inmediato de `Available` a `Reserved`, registrando ambos periodos en `room_state_history` | [Pass] | Verificado por test automatizado (`CompleteCleaningIntegrationTest`) |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [ ] | |
+| 2 | Visualizar habitación en inventario | En `/administracion/inventario`, filtrar por número "103" | Habitación 103 | La fila muestra el estado actual de la habitación ("Disponible" o "Reservada") | [ ] | |
+| 3 | Cambiar a área de Recepción | Cerrar sesión o ingresar con cuenta de recepción a `/recepcion` | Usuario: `recepcionista` | Carga el Panel de Recepción en `/recepcion` | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Idempotencia y Manejo de Conflictos
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Procesamiento idempotente ante evento duplicado | Ejecutar nuevamente la invocación para la habitación 103 con la misma reserva `RSV-NEW-103` | Habitación: 103, Reserva: `RSV-NEW-103` | Verificar en el sistema que la solicitud se reconoce como exitosa (`ALREADY_RESERVED`), sin modificar el estado ni duplicar filas en el historial de estados | [Pass] | Verificado por test automatizado (`MarkRoomReservedServiceTest`) |
-| 2 | Conflicto por habitación ocupada o en limpieza | Invocar el apartado para una habitación que se encuentra físicamente en Occupied o InCleaning | Habitación en `Occupied` o `InCleaning`, Reserva: `RSV-CONFLICT-01` | Verificar en el sistema que el estado físico no se modifica y se registra un evento de conflicto `RESERVATION_STATE_CONFLICT` en `room_audit_log` con el estado real y la referencia de reserva | [Pass] | Verificado por test automatizado (`MarkRoomReservedServiceTest`) |
-| 3 | Conflicto por habitación en mantenimiento o dada de baja | Invocar el apartado para la habitación 104 que se encuentra en Inactive o TechnicalBlock | Habitación 104 (`Inactive`), Reserva: `RSV-INACTIVE-01` | Verificar en el sistema que la habitación permanece en `Inactive`, se registra `RESERVATION_STATE_CONFLICT` en auditoría y el Panel de Recepción despliega la alerta visual "No disponible: Inactiva" | [Pass] | Verificado por test automatizado (`MarkRoomReservedServiceTest`) |
-| 4 | Conflicto por habitación ya reservada con otra reserva | Invocar el apartado para la habitación 201 (ya reservada para `RSV-3F9A1C7B`) con una referencia de reserva distinta | Habitación 201, Reserva entrante: `RSV-OTHER-999` | Verificar en el sistema que la habitación mantiene la reserva original `RSV-3F9A1C7B` y se registra en `room_audit_log` el conflicto con ambas referencias | [Pass] | Verificado por test automatizado (`MarkRoomReservedServiceTest`) |
+| 1 | Apartado visible en Panel de Recepción | Tras la ingesta de la reserva del día para la habitación 103, consultar `/recepcion` | Reserva para hab. 103 | La habitación 103 aparece en la tabla de Llegadas con su botón "Check-in" habilitado | [ ] | |
+| 2 | Apartado visible en Inventario | Consultar la habitación 103 en `/administracion/inventario` | Habitación 103 | La habitación 103 refleja el badge de estado "Reservada" y no permite edición mientras esté en ese estado | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Alerta operativa por conflicto de reserva en recepción | Observar una llegada cuya habitación asignada está inactiva | Habitación 104 (`Inactive`) | La fila de llegada muestra la alerta correspondiente y el botón "Check-in" deshabilitado | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Verificar estado reservado tras apartado | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000103`<br>Headers: (sin X-User obligatorio) | `roomId` de habitación 103 | HTTP 200 OK, JSON con `{ "status": "Reserved", "reservedByReservationRef": "RSV-HAB-103" }` | [ ] | |
+| 2 | Verificación de aptitud para check-in | `GET {BASE_URL}/api/check-in/validate?reservationRef=RSV-HAB-103&roomId=a0000000-0000-0000-0000-000000000103` | Habitación apartada | HTTP 200 OK, JSON con `valid: true` y datos de reserva | [ ] | |
+| 3 | Consulta de habitación reservada desde Módulo 2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000103` | `roomId` de hab. 103 | HTTP 200 OK con datos vendibles de la habitación | [ ] | |
+
+##### Sección E — Mensajería
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Apartado por mensaje de lista diaria (00:00) | Publicar mensaje en `hospitua.events` con routing key `reserva.lista-del-dia` hacia `m1.reservas.diarias.queue` | Reserva con llegada hoy para hab. 103 | La habitación pasa atómicamente a `Reserved`, asigna `reservedByReservationRef` y crea registro en `room_state_history` | [ ] | |
+| 2 | Apartado por actualización ADDED | Publicar mensaje con routing key `reserva.lista-del-dia.actualizacion` con `action: "ADDED"` | `action: "ADDED"` para hab. 101 | Habitación 101 transiciona de `Available` a `Reserved` | [ ] | |
+| 3 | Procesamiento idempotente ante evento repetido | Reenviar el mismo mensaje de apartado para la habitación ya reservada | Misma reserva y habitación | El sistema detecta duplicado en `daily_reservation_message_log` sin duplicar filas en el historial de estados | [ ] | |
+| 4 | Conflicto por habitación ocupada o en reparación | Enviar apartado para habitación que se encuentra en `Occupied` o `DisabledForRepairs` | Habitación no `Available` | El estado físico de la habitación no cambia y se registra en `room_audit_log` el conflicto de reserva | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Concurrencia sobre habitación Available: dos procesos intentan apartar la misma habitación disponible simultáneamente; el bloqueo a nivel de fila (`SELECT ... FOR UPDATE`) garantiza que el primero aparta a `Reserved` y el segundo detecta el cambio tratándolo como idempotente o conflicto.
-* **EC-002** : Falla transaccional durante la persistencia: si ocurre un corte de base de datos durante el cambio de estado, la transacción se revierte por completo (rollback) preservando la habitación en su estado `Available` previo.
-* **EC-003** : Ausencia de confirmaciones o rechazos externos: Módulo 1 no emite mensajes HTTP ni colas de confirmación hacia Módulo 2; los conflictos se gestionan localmente en la bitácora de auditoría y en las alertas del panel de recepción.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Concurrencia sobre habitación Available: dos procesos intentan apartar la misma habitación simultáneamente; el bloqueo de fila a nivel de base de datos (`SELECT FOR UPDATE`) asegura que solo uno aparta y el segundo detecta idempotencia o conflicto.
+* **EC-002 (API)** : Transición encadenada al finalizar limpieza: al confirmar fin de limpieza en una habitación con llegada hoy, el backend ejecuta `InCleaning → Available → Reserved` en la misma transacción atómica.
 
 #### Defect Severity Reference
 

@@ -14,59 +14,73 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la reactivación de habitaciones inactivas por el Administrador hacia el estado Available (`POST /api/rooms/{roomId}/reactivation`), la reintegración física al finalizar la limpieza y la liberación autónoma de habitaciones en Reserved ante cancelaciones o actualizaciones de reservas.
+Este caso de prueba verifica los flujos que retornan una habitación al estado Available: liberación por cancelación de reserva recibida desde RabbitMQ (`reserva.lista-del-dia.actualizacion` REMOVED), finalización de limpieza ordinaria sin reserva para hoy, o reactivación administrativa de una habitación dada de baja (`POST /api/rooms/{roomId}/reactivation`), garantizando la actualización del historial de estados y la habilitación comercial.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Marcar Habitación como Disponible | Specification Document | [documentos/SPEC/spec-marcar-habitacion-como-disponible.md](../SPEC/spec-marcar-habitacion-como-disponible.md) |
-| Plan de Implementación de Marcar Habitación como Disponible | Plan Document | [documentos/PLAN/plan-marcar-habitacion-como-disponible.md](../PLAN/plan-marcar-habitacion-como-disponible.md) |
+| Especificación de Marcar como Disponible | Specification Document | [documentos/SPEC/spec-marcar-habitacion-como-disponible.md](../SPEC/spec-marcar-habitacion-como-disponible.md) |
+| Plan de Implementación de Marcar como Disponible | Plan Document | [documentos/PLAN/plan-marcar-habitacion-como-disponible.md](../PLAN/plan-marcar-habitacion-como-disponible.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere frontend y backend Spring Boot en ejecución, con la base de datos PostgreSQL inicializada con semilla V2.
+* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos.
 
 ##### Dependencies & Assumptions
-* Las habitaciones deben encontrarse en estado Inactive (para reactivación administrativa), InCleaning (para fin de aseo) o Reserved (para liberación autónoma).
+* Para liberación: habitación en `Reserved`. Para reactivación: habitación en `Inactive`.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 104 en estado Inactive (motivo de baja: Decisión administrativa). Habitación 101 en estado Available. Habitación 201 en Reserved apartada para una reserva.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Usuario con área Administración (para reactivación en interfaz); ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 103 en `Reserved`. Habitación 104 en `Inactive` con baja registrada.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Reactivación Administrativa de Habitación Inactiva)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Acceder al inventario y seleccionar habitación inactiva | En `/administracion/inventario`, ubicar la habitación 104 (Inactiva) y hacer clic en la acción "Marcar como disponible" | Habitación 104 (Inactive) | El sistema navega a `/administracion/reactivacion/a0000000-0000-0000-0000-000000000104`, mostrando el encabezado "Marcar como disponible", el resumen de la habitación 104 y la caja con fecha y motivo de la baja: "Decisión administrativa" | [ ] | [ ] |
-| 2 | Confirmar la reactivación | Hacer clic en el botón "Reactivar habitación" | Clic en "Reactivar habitación" | Se envía `POST /api/rooms/.../reactivation`, la habitación transiciona a Available, se cierra el registro de baja en base de datos y se muestra la pantalla de éxito con: "Habitación 104 disponible" y "Ya puede recibir reservas y estancias." | [ ] | [ ] |
-| 3 | Verificar actualización en el inventario | Hacer clic en "Volver al inventario" | Clic en "Volver al inventario" | En la tabla de inventario `/administracion/inventario`, la habitación 104 aparece en estado "Disponible" con insignia verde | [ ] | [ ] |
-| 4 | Reintegración tras fin de limpieza (servicio interno) | Confirmar fin de limpieza sin daño en una habitación en estado InCleaning sin reserva pendiente para hoy | Habitación en `InCleaning` | Verificar en el sistema que la habitación transiciona a Available y queda habilitada de inmediato para asignaciones comerciales | [Pass] | Verificado por test automatizado (`CompleteCleaningIntegrationTest`) |
-| 5 | Liberación autónoma por cancelación de reserva | Simular la recepción de un mensaje `REMOVED` de Módulo 2 para la reserva que apartaba la habitación 201 | Habitación 201 en `Reserved` | Verificar en el sistema que la habitación transiciona de Reserved a Available, se limpia `reserved_by_reservation_ref` y el historial registra el periodo con `source_flow = MARK_AVAILABLE` | [Pass] | Verificado por test automatizado (`DailyReservationIngestionServiceTest`) |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Redirige al inventario en `/administracion/inventario` | [ ] | |
+| 2 | Filtrar habitaciones inactivas | En `/administracion/inventario`, filtrar por estado "Inactiva" | Filtro: "Inactiva" | Se muestra la habitación 104 con botón "Reactivar" | [ ] | |
+| 3 | Iniciar reactivación | Hacer clic en "Reactivar" en la fila de la habitación 104 | Habitación 104 | Navega a `/administracion/habitaciones/a0000000-0000-0000-0000-000000000104/reactivacion` | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Errores, Validaciones y Casos de Idempotencia
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de reactivación directa sobre habitación disponible | Intentar acceder a la ruta de reactivación con el ID de una habitación que ya está en estado Available | Habitación 101 (Available) | La interfaz muestra la tarjeta informativa: "No se puede marcar como disponible la habitación 101. La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." y no permite ejecutar el cambio | [Pass] | Verificado por test automatizado (`ReactivateRoomPage.test.tsx` y `ReactivateRoomIntegrationTest`) |
-| 2 | Reactivación idempotente (habitación ya reactivada) | Simular el reenvío de la petición `POST /api/rooms/{roomId}/reactivation` para una habitación que ya fue reactivada | Habitación 104 ya en Available | El sistema responde exitosamente sin errores (`alreadyReactivated = true`) y la pantalla presenta: "La habitación ya había sido reactivada; no fue necesario hacer cambios." | [Pass] | Verificado por test automatizado (`ReactivateRoomIntegrationTest`) |
-| 3 | Consulta con identificador inexistente | Intentar cargar la página de reactivación con un UUID inexistente | `roomId`: `00000000-0000-0000-0000-000000000999` | Se muestra la tarjeta: "Habitación no encontrada. No existe ninguna habitación con ese identificador." con botón "Volver al inventario" | [Pass] | Verificado por test automatizado (`ReactivateRoomPage.test.tsx`) |
+| 1 | Revisar datos de baja previa | En `/administracion/habitaciones/:roomId/reactivacion`, consultar el motivo de baja original | Datos de baja de hab. 104 | Se presenta el resumen de la baja vigente y el formulario de justificación de reactivación | [ ] | |
+| 2 | Confirmar reactivación | Ingresar justificación: "Mantenimiento estructural completado y validado" y pulsar "Confirmar reactivación" | Justificación válida | Se envía `POST /api/rooms/{roomId}/reactivation`, la habitación pasa a `Available` y redirige al inventario con notificación de éxito | [ ] | |
+| 3 | Verificar disponibilidad comercial | Consultar la fila de la habitación 104 en el inventario | Habitación 104 | Refleja badge de estado "Disponible" y vuelve a estar habilitada para reservas y asignaciones | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Justificación de reactivación vacía | Dejar el campo de justificación en blanco | Campo vacío | Mensaje de validación: "Ingresa la justificación de la reactivación." | [ ] | |
+| 2 | Habitación no se encuentra inactiva | Intentar reactivar una habitación que ya está disponible | Hab. en `Available` | Mensaje de rechazo: "La habitación no está inactiva; no se puede reactivar." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Consultar datos de baja vigente | `GET {BASE_URL}/api/rooms/{roomId}/decommission`<br>Headers: (sin X-User obligatorio) | `roomId` hab. 104 (`Inactive`) | HTTP 200 OK con JSON `RoomDecommissionInfoDto` conteniendo motivo y fecha de la baja | [ ] | |
+| 2 | Reactivar habitación exitosamente | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"justification": "Mantenimiento estructural completado"}` | `roomId` hab. 104 | HTTP 200 OK con JSON `ReactivationResultDto` conteniendo `roomId`, `status: "Available"` | [ ] | |
+| 3 | Error por falta de X-User en reactivación | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: (sin X-User)<br>Body: `{"justification": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [ ] | |
+| 4 | Error reactivar habitación no inactiva | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: `X-User: admin`<br>Body: `{"justification": "..."}` | Hab. en `Available` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está inactiva; no se puede reactivar." | [ ] | |
+| 5 | Reintento idempotente de reactivación | Enviar una segunda llamada de reactivación idéntica | Hab. recién reactivada | La operación es idempotente y responde sin alterar el estado nuevamente | [ ] | |
+| 6 | Consulta de habitación reactivada en inventario | `GET {BASE_URL}/api/rooms/inventory/{roomId}` | Hab. reactivada | HTTP 200 OK con `status: "Available"` y `reservedByReservationRef: null` | [ ] | |
+
+##### Sección E — Mensajería
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Liberación por cancelación REMOVED desde RabbitMQ | Publicar mensaje en `hospitua.events` hacia `m1.reservas.diarias.queue` con routing key `reserva.lista-del-dia.actualizacion` y `action: "REMOVED"` | Cancelación de reserva para hab. 103 | La habitación 103 transiciona de `Reserved` a `Available`, blanquea `reservedByReservationRef` y cierra el periodo en `room_state_history` | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Peticiones simultáneas de reactivación: dos administradores confirman la reactivación de la misma habitación inactiva concurrentemente; el control de bloqueo optimista o la comprobación de estado garantiza que el primero la reactiva a `Available` y el segundo recibe confirmación idempotente sin duplicar periodos en el historial.
-* **EC-002** : Falla en la persistencia de base de datos durante la reactivación: la transacción se cancela (rollback completo) y la habitación permanece en estado `Inactive` preservando el detalle de la baja original.
-* **EC-003** : Liberación de habitación en limpieza cancelada: si llega una actualización `REMOVED` de una reserva cuya habitación asignada está en limpieza, la reserva se retira de la copia local sin alterar el proceso físico de aseo en curso.
-
---------------------------------------------------------------------------------
+* **EC-001 (API)** : Cancelación de reserva con habitación ya ocupada: si llega un REMOVED para una reserva que ya completó check-in (`Occupied`), el estado de la habitación no se altera y se audita el evento como conflicto.
+* **EC-002 (Interfaz)** : Refresco inmediato en inventario: la reactivación actualiza de inmediato la vista del administrador sin dejar badges inconsistentes de inactividad.
 
 #### Defect Severity Reference
 

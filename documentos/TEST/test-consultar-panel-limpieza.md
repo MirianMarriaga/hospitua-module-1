@@ -7,66 +7,74 @@
 **Product Name & Version** : Hospitua Módulo 1 v0.1
 **Author** : Equipo Módulo 1
 **Current Owner** : Por asignar
-**Priority** : P2 - High
+**Priority** : P2 - Major
 
 --------------------------------------------------------------------------------
 
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica que el Panel de Limpieza (`GET /api/cleaning/panel`) despliegue exclusivamente las habitaciones en estados PendingCleaning (ordenadas primero) y Available con su tipo, estado en español, fecha de última limpieza y botones de acción contextuales, permitiendo la búsqueda por número exacto y redirigiendo a la vista de tarea activa a cualquier miembro que tenga una labor en curso.
+Este caso de prueba verifica la carga y visualización del Panel de Limpieza (`GET /api/cleaning/panel`, ruta `/limpieza`), asegurando la presentación de habitaciones en estado PendingCleaning, la detección de la tarea activa del usuario para redirección automática a `/limpieza/tarea`, y los filtros por piso y estado sin comprobaciones de roles por área.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Consultar Panel de Limpieza | Specification Document | [documentos/SPEC/spec-consultar-panel-limpieza.md](../SPEC/spec-consultar-panel-limpieza.md) |
-| Plan de Implementación de Consultar Panel de Limpieza | Plan Document | [documentos/PLAN/plan-consultar-panel-limpieza.md](../PLAN/plan-consultar-panel-limpieza.md) |
+| Especificación del Panel de Limpieza | Specification Document | [documentos/SPEC/spec-consultar-panel-limpieza.md](../SPEC/spec-consultar-panel-limpieza.md) |
+| Plan de Implementación del Panel de Limpieza | Plan Document | [documentos/PLAN/plan-consultar-panel-limpieza.md](../PLAN/plan-consultar-panel-limpieza.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere frontend y backend Spring Boot en ejecución, y base de datos PostgreSQL con habitaciones en semilla V2.
+* Requiere servicios backend Spring Boot y frontend React activos.
 
 ##### Dependencies & Assumptions
-* TC-009 Marcar pendiente a limpieza y TC-008 Marcar habitación como disponible alimentan los estados consultados por este panel.
+* Base de datos con habitaciones en diversos estados de aseo.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en estado PendingCleaning. Habitación 102 en estado Available (sin limpieza previa registrada). Habitación 103 en Available (con limpieza completada previa). Habitación 105 en Occupied.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox.
-* **Test Accounts** : Usuario con área Limpieza sin tarea activa (ej. `cstaff1`) y usuario con tarea activa abierta; ver credenciales de pruebas del equipo.
+* **Initial State** : Habitación 101 en `PendingCleaning`, Habitación 201 en `PendingCleaning`.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Personal de Limpieza (`limpiador1`); ver credenciales de pruebas del equipo.
 
 --------------------------------------------------------------------------------
 
 #### Test Execution Flow
 
-##### Section 1: Flujo Principal Exitoso (Visualización, Contadores, Filtro y Acciones)
+##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión y acceder al Panel de Limpieza | Iniciar sesión con un usuario de limpieza sin tareas activas y entrar al panel | Usuario: `cstaff1`, ruta: `/limpieza` | Se despliega el saludo "Bienvenido, [Nombre]", el subtítulo "Habitaciones por limpiar y disponibles", los contadores "Pendientes de limpieza" y "Disponibles", y la tabla de habitaciones ordenando primero las de estado "Pendiente de limpieza" y luego las "Disponible" | [ ] | [ ] |
-| 2 | Verificar acciones y columnas por fila | Observar las filas de la tabla de habitaciones | Filas de habitación 101 y 102 | La habitación 101 (`PendingCleaning`) muestra el botón único "Iniciar limpieza". La habitación 102 (`Available`) muestra los botones "Reportar daño" e "Iniciar limpieza". Las habitaciones en `Occupied` o `InCleaning` no aparecen listadas | [ ] | [ ] |
-| 3 | Verificar formato de última limpieza | Observar la columna "Última limpieza" en habitaciones con y sin historial | Habitación 102 y habitación 103 | Para la habitación 102 (sin aseo previo) muestra "Sin registro". Para la habitación 103 muestra la fecha y hora formateada `DD-MM-YYYY HH:MM` ignorando tareas con resultado liberado | [ ] | [ ] |
-| 4 | Filtrar por número exacto de habitación | En el campo "Buscar habitación por número…", ingresar el número de habitación | Texto: `101` | La tabla filtra de inmediato presentando exclusivamente la fila de la habitación 101 | [ ] | [ ] |
-| 5 | Limpiar filtro de búsqueda | Borrar el texto del buscador | Campo vacío | La tabla vuelve a desplegar la totalidad de las habitaciones pendientes y disponibles | [ ] | [ ] |
+| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales | Usuario: `limpiador1` | Redirige al Panel de Limpieza en `/limpieza` | [ ] | |
+| 2 | Visualizar estructura del panel | Comprobar encabezado, filtros y lista de habitaciones | Ruta `/limpieza` | Se despliega el panel con la lista de habitaciones pendientes de aseo | [ ] | |
 
---------------------------------------------------------------------------------
-
-##### Section 2: Estados Vacíos, Redirección y Contingencia
+##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Búsqueda por número sin coincidencias | Ingresar un número de habitación no existente en el listado | Texto: `999` | La tabla muestra el mensaje centrado: "No se encontró la habitación 999" | [Pass] | Verificado por test automatizado (`CleaningPanelPage.test.tsx`) |
-| 2 | Panel sin habitaciones para listar | Consultar el panel en un estado del hotel donde no haya habitaciones en PendingCleaning ni Available | 0 habitaciones en estados de limpieza | La tabla muestra el mensaje central: "No hay habitaciones pendientes de limpieza ni disponibles" y los contadores marcan 0 | [Pass] | Verificado por test automatizado (`CleaningPanelPage.test.tsx`) |
-| 3 | Acceso al panel con tarea activa abierta | Iniciar sesión con un miembro del personal de limpieza que posee una tarea de limpieza sin finalizar | Usuario con `activeTask` abierta | El sistema detecta la tarea activa y redirige automáticamente al usuario a la vista de tarea activa `/limpieza/tarea`, impidiendo ver el panel general | [Pass] | Verificado por test automatizado (`CleaningPanelIntegrationTest` y `CleaningPanelPage.test.tsx`) |
-| 4 | Habitación tomada concurrentemente por otro compañero | Un usuario hace clic en "Iniciar limpieza" sobre una habitación que otro miembro acaba de tomar | Habitación en transición a InCleaning | El sistema rechaza la acción informando que la habitación está En limpieza y recarga el panel excluyendo la habitación tomada | [Pass] | Verificado por test automatizado (`StartCleaningIntegrationTest`) |
+| 1 | Visualizar lista de habitaciones pendientes | Revisar las tarjetas de habitaciones en `/limpieza` | Habitaciones 101 y 201 | Cada tarjeta muestra número de habitación, tipo, piso y botón "Iniciar limpieza" | [ ] | |
+| 2 | Filtrar por piso | Seleccionar filtro de piso "Piso 1" | Filtro: Piso 1 | La lista se actualiza mostrando únicamente la habitación 101 | [ ] | |
+| 3 | Limpiar filtro | Seleccionar opción "Todos los pisos" | Todos los pisos | La lista vuelve a mostrar las habitaciones de todos los pisos | [ ] | |
+| 4 | Redirección con tarea activa | Iniciar sesión teniendo ya una tarea de limpieza abierta | Tarea activa en base de datos | El sistema detecta `activeTask != null` y redirige de inmediato a `/limpieza/tarea` | [ ] | |
+| 5 | Actualizar panel manualmente | Hacer clic en el botón de recarga del panel | Acción de recarga | Se refrescan los datos de las habitaciones pendientes desde el servidor | [ ] | |
+
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Visualización cuando no hay habitaciones pendientes | Cargar el panel cuando todas las habitaciones están limpias | Sin pendientes | Se muestra el estado vacío amigable: "No hay habitaciones pendientes de limpieza." | [ ] | |
+| 2 | Error de conexión al cargar panel | Cargar `/limpieza` con backend detenido | Backend caído | Mensaje de error en pantalla: "No fue posible cargar el panel de limpieza. Intenta de nuevo." | [ ] | |
+| 3 | Sesión expirada | Cargar el panel sin sesión activa o con token vencido | Sin sesión | Mensaje de alerta: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
+
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Consulta de panel exitosa (sin tarea activa) | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador1` | Usuario sin tarea | HTTP 200 OK con JSON `CleaningPanelDto` `{ "activeTask": null, "pendingRooms": [...] }` | [ ] | |
+| 2 | Consulta de panel con tarea activa | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador1` | Usuario con tarea abierta | HTTP 200 OK con `{ "activeTask": { "taskId": "...", "roomId": "..." }, "pendingRooms": [] }` | [ ] | |
+| 3 | Error por falta de encabezado X-User | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: (sin X-User) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [ ] | |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001** : Actualización periódica: el panel refresca su información automáticamente cada 60 segundos y cada vez que el miembro regresa de ejecutar una acción, manteniendo la lista al día sin recargar la página completa.
-* **EC-002** : Tareas liberadas descartadas de última limpieza: si una habitación tuvo una tarea completada y posteriormente una tarea liberada (`Released`), la fecha mostrada corresponde a la completada.
-
---------------------------------------------------------------------------------
+* **EC-001 (Interfaz)** : Refresco reactivo: cuando otro camarero toma una habitación, al actualizar el panel la habitación desaparece de la lista de pendientes evitando colisiones visuales.
+* **EC-002 (API)** : Usuario inexistente o desactivado en X-User: responde HTTP 400 `CURRENT_USER_REQUIRED` obligando a reiniciar sesión.
 
 #### Defect Severity Reference
 

@@ -1,98 +1,88 @@
-# Test Case: Consultar Inventario de Habitaciones
+### Test Case Specification: Consultar Inventario de Habitaciones
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) / [plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md)  **Status** : Draft
 
-**Created**: 2026-11-07  
-**Spec/Plan Link**: [spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) | [plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md)  
-**Status**: Draft  
+#### Test Overview
 
----
+**Test Case ID** : TC-021-ConsultarInventarioHabitaciones
+**Product Name & Version** : Hospitua Módulo 1 v0.1
+**Author** : Equipo Módulo 1
+**Current Owner** : Por asignar
+**Priority** : P2 - Major
 
-## Test Overview
+--------------------------------------------------------------------------------
 
-| Field | Value |
-| --- | --- |
-| **Test Case ID** | TC-021-ConsultarInventarioHabitaciones |
-| **Product Name & Version** | Hospitua Módulo 1 v0.1 |
-| **Author** | Equipo Módulo 1 |
-| **Current Owner** | Por asignar |
-| **Execution Type** | Manual |
-| **Priority** | P2 |
+#### Objectives & Context
 
----
+##### Test Objectives
+Este caso de prueba verifica la consulta paginada y filtrado del inventario general de habitaciones en pantalla (`GET /api/rooms/inventory`, rutas `/administracion/inventario` y `/gerencia/inventario`), el detalle individual (`GET /api/rooms/inventory/{roomId}`), y los contratos REST expuestos a Módulo 2 (`GET /api/rooms` y `GET /api/rooms/{roomId}`) garantizando que la consulta no exige X-User y excluye habitaciones Inactive para Módulo 2.
 
-## Test Objectives and Document References
+##### Document References
+| Reference Name | Type of Reference | Document Location / Link |
+| ------ | ------ | ------ |
+| Especificación de Consultar Inventario | Specification Document | [documentos/SPEC/spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) |
+| Plan de Implementación de Consultar Inventario | Plan Document | [documentos/PLAN/plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md) |
 
-### Objectives
-Verificar la capacidad del Administrador y del Gerente para consultar el inventario completo de habitaciones del hotel de forma paginada y ordenada, aplicando filtros por número, tipo, estado y piso, asegurando que las habitaciones inactivas se incluyan por defecto en las vistas internas pero se excluyan en los servicios para Módulo 2, y comprobando la presencia de las acciones contextuales correspondientes a cada rol y estado.
+--------------------------------------------------------------------------------
 
-### Document References
-| Document Type | Document Name & Link |
-| --- | --- |
-| Functional Specification | [spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) |
-| Implementation Plan | [plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md) |
+#### Prerequisites & Environment
 
----
+##### Test Case Limitations
+* Requiere servicios backend Spring Boot y frontend React activos. Ambas rutas `/administracion/inventario` y `/gerencia/inventario` se encuentran implementadas.
 
-## Prerequisites and Test Environment
+##### Dependencies & Assumptions
+* Requiere semilla de habitaciones cargada (migración V2 con 14 habitaciones iniciales: 12 Available, 2 Inactive: 104 y 204).
 
-### Assumptions and Limitations
-- Requiere el sistema Hospitua Módulo 1 con sus servicios activos y la base de datos PostgreSQL inicializada con la semilla de habitaciones.
-- La pantalla `/administracion/inventario` está implementada en React y conectada al backend REST `GET /api/rooms/inventory`.
+##### Preconditions & Default Setup
+* **Initial State** : 14 habitaciones registradas en la base de datos de prueba.
+* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
+* **Test Accounts** : Administrador (`admin`), Gerente (`gerente`).
 
-### Dependencies
-- Habitaciones semilla cargadas en base de datos en diferentes pisos, categorías y estados.
+--------------------------------------------------------------------------------
 
-### Test Environment Requirements
-- Navegador web moderno con acceso a la aplicación Hospitua.
-- Cuentas de usuario configuradas para roles de Administrador y Gerente.
+#### Test Execution Flow
 
-### Test Data and Accounts
-- Habitaciones semilla existentes: 101, 102, 103, 104 (Inactiva), 105, 201, 202, 203, 204 (Inactiva), 205, 301, 302, 303, 304.
-- Rol Administrador y Rol Gerente (ver credenciales de pruebas del equipo).
+##### Sección A — Cómo llegar a la pantalla (interfaz)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Redirige automáticamente a `/administracion/inventario` con rol de administrador | [ ] | |
+| 2 | Iniciar sesión como Gerente | Navegar a `/login` e ingresar credenciales de Gerencia | Usuario: `gerente` | Redirige a `/gerencia/inventario` con rol de solo lectura/supervisión | [ ] | |
 
----
+##### Sección B — Flujo principal en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Carga general de la tabla | Inspeccionar la tabla en `/administracion/inventario` | 14 habitaciones semilla | Se presentan habitaciones con columnas: Número, Tipo, Piso, Capacidad, Tarifa base, Estado actual (badges con colores) y Acciones | [ ] | |
+| 2 | Filtrar por número de habitación | En la barra de búsqueda superior, escribir "101" | Búsqueda "101" | La tabla se filtra mostrando únicamente la fila de la habitación 101 | [ ] | |
+| 3 | Filtrar por tipo y estado | Seleccionar Tipo: "Doble" y Estado: "Disponible" | Filtros combinados | La tabla actualiza sus resultados mostrando únicamente habitaciones dobles disponibles | [ ] | |
+| 4 | Limpiar filtros aplicados | Hacer clic en "Limpiar filtros" | Acción de limpiar | La tabla restablece la lista completa de habitaciones del inventario | [ ] | |
+| 5 | Paginación y navegación | Cambiar el selector de página o tamaño si el número de registros supera 10 | Página siguiente | Navegación fluida entre páginas conservando los filtros activos | [ ] | |
 
-## Test Execution Flow
+##### Sección C — Errores y validaciones en pantalla
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Búsqueda sin coincidencias | Ingresar en el filtro de número "999" | Búsqueda inexistente | La tabla muestra el estado vacío: "No se encontraron habitaciones con los filtros aplicados." | [ ] | |
+| 2 | Filtros con parámetros inválidos | Ingresar caracteres inválidos en campos numéricos | Parámetros inválidos | Mensaje de validación: "Revisa los filtros aplicados." | [ ] | |
 
-### Section 1: Flujo Principal - Consulta Completa y Paginación
+##### Sección D — Pruebas de API (backend)
+| Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
+| :---: | ------ | ------ | ------ | ------ | :---: | ------ |
+| 1 | Consulta de inventario administrativo | `GET {BASE_URL}/api/rooms/inventory?page=1&size=10`<br>Headers: (sin X-User obligatorio) | Paginación estándar | HTTP 200 OK con JSON `PagedResultDto<RoomDto>` `{ "items": [...], "total": 14, "page": 1, "totalPages": 2 }` | [ ] | |
+| 2 | Consulta de detalle individual con versión | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con datos completos de la habitación incluyendo `version` | [ ] | |
+| 3 | Consulta de habitaciones vendibles para Módulo 2 | `GET {BASE_URL}/api/rooms?categoryRoom=DOBLE`<br>Headers: (sin X-User) | Categoría "DOBLE" | HTTP 200 OK con lista JSON `List<Module2RoomDto>` de habitaciones vendibles excluyendo Inactive | [ ] | |
+| 4 | Consulta de habitación individual para Módulo 2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User) | `roomId` válido | HTTP 200 OK con `{ "id": "...", "roomNumber": "101", "categoryRoom": "SENCILLA", "maxCapacity": 1 }` | [ ] | |
+| 5 | Consulta para M2 de habitación Inactive | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000104` | Hab. 104 (`Inactive`) | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, al estar dada de baja | [ ] | |
+| 6 | Error filtros inválidos | `GET {BASE_URL}/api/rooms/inventory?floor=-1` | Piso negativo | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [ ] | |
+| 7 | Error habitación no encontrada en inventario | `GET {BASE_URL}/api/rooms/inventory/b0000000-0000-0000-0000-000000000999` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"` | [ ] | |
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Iniciar sesión como Administrador y acceder al inventario | Menú principal > Administración > Inventario de Habitaciones `/administracion/inventario` | Usuario Administrador | Se despliega la pantalla "Inventario de habitaciones" con el subtítulo "Registra, edita, da de baja o reactiva habitaciones del hotel.", el botón "Registrar habitación" y la tabla con las columnas: Hab., Piso, Tipo, Capacidad, Tarifa base, Estado, Acciones. | [ ] | |
-| 2 | Verificar inclusión de habitaciones inactivas por defecto | Tabla de inventario sin filtros activos | Vista general | La tabla lista las habitaciones operativas e incluye también las habitaciones inactivas (ej. 104 y 204) con badge gris "Inactiva". | [ ] | |
-| 3 | Verificar acciones contextuales del rol Administrador | Fila de habitación disponible (101) y fila de habitación inactiva (104) | Habitaciones 101 y 104 | En la habitación 101 se observan los botones "Editar" y "Dar de baja". En la habitación 104 se observa el botón "Marcar como disponible". En habitaciones ocupadas/reservadas se muestra "—". | [ ] | |
-| 4 | Navegar entre páginas de la tabla | Barra de paginación inferior > Clic en botón "Siguiente" o página "2" | Total de 14 habitaciones (página de 10) | La tabla actualiza los elementos mostrando los registros 11 al 14, indicando "Página 2 de 2" y manteniendo la consistencia de columnas y acciones. | [ ] | |
-| 5 | Acceder como rol Gerente | Iniciar sesión como Gerente > Acceder a Inventario `/gerencia/inventario` | Usuario Gerente | Se despliega el inventario con subtítulo "Consulta el inventario completo del hotel y el estado actual de cada habitación." sin botón "Registrar habitación", y en la columna de acciones cada fila presenta el botón "Ver historial". | [ ] | |
+--------------------------------------------------------------------------------
 
-### Section 2: Aplicación de Filtros y Búsquedas
+##### Edge Cases & Boundary Conditions
+* **EC-001 (API)** : Aislamiento de habitaciones inactivas para M2: comprobar que una habitación dada de baja responde HTTP 404 Not Found al ser consultada vía `GET /api/rooms/{roomId}` por Módulo 2, pero responde HTTP 200 OK en `GET /api/rooms/inventory/{roomId}` para el Administrador.
+* **EC-002 (Interfaz)** : Vista diferenciada por rol: verificar que en `/gerencia/inventario` los botones de acción mutativa ("Editar", "Dar de baja", "Nueva habitación") no se muestran en pantalla.
 
-| Step # | Step Description | Screen / Path / Action | Test Data | Expected Result | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6 | Filtrar por número de habitación | Panel de filtros > Campo "Número" > Ingresar "101" | Número: "101" | La tabla se actualiza automáticamente mostrando únicamente la fila correspondiente a la habitación 101. | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| 7 | Filtrar por categoría / tipo de habitación | Selector "Tipo" > Elegir "Suite" | Tipo: SUITE | La tabla lista exclusivamente las habitaciones de tipo Suite (ej. 105 y 204). | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| 8 | Filtrar por estado | Selector "Estado" > Elegir "Disponible" | Estado: Disponible | La tabla excluye las habitaciones inactivas, ocupadas o en mantenimiento, mostrando únicamente aquellas con badge verde "Disponible". | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| 9 | Filtrar por piso | Campo "Piso" > Ingresar "2" | Piso: 2 | La tabla muestra únicamente las habitaciones pertenecientes al piso 2 (201 a 205). | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| 10 | Búsqueda sin coincidencias y limpieza de filtros | Campo "Número" > Ingresar "999" | Número: "999" | La tabla muestra el mensaje: "Ninguna habitación cumple los filtros seleccionados." junto con el enlace interactivo "Limpiar filtros". | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| 11 | Restablecer filtros | Clic en enlace "Limpiar filtros" | - | Se restablecen todos los campos de búsqueda y la tabla vuelve a cargar el listado completo desde la página 1. | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
+#### Defect Severity Reference
 
----
-
-## Edge Cases & Boundary Conditions
-
-| Case # | Description | Preconditions | Inputs / Actions | Expected Results | Pass/Fail | Comments |
-| --- | --- | --- | --- | --- | --- | --- |
-| EC-001 | Búsqueda de habitación con espacios en blanco | Inventario con filtros | Ingresar " 101 " en el campo número | El sistema normaliza la búsqueda por coincidencia exacta sin espacios y retorna la habitación 101. | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| EC-002 | Consulta de inventario por parte de Módulo 2 (`GET /api/rooms`) | Invocación de API de integración | Consulta para venta externa | El sistema responde lista de habitaciones vendibles y NUNCA incluye habitaciones en estado `Inactive`. | [Pass] | Verificado por test automatizado (`RoomControllerTest`) |
-| EC-003 | Cambio de filtro mientras se está en página avanzada | Usuario posicionado en página 2 | Aplicar filtro por tipo "Suite" | El sistema restablece automáticamente la paginación a la página 1 (`page=1`) con los resultados filtrados. | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-| EC-004 | Inventario sin ninguna habitación registrada | Base de datos vacía | Cargar pantalla de inventario | La tabla muestra el estado vacío: "Todavía no hay habitaciones registradas." conservando las cabeceras intactas. | [Pass] | Verificado por test automatizado (`RoomInventoryPage.test.tsx`) |
-
----
-
-## Defect Severity Reference
-
-| Severity | Description | Examples |
-| --- | --- | --- |
-| **Critical (P1)** | Impide la operación total de una función básica, causa pérdida o corrupción de datos sin solución alternativa inmediata. | El endpoint expone habitaciones dadas de baja (`Inactive`) a los canales de venta externa de Módulo 2. |
-| **Major (P2)** | Falla mayor en una funcionalidad relevante con solución temporal disponible pero no ideal. | Al filtrar por estado la paginación no se restablece a la página 1, mostrando pantallas vacías. |
-| **Moderate (P3)** | Defecto que afecta un flujo secundario o una validación no crítica. | Botón "Limpiar filtros" no limpia inmediatamente el texto en los inputs debounced. |
-| **Minor (P4)** | Inconsistencias estéticas menores o errores tipográficos en etiquetas que no impiden la comprensión. | Alineación del texto "Mostrando X–Y de Z" en la barra de paginación. |
-
+| Severity Level | Code | Definition & Impact |
+| ------ | :---: | ------ |
+| **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
+| **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
+| **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
