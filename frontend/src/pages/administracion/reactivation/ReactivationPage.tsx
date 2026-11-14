@@ -21,6 +21,7 @@ import {
   useReactivateRoom,
   useRoomDecommission,
 } from '@/pages/administracion/reactivation/useReactivation';
+import { useRoom } from '@/pages/administracion/useRoom';
 
 function RoomSummaryBox({
   roomNumber,
@@ -49,17 +50,100 @@ function RoomSummaryBox({
   );
 }
 
+/**
+ * Aviso de FR-006 para una habitación que no está Inactiva. Sin el número (no se pudo leer la
+ * habitación), el título habla de "esta habitación".
+ */
+function NotInactiveNotice({
+  roomNumber,
+  status,
+}: {
+  roomNumber: string | undefined;
+  status: RoomStatus | undefined;
+}) {
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" asChild aria-label="Volver">
+          <Link to="/administracion/inventario">
+            <ArrowLeft className="size-4" />
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-bold text-ink">Marcar como disponible</h1>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {roomNumber
+              ? `No se puede marcar como disponible la habitación ${roomNumber}`
+              : 'No se puede marcar como disponible esta habitación'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="warning">
+            {status ? (
+              <>
+                La habitación está en estado <b>{ROOM_STATUS_LABELS[status]}</b>.{' '}
+              </>
+            ) : (
+              'La habitación no está inactiva. '
+            )}
+            Solo se pueden reactivar habitaciones inactivas.
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button asChild>
+            <Link to="/administracion/inventario">Volver al inventario</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+/** El estado que trae un 409 `ROOM_INVALID_STATE` en `details.currentStatus`, si es válido. */
+function invalidStateStatus(error: unknown): RoomStatus | undefined {
+  if (!(error instanceof ApiRequestError) || error.errorCode !== 'ROOM_INVALID_STATE') {
+    return undefined;
+  }
+  const status = error.details.currentStatus;
+  return typeof status === 'string' && isRoomStatus(status) ? status : undefined;
+}
+
 /** Reactivación de una habitación inactiva (vistas 10 y 11). */
 export function ReactivationPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const decommissionQuery = useRoomDecommission(roomId);
   const reactivateMutation = useReactivateRoom();
+  // Un 409 ROOM_INVALID_STATE al leer la baja significa que la habitación existe pero no está
+  // Inactiva (FR-006): se lee la habitación para el número y el estado del aviso.
+  const notInactive =
+    decommissionQuery.error instanceof ApiRequestError &&
+    decommissionQuery.error.errorCode === 'ROOM_INVALID_STATE' &&
+    !reactivateMutation.isSuccess;
+  const roomQuery = useRoom(roomId, notInactive);
 
   if (decommissionQuery.isPending) {
     return (
       <div className="mx-auto max-w-3xl">
         <p className="text-sm text-text-lo">Cargando datos de la baja…</p>
       </div>
+    );
+  }
+
+  if (notInactive) {
+    if (roomQuery.isPending) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <p className="text-sm text-text-lo">Cargando datos de la habitación…</p>
+        </div>
+      );
+    }
+    return (
+      <NotInactiveNotice
+        roomNumber={roomQuery.data?.roomNumber}
+        status={roomQuery.data?.status ?? invalidStateStatus(decommissionQuery.error)}
+      />
     );
   }
 
@@ -90,34 +174,10 @@ export function ReactivationPage() {
   // Si no está inactiva y la mutación no ha respondido
   if (decommissionInfo.status !== 'Inactive' && !reactivateMutation.isSuccess) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild aria-label="Volver">
-            <Link to="/administracion/inventario">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold text-ink">Marcar como disponible</h1>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              No se puede marcar como disponible la habitación {decommissionInfo.roomNumber}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="warning">
-              La habitación está en estado <b>{ROOM_STATUS_LABELS[decommissionInfo.status]}</b>.
-              Solo se pueden reactivar habitaciones inactivas.
-            </Alert>
-          </CardContent>
-          <CardFooter>
-            <Button asChild>
-              <Link to="/administracion/inventario">Volver al inventario</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+      <NotInactiveNotice
+        roomNumber={decommissionInfo.roomNumber}
+        status={decommissionInfo.status}
+      />
     );
   }
 
