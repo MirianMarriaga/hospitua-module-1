@@ -1,5 +1,5 @@
 ### Test Case Specification: Consultar Historial de Estados
-**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-historial-de-estados.md](../SPEC/spec-consultar-historial-de-estados.md) / [plan-consultar-historial-de-estados.md](../PLAN/plan-consultar-historial-de-estados.md)  **Status** : Draft
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-historial-de-estados.md](../SPEC/spec-consultar-historial-de-estados.md) / [plan-consultar-historial-de-estados.md](../PLAN/plan-consultar-historial-de-estados.md)  **Status** : Approved
 
 #### Test Overview
 
@@ -44,31 +44,31 @@ Este caso de prueba verifica la auditoría cronológica del ciclo de vida de las
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Gerente | Navegar a `/login` e ingresar credenciales de Gerencia | Usuario: `gerente` | Redirige a `/gerencia/inventario` | [ ] | |
-| 2 | Navegar a la pantalla de historial | En el menú de navegación superior o lateral, hacer clic en "Historial de Estados" | Enlace "Historial de Estados" | Carga la vista de auditoría en `/gerencia/historial` | [ ] | |
+| 1 | Iniciar sesión como Gerente | Navegar a `/login` e ingresar credenciales de Gerencia | Usuario: `gerente` | Redirige a `/gerencia/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Navegar a la pantalla de historial | En el menú de navegación superior o lateral, hacer clic en "Historial de Estados" | Enlace "Historial de Estados" | Carga la vista de auditoría en `/gerencia/historial` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Inspeccionar tabla de historial | Revisar el listado cronológico de eventos en `/gerencia/historial` | Transiciones registradas | Se presentan filas con: Número de habitación, Estado, Fecha y hora de inicio, Fecha y hora de fin, Duración calculada, Usuario responsable y Flujo de origen | [ ] | |
-| 2 | Filtrar por habitación concreta | En el filtro de habitación, seleccionar la habitación 101 y pulsar "Filtrar" | Habitación 101 | La tabla actualiza sus filas mostrando únicamente el ciclo de vida de la habitación 101 | [ ] | |
-| 3 | Filtrar por rango de fechas y estado | Seleccionar rango Desde: hace 3 días, Hasta: hoy, y Estado: "Ocupada" | Rango y estado | Se listan exclusivamente las estancias en las que la habitación estuvo ocupada en el periodo | [ ] | |
-| 4 | Visualizar periodo actualmente activo | Ubicar la fila del estado actual de la habitación | Estado actual | La columna de Fecha de fin muestra badge "En curso" o texto indicando periodo abierto | [ ] | |
+| 1 | Inspeccionar tabla de historial | Revisar el listado cronológico de eventos en `/gerencia/historial` | Transiciones registradas | Se presentan filas con: Número de habitación, Estado, Fecha y hora de inicio, Fecha y hora de fin, Duración calculada, Usuario responsable y Flujo de origen | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Filtrar por habitación concreta | En el filtro de habitación, seleccionar la habitación 101 y pulsar "Filtrar" | Habitación 101 | La tabla actualiza sus filas mostrando únicamente el ciclo de vida de la habitación 101 | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Filtrar por rango de fechas y estado | Seleccionar rango Desde: hace 3 días, Hasta: hoy, y Estado: "Ocupada" | Rango y estado | Se listan exclusivamente las estancias en las que la habitación estuvo ocupada en el periodo | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 4 | Visualizar periodo actualmente activo | Ubicar la fila del estado actual de la habitación | Estado actual | La columna de Fecha de fin muestra badge "En curso" o texto indicando periodo abierto | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Fecha inicial posterior a final | Seleccionar Fecha Desde posterior a Fecha Hasta | Fechas invertidas | Mensaje de validación: "La fecha "Desde" no puede ser posterior a "Hasta"." | [ ] | |
-| 2 | Filtros sin resultados | Filtrar con criterios que no coinciden con ningún registro | Criterios sin coincidencias | Mensaje en tabla: "No se encontraron registros de historial para los filtros seleccionados." | [ ] | |
-| 3 | Parámetros de filtro no permitidos | Modificar valores en la barra de consulta a formatos incorrectos | Formatos inválidos | Mensaje de validación: "Revisa los filtros aplicados." | [ ] | |
+| 1 | Fecha inicial posterior a final | Seleccionar Fecha Desde posterior a Fecha Hasta | Fechas invertidas | Mensaje de validación: "La fecha "Desde" no puede ser posterior a "Hasta"." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Filtros sin resultados | Filtrar con criterios que no coinciden con ningún registro | Criterios sin coincidencias | Mensaje en tabla: "No se encontraron registros de historial para los filtros seleccionados." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Parámetros de filtro no permitidos | Modificar valores en la barra de consulta a formatos incorrectos | Formatos inválidos | Mensaje de validación: "Revisa los filtros aplicados." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta general paginada (15 en 15) | `GET {BASE_URL}/api/room-state-history?page=1`<br>Headers: (sin X-User obligatorio) | Paginación básica | HTTP 200 OK con JSON `PagedResultDto<RoomStateHistoryRowDto>` `{ "items": [...], "total": 14, "page": 1, "totalPages": 1 }` | [ ] | |
-| 2 | Consulta filtrada por parámetros from y to | `GET {BASE_URL}/api/room-state-history?roomId=a0000000-0000-0000-0000-000000000101&from=2026-10-01&to=2026-11-12&status=Occupied` | `from` y `to` válidos | HTTP 200 OK con registros filtrados de ocupación de la habitación 101 | [ ] | |
-| 3 | Error por rango de fechas invertido | `GET {BASE_URL}/api/room-state-history?from=2026-11-20&to=2026-11-10` | Fechas invertidas | HTTP 400 Bad Request, `errorCode: "INVALID_DATE_RANGE"`, mensaje: "La fecha "Desde" no puede ser posterior a "Hasta"." | [ ] | |
-| 4 | Error por parámetros de página inválidos | `GET {BASE_URL}/api/room-state-history?page=-1` | Página negativa | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "Revisa los filtros aplicados." | [ ] | |
+| 1 | Consulta general paginada (15 en 15) | `GET {BASE_URL}/api/room-state-history?page=1`<br>Headers: (sin X-User obligatorio) | Paginación básica | HTTP 200 OK con JSON `PagedResultDto<RoomStateHistoryRowDto>` `{ "items": [...], "total": 14, "page": 1, "totalPages": 1 }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 2 | Consulta filtrada por parámetros from y to | `GET {BASE_URL}/api/room-state-history?roomId=a0000000-0000-0000-0000-000000000101&from=2026-10-01&to=2026-11-12&status=Occupied` | `from` y `to` válidos | HTTP 200 OK con registros filtrados de ocupación de la habitación 101 | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 3 | Error por rango de fechas invertido | `GET {BASE_URL}/api/room-state-history?from=2026-11-20&to=2026-11-10` | Fechas invertidas | HTTP 400 Bad Request, `errorCode: "INVALID_DATE_RANGE"`, mensaje: "La fecha "Desde" no puede ser posterior a "Hasta"." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 4 | Error por parámetros de página inválidos | `GET {BASE_URL}/api/room-state-history?page=-1` | Página negativa | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "Revisa los filtros aplicados." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
 
 --------------------------------------------------------------------------------
 
@@ -83,3 +83,11 @@ Este caso de prueba verifica la auditoría cronológica del ciclo de vida de las
 | **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
 | **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
+
+--------------------------------------------------------------------------------
+
+#### Resumen de Ejecución
+
+| Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
+| :---: | :---: | :---: | :---: | :---: |
+| 13 | 13 | 0 | 0 | APROBADO |

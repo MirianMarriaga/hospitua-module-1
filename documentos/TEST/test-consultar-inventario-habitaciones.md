@@ -1,5 +1,5 @@
 ### Test Case Specification: Consultar Inventario de Habitaciones
-**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) / [plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md)  **Status** : Draft
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-inventario-habitaciones.md](../SPEC/spec-consultar-inventario-habitaciones.md) / [plan-consultar-inventario-habitaciones.md](../PLAN/plan-consultar-inventario-habitaciones.md)  **Status** : Approved
 
 #### Test Overview
 
@@ -44,34 +44,34 @@ Este caso de prueba verifica la consulta paginada y filtrado del inventario gene
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Redirige automáticamente a `/administracion/inventario` con rol de administrador | [ ] | |
-| 2 | Iniciar sesión como Gerente | Navegar a `/login` e ingresar credenciales de Gerencia | Usuario: `gerente` | Redirige a `/gerencia/inventario` con rol de solo lectura/supervisión | [ ] | |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Redirige automáticamente a `/administracion/inventario` con rol de administrador | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Iniciar sesión como Gerente | Navegar a `/login` e ingresar credenciales de Gerencia | Usuario: `gerente` | Redirige a `/gerencia/inventario` con rol de solo lectura/supervisión | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Carga general de la tabla | Inspeccionar la tabla en `/administracion/inventario` | 14 habitaciones semilla | Se presentan habitaciones con columnas: Número, Tipo, Piso, Capacidad, Tarifa base, Estado actual (badges con colores) y Acciones | [ ] | |
-| 2 | Filtrar por número de habitación | En la barra de búsqueda superior, escribir "101" | Búsqueda "101" | La tabla se filtra mostrando únicamente la fila de la habitación 101 | [ ] | |
-| 3 | Filtrar por tipo y estado | Seleccionar Tipo: "Doble" y Estado: "Disponible" | Filtros combinados | La tabla actualiza sus resultados mostrando únicamente habitaciones dobles disponibles | [ ] | |
-| 4 | Limpiar filtros aplicados | Hacer clic en "Limpiar filtros" | Acción de limpiar | La tabla restablece la lista completa de habitaciones del inventario | [ ] | |
-| 5 | Paginación y navegación | Cambiar el selector de página o tamaño si el número de registros supera 10 | Página siguiente | Navegación fluida entre páginas conservando los filtros activos | [ ] | |
+| 1 | Carga general de la tabla | Inspeccionar la tabla en `/administracion/inventario` | 14 habitaciones semilla | Se presentan habitaciones con columnas: Número, Tipo, Piso, Capacidad, Tarifa base, Estado actual (badges con colores) y Acciones | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Filtrar por número de habitación | En la barra de búsqueda superior, escribir "101" | Búsqueda "101" | La tabla se filtra mostrando únicamente la fila de la habitación 101 | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Filtrar por tipo y estado | Seleccionar Tipo: "Doble" y Estado: "Disponible" | Filtros combinados | La tabla actualiza sus resultados mostrando únicamente habitaciones dobles disponibles | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 4 | Limpiar filtros aplicados | Hacer clic en "Limpiar filtros" | Acción de limpiar | La tabla restablece la lista completa de habitaciones del inventario | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 5 | Paginación y navegación | Cambiar el selector de página o tamaño si el número de registros supera 10 | Página siguiente | Navegación fluida entre páginas conservando los filtros activos | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Búsqueda sin coincidencias | Ingresar en el filtro de número "999" | Búsqueda inexistente | La tabla muestra el estado vacío: "No se encontraron habitaciones con los filtros aplicados." | [ ] | |
-| 2 | Filtros con parámetros inválidos | Ingresar caracteres inválidos en campos numéricos | Parámetros inválidos | Mensaje de validación: "Revisa los filtros aplicados." | [ ] | |
+| 1 | Búsqueda sin coincidencias | Ingresar en el filtro de número "999" | Búsqueda inexistente | La tabla muestra el estado vacío: "No se encontraron habitaciones con los filtros aplicados." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Filtros con parámetros inválidos | Ingresar caracteres inválidos en campos numéricos | Parámetros inválidos | Mensaje de validación: "Revisa los filtros aplicados." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de inventario administrativo | `GET {BASE_URL}/api/rooms/inventory?page=1&size=10`<br>Headers: (sin X-User obligatorio) | Paginación estándar | HTTP 200 OK con JSON `PagedResultDto<RoomDto>` `{ "items": [...], "total": 14, "page": 1, "totalPages": 2 }` | [ ] | |
-| 2 | Consulta de detalle individual con versión | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con datos completos de la habitación incluyendo `version` | [ ] | |
-| 3 | Consulta de habitaciones vendibles para Módulo 2 | `GET {BASE_URL}/api/rooms?categoryRoom=DOBLE`<br>Headers: (sin X-User) | Categoría "DOBLE" | HTTP 200 OK con lista JSON `List<Module2RoomDto>` de habitaciones vendibles excluyendo Inactive | [ ] | |
-| 4 | Consulta de habitación individual para Módulo 2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User) | `roomId` válido | HTTP 200 OK con `{ "id": "...", "roomNumber": "101", "categoryRoom": "SENCILLA", "maxCapacity": 1 }` | [ ] | |
-| 5 | Consulta para M2 de habitación Inactive | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000104` | Hab. 104 (`Inactive`) | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, al estar dada de baja | [ ] | |
-| 6 | Error filtros inválidos | `GET {BASE_URL}/api/rooms/inventory?floor=-1` | Piso negativo | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [ ] | |
-| 7 | Error habitación no encontrada en inventario | `GET {BASE_URL}/api/rooms/inventory/b0000000-0000-0000-0000-000000000999` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"` | [ ] | |
+| 1 | Consulta de inventario administrativo | `GET {BASE_URL}/api/rooms/inventory?page=1&size=10`<br>Headers: (sin X-User obligatorio) | Paginación estándar | HTTP 200 OK con JSON `PagedResultDto<RoomDto>` `{ "items": [...], "total": 14, "page": 1, "totalPages": 2 }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 2 | Consulta de detalle individual con versión | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con datos completos de la habitación incluyendo `version` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 3 | Consulta de habitaciones vendibles para Módulo 2 | `GET {BASE_URL}/api/rooms?categoryRoom=DOBLE`<br>Headers: (sin X-User) | Categoría "DOBLE" | HTTP 200 OK con lista JSON `List<Module2RoomDto>` de habitaciones vendibles excluyendo Inactive | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 4 | Consulta de habitación individual para Módulo 2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101`<br>Headers: (sin X-User) | `roomId` válido | HTTP 200 OK con `{ "id": "...", "roomNumber": "101", "categoryRoom": "SENCILLA", "maxCapacity": 1 }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 5 | Consulta para M2 de habitación Inactive | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000104` | Hab. 104 (`Inactive`) | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, al estar dada de baja | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 6 | Error filtros inválidos | `GET {BASE_URL}/api/rooms/inventory?floor=-1` | Piso negativo | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 7 | Error habitación no encontrada en inventario | `GET {BASE_URL}/api/rooms/inventory/b0000000-0000-0000-0000-000000000999` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
 
 --------------------------------------------------------------------------------
 
@@ -86,3 +86,11 @@ Este caso de prueba verifica la consulta paginada y filtrado del inventario gene
 | **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
 | **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
+
+--------------------------------------------------------------------------------
+
+#### Resumen de Ejecución
+
+| Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
+| :---: | :---: | :---: | :---: | :---: |
+| 16 | 16 | 0 | 0 | APROBADO |

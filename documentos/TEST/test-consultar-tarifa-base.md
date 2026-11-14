@@ -1,5 +1,5 @@
 ### Test Case Specification: Consultar Tarifa Base
-**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-tarifa-base.md](../SPEC/spec-consultar-tarifa-base.md) / [plan-consultar-tarifa-base.md](../PLAN/plan-consultar-tarifa-base.md)  **Status** : Draft
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-tarifa-base.md](../SPEC/spec-consultar-tarifa-base.md) / [plan-consultar-tarifa-base.md](../PLAN/plan-consultar-tarifa-base.md)  **Status** : Approved
 
 #### Test Overview
 
@@ -44,27 +44,27 @@ Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [ ] | |
-| 2 | Visualizar tarifas en tabla | Revisar la columna "Tarifa base" en la tabla de inventario | Inventario físico | Muestra la tarifa por noche de cada habitación formateada en moneda (ej. $120.000,00) | [ ] | |
+| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Visualizar tarifas en tabla | Revisar la columna "Tarifa base" en la tabla de inventario | Inventario físico | Muestra la tarifa por noche de cada habitación formateada en moneda (ej. $120.000,00) | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Verificar concordancia de tarifas | Comparar el valor mostrado en pantalla para la habitación 101 con la respuesta de la API | Habitación 101 | Coincide exactamente con el valor $120.000,00 registrado en el catálogo | [ ] | |
+| 1 | Verificar concordancia de tarifas | Comparar el valor mostrado en pantalla para la habitación 101 con la respuesta de la API | Habitación 101 | Coincide exactamente con el valor $120.000,00 registrado en el catálogo | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Edición de tarifa base inválida | En el formulario de edición de habitación, ingresar tarifa igual a 0 | Tarifa: 0 | Se bloquea el guardado con mensaje: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [ ] | |
+| 1 | Edición de tarifa base inválida | En el formulario de edición de habitación, ingresar tarifa igual a 0 | Tarifa: 0 | Se bloquea el guardado con mensaje: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de tarifa base por roomId (hoy) | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con JSON `{ "roomId": "a0000000-0000-0000-0000-000000000101", "roomNumber": "101", "categoryRoom": "SENCILLA", "baseRate": 120000.00, "effectiveDate": "2026-11-12" }` | [ ] | |
-| 2 | Consulta de tarifa base con fecha específica | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/base-rate?date=2026-12-01` | `roomId` hab. 105, fecha futura | HTTP 200 OK con `baseRate: 320000.00` y `effectiveDate: "2026-12-01"` | [ ] | |
-| 3 | Consulta sin encabezado X-User | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User) | Sin usuario | HTTP 200 OK (no requiere X-User por ser integración directa intermódulo) | [ ] | |
-| 4 | Error habitación inexistente | `GET {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/base-rate` | UUID no registrado | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [ ] | |
-| 5 | Error formato de fecha inválido | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate?date=fecha-invalida` | Fecha texto | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [ ] | |
+| 1 | Consulta de tarifa base por roomId (hoy) | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con JSON `{ "roomId": "a0000000-0000-0000-0000-000000000101", "roomNumber": "101", "categoryRoom": "SENCILLA", "baseRate": 120000.00, "effectiveDate": "2026-11-12" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 2 | Consulta de tarifa base con fecha específica | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/base-rate?date=2026-12-01` | `roomId` hab. 105, fecha futura | HTTP 200 OK con `baseRate: 320000.00` y `effectiveDate: "2026-12-01"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 3 | Consulta sin encabezado X-User | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User) | Sin usuario | HTTP 200 OK (no requiere X-User por ser integración directa intermódulo) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 4 | Error habitación inexistente | `GET {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/base-rate` | UUID no registrado | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 5 | Error formato de fecha inválido | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate?date=fecha-invalida` | Fecha texto | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
 
 --------------------------------------------------------------------------------
 
@@ -79,3 +79,11 @@ Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1
 | **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
 | **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
+
+--------------------------------------------------------------------------------
+
+#### Resumen de Ejecución
+
+| Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
+| :---: | :---: | :---: | :---: | :---: |
+| 9 | 9 | 0 | 0 | APROBADO |

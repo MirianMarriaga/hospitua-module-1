@@ -1,5 +1,5 @@
 ### Test Case Specification: Consultar Liquidación
-**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-liquidacion.md](../SPEC/spec-consultar-liquidacion.md) / [plan-consultar-liquidacion.md](../PLAN/plan-consultar-liquidacion.md)  **Status** : Draft
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-liquidacion.md](../SPEC/spec-consultar-liquidacion.md) / [plan-consultar-liquidacion.md](../PLAN/plan-consultar-liquidacion.md)  **Status** : Approved
 
 #### Test Overview
 
@@ -44,28 +44,28 @@ Este caso de prueba verifica la consulta de liquidación de la estancia (`GET /a
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión y navegar a recepción | Iniciar sesión como recepcionista e ingresar a `/recepcion` | Usuario: `recepcionista` | Se carga el Panel de Recepción | [ ] | |
-| 2 | Iniciar Check-out desde Salidas | En pestaña Salidas, pulsar "Check-out" en la estancia de hab. 101 | Estancia hab. 101 | Carga el wizard `/check-out` en el Paso 2: Liquidación | [ ] | |
+| 1 | Iniciar sesión y navegar a recepción | Iniciar sesión como recepcionista e ingresar a `/recepcion` | Usuario: `recepcionista` | Se carga el Panel de Recepción | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Iniciar Check-out desde Salidas | En pestaña Salidas, pulsar "Check-out" en la estancia de hab. 101 | Estancia hab. 101 | Carga el wizard `/check-out` en el Paso 2: Liquidación | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualizar desglose de liquidación | En `/check-out` (Paso 2), revisar la tabla de liquidación | Datos de liquidación | Se muestran las noches calculadas, fecha de ingreso, fecha de salida, monto de hospedaje, comisión OTA (si aplica) e ingreso neto | [ ] | |
-| 2 | Visualizar liquidación con Módulo 3 no disponible | Consultar liquidación cuando el servicio de Módulo 3 está caído | M3 desconectado | La interfaz muestra advertencia: "No fue posible conectar con Facturación." permitiendo avanzar con contingencia operativa | [ ] | |
-| 3 | Continuar hacia el pago | Hacer clic en "Continuar a pago" | Botón continuar | Avanza al Paso 3 (Pago) del flujo de Check-Out | [ ] | |
+| 1 | Visualizar desglose de liquidación | En `/check-out` (Paso 2), revisar la tabla de liquidación | Datos de liquidación | Se muestran las noches calculadas, fecha de ingreso, fecha de salida, monto de hospedaje, comisión OTA (si aplica) e ingreso neto | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Visualizar liquidación con Módulo 3 no disponible | Consultar liquidación cuando el servicio de Módulo 3 está caído | M3 desconectado | La interfaz muestra advertencia: "No fue posible conectar con Facturación." permitiendo avanzar con contingencia operativa | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Continuar hacia el pago | Hacer clic en "Continuar a pago" | Botón continuar | Avanza al Paso 3 (Pago) del flujo de Check-Out | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Estancia no encontrada o cerrada | Abrir liquidación con un `stayId` inexistente o ya finalizado | UUID no válido | Se muestra mensaje de error: "No se encontró la estancia activa para liquidación." | [ ] | |
+| 1 | Estancia no encontrada o cerrada | Abrir liquidación con un `stayId` inexistente o ya finalizado | UUID no válido | Se muestra mensaje de error: "No se encontró la estancia activa para liquidación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de liquidación exitosa (AVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | `stayId` de estancia activa | HTTP 200 OK con JSON `SettlementResponseDto` conteniendo `status: "AVAILABLE"`, `settlementType`, `reservationInfo`, `guestSummary` y `stayData` | [ ] | |
-| 2 | Consulta con Módulo 3 caído (UNAVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | Módulo 3 apagado | HTTP 200 OK con JSON `{ "status": "UNAVAILABLE", "unavailableCause": "No fue posible conectar con Facturación." }` | [ ] | |
-| 3 | Encabezado de caché en respuesta | Verificar encabezados de respuesta HTTP en `GET /api/stays/{stayId}/settlement` | Estancia activa | Contiene encabezado `Cache-Control: no-store` para garantizar datos financieros en tiempo real | [ ] | |
-| 4 | Error por estancia inexistente | `GET {BASE_URL}/api/stays/b0000000-0000-0000-0000-000000000999/settlement` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ACTIVE_STAY_NOT_FOUND"`, mensaje: "No se encontró una estancia activa para la habitación." | [ ] | |
+| 1 | Consulta de liquidación exitosa (AVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | `stayId` de estancia activa | HTTP 200 OK con JSON `SettlementResponseDto` conteniendo `status: "AVAILABLE"`, `settlementType`, `reservationInfo`, `guestSummary` y `stayData` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 2 | Consulta con Módulo 3 caído (UNAVAILABLE) | `GET {BASE_URL}/api/stays/{stayId}/settlement`<br>Headers: (sin X-User obligatorio) | Módulo 3 apagado | HTTP 200 OK con JSON `{ "status": "UNAVAILABLE", "unavailableCause": "No fue posible conectar con Facturación." }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 3 | Encabezado de caché en respuesta | Verificar encabezados de respuesta HTTP en `GET /api/stays/{stayId}/settlement` | Estancia activa | Contiene encabezado `Cache-Control: no-store` para garantizar datos financieros en tiempo real | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 4 | Error por estancia inexistente | `GET {BASE_URL}/api/stays/b0000000-0000-0000-0000-000000000999/settlement` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ACTIVE_STAY_NOT_FOUND"`, mensaje: "No se encontró una estancia activa para la habitación." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
 
 --------------------------------------------------------------------------------
 
@@ -80,3 +80,11 @@ Este caso de prueba verifica la consulta de liquidación de la estancia (`GET /a
 | **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
 | **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
+
+--------------------------------------------------------------------------------
+
+#### Resumen de Ejecución
+
+| Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
+| :---: | :---: | :---: | :---: | :---: |
+| 10 | 10 | 0 | 0 | APROBADO |

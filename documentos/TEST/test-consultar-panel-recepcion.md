@@ -1,5 +1,5 @@
 ### Test Case Specification: Consultar Panel de Recepción
-**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-panel-recepcion.md](../SPEC/spec-consultar-panel-recepcion.md) / [plan-consultar-panel-recepcion.md](../PLAN/plan-consultar-panel-recepcion.md)  **Status** : Draft
+**Created** : 2026-11-07  **Spec/Plan Link** : [spec-consultar-panel-recepcion.md](../SPEC/spec-consultar-panel-recepcion.md) / [plan-consultar-panel-recepcion.md](../PLAN/plan-consultar-panel-recepcion.md)  **Status** : Approved
 
 #### Test Overview
 
@@ -44,37 +44,37 @@ Este caso de prueba verifica la carga, visualización y búsqueda en las pestañ
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como recepcionista | Navegar a `/login`, ingresar credenciales de recepción | Usuario: `recepcionista` | El sistema redirige a `/recepcion` (ReceptionPanel) | [ ] | |
-| 2 | Visualizar estructura del panel | Comprobar encabezado, métricas KPI y pestañas principales en `/recepcion` | Ruta `/recepcion` | Se muestra el panel con métricas superiores y pestañas: Llegadas, Huéspedes y Salidas | [ ] | |
+| 1 | Iniciar sesión como recepcionista | Navegar a `/login`, ingresar credenciales de recepción | Usuario: `recepcionista` | El sistema redirige a `/recepcion` (ReceptionPanel) | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Visualizar estructura del panel | Comprobar encabezado, métricas KPI y pestañas principales en `/recepcion` | Ruta `/recepcion` | Se muestra el panel con métricas superiores y dos pestañas: Llegadas y Salidas | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Verificar indicadores KPI | Observar tarjetas de KPI en la parte superior del panel | Datos locales | Se muestran los 4 contadores: Llegadas hoy, Huéspedes activos, Salidas hoy y Check-ins pendientes | [ ] | |
-| 2 | Consultar pestaña Llegadas | Clic en la pestaña "Llegadas" | Pestaña Llegadas | Lista las habitaciones de reservas de hoy pendientes de check-in con botón "Check-in" | [ ] | |
-| 3 | Buscar en Llegadas | Escribir término de búsqueda en el campo de texto | Filtro "Gómez" | Filtra en tiempo real las llegadas coincidentes | [ ] | |
-| 4 | Consultar pestaña Salidas | Clic en la pestaña "Salidas" | Pestaña Salidas | Lista las estancias activas con salida prevista para hoy o vencidas, mostrando botón "Check-out" | [ ] | |
-| 5 | Identificar salidas vencidas | Observar estancias cuya fecha de salida es anterior a hoy | Salidas vencidas | Se resaltan visualmente al inicio de la lista con badge o alerta de salida vencida | [ ] | |
-| 6 | Buscar en Salidas | Escribir número de habitación en el buscador de Salidas | Filtro "101" | Filtra mostrando la estancia activa asociada a la habitación 101 | [ ] | |
-| 7 | Navegar a Check-out | Hacer clic en botón "Check-out" de una estancia en la pestaña Salidas | Estancia de hab. 101 | Redirige a `/check-out?reservationRef=...&roomId=...` cargando el flujo de salida | [ ] | |
+| 1 | Verificar indicadores KPI | Observar tarjetas de KPI en la parte superior del panel | Datos locales | Se muestran los 4 contadores: Llegadas de hoy, Salidas de hoy, Salidas vencidas y Habitaciones ocupadas | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Consultar pestaña Llegadas | Clic en la pestaña "Llegadas" | Pestaña Llegadas | Lista las habitaciones de reservas de hoy pendientes de check-in con botón "Check-in" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Buscar en Llegadas | Escribir término de búsqueda en el campo de texto | Filtro "Gómez" | Filtra en tiempo real las llegadas coincidentes | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 4 | Consultar pestaña Salidas | Clic en la pestaña "Salidas" | Pestaña Salidas | Lista las estancias activas con salida prevista para hoy o vencidas, mostrando botón "Check-out" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 5 | Identificar salidas vencidas | Observar estancias cuya fecha de salida es anterior a hoy | Salidas vencidas | Se resaltan visualmente al inicio de la lista con badge o alerta de salida vencida | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 6 | Buscar en Salidas | Escribir número de habitación en el buscador de Salidas | Filtro "101" | Filtra mostrando la estancia activa asociada a la habitación 101 | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 7 | Navegar a Check-out | Hacer clic en botón "Check-out" de una estancia en la pestaña Salidas | Estancia de hab. 101 | Redirige a `/check-out?reservationRef=...&roomId=...` cargando el flujo de salida | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Búsqueda sin coincidencias en Salidas | Ingresar criterio no existente en buscador de salidas | Búsqueda: "NoExiste999" | La tabla muestra estado vacío: "No hay salidas programadas para el criterio seleccionado." | [ ] | |
-| 2 | Validación de longitud en buscador de Llegadas | Ingresar más de 100 caracteres en el campo de búsqueda | 101 caracteres | Mensaje de validación: "La búsqueda admite máximo 100 caracteres." | [ ] | |
-| 3 | Validación de longitud en buscador de Salidas | Ingresar más de 100 caracteres en el campo de salidas | 101 caracteres | Mensaje de validación: "La búsqueda admite máximo 100 caracteres." | [ ] | |
+| 1 | Búsqueda sin coincidencias en Salidas | Ingresar criterio no existente en buscador de salidas | Búsqueda: "NoExiste999" | La tabla muestra estado vacío: "No hay salidas programadas para el criterio seleccionado." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 2 | Validación de longitud en buscador de Llegadas | Ingresar más de 100 caracteres en el campo de búsqueda | 101 caracteres | Mensaje de validación: "La búsqueda admite máximo 100 caracteres." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 3 | Validación de longitud en buscador de Salidas | Ingresar más de 100 caracteres en el campo de salidas | 101 caracteres | Mensaje de validación: "La búsqueda admite máximo 100 caracteres." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consultar llegadas pendientes | `GET {BASE_URL}/api/reception/arrivals`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON `PendingArrivalsDto` conteniendo reservas locales pendientes de check-in | [ ] | |
-| 2 | Consultar llegadas con búsqueda | `GET {BASE_URL}/api/reception/arrivals?query=Carlos` | Query válido | HTTP 200 OK con resultados coincidentes | [ ] | |
-| 3 | Error por búsqueda de llegadas excesiva | `GET {BASE_URL}/api/reception/arrivals?query=` (101 caracteres) | 101 caracteres | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "La búsqueda admite máximo 100 caracteres." | [ ] | |
-| 4 | Consultar salidas del día y vencidas | `GET {BASE_URL}/api/reception/departures`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON `DeparturesDto` con estancias activas con salida hoy o vencidas | [ ] | |
-| 5 | Consultar salidas con búsqueda | `GET {BASE_URL}/api/reception/departures?query=101` | Query "101" | HTTP 200 OK con estancias coincidentes | [ ] | |
-| 6 | Error por búsqueda de salidas excesiva | `GET {BASE_URL}/api/reception/departures?query=` (101 caracteres) | 101 caracteres | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "La búsqueda admite máximo 100 caracteres." | [ ] | |
-| 7 | Consultar indicadores KPI del turno | `GET {BASE_URL}/api/reception/panel/kpis`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON conteniendo `arrivalsToday`, `activeStays`, `departuresToday`, `pendingCheckIns` | [ ] | |
+| 1 | Consultar llegadas pendientes | `GET {BASE_URL}/api/reception/arrivals`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON `PendingArrivalsDto` conteniendo reservas locales pendientes de check-in | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 2 | Consultar llegadas con búsqueda | `GET {BASE_URL}/api/reception/arrivals?query=Carlos` | Query válido | HTTP 200 OK con resultados coincidentes | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 3 | Error por búsqueda de llegadas excesiva | `GET {BASE_URL}/api/reception/arrivals?query=` (101 caracteres) | 101 caracteres | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "La búsqueda admite máximo 100 caracteres." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 4 | Consultar salidas del día y vencidas | `GET {BASE_URL}/api/reception/departures`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON `DeparturesDto` con estancias activas con salida hoy o vencidas | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 5 | Consultar salidas con búsqueda | `GET {BASE_URL}/api/reception/departures?query=101` | Query "101" | HTTP 200 OK con estancias coincidentes | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 6 | Error por búsqueda de salidas excesiva | `GET {BASE_URL}/api/reception/departures?query=` (101 caracteres) | 101 caracteres | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "La búsqueda admite máximo 100 caracteres." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 7 | Consultar indicadores KPI del turno | `GET {BASE_URL}/api/reception/panel/kpis`<br>Headers: (sin X-User obligatorio) | Sin parámetros | HTTP 200 OK con JSON conteniendo `arrivalsToday`, `departuresToday`, `overdueDepartures`, `occupiedRooms` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
 
 --------------------------------------------------------------------------------
 
@@ -89,3 +89,11 @@ Este caso de prueba verifica la carga, visualización y búsqueda en las pestañ
 | **Critical** | **C** | System crash, data corruption, or complete block of critical user journey with no workaround. |
 | **Major** | **M** | Core feature broken or significant functionality loss, but an awkward workaround exists. |
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
+
+--------------------------------------------------------------------------------
+
+#### Resumen de Ejecución
+
+| Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
+| :---: | :---: | :---: | :---: | :---: |
+| 19 | 19 | 0 | 0 | APROBADO |
