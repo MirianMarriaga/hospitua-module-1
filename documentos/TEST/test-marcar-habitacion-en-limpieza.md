@@ -91,13 +91,6 @@ Este caso de prueba verifica que un miembro de limpieza inicie la limpieza de un
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior hablaba de "tarjetas" con piso, de un cronómetro y de un botón "Reportar daño" en la tarea activa (el daño se describe al confirmar el fin); esperaba en la respuesta `memberId` y `startedAt` (solo viaja `taskId`), "La habitación no está pendiente de limpieza." para una habitación Disponible (que sí se puede limpiar) y usaba la 101–103, que son datos del equipo | Pasos reescritos con lo que muestra la página y lo que responde la API |
-| H2 | Documento | La versión anterior esperaba `ROOM_TASK_EXISTS` al tomar una habitación ya En limpieza; el backend responde `ROOM_INVALID_STATE` porque revisa primero el estado | Se anota la respuesta real y la carrera queda como no comprobable |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

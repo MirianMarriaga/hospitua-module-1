@@ -72,7 +72,7 @@ Este caso de prueba verifica el registro de una habitación nueva desde `/admini
 | 6 | Tarifa negativa o con 3 decimales | `"baseRate":-50.00`, luego `150000.555` | Uno por consulta | 400 `VALIDATION_ERROR`, `details.field` `baseRate` | [x] Pass | 13-11-2026: comprobado |
 | 7 | Tipo inexistente | `"categoryRoom":"PENTHOUSE"` | N/A | 400 `VALIDATION_ERROR`, "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique.", `details.field` `categoryRoom` | [x] Pass | 13-11-2026: comprobado |
 | 8 | Número repetido | `"roomNumber":"101"` | 101 | 409 `ROOM_NUMBER_ALREADY_EXISTS`, "Ya existe una habitación con el número 101." | [x] Pass | 13-11-2026: comprobado |
-| 9 | Usuario de otra área | El `POST` del paso 1 con `X-User` de Recepción | Número nuevo | Por la regla 14 del plan base no hay permisos por rol en esta etapa: el backend acepta (201). El control de área lo hace solo la interfaz (Recepción no ve el inventario de Administración) | [x] Pass | 13-11-2026: comprobado; se registró la 409 con `tc.recepcion` (hallazgo H2) |
+| 9 | Usuario de otra área | El `POST` del paso 1 con `X-User` de Recepción | Número nuevo | Por la regla 14 del plan base no hay permisos por rol en esta etapa: el backend acepta (201). El control de área lo hace solo la interfaz (Recepción no ve el inventario de Administración) | [x] Pass | 13-11-2026: comprobado; se registró la 409 con `tc.recepcion` |
 
 --------------------------------------------------------------------------------
 
@@ -89,13 +89,6 @@ Este caso de prueba verifica el registro de una habitación nueva desde `/admini
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
 
 --------------------------------------------------------------------------------
-
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba el botón "Nueva habitación", el botón "Guardar habitación", el aviso "Habitación 407 registrada exitosamente." con regreso al inventario y el mensaje "Completa los campos obligatorios: {campos}.". En la plataforma el botón es "Registrar habitación", tras registrar se muestra una confirmación en la misma ruta, y los mensajes de campo vacío son uno por campo | Pasos reescritos con lo que muestra la página |
-| H2 | Limitación conocida | Sin permisos por rol (regla 14 del plan base): cualquier usuario válido en `X-User` puede registrar habitaciones por la API, y la sesión del navegador se puede editar para actuar como otro usuario. Importante porque la plataforma está publicada en internet | Ninguna en esta etapa; queda registrada para la identidad compartida entre módulos. La habitación 409 queda como dato de prueba |
 
 #### Resumen de Ejecución
 

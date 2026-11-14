@@ -88,13 +88,6 @@ Este caso de prueba verifica el panel de limpieza (`/limpieza`, `GET /api/cleani
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior describía tarjetas con piso, un filtro "Piso 1" / "Todos los pisos" y un botón de recarga que no existen; esperaba "No hay habitaciones pendientes de limpieza." y "No fue posible cargar el panel de limpieza. Intenta de nuevo."; y en la API un campo `pendingRooms` y `activeTask: null` (el campo es `rooms` y `activeTask` no viaja cuando no hay tarea) | Pasos reescritos con lo que muestra la página y lo que responde la API |
-| H2 | Documento | La versión anterior marcaba como aprobados el panel vacío y el error de conexión, que no se pueden provocar en la plataforma | Quedan como no comprobables |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

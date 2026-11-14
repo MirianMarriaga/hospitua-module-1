@@ -91,13 +91,6 @@ Este caso de prueba verifica la edición de una habitación Disponible desde `/a
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba un botón "Revisar cambios", un diálogo de confirmación "Antes / Ahora" con "Confirmar cambios", el regreso al inventario con "Habitación 102 actualizada exitosamente.", el tipo "fuera de catálogo" (el campo es una lista cerrada) y los textos "La habitación no está disponible para edición…" y "No se encontró ninguna habitación…" en pantalla. En la plataforma se guarda directo con "Guardar cambios" y el "Antes / Ahora" es la confirmación posterior | Pasos reescritos con lo que muestra la página |
-| H2 | Documento | La versión anterior editaba la 102, que pertenece a los datos compartidos del equipo | Se usa la 407 creada en TC-018 |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

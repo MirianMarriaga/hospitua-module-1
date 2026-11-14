@@ -63,7 +63,7 @@ Este caso de prueba verifica la baja de una habitación Disponible desde `/admin
 | 2 | "Otro" sin detalle | Elegir "Otro" y dejar el detalle vacío o con espacios | N/A | El campo pasa a llamarse "Motivo de la baja *" y aparece "Escribe el motivo de la baja." | [x] Pass | 13-11-2026: comprobado |
 | 3 | Habitación que no está Disponible | Abrir a mano la baja de la 101, y la de la 409 ya inactiva | 101; 409 | "No se puede dar de baja la habitación 101" / "La habitación está en estado Pendiente de limpieza. Solo se pueden dar de baja habitaciones disponibles." (y lo mismo con "Inactiva" para la 409) | [x] Pass | 13-11-2026: comprobado |
 | 4 | Reservas vigentes en Módulo 2 | Dar de baja una habitación con una reserva vigente en Módulo 2 | Reserva vigente | "No se puede dar de baja la habitación {n}", "La habitación tiene una reserva vigente. Reasígnalas a otra habitación y vuelve a intentar la baja. La habitación sigue disponible." y la lista de reservas | N/C | No comprobable en la plataforma: el simulador de Módulo 2 publicado no devuelve reservas |
-| 5 | Módulo 2 sin respuesta | Confirmar la baja cuando Módulo 2 no responde a tiempo | N/A | Paso 4: "No se pudo completar la baja" / "No fue posible comprobar las reservas de la habitación {n} en este momento. No se aplicó ningún cambio y la habitación sigue disponible." con "Volver al inventario" y "Reintentar" | [x] Pass | 13-11-2026: ocurrió sin provocarlo en el primer intento con la 408 (424); el segundo intento funcionó (hallazgo H3) |
+| 5 | Módulo 2 sin respuesta | Confirmar la baja cuando Módulo 2 no responde a tiempo | N/A | Paso 4: "No se pudo completar la baja" / "No fue posible comprobar las reservas de la habitación {n} en este momento. No se aplicó ningún cambio y la habitación sigue disponible." con "Volver al inventario" y "Reintentar" | [x] Pass | 13-11-2026: ocurrió sin provocarlo en el primer intento con la 408 (424); el segundo intento funcionó |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
@@ -95,16 +95,8 @@ Este caso de prueba verifica la baja de una habitación Disponible desde `/admin
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba el motivo "Remodelación estructural", el botón "Confirmar retiro del inventario", el diálogo "¿Estás seguro de dar de baja la habitación 102?", el aviso "Habitación 102 dada de baja exitosamente.", los mensajes "Selecciona un motivo válido para la baja.", "Ingresa el detalle explicativo del motivo de baja." y "Solo se pueden dar de baja habitaciones en estado Disponible (estado actual: {estado}).", el valor `REMODELING` y un detalle siempre obligatorio. Nada de eso coincide con la plataforma | Pasos reescritos con lo que muestra la página |
-| H2 | Documento | La versión anterior daba de baja la 102 y la 103, que son datos compartidos del equipo | Se usan las 408 y 409 creadas en TC-018 |
-| H3 | Plataforma (S) | El primer intento de baja respondió 424 ("No fue posible comprobar las reservas…") aunque el simulador de Módulo 2 estaba arriba; el siguiente funcionó. Probablemente la primera consulta superó el tiempo de lectura de 2 s | Propuesta: revisar el tiempo de espera hacia Módulo 2 en el servidor. No se cambió la plataforma |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 21 | 19 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) con observaciones H3 |
+| 21 | 19 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) |

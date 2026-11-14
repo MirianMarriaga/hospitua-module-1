@@ -92,13 +92,6 @@ Este caso de prueba verifica la consulta del inventario de habitaciones: la pant
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba una "barra de búsqueda superior", un selector de tamaño de página, el mensaje "No se encontraron habitaciones con los filtros aplicados.", "Revisa los filtros aplicados." en pantalla, el campo `total`, el botón "Nueva habitación" y los usuarios `admin` / `gerente`. La página usa el filtro "Número", páginas fijas de 10, "Ninguna habitación cumple los filtros seleccionados." y "Registrar habitación"; los parámetros inválidos se ignoran | Pasos reescritos con lo que muestra la página |
-| H2 | Documento | El estado inicial "14 habitaciones de la semilla, 12 disponibles" no corresponde a la plataforma publicada (15 habitaciones, varios estados) | Precondiciones escritas sin depender de cantidades exactas |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

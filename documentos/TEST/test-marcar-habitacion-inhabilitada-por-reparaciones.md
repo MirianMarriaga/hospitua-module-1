@@ -95,13 +95,6 @@ Este caso de prueba verifica que una habitación quede Inhabilitada por reparaci
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior ponía "Reportar daño" en la tarea activa de limpieza (está en el panel, para habitaciones Disponibles), un botón "Inhabilitar habitación y reportar daño", "Ver detalle del daño" (es "Ver informe") y los mensajes "Describe el daño encontrado en la habitación." y "La descripción admite máximo 500 caracteres."; decía que el reporte se hace sobre una habitación En limpieza (el backend lo rechaza) | Pasos reescritos con lo que muestra la página |
-| H2 | Documento | La versión anterior marcaba como aprobado el aviso diario de las 00:00 sin poder verlo | Queda como no comprobable |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

@@ -96,13 +96,6 @@ Este caso de prueba verifica las reparaciones desde el panel de mantenimiento: "
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba el diálogo "¿Confirmas que terminaste la reparación de la habitación 101?", "motivo del daño y cronómetro", el mensaje "La tarea pertenece a otro miembro del personal." y otros avisos de fin que no existen; usaba la 101 y la 103, que son datos del equipo | Pasos reescritos con los textos reales |
-| H2 | Documento | La versión anterior no probaba la reparación de un bloqueo técnico de punta a punta ni la regla de no publicar aviso cuando el fin coincide con la fecha estimada | Se agregan esos pasos con la 407 |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

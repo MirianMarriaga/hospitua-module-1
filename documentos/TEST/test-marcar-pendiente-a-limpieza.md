@@ -84,12 +84,6 @@ Este caso de prueba verifica que una habitación pase a Pendiente de limpieza en
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba "No disponible: Pendiente de limpieza" en Llegadas (el aviso real es "Pendiente de limpieza: se apartará al terminar la limpieza"), un "badge ámbar", "tarjetas" en el panel y `sourceFlow: "CHECK_OUT"` / `"CONFIRM_REPAIR_END"` en el historial (la API devuelve `sourceFlowName` con el nombre del caso de uso); usaba la 101 y la 102, que son datos del equipo | Pasos reescritos con lo que muestra la página y lo que responde la API |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

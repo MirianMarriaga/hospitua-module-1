@@ -58,7 +58,7 @@ Este caso de prueba verifica las tres formas de dejar una habitación Disponible
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Habitación que no está Inactiva | Abrir a mano la reactivación de la 409 ya disponible | 409 | Según la SPEC (FR-006): "No se puede marcar como disponible la habitación 409" / "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." | [ ] Fail | 13-11-2026: la página muestra "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." (hallazgo H2) |
+| 1 | Habitación que no está Inactiva | Abrir a mano la reactivación de la 409 ya disponible | 409 | Según la SPEC (FR-006): "No se puede marcar como disponible la habitación 409" / "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." | [ ] Fail | 13-11-2026: la página muestra "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." |
 | 2 | Habitación inexistente | Abrir a mano la reactivación con un UUID que no existe | `b0000000-…-999` | "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
@@ -92,13 +92,6 @@ Este caso de prueba verifica las tres formas de dejar una habitación Disponible
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
 
 --------------------------------------------------------------------------------
-
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba el botón "Reactivar" en el inventario (es "Marcar como disponible"), un "diálogo" de confirmación, "Volver al inicio", `reservedByReservationRef` en el inventario y el campo `action` en el mensaje; usaba la 104 y la 103, que son datos del equipo | Pasos reescritos; se usan la 408 y la 409 |
-| H2 | Plataforma (M) | `ReactivationPage.tsx` muestra "Habitación no encontrada" para cualquier error de `GET …/decommission`. Para una habitación que no está Inactiva el backend responde 409 `ROOM_INVALID_STATE`, así que el aviso "No se puede marcar como disponible…" (FR-006) nunca aparece | Propuesta: en la rama de error, si el código es `ROOM_INVALID_STATE`, mostrar ese aviso con `details.currentStatus`. No se cambió la plataforma |
 
 #### Resumen de Ejecución
 

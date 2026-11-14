@@ -88,13 +88,6 @@ Este caso de prueba verifica la consulta de mantenimientos de una habitación en
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba un límite de consulta de 365 días ("El rango de consulta no puede superar 365 días.") que la especificación descarta, "La fecha inicial no puede ser posterior a la fecha final.", "La fecha "Desde" no puede ser posterior a "Hasta"." y "No se encontró ninguna habitación con ese identificador."; también una vista de consulta en el diálogo de programación y en el historial de Gerencia que no existe | Pasos reescritos con los textos y las reglas reales |
-| H2 | Documento | La versión anterior no probaba el día de salida excluido ni el rango que empieza antes de hoy | Se agregan esos pasos |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

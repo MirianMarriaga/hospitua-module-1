@@ -86,13 +86,6 @@ Este caso de prueba verifica el panel de mantenimiento (`/mantenimiento`, `GET /
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba columnas de piso y "origen del reporte", el botón "Ver detalle del daño" (es "Ver informe"), "No hay habitaciones pendientes de reparación." y "No fue posible cargar el panel de mantenimiento. Intenta de nuevo."; en la API, `pendingRooms` y `activeTask: null` (el campo es `rooms` y `activeTask` no viaja sin tarea) | Pasos reescritos con lo que muestra la página y lo que responde la API |
-| H2 | Documento | La versión anterior no describía el conteo, los grupos de la tabla ni la búsqueda | Se agregan esos pasos |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

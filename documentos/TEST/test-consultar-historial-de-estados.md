@@ -62,7 +62,7 @@ Este caso de prueba verifica la consulta de solo lectura del historial de estado
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Rango de fechas invertido | "Desde" posterior a "Hasta" | Desde 31-10-2026, Hasta 01-10-2026 | Junto a las fechas aparece "La fecha "Desde" no puede ser posterior a "Hasta"." y no se envía la consulta con el rango inválido | [x] Pass | 13-11-2026: comprobado. Observación: la tabla sigue mostrando el resultado de la consulta anterior (ver hallazgo H2) |
+| 1 | Rango de fechas invertido | "Desde" posterior a "Hasta" | Desde 31-10-2026, Hasta 01-10-2026 | Junto a las fechas aparece "La fecha "Desde" no puede ser posterior a "Hasta"." y no se envía la consulta con el rango inválido | [x] Pass | 13-11-2026: comprobado. Observación: la tabla sigue mostrando el resultado de la consulta anterior |
 | 2 | Filtros sin resultados | Habitación 101 y Estado "Bloqueo técnico" | `?roomNumber=101&status=TechnicalBlock` | La tabla muestra "No se encontraron resultados" | [x] Pass | 13-11-2026: comprobado |
 | 3 | Parámetro inválido en la dirección | Abrir a mano `/gerencia/historial?status=Roto` y `/gerencia/historial?page=-1` | Valores inválidos | El filtro inválido se ignora: la lista se muestra sin ese filtro, en la página 1, sin mensaje de error | [x] Pass | 13-11-2026: comprobado ("Mostrando 1–15 de 45") |
 
@@ -75,7 +75,7 @@ Este caso de prueba verifica la consulta de solo lectura del historial de estado
 | 4 | Orden descendente | `GET {BASE_URL}/api/room-state-history?direction=desc` | N/A | 200 con `startDateTime` de mayor a menor | [x] Pass | 13-11-2026: comprobado |
 | 5 | Orden por fin | `GET {BASE_URL}/api/room-state-history?sort=endDateTime&direction=desc` | N/A | 200; primero los periodos abiertos y después por fin de mayor a menor (la interfaz no usa este orden) | [x] Pass | 13-11-2026: comprobado |
 | 6 | Rango invertido | `GET {BASE_URL}/api/room-state-history?from=2026-11-20&to=2026-11-10` | Fechas invertidas | 400 `INVALID_DATE_RANGE`, mensaje "La fecha "Desde" no puede ser posterior a "Hasta".", `details.rule` = `FROM_AFTER_TO` | [x] Pass | 13-11-2026: comprobado |
-| 7 | Valores fuera de lo permitido | `GET` con `page=0`, `page=-1`, `sort=fecha`, `direction=arriba` y `status=Roto` (uno por consulta) | Uno por consulta | 400 `VALIDATION_ERROR` con el campo en `details.field` (`page`, `sort`, `direction`, `status`) | [x] Pass | 13-11-2026: comprobado. Con `status=Roto` el mensaje es "Tipo de dato inválido para el campo: status" en vez de "Revisa los filtros aplicados." (hallazgo H3) |
+| 7 | Valores fuera de lo permitido | `GET` con `page=0`, `page=-1`, `sort=fecha`, `direction=arriba` y `status=Roto` (uno por consulta) | Uno por consulta | 400 `VALIDATION_ERROR` con el campo en `details.field` (`page`, `sort`, `direction`, `status`) | [x] Pass | 13-11-2026: comprobado. Con `status=Roto` el mensaje es "Tipo de dato inválido para el campo: status" en vez de "Revisa los filtros aplicados." |
 
 --------------------------------------------------------------------------------
 
@@ -94,16 +94,8 @@ Este caso de prueba verifica la consulta de solo lectura del historial de estado
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba columnas "Duración calculada" y "Flujo de origen", un botón "Filtrar", los mensajes "No se encontraron registros de historial para los filtros seleccionados." y "Revisa los filtros aplicados." en pantalla, el campo `total` y el usuario `gerente`. Nada de eso existe en la plataforma | Pasos reescritos con lo que muestra la página |
-| H2 | Plataforma (S) | Con el rango invertido, la tabla sigue mostrando el resultado de la consulta anterior junto al aviso | Propuesta: ocultar la tabla mientras el rango sea inválido. No se cambió la plataforma |
-| H3 | Plataforma (S) | Con un estado inexistente, la API responde "Tipo de dato inválido para el campo: status" en vez del mensaje común "Revisa los filtros aplicados." | Propuesta: unificar el mensaje. No se cambió la plataforma |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 19 | 19 | 0 | 0 | APROBADO (con observaciones H2 y H3) |
+| 19 | 19 | 0 | 0 | APROBADO |

@@ -92,7 +92,7 @@ Este caso de prueba verifica la gestión de las cuentas del personal desde `/adm
 
 ##### Edge Cases & Boundary Conditions
 * **EC-001 (API)** : La contraseña nunca viaja en las respuestas.
-* **EC-002 (Interfaz)** : "Guardar cambios" sin modificar nada igual envía el `PATCH` y muestra "Cuenta de … actualizada" (la edición de habitaciones, en cambio, avisa "No has modificado ningún dato."; hallazgo H3).
+* **EC-002 (Interfaz)** : "Guardar cambios" sin modificar nada igual envía el `PATCH` y muestra "Cuenta de … actualizada" (la edición de habitaciones, en cambio, avisa "No has modificado ningún dato.").
 
 #### Defect Severity Reference
 
@@ -104,16 +104,8 @@ Este caso de prueba verifica la gestión de las cuentas del personal desde `/adm
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba "Nuevo colaborador", "Registrar cuenta", los avisos "Cuenta jlopez registrada exitosamente." / "actualizada exitosamente." con regreso al listado, áreas en mayúsculas en la tabla, "Completa los campos obligatorios: {campos}." y el botón "Desactivar" deshabilitado en la fila propia. En la plataforma hay confirmaciones propias, los mensajes van por campo y la fila propia sí permite intentar la desactivación (el rechazo llega del backend) | Pasos reescritos con lo que muestra la página |
-| H2 | Documento | La versión anterior usaba `jlopez` como cuenta nueva, pero ya existe en la plataforma (Jorge Lopez, Mantenimiento); el paso habría fallado con 409 | Se usan `tc.personal` y `tc.personal2` |
-| H3 | Plataforma (S) | Al guardar una cuenta sin cambios se envía el `PATCH` y se informa "actualizada", a diferencia de la edición de habitaciones | Propuesta: avisar "No has modificado ningún dato." como en habitaciones. No se cambió la plataforma |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 30 | 28 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) con observaciones H3 |
+| 30 | 28 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) |

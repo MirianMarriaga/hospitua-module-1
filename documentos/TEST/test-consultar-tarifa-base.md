@@ -84,12 +84,6 @@ Este caso de prueba verifica la consulta de la tarifa base de una habitación qu
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior consultaba sin `date` y esperaba 200 (el parámetro es obligatorio: responde 400), esperaba `roomNumber`, `categoryRoom`, `effectiveDate` y `baseRate` numérico (la respuesta trae `roomId`, `date`, `baseRate` como texto y `currency`), "No se encontró ninguna habitación con ese identificador." y el formato "$120.000,00"; usaba la 101 y la 105, que son datos del equipo | Pasos reescritos con la respuesta real |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

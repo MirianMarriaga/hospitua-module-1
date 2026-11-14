@@ -104,13 +104,6 @@ Este caso de prueba verifica "Programar mantenimiento" desde el panel de manteni
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba "seleccionar la habitación" en el diálogo (se abre desde la fila), un diálogo de confirmación adicional, "La habitación ya tiene un mantenimiento programado en ese rango de fechas." y que un rango de 366 días se rechace con el límite de 365 (el límite de 365 es para la anticipación del inicio; la duración máxima es de 90 días); además usaba la 105, que es dato del equipo | Pasos reescritos con los textos y las reglas reales |
-| H2 | Documento | La versión anterior marcaba como aprobados el conflicto con reservas y la caída de Módulo 2 | Quedan como no comprobables en la plataforma |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |

@@ -96,13 +96,6 @@ Este caso de prueba verifica el cierre de una limpieza desde la tarea activa (`/
 
 --------------------------------------------------------------------------------
 
-#### Hallazgos de la revisión (13-11-2026)
-
-| ID | Tipo | Hallazgo | Corrección |
-| :---: | ------ | ------ | ------ |
-| H1 | Documento | La versión anterior esperaba un botón "Reportar daño" en la tarea activa, los avisos "Limpieza terminada. La habitación quedó disponible para asignar." y "La tarea de limpieza ya no se encuentra activa.", y el mensaje "La tarea pertenece a otro miembro del personal."; usaba la 101 y la 102, que son datos del equipo | Pasos reescritos con los textos reales |
-| H2 | Documento | La versión anterior no probaba el fin con daño ni el límite de 500 caracteres | Se agregan esos pasos |
-
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
