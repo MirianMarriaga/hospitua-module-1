@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la modificación de los atributos físicos y comerciales de una habitación (`PATCH /api/rooms/{roomId}`), exigiendo que la habitación se encuentre exclusivamente en estado Available, el control de concurrencia optimista mediante el atributo `version`, la pantalla de confirmación "Antes / Ahora", y el rechazo en cualquier otro estado del ciclo de vida.
+Este caso de prueba verifica la edición de una habitación Disponible desde `/administracion/habitaciones/{roomId}/editar` (`PATCH /api/rooms/{roomId}`): el formulario precargado, la confirmación "Antes / Ahora" que aparece después de guardar, el aviso cuando no se cambió nada, las validaciones de campo, el número repetido, el rechazo de habitaciones que no están Disponibles, el control de versión ante una edición simultánea y la habitación inexistente.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,15 @@ Este caso de prueba verifica la modificación de los atributos físicos y comerc
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos. La ruta `/administracion/habitaciones/:roomId/editar` se encuentra implementada.
+* La edición cambia datos reales de la habitación de prueba; usar una habitación creada para pruebas (en la ejecución: la 407 de TC-018).
 
 ##### Dependencies & Assumptions
-* La habitación debe encontrarse en estado `Available`. Habitaciones en `Reserved`, `Occupied`, `PendingCleaning`, `InCleaning`, `DisabledForRepairs`, `TechnicalBlock` o `Inactive` no deben permitir edición.
+* TC-018 registró la 407 en Disponible. La 204 existe (número repetido) y la 101 no está Disponible.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 102 en estado `Available` con versión inicial `version = 0`.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 Disponible (piso 4, Boutique, 2 personas, $ 320.000); 101 en otro estado (en la ejecución: Pendiente de limpieza).
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : una cuenta de Administración (en la ejecución: `cabo`).
 
 --------------------------------------------------------------------------------
 
@@ -44,47 +44,42 @@ Este caso de prueba verifica la modificación de los atributos físicos y comerc
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Seleccionar habitación a editar | En `/administracion/inventario`, ubicar la habitación 102 (`Available`) y hacer clic en el botón "Editar" | Habitación 102 | Navega a `/administracion/habitaciones/a0000000-0000-0000-0000-000000000102/editar` con el formulario precargado | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como Administrador | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Administración | Abre `/administracion/inventario` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Abrir la edición | En la fila de la 407 pulsar "Editar" | 407 | Abre `/administracion/habitaciones/{roomId}/editar` con "Modifica los datos que necesites; los demás se conservan.", el estado "Disponible" y los campos precargados; botones "Cancelar" y "Guardar cambios" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Modificar atributos de la habitación | En el formulario de edición, cambiar:<br>- Tarifa base: de $140.000 a $220.000<br>- Capacidad máxima: de 2 a 3 | Nuevos valores | Los campos validan el formato y habilitan el botón "Revisar cambios" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar diálogo de confirmación Antes / Ahora | Hacer clic en "Revisar cambios" | Acción en pantalla | Se despliega el diálogo de confirmación `EditRoomConfirmation` contrastando los valores actuales ("Antes") vs nuevos ("Ahora") | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Confirmar actualización | Hacer clic en "Confirmar cambios" en el diálogo | Confirmación modal | Se ejecuta la actualización vía `PATCH /api/rooms/{roomId}`, incrementa la versión y redirige a `/administracion/inventario` con la notificación: "Habitación 102 actualizada exitosamente." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Verificar reflejo inmediato | Consultar la fila de la habitación 102 en `/administracion/inventario` | Habitación 102 | Refleja de inmediato Tarifa: $220.000 y Capacidad: 3 | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Guardar cambios | Cambiar capacidad y tarifa y pulsar "Guardar cambios" (no hay diálogo previo) | Capacidad 3; tarifa 350000 | Se envía `PATCH /api/rooms/{roomId}` (200) y aparece "Habitación 407 actualizada" / "Los cambios ya se reflejan en el inventario." con la tabla Dato · Antes · Ahora (Capacidad máxima 2 personas → 3 personas; Tarifa base $ 320.000 → $ 350.000), los datos actuales y "Volver al inventario" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Guardar sin cambios | Abrir la edición y pulsar "Guardar cambios" sin tocar nada | N/A | "No has modificado ningún dato." y no se envía nada | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Número de habitación vacío | Borrar el número de habitación en el formulario | Campo vacío | Mensaje de validación: "El número de habitación es obligatorio." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Número de más de 10 caracteres | Ingresar número de 11 caracteres | 11 caracteres | Mensaje de validación: "El número de habitación debe tener máximo 10 caracteres." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Piso menor o igual a 0 | Modificar piso a 0 o negativo | Piso 0 | Mensaje de validación: "El piso debe ser un número entero mayor a 0." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Tipo fuera de catálogo | Seleccionar valor no admitido | Tipo inválido | Mensaje de validación: "Selecciona un tipo válido: Sencilla, Doble, Suite o Boutique." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 5 | Tarifa base inválida | Ingresar tarifa negativa o con 3 decimales | Tarifa inválida | Mensaje de validación: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 6 | Capacidad menor o igual a 0 | Ingresar capacidad 0 | Capacidad 0 | Mensaje de validación: "La capacidad máxima debe ser un número entero mayor a 0." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 7 | Habitación en estado no editable | Intentar abrir formulario de edición de una habitación en `Occupied` o `Reserved` | Habitación no `Available` | Mensaje de rechazo: "La habitación no está disponible para edición (estado actual: {estado})." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 8 | Conflicto por actualización concurrente | Enviar cambios habiendo sido modificada previamente por otro usuario | Versión desfasada | Mensaje de conflicto: "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 9 | Número duplicado con otra habitación | Cambiar número de habitación 102 a "101" | Número ya existente | Mensaje de conflicto: "Ya existe una habitación con el número 101." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 10 | Habitación inexistente | Navegar a ruta de edición con UUID inexistente | UUID no registrado | Mensaje de error: "No se encontró ninguna habitación con ese identificador." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Valores inválidos | Vaciar el número; piso 0; capacidad 0; tarifa -5 | N/A | "El número de habitación es obligatorio.", "El piso debe ser un número entero mayor a 0.", "La capacidad máxima debe ser un número entero mayor a 0." y "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [x] Pass | 13-11-2026: comprobado |
+| 2 | Número de más de 10 caracteres | Número de 11 caracteres | `12345678901` | "El número de habitación debe tener máximo 10 caracteres." | [x] Pass | 13-11-2026: comprobado |
+| 3 | Número repetido | Cambiar el número a uno existente | 204 | El backend responde 409 y el campo muestra "Ya existe una habitación con el número 204." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Edición simultánea | Abrir la edición en dos pestañas; guardar en la segunda y después en la primera | Tarifas distintas | La primera muestra "Otro usuario actualizó la información de esta habitación mientras la editabas. No se guardaron tus cambios." con el botón "Cargar los datos actuales" | [x] Pass | 13-11-2026: comprobado |
+| 5 | Habitación que no está Disponible | Abrir a mano `/administracion/habitaciones/{id de la 101}/editar` | 101 | "No se puede editar la habitación 101" / "La habitación está en estado Pendiente de limpieza. Solo se pueden editar habitaciones disponibles." y "Volver al inventario" | [x] Pass | 13-11-2026: comprobado |
+| 6 | Habitación inexistente | Abrir a mano la edición con un UUID que no existe | `b0000000-…-999` | "No existe ninguna habitación con ese identificador." y "Volver al inventario" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Edición exitosa de habitación | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"version": 0, "baseRate": 220000.00, "maxCapacity": 3}` | Hab. 102 en `Available` | HTTP 200 OK con JSON `EditRoomResultDto` `{ "room": { "id": "...", "roomNumber": "102", "baseRate": 220000.00, "maxCapacity": 3, "version": 1 }, "changes": [...] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Error por falta de X-User | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: (sin X-User)<br>Body: `{"version": 0, "baseRate": 220000.00}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de versión obligatoria | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"baseRate": 220000.00}` | Sin version | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.field: "version"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error habitación inexistente | `PATCH {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "baseRate": 220000.00}` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error habitación no en Available | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "baseRate": 220000.00}` | Habitación en `Occupied` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está disponible para edición (estado actual: Occupied)." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Error por colisión de versión optimista | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"version": 99, "baseRate": 220000.00}` | Versión obsoleta | HTTP 409 Conflict, `errorCode: "CONCURRENT_UPDATE"`, mensaje: "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Error por duplicidad de número | `PATCH {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "roomNumber": "101"}` | Número duplicado | HTTP 409 Conflict, `errorCode: "ROOM_NUMBER_ALREADY_EXISTS"`, mensaje: "Ya existe una habitación con el número 101." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Edición exitosa | `PATCH {BASE_URL}/api/rooms/{roomId}`, `X-User` de Administración, body `{"version": <actual>, "baseRate": 340000.00, "maxCapacity": 2}` | 407 | 200 con `changed` true, `changes` (campo, `previousValue`, `newValue`) y `room` con `version` + 1 | [x] Pass | 13-11-2026: comprobado |
+| 2 | Sin cambios | Body solo con la `version` actual | 407 | 200 con `changed` false, `changes` vacío y la misma `version` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Sin usuario | El `PATCH` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 4 | Sin versión | Body `{"baseRate": 220000.00}` | N/A | 400 `VALIDATION_ERROR`, `details.field` `version` | [x] Pass | 13-11-2026: comprobado (mensaje: "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales.") |
+| 5 | Habitación inexistente | `PATCH {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999` | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró ninguna habitación con ese identificador." | [x] Pass | 13-11-2026: comprobado |
+| 6 | Habitación no Disponible | `PATCH` a la 101 con su `version` | 101 | 409 `ROOM_INVALID_STATE`, "La habitación no está disponible para edición (estado actual: Pendiente de limpieza).", `details.currentStatus` | [x] Pass | 13-11-2026: comprobado |
+| 7 | Versión desactualizada | Body con `"version": 99` | N/A | 409 `CONCURRENT_UPDATE`, "La información de la habitación ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 13-11-2026: comprobado |
+| 8 | Número repetido | Body `{"version": <actual>, "roomNumber": "101"}` | 101 | 409 `ROOM_NUMBER_ALREADY_EXISTS`, "Ya existe una habitación con el número 101 (aunque esté inactiva)." | [x] Pass | 13-11-2026: comprobado. La interfaz muestra el texto corto, sin "(aunque esté inactiva)" |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (Interfaz)** : Habitación cambia de estado a `Reserved` mientras el administrador tiene abierto el formulario de edición: al presionar confirmar cambios, el backend responde HTTP 409 `ROOM_INVALID_STATE` y la interfaz alerta que el estado cambió.
-* **EC-002 (API)** : Edición parcial de atributos: al enviar únicamente `baseRate`, el resto de campos (piso, capacidad, tipo, número) se preservan intactos sin sobreescribirse con nulos.
+* **EC-001 (API)** : Cambiar el número a uno de una habitación dada de baja también se rechaza con 409.
+* **EC-002 (Interfaz)** : Tras una edición simultánea, "Cargar los datos actuales" trae la versión nueva y permite volver a editar.
 
 #### Defect Severity Reference
 
@@ -96,8 +91,15 @@ Este caso de prueba verifica la modificación de los atributos físicos y comerc
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba un botón "Revisar cambios", un diálogo de confirmación "Antes / Ahora" con "Confirmar cambios", el regreso al inventario con "Habitación 102 actualizada exitosamente.", el tipo "fuera de catálogo" (el campo es una lista cerrada) y los textos "La habitación no está disponible para edición…" y "No se encontró ninguna habitación…" en pantalla. En la plataforma se guarda directo con "Guardar cambios" y el "Antes / Ahora" es la confirmación posterior | Pasos reescritos con lo que muestra la página |
+| H2 | Documento | La versión anterior editaba la 102, que pertenece a los datos compartidos del equipo | Se usa la 407 creada en TC-018 |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 23 | 23 | 0 | 0 | APROBADO |
+| 18 | 18 | 0 | 0 | APROBADO |

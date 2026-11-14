@@ -14,28 +14,28 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el ciclo de intervenciones técnicas bajo `/api/maintenance`: inicio de tarea (`POST /api/maintenance/tasks`), confirmación de fin de reparación (`POST /api/maintenance/tasks/{taskId}/complete`) respondiendo HTTP 204 No Content y transicionando la habitación a PendingCleaning, la opción de liberación (`POST /api/maintenance/tasks/{taskId}/release`) respondiendo HTTP 204 No Content, y la publicación del aviso de mantenimiento por Outbox hacia RabbitMQ (`m2.habitacion.mantenimiento.queue` con routing key `habitacion.mantenimiento`).
+Este caso de prueba verifica las reparaciones desde el panel de mantenimiento: "Iniciar reparaciones" (`POST /api/maintenance/tasks`), la tarea activa (`/mantenimiento/tarea`), "Liberar tarea" (`POST …/release`) y "Confirmar fin" (`POST …/complete`), que deja la habitación Pendiente de limpieza tanto desde Inhabilitada por reparaciones como desde Bloqueo técnico (con el mantenimiento terminado), con los rechazos y los avisos `habitacion.mantenimiento` a Módulo 2.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Confirmar Fin de Reparación | Specification Document | [documentos/SPEC/spec-confirmar-reparacion-finalizada.md](../SPEC/spec-confirmar-reparacion-finalizada.md) |
-| Plan de Implementación de Confirmar Fin de Reparación | Plan Document | [documentos/PLAN/plan-confirmar-reparacion-finalizada.md](../PLAN/plan-confirmar-reparacion-finalizada.md) |
+| Especificación de Confirmar Reparación Finalizada | Specification Document | [documentos/SPEC/spec-confirmar-reparacion-finalizada.md](../SPEC/spec-confirmar-reparacion-finalizada.md) |
+| Plan de Implementación de Confirmar Reparación Finalizada | Plan Document | [documentos/PLAN/plan-confirmar-reparacion-finalizada.md](../PLAN/plan-confirmar-reparacion-finalizada.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere PostgreSQL, Spring Boot, broker RabbitMQ y frontend React en marcha. Las vistas `/mantenimiento` y `/mantenimiento/tarea` se encuentran implementadas.
+* Ninguna: todos los pasos se pueden hacer en la plataforma publicada. Los bloqueos técnicos de la 407 se programaron con inicio hoy (TC-015).
 
 ##### Dependencies & Assumptions
-* La habitación debe encontrarse en estado `DisabledForRepairs` o `TechnicalBlock`.
+* TC-013 dejó la 407 y la 409 Inhabilitadas por reparaciones. TC-015 puso la 407 en Bloqueo técnico (del 13-11-2026 al 15-11-2026 y luego del 13-11-2026 al 13-11-2026).
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en estado `DisabledForRepairs`. Habitación 103 en `TechnicalBlock` con informe `Applied`.
-* **Environment** : Ambiente de pruebas del equipo / Sandbox; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Mantenimiento (`mtorres`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 y 409 Inhabilitadas por reparaciones; `tc.mant1` y `tc.mant2` sin tarea activa.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : dos cuentas de Mantenimiento (en la ejecución: `tc.mant1` y `tc.mant2`).
 
 --------------------------------------------------------------------------------
 
@@ -44,48 +44,47 @@ Este caso de prueba verifica el ciclo de intervenciones técnicas bajo `/api/mai
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de mantenimiento | Navegar a `/login`, autenticarse con usuario de área Mantenimiento | Usuario: `mtorres` | Carga el Panel de Mantenimiento en `/mantenimiento` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Iniciar tarea de reparación | En `/mantenimiento`, ubicar la habitación 101 y pulsar botón "Iniciar reparaciones" | Habitación 101 | Se genera la tarea vía API y se redirige a `/mantenimiento/tarea` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como mantenimiento | Ir a `/login`, usuario y contraseña, "Ingresar" | `tc.mant1` | Abre `/mantenimiento` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Iniciar reparaciones | Pulsar "Iniciar reparaciones" en la 407 | 407 | `POST /api/maintenance/tasks` (201) sin diálogo previo y abre `/mantenimiento/tarea` | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualizar tarea activa | En `/mantenimiento/tarea`, revisar los detalles de la habitación 101, motivo del daño y cronómetro | Habitación 101 | Se muestran los controles "Confirmar fin" y "Liberar tarea" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Confirmar fin de reparaciones | Hacer clic en "Confirmar fin" y confirmar en el diálogo "¿Confirmas que terminaste la reparación de la habitación 101?" | Diálogo de confirmación | Se envía `POST /api/maintenance/tasks/{taskId}/complete` (204), la habitación pasa a `PendingCleaning` y redirige a `/mantenimiento` con el mensaje: "Reparación de la habitación 101 finalizada. La habitación pasó a limpieza antes de volver a recibir huéspedes." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Finalizar reparación en bloqueo técnico | Iniciar y confirmar reparación en hab. 103 con estado `TechnicalBlock` | Habitación 103 | La habitación pasa a `PendingCleaning`, el informe `TechnicalBlockReport` pasa a `Completed` y se muestra: "Reparación de la habitación 103 finalizada. La habitación pasó a limpieza y el mantenimiento quedó terminado." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Liberar tarea de reparación | En `/mantenimiento/tarea`, pulsar "Liberar tarea" y confirmar en el modal | Diálogo de liberación | Se envía `POST /api/maintenance/tasks/{taskId}/release` (204), la tarea se libera, la habitación se mantiene en su estado previo para otro técnico y se redirige al panel con aviso: "Dejaste la habitación 101 para otro compañero." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Tarea activa por daño | Revisar la pantalla | 407 Inhabilitada | "Tarea activa" / "Estás reparando esta habitación. Cuando termines, confírmalo; si no puedes terminar, déjala para otro compañero."; "Habitación en reparación" con 407, Boutique, "Inhabilitada por reparaciones", Empezaste, Tiempo transcurrido, A cargo de; "Reporte de daño" con Qué se dañó, Reportado por y Fecha y hora; botones "Liberar tarea" y "Confirmar fin" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Liberar | Pulsar "Liberar tarea" y confirmar | N/A | Diálogo "¿Está seguro que desea liberar la reparación de la habitación 407?" / "La habitación seguirá fuera de servicio y otro compañero podrá continuar la reparación."; al confirmar, `/mantenimiento` con "Dejaste la habitación 407 para otro compañero." | [x] Pass | 13-11-2026: comprobado |
+| 3 | Confirmar fin de un daño | Con `tc.mant2`, iniciar la 407, pulsar "Confirmar fin" y confirmar | 407 | Diálogo "¿Está seguro que desea finalizar las reparaciones de la habitación 407?" / "La habitación pasará a limpieza antes de volver a recibir huéspedes."; al confirmar, "Reparación de la habitación 407 finalizada. La habitación pasó a limpieza antes de volver a recibir huéspedes." y la 407 Pendiente de limpieza | [x] Pass | 13-11-2026: comprobado |
+| 4 | Confirmar fin de un bloqueo técnico | Con la 407 en Bloqueo técnico (TC-015), iniciar y confirmar el fin | 407 | La tarea muestra "Mantenimiento programado" con Motivo, Programado por y Fechas; al confirmar: "Reparación de la habitación 407 finalizada. La habitación pasó a limpieza y el mantenimiento quedó terminado." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Técnico con tarea ya activa | Intentar iniciar una segunda reparación teniendo ya una tarea en curso | Usuario con tarea activa | Mensaje de advertencia: "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Habitación tomada por otro técnico | Intentar iniciar reparación sobre habitación con tarea abierta por otro usuario | Habitación en curso | Mensaje de advertencia: "Otro compañero ya está reparando esta habitación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Habitación en estado no reparable | Intentar iniciar reparación en habitación disponible | Habitación en `Available` | Mensaje de rechazo: "La habitación está Disponible; no necesita reparación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Volver al panel con una tarea | Con la tarea abierta, abrir `/mantenimiento` | N/A | Vuelve a `/mantenimiento/tarea` (no se puede iniciar otra desde la pantalla) | [x] Pass | 13-11-2026: comprobado |
+| 2 | Cancelar los diálogos | Pulsar "Cancelar" en "Confirmar fin" | N/A | Se cierra sin enviar nada | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`, `Content-Type: application/json`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000101"}` | Hab. 101 en `DisabledForRepairs` | HTTP 201 Created con JSON `RepairTaskStartedDto` conteniendo `taskId`, `roomId`, `status: "IN_PROGRESS"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Completar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/complete`<br>Headers: `X-User: mtorres` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Liberar tarea de reparación | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/release`<br>Headers: `X-User: mtorres` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error por falta de X-User | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: (sin X-User)<br>Body: `{"roomId": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error habitación en estado inválido | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000102"}` | Hab. en `Available` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación está Disponible; no necesita reparación." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Error técnico con tarea activa | `POST {BASE_URL}/api/maintenance/tasks`<br>Headers: `X-User: mtorres`<br>Body: `{"roomId": "..."}` | Con tarea abierta | HTTP 409 Conflict, `errorCode: "ACTIVE_TASK_EXISTS"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Error tarea no encontrada | `POST {BASE_URL}/api/maintenance/tasks/b0000000-0000-0000-0000-000000000999/complete`<br>Headers: `X-User: mtorres` | Task ID inexistente | HTTP 404 Not Found, `errorCode: "TASK_NOT_FOUND"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 8 | Error completar tarea de otro técnico | `POST {BASE_URL}/api/maintenance/tasks/{taskId}/complete`<br>Headers: `X-User: otro_tecnico` | Tarea de `mtorres` | HTTP 403 Forbidden, `errorCode: "TASK_NOT_OWNED"`, mensaje: "La tarea pertenece a otro miembro del personal." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Iniciar | `POST {BASE_URL}/api/maintenance/tasks` con `X-User` y `{"roomId": …}` | 409 Inhabilitada | 201 con `{"taskId": …}` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Ya tiene una tarea | El mismo técnico, otra habitación | `tc.mant1`, 407 | 409 `ACTIVE_TASK_EXISTS`, "Ya estás reparando otra habitación. Termínala o déjala antes de empezar otra." | [x] Pass | 13-11-2026: comprobado |
+| 3 | Habitación tomada por otro | Otro técnico, la misma habitación | `tc.mant2`, 409 | 409 `ROOM_TASK_EXISTS`, "Otro compañero ya está reparando esta habitación." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Habitación que no necesita reparación | `roomId` de una Disponible | 102 | 409 `ROOM_INVALID_STATE`, "La habitación está Disponible; no necesita reparación." | [x] Pass | 13-11-2026: comprobado |
+| 5 | Sin usuario, sin habitación o inexistente | Sin `X-User`; body `{}`; `roomId` `b0000000-…-999` | N/A | 400 `CURRENT_USER_REQUIRED`; 400 `VALIDATION_ERROR` "Selecciona una habitación válida."; 404 `ROOM_NOT_FOUND` "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
+| 6 | Tarea de otro técnico | `complete` y `release` de la tarea de `tc.mant1` con `X-User: tc.mant2` | N/A | 403 `TASK_NOT_OWNED`, "Esta reparación la está haciendo otro compañero." | [x] Pass | 13-11-2026: comprobado |
+| 7 | Tarea inexistente | `taskId` `b0000000-0000-0000-0000-000000000999` | N/A | 404 `TASK_NOT_FOUND`, "No encontramos esta reparación. Vuelve al panel." | [x] Pass | 13-11-2026: comprobado |
+| 8 | Terminar y repetir | `complete` (204); repetirlo | 409 | 204 y la 409 `PendingCleaning`; la repetición: 409 `TASK_ALREADY_CLOSED`, "Esta tarea ya fue cerrada." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección E — Mensajería
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Emisión de aviso CANCELLED al finalizar reparación de daño | Confirmar fin de reparación sobre habitación en `DisabledForRepairs` vía API o pantalla | Habitación 101, daño previo | Outbox publica mensaje en exchange `hospitua.events` con routing key `habitacion.mantenimiento` hacia `m2.habitacion.mantenimiento.queue` con `action: "CANCELLED"`, `maintenanceId` (UUID del reporte de daño), `roomId`, `categoryRoom`, `startDate = endDate = fecha_cierre` | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
-| 2 | Emisión de aviso UPDATED al finalizar bloqueo técnico con fecha distinta | Confirmar fin de reparación sobre habitación en `TechnicalBlock` cerrando en fecha distinta a la estimada | Habitación 103, cierre anticipado o retrasado | Outbox publica mensaje en `m2.habitacion.mantenimiento.queue` con routing key `habitacion.mantenimiento`, `action: "UPDATED"`, `maintenanceId` (UUID del bloqueo técnico), `roomId`, `categoryRoom`, `startDate = previousStartDate`, `endDate = fecha_cierre`, `previousEndDate = fecha_estimada_original` | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
-| 3 | Verificación de no emisión de aviso en fin en fecha estimada | Confirmar fin de reparación sobre habitación en `TechnicalBlock` exactamente en su fecha de fin estimada | Habitación con fecha cierre = fecha estimada | No se encola ningún mensaje en el Outbox ni en RabbitMQ; Módulo 2 ya dispone del rango estimado correcto | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
+| 1 | Fin de un daño | Revisar `m2.habitacion.mantenimiento.queue` | 409, 407 | `habitacion.mantenimiento` con `action` `CANCELLED` y el mismo `maintenanceId` del `SCHEDULED` del daño | [x] Pass | 13-11-2026: comprobado con la API de administración de RabbitMQ |
+| 2 | Fin de un bloqueo en fecha distinta a la estimada | Terminar hoy el bloqueo del 13-11-2026 al 15-11-2026 | 407 | `UPDATED` con `endDate` 2026-11-13 | [x] Pass | 13-11-2026: comprobado |
+| 3 | Fin en la fecha estimada | Terminar hoy el bloqueo del 13-11-2026 al 13-11-2026 | 407 | No se publica ningún mensaje | [x] Pass | 13-11-2026: comprobado (la secuencia no avanzó) |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Concurrencia entre técnicos: el bloqueo pesimista en base de datos garantiza que solo un técnico inicia la tarea y el segundo recibe HTTP 409 `ROOM_TASK_EXISTS`.
-* **EC-002 (API)** : Transición a PendingCleaning tras reparación: verificar que la habitación queda inmediatamente visible para el personal de aseo sin requerir intervención manual adicional.
+* **EC-001 (API)** : Cuando dos técnicos piden la misma habitación, el segundo recibe 409 `ROOM_TASK_EXISTS` (en mantenimiento la habitación no cambia de estado al iniciar, por eso sale este código).
+* **EC-002** : Tras el fin, la habitación aparece de inmediato en el panel de limpieza (TC-009).
 
 #### Defect Severity Reference
 
@@ -97,8 +96,15 @@ Este caso de prueba verifica el ciclo de intervenciones técnicas bajo `/api/mai
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba el diálogo "¿Confirmas que terminaste la reparación de la habitación 101?", "motivo del daño y cronómetro", el mensaje "La tarea pertenece a otro miembro del personal." y otros avisos de fin que no existen; usaba la 101 y la 103, que son datos del equipo | Pasos reescritos con los textos reales |
+| H2 | Documento | La versión anterior no probaba la reparación de un bloqueo técnico de punta a punta ni la regla de no publicar aviso cuando el fin coincide con la fecha estimada | Se agregan esos pasos con la 407 |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 20 | 20 | 0 | 0 | APROBADO |
+| 19 | 19 | 0 | 0 | APROBADO |

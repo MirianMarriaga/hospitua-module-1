@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la transición autónoma de habitaciones al estado PendingCleaning como resultado directo de dos eventos de negocio: la formalización de un Check-Out (`POST /api/check-out`) o la confirmación de finalización de una reparación técnica (`POST /api/maintenance/tasks/{taskId}/complete`), garantizando el ingreso inmediato al panel de limpieza y la trazabilidad en el historial.
+Este caso de prueba verifica que una habitación pase a Pendiente de limpieza en sus dos orígenes: el check-out (desde Ocupada, TC-005) y el fin de una reparación (desde Inhabilitada por reparaciones o Bloqueo técnico, TC-014). También verifica que aparezca en el panel de limpieza, que el inventario y el historial lo reflejen y que una llegada para esa habitación quede apartada hasta terminar la limpieza.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,16 @@ Este caso de prueba verifica la transición autónoma de habitaciones al estado 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Transición de dominio autónoma; no posee endpoint de mutación directa ni formulario interactivo propio.
+* No hay una acción propia de pantalla: el paso lo disparan el check-out y el fin de reparación.
+* Para la llegada sobre una habitación Pendiente de limpieza se publicó un ADDED (`RES-TC-07`, 409) por RabbitMQ (ver TC-001).
 
 ##### Dependencies & Assumptions
-* Requiere TC-005 Registrar Check-Out o TC-014 Confirmar Reparación Finalizada.
+* TC-005 (check-out de la 407) y TC-014 (fin de las reparaciones de la 407 y la 409).
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en estado `Occupied`. Habitación 102 en estado `DisabledForRepairs`.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Usuario de Recepción (`recepcionista`), Mantenimiento (`mtorres`), Limpieza (`limpiador`).
+* **Initial State** : 407 Ocupada; después, 407 y 409 Inhabilitadas por reparaciones.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : Recepción (`tc.recepcion`), Mantenimiento (`tc.mant1`, `tc.mant2`), Limpieza (`tc.limpieza1`) y Administración (`cabo`).
 
 --------------------------------------------------------------------------------
 
@@ -44,34 +45,34 @@ Este caso de prueba verifica la transición autónoma de habitaciones al estado 
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales de limpieza | Usuario: `limpiador` | Redirige al Panel de Limpieza en `/limpieza` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar habitaciones pendientes | Observar la cuadrícula o lista en `/limpieza` | Bandeja de aseo | Muestra las tarjetas de habitaciones en estado `PendingCleaning` con botón "Iniciar limpieza" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como personal de limpieza | Ir a `/login`, usuario y contraseña, "Ingresar" | `tc.limpieza1` | Abre `/limpieza` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Generación de pendiente por Check-Out | Realizar el Check-Out de la habitación 101 desde recepción | Check-out completado | En `/limpieza`, la tarjeta de la habitación 101 aparece de inmediato como "Pendiente de limpieza" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Generación de pendiente por reparación técnica | Completar la reparación de la habitación 102 desde mantenimiento | Reparación finalizada | En `/limpieza`, la habitación 102 ingresa en la bandeja de pendientes de limpieza | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Visualización en Inventario | Consultar `/administracion/inventario` | Inventario | Las habitaciones reflejan el badge ámbar "Pendiente de limpieza" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Pendiente por check-out | Hacer el check-out de la 407 (TC-005) y abrir el panel de limpieza | 407 | La 407 aparece "Pendiente de limpieza" con "Iniciar limpieza"; el paso 5 del check-out dice "…quedó en estado Pendiente de limpieza y ya está en la bandeja del personal de limpieza." | [x] Pass | 13-11-2026: comprobado |
+| 2 | Pendiente por fin de reparación | Confirmar el fin de la reparación de la 407 y de la 409 (TC-014) y abrir el panel de limpieza | 407, 409 | Las dos aparecen "Pendiente de limpieza"; el aviso de mantenimiento dice "…La habitación pasó a limpieza antes de volver a recibir huéspedes." | [x] Pass | 13-11-2026: comprobado (la 407 muestra la última limpieza "13-11-2026 22:00") |
+| 3 | Inventario | Como Administrador, filtrar el inventario por la 407 | 407 | Estado "Pendiente de limpieza" y acciones "—" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Intento de check-in en habitación pendiente | Intentar iniciar check-in sobre habitación en `PendingCleaning` | Habitación no limpia | La fila de recepción alerta: "No disponible: Pendiente de limpieza" y bloquea el check-in | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Llegada para una habitación pendiente | Publicar el ADDED de `RES-TC-07` para la 409 (Pendiente de limpieza) y buscarla en Llegadas | `RES-TC-07` | "Pendiente de limpieza: se apartará al terminar la limpieza" y "Check-in" deshabilitado | [x] Pass | 13-11-2026: comprobado |
+| 2 | Se aparta al terminar | Limpiar la 409 | 409 | Al terminar la limpieza la 409 queda Reservada para `RES-TC-07` | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Verificación de estado tras Check-Out | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101` | Hab. tras check-out | HTTP 200 OK con `{ "status": "PendingCleaning" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Verificación en Panel de Limpieza | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador` | Usuario de limpieza | HTTP 200 OK con `CleaningPanelDto` conteniendo la habitación 101 en `pendingRooms` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Rechazo de asignación comercial para M2 | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101` | Habitación pendiente | HTTP 200 OK con datos físicos pero no disponible para ocupación inmediata | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Verificación de trazabilidad en historial | `GET {BASE_URL}/api/room-state-history?roomId=a0000000-0000-0000-0000-000000000101` | Historial | HTTP 200 OK mostrando transición con `sourceFlow: "CHECK_OUT"` o `sourceFlow: "CONFIRM_REPAIR_END"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Estado tras el check-out | `GET {BASE_URL}/api/rooms/inventory/{id de la 407}` | N/A | 200 con `status` `PendingCleaning` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Panel de limpieza | `GET {BASE_URL}/api/cleaning/panel` con `X-User` | `tc.limpieza1` | 200 con la 407 en `rooms` y `status` `PendingCleaning` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Historial | `GET {BASE_URL}/api/room-state-history?roomId={id de la 407}` | N/A | Periodos "Pendiente de limpieza" con `sourceFlowName` "Registrar check-out" (actor "Prueba Recepción") y "Confirmar reparación finalizada" (actor "Prueba Mantenimiento Dos") | [x] Pass | 13-11-2026: comprobado |
+| 4 | Sigue consultable para Módulo 2 | `GET {BASE_URL}/api/rooms/{id de la 407}` | N/A | 200 con los datos físicos de la habitación | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Atomicidad transaccional: el paso a `PendingCleaning` se ejecuta en la misma transacción que el check-out o fin de reparación; si el cambio de estado falla, toda la operación se revierte.
-* **EC-002 (API)** : Inmutabilidad de pendientes: la habitación permanece en `PendingCleaning` hasta que un camarero inicia explícitamente su tarea vía `POST /api/cleaning/tasks`.
+* **EC-001** : La habitación sigue Pendiente de limpieza hasta que un miembro inicia su limpieza (`POST /api/cleaning/tasks`).
+* **EC-002** : El paso a Pendiente de limpieza ocurre en la misma operación que el check-out o el fin de reparación.
 
 #### Defect Severity Reference
 
@@ -82,6 +83,12 @@ Este caso de prueba verifica la transición autónoma de habitaciones al estado 
 | **Small / Minor** | **S** | Cosmetic issue, minor UI alignment, typo, or non-blocking defect. |
 
 --------------------------------------------------------------------------------
+
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba "No disponible: Pendiente de limpieza" en Llegadas (el aviso real es "Pendiente de limpieza: se apartará al terminar la limpieza"), un "badge ámbar", "tarjetas" en el panel y `sourceFlow: "CHECK_OUT"` / `"CONFIRM_REPAIR_END"` en el historial (la API devuelve `sourceFlowName` con el nombre del caso de uso); usaba la 101 y la 102, que son datos del equipo | Pasos reescritos con lo que muestra la página y lo que responde la API |
 
 #### Resumen de Ejecución
 

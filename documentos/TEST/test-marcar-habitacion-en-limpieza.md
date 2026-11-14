@@ -14,28 +14,28 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el inicio de labores de limpieza (`POST /api/cleaning/tasks`), la transición de la habitación de PendingCleaning a InCleaning, la creación de la tarea asociada asignada al camarero autenticado en `X-User`, la restricción de una sola tarea activa por operario y el bloqueo concurrente contra múltiples camareros sobre la misma habitación.
+Este caso de prueba verifica que un miembro de limpieza inicie la limpieza de una habitación Pendiente de limpieza o Disponible desde el panel (`POST /api/cleaning/tasks`): el diálogo de confirmación, el paso a En limpieza, la pantalla de tarea activa (`/limpieza/tarea`), el historial y los rechazos (otra tarea abierta, habitación en un estado que no se puede limpiar, habitación inexistente, sin usuario).
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Marcar en Limpieza | Specification Document | [documentos/SPEC/spec-marcar-habitacion-en-limpieza.md](../SPEC/spec-marcar-habitacion-en-limpieza.md) |
-| Plan de Implementación de Marcar en Limpieza | Plan Document | [documentos/PLAN/plan-marcar-habitacion-en-limpieza.md](../PLAN/plan-marcar-habitacion-en-limpieza.md) |
+| Especificación de Marcar Habitación en Limpieza | Specification Document | [documentos/SPEC/spec-marcar-habitacion-en-limpieza.md](../SPEC/spec-marcar-habitacion-en-limpieza.md) |
+| Plan de Implementación de Marcar Habitación en Limpieza | Plan Document | [documentos/PLAN/plan-marcar-habitacion-en-limpieza.md](../PLAN/plan-marcar-habitacion-en-limpieza.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos.
+* `ROOM_TASK_EXISTS` ("Otro compañero ya está limpiando esta habitación.") solo sale en una carrera entre dos miembros que pulsan a la vez: cuando la habitación ya está En limpieza, el backend responde primero `ROOM_INVALID_STATE`.
 
 ##### Dependencies & Assumptions
-* La habitación objetivo debe encontrarse en estado `PendingCleaning`.
+* TC-005 dejó la 407 Pendiente de limpieza. La 408 está Disponible y la 410 Reservada.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en estado `PendingCleaning`.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Limpieza (`limpiador1`, `limpiador2`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 Pendiente de limpieza; `tc.limpieza1` y `tc.limpieza2` sin tarea activa.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : dos cuentas de Limpieza (en la ejecución: `tc.limpieza1` y `tc.limpieza2`) y una de Gerencia para el historial.
 
 --------------------------------------------------------------------------------
 
@@ -44,38 +44,42 @@ Este caso de prueba verifica el inicio de labores de limpieza (`POST /api/cleani
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales | Usuario: `limpiador1` | Redirige al Panel de Limpieza en `/limpieza` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Ubicar habitación pendiente | En `/limpieza`, buscar la habitación 101 en la lista de pendientes | Habitación 101 | Muestra la tarjeta con número, tipo, piso y botón "Iniciar limpieza" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como personal de limpieza | Ir a `/login`, usuario y contraseña, "Ingresar" | `tc.limpieza1` | Abre `/limpieza` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Ubicar la habitación | Buscar la 407 en el panel | 407 | Fila "407 · Boutique · Pendiente de limpieza" con "Iniciar limpieza" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar labor de limpieza | Hacer clic en "Iniciar limpieza" sobre la habitación 101 | Habitación 101 | Se envía `POST /api/cleaning/tasks`, la habitación pasa a `InCleaning` y navega a `/limpieza/tarea` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar tarea activa | En `/limpieza/tarea`, revisar los datos de la habitación en aseo | Tarea activa | Se muestra el cronómetro de tiempo transcurrido, detalles de la habitación y botones "Confirmar fin" y "Reportar daño" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Redirección defensiva | Si el operario intenta navegar a `/limpieza` teniendo una tarea activa | Tarea en curso | El sistema detecta la tarea activa en `CleaningPanelDto` y lo redirige automáticamente a `/limpieza/tarea` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Abrir la confirmación | Pulsar "Iniciar limpieza" en la 407 | 407 | Diálogo "Iniciar limpieza" / "La habitación 407 quedará a tu cargo hasta que termines la limpieza o la dejes para otro compañero." con "Cancelar" e "Iniciar limpieza" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Cancelar | Pulsar "Cancelar" | N/A | Se cierra el diálogo y la 407 sigue en el panel | [x] Pass | 13-11-2026: comprobado |
+| 3 | Iniciar | Abrir de nuevo y pulsar "Iniciar limpieza" | N/A | `POST /api/cleaning/tasks` (201) y abre `/limpieza/tarea` | [x] Pass | 13-11-2026: comprobado |
+| 4 | Tarea activa | Revisar la pantalla | N/A | "Tarea activa" / "Estás limpiando esta habitación. Cuando termines, confírmalo; si no puedes terminar, déjala para otro compañero."; "Habitación en limpieza" con 407, Boutique, "En limpieza", Empezaste, Tiempo transcurrido ("0 min"), A cargo de; el aviso "Si encuentras algo dañado, descríbelo al terminar…" y los botones "Liberar tarea" y "Confirmar fin" | [x] Pass | 13-11-2026: comprobado |
+| 5 | Volver al panel | Abrir `/limpieza` | N/A | Vuelve a `/limpieza/tarea` | [x] Pass | 13-11-2026: comprobado |
+| 6 | Historial | Consultar el historial de la 407 | 407 | Periodo "En limpieza" con `sourceFlowName` "Marcar habitación en limpieza" y el actor "Prueba Limpieza Uno" | [x] Pass | 13-11-2026: comprobado en `GET /api/room-state-history` |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Operario con tarea ya activa intenta iniciar otra | Intentar iniciar limpieza de otra habitación teniendo una tarea abierta | Usuario con tarea abierta | Mensaje de advertencia: "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Habitación tomada por otro compañero | Intentar iniciar limpieza sobre una habitación que otro camarero acaba de tomar | Habitación en curso | Mensaje de advertencia: "Otro compañero ya está limpiando esta habitación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar otra teniendo una tarea | Con la 407 a cargo, intentar iniciar otra habitación | N/A | La pantalla no lo permite: el panel lleva a `/limpieza/tarea` y no muestra otras habitaciones; la API rechaza (Sección D, paso 3) | [x] Pass | 13-11-2026: comprobado |
+| 2 | Habitación que otro ya tomó | Pulsar "Iniciar limpieza" en un panel desactualizado, justo después de que otro miembro la tomó | N/A | "Otro compañero ya está limpiando esta habitación." | N/C | No comprobable: solo en una carrera de dos clics simultáneos (ver limitaciones) |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar limpieza exitoso | `POST {BASE_URL}/api/cleaning/tasks`<br>Headers: `X-User: limpiador1`, `Content-Type: application/json`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000101"}` | Hab. en `PendingCleaning` | HTTP 201 Created con JSON `CleaningTaskStartedDto` conteniendo `taskId`, `roomId`, `memberId: "limpiador1"`, `startedAt` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Error por falta de X-User | `POST {BASE_URL}/api/cleaning/tasks`<br>Headers: (sin X-User)<br>Body: `{"roomId": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error habitación no pendiente | `POST {BASE_URL}/api/cleaning/tasks`<br>Headers: `X-User: limpiador1`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000102"}` | Hab. en `Available` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está pendiente de limpieza." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error operario con tarea activa | `POST {BASE_URL}/api/cleaning/tasks`<br>Headers: `X-User: limpiador1`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000103"}` | Mismo usuario | HTTP 409 Conflict, `errorCode: "ACTIVE_TASK_EXISTS"`, mensaje: "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error habitación tomada por otro camarero | `POST {BASE_URL}/api/cleaning/tasks`<br>Headers: `X-User: limpiador2`<br>Body: `{"roomId": "a0000000-0000-0000-0000-000000000101"}` | Distinto usuario | HTTP 409 Conflict, `errorCode: "ROOM_TASK_EXISTS"`, mensaje: "Otro compañero ya está limpiando esta habitación." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Consulta de estado en inventario | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101` | Hab. en limpieza | HTTP 200 OK con `status: "InCleaning"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Tarea activa en panel de limpieza | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador1` | Usuario con tarea | HTTP 200 OK con campo `activeTask` no nulo conteniendo los datos de la tarea | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Iniciar | `POST {BASE_URL}/api/cleaning/tasks` con `X-User` y `{"roomId": …}` | 407 Pendiente de limpieza | 201 con `{"taskId": …}` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Estado en el inventario | `GET {BASE_URL}/api/rooms/inventory/{id de la 407}` | N/A | 200 con `status` `InCleaning` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Ya tiene una tarea | El mismo miembro, `roomId` de la 408 | `tc.limpieza1` | 409 `ACTIVE_TASK_EXISTS`, "Ya estás limpiando otra habitación. Termínala o déjala antes de empezar otra." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Habitación ya En limpieza | Otro miembro, `roomId` de la 407 | `tc.limpieza2` | 409 `ROOM_INVALID_STATE`, "La habitación está En limpieza; ahora no se puede limpiar.", `details.currentStatus` `InCleaning` | [x] Pass | 13-11-2026: comprobado |
+| 5 | Habitación Reservada | `roomId` de la 410 | `tc.limpieza2` | 409 `ROOM_INVALID_STATE`, "La habitación está Reservada; ahora no se puede limpiar." | [x] Pass | 13-11-2026: comprobado |
+| 6 | Sin usuario | Sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 7 | Sin habitación o con id mal formado | Body `{}`; y `{"roomId": "abc"}` | N/A | 400 `VALIDATION_ERROR`: "Selecciona una habitación válida." (`{}`) y "Cuerpo de la petición inválido o mal formado." (`abc`), `details.field` `roomId` | [x] Pass | 13-11-2026: comprobado |
+| 8 | Habitación inexistente | `roomId` `b0000000-0000-0000-0000-000000000999` | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Concurrencia entre camareros: el índice único en base de datos (`uk_cleaning_task_open_by_member`) y el bloqueo pesimista en la habitación impiden dobles asignaciones bajo cualquier condición de carrera.
-* **EC-002 (Interfaz)** : Pérdida de conectividad temporal durante la limpieza: al reconectar o refrescar `/limpieza/tarea`, el cronómetro recupera la hora original de inicio calculada contra el servidor.
+* **EC-001** : Una habitación Disponible también se puede limpiar (repaso): se comprobó con la 408 en TC-011.
+* **EC-002 (API)** : `ROOM_TASK_EXISTS` queda para la carrera entre dos miembros; el índice único por habitación con tarea abierta lo garantiza.
 
 #### Defect Severity Reference
 
@@ -87,8 +91,15 @@ Este caso de prueba verifica el inicio de labores de limpieza (`POST /api/cleani
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior hablaba de "tarjetas" con piso, de un cronómetro y de un botón "Reportar daño" en la tarea activa (el daño se describe al confirmar el fin); esperaba en la respuesta `memberId` y `startedAt` (solo viaja `taskId`), "La habitación no está pendiente de limpieza." para una habitación Disponible (que sí se puede limpiar) y usaba la 101–103, que son datos del equipo | Pasos reescritos con lo que muestra la página y lo que responde la API |
+| H2 | Documento | La versión anterior esperaba `ROOM_TASK_EXISTS` al tomar una habitación ya En limpieza; el backend responde `ROOM_INVALID_STATE` porque revisa primero el estado | Se anota la respuesta real y la carrera queda como no comprobable |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 14 | 14 | 0 | 0 | APROBADO |
+| 18 | 17 | 0 | 1 | APROBADO PARCIAL (pasos no comprobables en la plataforma) |

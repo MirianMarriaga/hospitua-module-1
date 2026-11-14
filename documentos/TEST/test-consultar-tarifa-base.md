@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1 (`GET /api/rooms/{roomId}/base-rate`), el cual entrega la tarifa base oficial por noche de una habitación física para la tarifación de estancias, sin requerir encabezado X-User y rechazando habitaciones inexistentes con HTTP 404.
+Este caso de prueba verifica la consulta de la tarifa base de una habitación que hace Módulo 3 (`GET /api/rooms/{roomId}/base-rate?date=YYYY-MM-DD`): la respuesta con `roomId`, la fecha recibida, `baseRate` como texto con dos decimales y `currency` "COP"; la fecha obligatoria; y la habitación inexistente. En pantalla, la tarifa se ve en el inventario y se valida al registrar o editar.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,15 @@ Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Endpoint puramente REST consumido por sistemas externos (Módulo 3); en el frontend la tarifa base se visualiza en la tabla de Inventario (`/administracion/inventario`).
+* Módulo 3 no está desplegado: la consulta se hace directamente contra la API.
 
 ##### Dependencies & Assumptions
-* Requiere base de datos con habitaciones de la semilla V2 cargadas.
+* La 407 tiene tarifa base $ 340.000 (TC-018 y TC-019). La 104 está Inactiva.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 con tarifa $120.000, Habitación 105 con tarifa $320.000.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Usuario Administrador (`admin`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 con tarifa 340000.00.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : Administración (`cabo`) para los pasos de pantalla; la API no pide `X-User`.
 
 --------------------------------------------------------------------------------
 
@@ -44,33 +44,35 @@ Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar tarifas en tabla | Revisar la columna "Tarifa base" en la tabla de inventario | Inventario físico | Muestra la tarifa por noche de cada habitación formateada en moneda (ej. $120.000,00) | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como Administrador | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Administración | Abre `/administracion/inventario` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Tarifa en el inventario | Filtrar por la 407 | 407 | Columna "Tarifa base": "$ 340.000" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Verificar concordancia de tarifas | Comparar el valor mostrado en pantalla para la habitación 101 con la respuesta de la API | Habitación 101 | Coincide exactamente con el valor $120.000,00 registrado en el catálogo | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Coincide con la API | Comparar la tarifa del inventario con `GET …/base-rate` (Sección D, paso 1) | 407 | El mismo valor: 340000.00 | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Edición de tarifa base inválida | En el formulario de edición de habitación, ingresar tarifa igual a 0 | Tarifa: 0 | Se bloquea el guardado con mensaje: "La tarifa base debe ser mayor a 0 y tener máximo dos decimales." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Tarifa 0 o con tres decimales | En la edición de una habitación Disponible, escribir la tarifa y pulsar "Guardar cambios" | `0`; `100.555` | "La tarifa base debe ser mayor a 0 y tener máximo dos decimales."; no se envía la petición | [x] Pass | 13-11-2026: comprobado en la 105 sin guardar |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de tarifa base por roomId (hoy) | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User obligatorio) | `roomId` de hab. 101 | HTTP 200 OK con JSON `{ "roomId": "a0000000-0000-0000-0000-000000000101", "roomNumber": "101", "categoryRoom": "SENCILLA", "baseRate": 120000.00, "effectiveDate": "2026-11-12" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Consulta de tarifa base con fecha específica | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/base-rate?date=2026-12-01` | `roomId` hab. 105, fecha futura | HTTP 200 OK con `baseRate: 320000.00` y `effectiveDate: "2026-12-01"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Consulta sin encabezado X-User | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate`<br>Headers: (sin X-User) | Sin usuario | HTTP 200 OK (no requiere X-User por ser integración directa intermódulo) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error habitación inexistente | `GET {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/base-rate` | UUID no registrado | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error formato de fecha inválido | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/base-rate?date=fecha-invalida` | Fecha texto | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Tarifa de hoy | `GET {BASE_URL}/api/rooms/{id de la 407}/base-rate?date=2026-11-13` sin `X-User` | N/A | 200 con `{"roomId": …, "date": "2026-11-13", "baseRate": "340000.00", "currency": "COP"}` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Otra fecha | `…?date=2026-12-01` y `…?date=2026-11-01` | N/A | 200 con la misma tarifa y la `date` recibida (la tarifa no depende de la fecha) | [x] Pass | 13-11-2026: comprobado |
+| 3 | Habitación Inactiva | `GET …/{id de la 104}/base-rate?date=2026-11-13` | 104 | 200 con su tarifa ("200000.00") | [x] Pass | 13-11-2026: comprobado |
+| 4 | Sin fecha | `GET …/{id de la 407}/base-rate` | N/A | 400 `VALIDATION_ERROR`, "La fecha debe tener un formato válido (AAAA-MM-DD).", `details.field` `date` | [x] Pass | 13-11-2026: comprobado |
+| 5 | Fecha inválida o inexistente | `?date=fecha`; `?date=2026-02-31` | N/A | 400 `VALIDATION_ERROR` con el mismo texto | [x] Pass | 13-11-2026: comprobado |
+| 6 | Habitación inexistente | `GET …/b0000000-0000-0000-0000-000000000999/base-rate?date=2026-11-13` | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
+| 7 | Identificador mal formado | `GET {BASE_URL}/api/rooms/abc/base-rate?date=2026-11-13` | N/A | 400 `VALIDATION_ERROR`, `details.field` `roomId` | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Consulta de habitación en estado Inactive: la tarifa base sigue siendo consultable históricamente para liquidar consumos de estancias previas, respondiendo HTTP 200 OK.
-* **EC-002 (API)** : Precisión decimal: verificar que los montos siempre se devuelven como números de punto flotante con dos decimales exactos (`NUMERIC(12,2)`).
+* **EC-001 (API)** : `baseRate` viaja como texto con dos decimales exactos (`"340000.00"`), no como número.
+* **EC-002 (API)** : Sin `date`, el 404 de una habitación inexistente no se alcanza: primero se valida la fecha (400).
 
 #### Defect Severity Reference
 
@@ -82,8 +84,14 @@ Este caso de prueba verifica el endpoint de integración Módulo 3 → Módulo 1
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior consultaba sin `date` y esperaba 200 (el parámetro es obligatorio: responde 400), esperaba `roomNumber`, `categoryRoom`, `effectiveDate` y `baseRate` numérico (la respuesta trae `roomId`, `date`, `baseRate` como texto y `currency`), "No se encontró ninguna habitación con ese identificador." y el formato "$120.000,00"; usaba la 101 y la 105, que son datos del equipo | Pasos reescritos con la respuesta real |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 9 | 9 | 0 | 0 | APROBADO |
+| 11 | 11 | 0 | 0 | APROBADO |

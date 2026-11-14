@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la finalización de tareas de aseo (`POST /api/cleaning/tasks/{taskId}/complete`), la transición condicional de la habitación (a Reserved si tiene reserva del día asignada, o a Available si no tiene), el reporte de daño desde la tarea de limpieza activa, la liberación de tarea (`POST /api/cleaning/tasks/{taskId}/release`), la respuesta HTTP 204 No Content, y la emisión condicional del aviso de mantenimiento por Outbox con routing key `habitacion.mantenimiento` hacia RabbitMQ cuando se reporta daño (sin aviso cuando concluye sin daño).
+Este caso de prueba verifica el cierre de una limpieza desde la tarea activa (`/limpieza/tarea`): "Confirmar fin" (`POST /api/cleaning/tasks/{taskId}/complete`) sin daño (la habitación queda Disponible, o Reservada si tiene una reserva de hoy), con daño descrito (queda Inhabilitada por reparaciones) y "Liberar tarea" (`POST …/release`, vuelve a Pendiente de limpieza), con sus diálogos, avisos y rechazos.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,15 @@ Este caso de prueba verifica la finalización de tareas de aseo (`POST /api/clea
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React, base de datos PostgreSQL y broker RabbitMQ activos.
+* Para el fin con reserva de hoy se publicó por RabbitMQ una actualización ADDED (`RES-TC-06`, 408) mientras la 408 estaba En limpieza (ver TC-001 para publicar mensajes).
 
 ##### Dependencies & Assumptions
-* Debe existir una tarea de limpieza abierta (`InCleaning`) para el camarero autenticado.
+* TC-010 dejó la 407 En limpieza a cargo de `tc.limpieza1`.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en `InCleaning` con reserva asignada para hoy. Habitación 102 en `InCleaning` sin reserva.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Limpieza (`limpiador1`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 En limpieza (`tc.limpieza1`); 408 Disponible.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : dos cuentas de Limpieza (en la ejecución: `tc.limpieza1` y `tc.limpieza2`).
 
 --------------------------------------------------------------------------------
 
@@ -44,45 +44,47 @@ Este caso de prueba verifica la finalización de tareas de aseo (`POST /api/clea
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales | Usuario: `limpiador1` | Redirige automáticamente a `/limpieza/tarea` por tener tarea activa | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar controles de tarea activa | Comprobar botones de acción en `/limpieza/tarea` | Vista de tarea activa | Se muestran los botones "Confirmar fin", "Liberar tarea" y "Reportar daño" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión con tarea activa | Ir a `/login` con el miembro que tiene la 407 | `tc.limpieza1` | Abre `/limpieza/tarea` directamente | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Botones de la tarea | Revisar la pantalla | N/A | Solo "Liberar tarea" y "Confirmar fin" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Confirmar fin con reserva hoy | En `/limpieza/tarea`, hacer clic en "Confirmar fin" para la habitación 101 | Hab. 101 con reserva hoy | Se envía `POST /api/cleaning/tasks/{taskId}/complete` (204), la habitación pasa a `Reserved` y redirige a `/limpieza` con el aviso: "Limpieza terminada. La habitación quedó reservada para la llegada de hoy." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Confirmar fin sin reserva hoy | Realizar y confirmar limpieza sobre habitación 102 (sin reserva para hoy) | Hab. 102 sin reserva | La habitación pasa a `Available` y se muestra el aviso: "Limpieza terminada. La habitación quedó disponible para asignar." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Liberar tarea de limpieza | En `/limpieza/tarea`, hacer clic en "Liberar tarea" y confirmar diálogo | Habitación en aseo | Se envía `POST /api/cleaning/tasks/{taskId}/release` (204), la habitación regresa a `PendingCleaning` y redirige a `/limpieza` con aviso: "Dejaste la habitación para otro compañero." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Verificación en Panel de Limpieza | Observar la tabla de `/limpieza` tras completar | Panel de limpieza | La tarea activa se cierra y la habitación ya no aparece en curso para el operario | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Diálogo de liberar | Pulsar "Liberar tarea" | 407 | "¿Está seguro que desea liberar la limpieza de la habitación 407?" / "La habitación volverá a la lista como pendiente de limpieza y otro compañero podrá limpiarla." con "Cancelar" y "Liberar tarea"; "Cancelar" cierra sin cambios | [x] Pass | 13-11-2026: comprobado |
+| 2 | Liberar | Pulsar "Liberar tarea" en el diálogo | N/A | `POST …/release` (204); abre `/limpieza` con "Dejaste la habitación 407 para otro compañero. Vuelve a aparecer como pendiente de limpieza." y la 407 Pendiente de limpieza | [x] Pass | 13-11-2026: comprobado |
+| 3 | Diálogo de fin | Con `tc.limpieza2`, iniciar la 407 y pulsar "Confirmar fin" | 407 | "¿Está seguro que desea finalizar la limpieza de la habitación 407?" / "La limpieza quedará registrada como terminada.", el campo "Describir daño encontrado (opcional)" con "0 / 500" y "Déjalo vacío si no encontraste daños." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Fin sin daño | Dejar el campo vacío y pulsar "Confirmar fin" | Sin reserva de hoy | `POST …/complete` (204); abre `/limpieza` con "Limpieza de la habitación 407 finalizada." y la 407 Disponible | [x] Pass | 13-11-2026: comprobado |
+| 5 | Fin con reserva de hoy | Limpiar la 408, publicar el ADDED de `RES-TC-06` para la 408 y confirmar el fin | 408 | Mientras está En limpieza, Llegadas muestra "En limpieza: se apartará al terminar la limpieza"; al terminar, la 408 queda Reservada | [x] Pass | 13-11-2026: comprobado (fin por API) |
+| 6 | Fin con daño | Iniciar la 407, escribir un daño y pulsar "Confirmar fin" | "Lámpara de la mesa de noche rota" | Con texto, el diálogo avisa "Como describiste un daño, la habitación quedará fuera de servicio hasta que mantenimiento la repare."; al confirmar: "Limpieza de la habitación 407 finalizada con daño reportado. La habitación quedó fuera de servicio hasta que mantenimiento la repare." y la 407 Inhabilitada por reparaciones | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Tarea ya finalizada o cerrada | Intentar completar una tarea que ya fue cerrada en otra pestaña | Tarea cerrada | Mensaje de advertencia: "La tarea de limpieza ya no se encuentra activa." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Daño de más de 500 caracteres | Escribir 501 caracteres en el campo | 501 caracteres | "501 / 500", "La descripción del daño admite máximo 500 caracteres." y "Confirmar fin" deshabilitado | [x] Pass | 13-11-2026: comprobado |
+| 2 | Tarea ya cerrada | Confirmar el fin de una tarea que ya se cerró en otra pestaña | N/A | El diálogo muestra "Esta tarea ya fue cerrada."; al pulsar "Cancelar" vuelve a `/limpieza` | [x] Pass | 13-11-2026: comprobado (la tarea se cerró por API mientras la pantalla estaba abierta) |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Completar limpieza exitosamente | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/complete`<br>Headers: `X-User: limpiador1` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Liberar tarea exitosamente | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/release`<br>Headers: `X-User: limpiador1` | `taskId` activo | HTTP 204 No Content (cuerpo vacío) | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de X-User | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/complete`<br>Headers: (sin X-User) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error tarea no encontrada | `POST {BASE_URL}/api/cleaning/tasks/b0000000-0000-0000-0000-000000000999/complete`<br>Headers: `X-User: limpiador1` | TaskId inexistente | HTTP 404 Not Found, `errorCode: "TASK_NOT_FOUND"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error completar tarea de otro operario | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/complete`<br>Headers: `X-User: limpiador2` | Tarea de `limpiador1` | HTTP 403 Forbidden, `errorCode: "TASK_NOT_OWNED"`, mensaje: "La tarea pertenece a otro miembro del personal." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Verificar transición a Reserved en inventario | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000101` | Hab. 101 con reserva | HTTP 200 OK con `{ "status": "Reserved" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Verificar transición a Available en inventario | `GET {BASE_URL}/api/rooms/inventory/a0000000-0000-0000-0000-000000000102` | Hab. 102 sin reserva | HTTP 200 OK con `{ "status": "Available" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 8 | Liberación devuelve a PendingCleaning | `GET {BASE_URL}/api/rooms/inventory/{roomId}` tras release | Hab. liberada | HTTP 200 OK con `{ "status": "PendingCleaning" }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Terminar | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/complete` con `X-User` y `{}` | Tarea activa | 204 sin cuerpo | [x] Pass | 13-11-2026: comprobado |
+| 2 | Liberar | `POST {BASE_URL}/api/cleaning/tasks/{taskId}/release` con `X-User` | Tarea activa | 204; la habitación vuelve a `PendingCleaning` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Tarea de otro miembro | `complete` y `release` de la tarea de `tc.limpieza1` con `X-User: tc.limpieza2` | N/A | 403 `TASK_NOT_OWNED`, "Esta habitación la está limpiando otro compañero." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Tarea inexistente | `taskId` `b0000000-0000-0000-0000-000000000999` | N/A | 404 `TASK_NOT_FOUND`, "No encontramos esta limpieza. Vuelve al panel." | [x] Pass | 13-11-2026: comprobado |
+| 5 | Daño de 501 caracteres | `complete` con `damageDescription` de 501 caracteres | N/A | 400 `VALIDATION_ERROR`, "La descripción del daño admite máximo 500 caracteres.", `details.field` `damageDescription` | [x] Pass | 13-11-2026: comprobado |
+| 6 | Tarea ya cerrada | Repetir `complete` o `release` de una tarea cerrada | N/A | 409 `TASK_ALREADY_CLOSED`, "Esta tarea ya fue cerrada." | [x] Pass | 13-11-2026: comprobado |
+| 7 | Estados resultantes | `GET {BASE_URL}/api/rooms/inventory/{roomId}` tras cada cierre | 407, 408 | `Available` (fin sin reserva), `Reserved` (408 con reserva de hoy), `DisabledForRepairs` (fin con daño), `PendingCleaning` (liberada) | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección E — Mensajería
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Emisión de aviso SCHEDULED al reportar daño en limpieza | Completar limpieza marcando daño o reportar daño desde la tarea activa | Tarea de aseo activa con avería | Outbox publica mensaje en exchange `hospitua.events` con routing key `habitacion.mantenimiento` hacia `m2.habitacion.mantenimiento.queue` con `action: "SCHEDULED"`, `maintenanceId` (UUID del reporte de daño generado), `roomId`, `categoryRoom`, `startDate = endDate = hoy` | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
-| 2 | Verificación de no emisión de aviso en limpieza ordinaria | Completar tarea de limpieza sin reporte de daño | Habitación en aseo sin novedad | No se encola ningún aviso de mantenimiento en Outbox ni en RabbitMQ | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
+| 1 | Aviso por fin con daño | Revisar `m2.habitacion.mantenimiento.queue` tras el fin con daño | 407 | Mensaje `habitacion.mantenimiento` con `action` `SCHEDULED`, `roomId` de la 407, `maintenanceId`, `startDate` y `endDate` de hoy | [x] Pass | 13-11-2026: comprobado con la API de administración de RabbitMQ |
+| 2 | Sin aviso en un fin normal | Revisar la misma cola tras los fines sin daño | 407, 408 | No se agrega ningún mensaje | [x] Pass | 13-11-2026: comprobado (los números de secuencia siguen sin huecos) |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Encadenamiento atómico a Reserved: si la habitación tiene reserva asignada para hoy, el backend ejecuta la transición `InCleaning → Available → Reserved` en la misma transacción sin dejar ventanas intermedias en `Available`.
-* **EC-002 (API)** : Idempotencia de respuesta 204: tras responder 204 No Content, la tarea queda con fecha y hora de fin registrada en `cleaning_task` y cerrada permanentemente.
+* **EC-001** : En el historial, el fin con daño deja un periodo "Disponible" de duración cero antes de "Inhabilitada por reparaciones" (los dos con `sourceFlowName` "Confirmar fin de limpieza"); la liberación queda como "Confirmar fin de limpieza (liberar tarea)".
+* **EC-002** : Un daño solo con espacios se trata como sin daño.
 
 #### Defect Severity Reference
 
@@ -94,8 +96,15 @@ Este caso de prueba verifica la finalización de tareas de aseo (`POST /api/clea
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba un botón "Reportar daño" en la tarea activa, los avisos "Limpieza terminada. La habitación quedó disponible para asignar." y "La tarea de limpieza ya no se encuentra activa.", y el mensaje "La tarea pertenece a otro miembro del personal."; usaba la 101 y la 102, que son datos del equipo | Pasos reescritos con los textos reales |
+| H2 | Documento | La versión anterior no probaba el fin con daño ni el límite de 500 caracteres | Se agregan esos pasos |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 17 | 17 | 0 | 0 | APROBADO |
+| 19 | 19 | 0 | 0 | APROBADO |

@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el retiro formal de una habitación del inventario activo hotelero (`POST /api/rooms/{roomId}/decommission`), exigiendo que la habitación se encuentre en estado Available, validando la consulta síncrona a Módulo 2 para asegurar la inexistencia de reservas activas en los próximos 365 días, la transición a Inactive y la consulta de la baja vigente (`GET /api/rooms/{roomId}/decommission`).
+Este caso de prueba verifica la baja de una habitación Disponible desde `/administracion/habitaciones/{roomId}/baja` (`POST /api/rooms/{roomId}/decommission`) en sus 4 pasos (Motivo, Confirmación, Verificación, Resultado): el motivo obligatorio, el detalle obligatorio solo con "Otro", la consulta de reservas vigentes a Módulo 2 antes de aplicar la baja, el paso a Inactiva, la consulta de la baja vigente y los rechazos (habitación no Disponible, inexistente, sin usuario, Módulo 2 sin respuesta).
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,16 @@ Este caso de prueba verifica el retiro formal de una habitación del inventario 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React, base de datos PostgreSQL y servicio externo de reservas (Módulo 2) activo o simulado. La pantalla `/administracion/habitaciones/:roomId/baja` se encuentra implementada.
+* En la plataforma publicada, Módulo 2 es un simulador que siempre responde "sin reservas": el rechazo por reservas vigentes no se puede provocar sin cambiar el simulador en el servidor.
+* Cada baja deja la habitación Inactiva; usar habitaciones de prueba (en la ejecución: 409 por pantalla y 408 por API, creadas en TC-018). TC-008 las reactiva.
 
 ##### Dependencies & Assumptions
-* La habitación debe estar en estado `Available` y sin reservas asignadas ni futuras.
+* TC-018 creó las habitaciones 408 y 409 en Disponible. La 101 no está Disponible.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 102 en estado `Available` sin reservas en los próximos 365 días.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
+* **Initial State** : 408 y 409 Disponibles; 101 en otro estado (en la ejecución: Pendiente de limpieza).
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : una cuenta de Administración (en la ejecución: `cabo`).
 
 --------------------------------------------------------------------------------
 
@@ -44,44 +45,45 @@ Este caso de prueba verifica el retiro formal de una habitación del inventario 
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Carga el Inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Seleccionar acción Dar de baja | En `/administracion/inventario`, ubicar la habitación 102 (`Available`) y pulsar "Dar de baja" | Habitación 102 | Navega a `/administracion/habitaciones/a0000000-0000-0000-0000-000000000102/baja` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como Administrador | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Administración | Abre `/administracion/inventario` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Abrir la baja | En la fila de la 409 pulsar "Dar de baja" | 409 | Abre `/administracion/habitaciones/{roomId}/baja` con "Dar de baja habitación", los pasos 1 Motivo · 2 Confirmación · 3 Verificación · 4 Resultado y "1. Motivo de la baja · Habitación 409" con Habitación, Piso, Tipo y Estado | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Completar motivo de baja | En `/administracion/habitaciones/:roomId/baja`, seleccionar Motivo: "Remodelación estructural" e ingresar Detalle: "Integración física con habitación contigua para ampliación de suite" | Motivo y detalle válidos | Se habilita el botón de confirmación "Confirmar retiro del inventario" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Confirmar diálogo de advertencia | Hacer clic en "Confirmar retiro del inventario" y aceptar el diálogo de advertencia "¿Estás seguro de dar de baja la habitación 102?" | Confirmación modal | Se ejecuta la baja vía API, la habitación transiciona a `Inactive`, se registra en el historial y redirige a `/administracion/inventario` con aviso: "Habitación 102 dada de baja exitosamente." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Comprobar exclusión de disponibles | En `/administracion/inventario`, filtrar por estado "Disponible" | Filtro "Disponible" | La habitación 102 ya no aparece en el listado de disponibles | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Comprobar presencia en inactivas | En `/administracion/inventario`, filtrar por estado "Inactiva" | Filtro "Inactiva" | La habitación 102 aparece con badge "Inactiva" y opción de reactivación | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Elegir el motivo | Abrir "Motivo de la baja", elegir y escribir el detalle; pulsar "Continuar" | Cierre definitivo de piso; "Prueba TC-020: retiro de la habitación de prueba" | Opciones: Remodelación permanente, Cierre definitivo de piso, Decisión administrativa y Otro; el detalle es "(opcional)" con "Máximo 500 caracteres." Pasa a "2. ¿Confirmas la baja de la habitación 409?" con el motivo, el detalle y el aviso "La habitación pasará a estado Inactiva y dejará de aparecer entre las habitaciones disponibles. Antes de aplicar la baja se comprobará que no tenga reservas vigentes en los próximos 365 días." | [x] Pass | 13-11-2026: comprobado |
+| 2 | Volver atrás | Pulsar "Atrás" | N/A | Vuelve al paso 1 con el motivo y el detalle conservados | [x] Pass | 13-11-2026: comprobado |
+| 3 | Confirmar la baja | Pulsar "Continuar" y luego "Confirmar baja" | N/A | Paso 3: "Comprobando reservas de la habitación 409…" / "No cierres esta ventana."; luego paso 4: "Habitación 409 dada de baja" / "Ya no aparece entre las habitaciones disponibles." con Estado "Inactiva", Motivo y Detalle, y "Volver al inventario" | [x] Pass | 13-11-2026: comprobado (`POST …/decommission` 200) |
+| 4 | Verificar en el inventario | Filtrar el inventario por Estado "Inactiva" | N/A | La 409 aparece "Inactiva" con "Marcar como disponible" y ya no aparece al filtrar "Disponible" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Motivo no seleccionado | Dejar el selector de motivo sin elegir | Motivo vacío | Mensaje de validación: "Selecciona un motivo válido para la baja." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Detalle explicativo vacío | Dejar el campo de texto de detalle en blanco | Detalle vacío | Mensaje de validación: "Ingresa el detalle explicativo del motivo de baja." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Habitación no disponible | Intentar dar de baja una habitación que no está en `Available` (ej. en limpieza u ocupada) | Habitación en otro estado | Mensaje de rechazo: "Solo se pueden dar de baja habitaciones en estado Disponible (estado actual: {estado})." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Conflicto con reservas futuras en Módulo 2 | Intentar dar de baja una habitación que tiene reservas confirmadas en los próximos 365 días | Habitación con reserva futura | Mensaje de conflicto: "No se puede dar de baja la habitación: tiene reservas confirmadas en los próximos 365 días." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 5 | Caída o falla de Módulo 2 | Intentar dar de baja con el servicio de Módulo 2 caído o con timeout | Módulo 2 apagado | Mensaje de alerta: "No fue posible verificar las reservas de la habitación con el módulo de reservas. Intenta más tarde." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 6 | Sesión terminada | Enviar la baja sin sesión activa | Sin sesión | Mensaje de advertencia: "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Sin motivo | Pulsar "Continuar" sin elegir motivo | N/A | "Selecciona un motivo para continuar." | [x] Pass | 13-11-2026: comprobado |
+| 2 | "Otro" sin detalle | Elegir "Otro" y dejar el detalle vacío o con espacios | N/A | El campo pasa a llamarse "Motivo de la baja *" y aparece "Escribe el motivo de la baja." | [x] Pass | 13-11-2026: comprobado |
+| 3 | Habitación que no está Disponible | Abrir a mano la baja de la 101, y la de la 409 ya inactiva | 101; 409 | "No se puede dar de baja la habitación 101" / "La habitación está en estado Pendiente de limpieza. Solo se pueden dar de baja habitaciones disponibles." (y lo mismo con "Inactiva" para la 409) | [x] Pass | 13-11-2026: comprobado |
+| 4 | Reservas vigentes en Módulo 2 | Dar de baja una habitación con una reserva vigente en Módulo 2 | Reserva vigente | "No se puede dar de baja la habitación {n}", "La habitación tiene una reserva vigente. Reasígnalas a otra habitación y vuelve a intentar la baja. La habitación sigue disponible." y la lista de reservas | N/C | No comprobable en la plataforma: el simulador de Módulo 2 publicado no devuelve reservas |
+| 5 | Módulo 2 sin respuesta | Confirmar la baja cuando Módulo 2 no responde a tiempo | N/A | Paso 4: "No se pudo completar la baja" / "No fue posible comprobar las reservas de la habitación {n} en este momento. No se aplicó ningún cambio y la habitación sigue disponible." con "Volver al inventario" y "Reintentar" | [x] Pass | 13-11-2026: ocurrió sin provocarlo en el primer intento con la 408 (424); el segundo intento funcionó (hallazgo H3) |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Retiro exitoso de habitación | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102/decommission`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "Integración con habitación contigua"}` | Hab. 102 en `Available` sin reservas | HTTP 200 OK con JSON `RoomDecommissionDto` `{ "roomId": "...", "status": "Inactive", "decommissionedAt": "..." }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Consulta de baja vigente | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102/decommission`<br>Headers: (sin X-User obligatorio) | Hab. recién dada de baja | HTTP 200 OK con JSON `RoomDecommissionInfoDto` conteniendo motivo y detalles de la baja | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de X-User | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102/decommission`<br>Headers: (sin X-User)<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "..."}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error por campos obligatorios faltantes | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102/decommission`<br>Headers: `X-User: admin`<br>Body: `{"reasonDetail": ""}` | Sin motivo ni detalle | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, `details.fields: ["reasonCategory", "reasonDetail"]` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error habitación inexistente | `POST {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/decommission`<br>Headers: `X-User: admin`<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "..."}` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Error habitación no en Available | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/decommission`<br>Headers: `X-User: admin`<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "..."}` | Habitación en `Occupied` | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "Solo se pueden dar de baja habitaciones en estado Disponible (estado actual: Occupied)." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Error por conflicto con reservas en Módulo 2 | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000103/decommission`<br>Headers: `X-User: admin`<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "..."}` | Habitación con reserva activa | HTTP 409 Conflict, `errorCode: "RESERVATION_CONFLICT"`, mensaje: "No se puede dar de baja la habitación: tiene reservas confirmadas en los próximos 365 días." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 8 | Error por servicio Módulo 2 no disponible | `POST {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000102/decommission`<br>Headers: `X-User: admin`<br>Body: `{"reasonCategory": "REMODELING", "reasonDetail": "..."}` | M2 desconectado | HTTP 424 Failed Dependency, `errorCode: "MODULE_2_UNAVAILABLE"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Baja exitosa | `POST {BASE_URL}/api/rooms/{roomId}/decommission`, `X-User` de Administración, body `{"reasonCategory":"OTHER","reasonDetail":"Prueba TC-020 API"}` | 408 | 200 con `decommissionId`, `roomId`, `roomNumber`, `status` `Inactive`, `reasonCategory`, `reasonDetail` y `decommissionDateTime` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Consultar la baja vigente | `GET {BASE_URL}/api/rooms/{roomId}/decommission` | 408 | 200 con los datos de la habitación, `decommissionId`, fecha, motivo y detalle | [x] Pass | 13-11-2026: comprobado |
+| 3 | Consultar la baja de una no inactiva | `GET {BASE_URL}/api/rooms/{id de la 105}/decommission` | 105 Disponible | 409 `ROOM_INVALID_STATE` con `details.currentStatus` | [x] Pass | 13-11-2026: comprobado |
+| 4 | Sin usuario | El `POST` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 5 | Sin motivo o motivo inexistente | Body `{"reasonDetail":""}`, o `"reasonCategory":"REMODELING"` | N/A | 400 `VALIDATION_ERROR`, "Selecciona el motivo de la baja.", `details.field` `reasonCategory`. Valores válidos: `PERMANENT_REMODELING`, `FLOOR_CLOSURE`, `ADMINISTRATIVE_DECISION`, `OTHER` | [x] Pass | 13-11-2026: comprobado |
+| 6 | "Otro" sin detalle | `{"reasonCategory":"OTHER","reasonDetail":"  "}` | N/A | 400 `VALIDATION_ERROR`, "Escribe el motivo de la baja.", `details.field` `reasonDetail` | [x] Pass | 13-11-2026: comprobado |
+| 7 | Detalle de 501 caracteres | `reasonDetail` de 501 caracteres | N/A | 400 `VALIDATION_ERROR`, "El detalle admite máximo 500 caracteres." | [x] Pass | 13-11-2026: comprobado |
+| 8 | Habitación inexistente | `POST {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/decommission` con motivo válido | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
+| 9 | Habitación no Disponible | `POST` a la 101 con motivo válido | 101 | 409 `ROOM_INVALID_STATE`, "No es posible dar de baja la habitación: está en estado Pendiente de limpieza y debe estar Disponible." | [x] Pass | 13-11-2026: comprobado |
+| 10 | Reservas vigentes en Módulo 2 | `POST` a una habitación con reserva vigente | Reserva vigente | 409 `RESERVATION_CONFLICT` con la lista de reservas en `details` | N/C | No comprobable en la plataforma: el simulador de Módulo 2 no devuelve reservas |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (Interfaz)** : Asignación de reserva en el instante previo a confirmar: si una reserva entra al sistema justo antes de pulsar confirmar, el backend cancela la baja con HTTP 409 y la interfaz refresca el estado.
-* **EC-002 (API)** : Exclusión estricta de habitaciones inactivas para Módulo 2: verificar que tras la baja, `GET /api/rooms` no incluye la habitación dada de baja en ninguna de sus consultas.
+* **EC-001 (Interfaz)** : "Reintentar" tras la falla de Módulo 2 vuelve a consultar sin pedir otra vez el motivo.
+* **EC-002 (API)** : La baja conserva el historial: la habitación sigue en el historial de estados con el periodo "Inactiva" abierto.
 
 #### Defect Severity Reference
 
@@ -93,8 +95,16 @@ Este caso de prueba verifica el retiro formal de una habitación del inventario 
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba el motivo "Remodelación estructural", el botón "Confirmar retiro del inventario", el diálogo "¿Estás seguro de dar de baja la habitación 102?", el aviso "Habitación 102 dada de baja exitosamente.", los mensajes "Selecciona un motivo válido para la baja.", "Ingresa el detalle explicativo del motivo de baja." y "Solo se pueden dar de baja habitaciones en estado Disponible (estado actual: {estado}).", el valor `REMODELING` y un detalle siempre obligatorio. Nada de eso coincide con la plataforma | Pasos reescritos con lo que muestra la página |
+| H2 | Documento | La versión anterior daba de baja la 102 y la 103, que son datos compartidos del equipo | Se usan las 408 y 409 creadas en TC-018 |
+| H3 | Plataforma (S) | El primer intento de baja respondió 424 ("No fue posible comprobar las reservas…") aunque el simulador de Módulo 2 estaba arriba; el siguiente funcionó. Probablemente la primera consulta superó el tiempo de lectura de 2 s | Propuesta: revisar el tiempo de espera hacia Módulo 2 en el servidor. No se cambió la plataforma |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 20 | 20 | 0 | 0 | APROBADO |
+| 21 | 19 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) con observaciones H3 |

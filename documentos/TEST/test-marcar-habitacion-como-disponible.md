@@ -14,28 +14,28 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica los flujos que retornan una habitación al estado Available: liberación por cancelación de reserva recibida desde RabbitMQ (`reserva.lista-del-dia.actualizacion` REMOVED), finalización de limpieza ordinaria sin reserva para hoy, o reactivación administrativa de una habitación dada de baja (`POST /api/rooms/{roomId}/reactivation`), garantizando la actualización del historial de estados y la habilitación comercial.
+Este caso de prueba verifica las tres formas de dejar una habitación Disponible: la reactivación de una habitación Inactiva desde `/administracion/habitaciones/{roomId}/reactivacion` (`GET /api/rooms/{roomId}/decommission` y `POST /api/rooms/{roomId}/reactivation`), el fin de una limpieza sin reserva para hoy (ver TC-011) y la liberación de una habitación Reservada cuando su reserva se cancela (actualización REMOVED de Módulo 2).
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Marcar como Disponible | Specification Document | [documentos/SPEC/spec-marcar-habitacion-como-disponible.md](../SPEC/spec-marcar-habitacion-como-disponible.md) |
-| Plan de Implementación de Marcar como Disponible | Plan Document | [documentos/PLAN/plan-marcar-habitacion-como-disponible.md](../PLAN/plan-marcar-habitacion-como-disponible.md) |
+| Especificación de Marcar Habitación como Disponible | Specification Document | [documentos/SPEC/spec-marcar-habitacion-como-disponible.md](../SPEC/spec-marcar-habitacion-como-disponible.md) |
+| Plan de Implementación de Marcar Habitación como Disponible | Plan Document | [documentos/PLAN/plan-marcar-habitacion-como-disponible.md](../PLAN/plan-marcar-habitacion-como-disponible.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos.
+* La liberación por cancelación la dispara un mensaje de Módulo 2 por RabbitMQ (ver TC-001 para publicarlo).
 
 ##### Dependencies & Assumptions
-* Para liberación: habitación en `Reserved`. Para reactivación: habitación en `Inactive`.
+* TC-020 dio de baja la 409 (por pantalla) y la 408 (por API). TC-001 publicó `RES-TC-02` para la 408 y la 409.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 103 en `Reserved`. Habitación 104 en `Inactive` con baja registrada.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
+* **Initial State** : 408 y 409 Inactivas con su baja vigente; después, las dos Reservadas por `RES-TC-02`.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : una cuenta de Administración (en la ejecución: `cabo`).
 
 --------------------------------------------------------------------------------
 
@@ -44,43 +44,44 @@ Este caso de prueba verifica los flujos que retornan una habitación al estado A
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales | Usuario: `admin` | Redirige al inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Filtrar habitaciones inactivas | En `/administracion/inventario`, filtrar por estado "Inactiva" | Filtro: "Inactiva" | Se muestra la habitación 104 con botón "Reactivar" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Iniciar reactivación | Hacer clic en "Reactivar" en la fila de la habitación 104 | Habitación 104 | Navega a `/administracion/habitaciones/a0000000-0000-0000-0000-000000000104/reactivacion` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como Administrador | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Administración | Abre `/administracion/inventario` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Filtrar las inactivas | Estado "Inactiva" | N/A | Aparecen las inactivas (103, 104, 408, 409) con la acción "Marcar como disponible" | [x] Pass | 13-11-2026: comprobado |
+| 3 | Abrir la reactivación | En la fila de la 409 pulsar "Marcar como disponible" | 409 | Abre `/administracion/habitaciones/{roomId}/reactivacion` | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Revisar datos de baja previa | En `/administracion/habitaciones/:roomId/reactivacion`, consultar la confirmación | Datos de baja de hab. 104 | Se presenta el resumen de la habitación, los datos de la baja vigente (fecha, motivo, detalle) y el diálogo de confirmación de reactivación (sin campos de justificación adicional) | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Confirmar reactivación | Pulsar el botón "Confirmar reactivación" | Confirmación en pantalla | Se envía `POST /api/rooms/{roomId}/reactivation` con el `decommissionId` vigente, la habitación pasa a `Available` y muestra la pantalla de éxito con botón de retorno al inventario | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Verificar disponibilidad comercial | Consultar la fila de la habitación 104 en el inventario | Habitación 104 | Refleja badge de estado "Disponible" y vuelve a estar habilitada para reservas y asignaciones | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Revisar la confirmación | Ver la pantalla | 409 | "Marcar como disponible" / "Reintegra una habitación dada de baja al inventario operativo.", "¿Reactivar la habitación 409?", "Volverá al inventario operativo y podrá recibir nuevas reservas y estancias.", Habitación, Piso, Tipo, Estado "Inactiva", "Dada de baja el", "Motivo de la baja", "Detalle", el aviso "La habitación pasará a estado Disponible." y los botones "Cancelar" y "Confirmar reactivación" (no hay diálogo adicional) | [x] Pass | 13-11-2026: comprobado |
+| 2 | Cancelar | Pulsar "Cancelar" | N/A | Vuelve a `/administracion/inventario` sin cambios | [x] Pass | 13-11-2026: comprobado |
+| 3 | Confirmar | Abrir de nuevo y pulsar "Confirmar reactivación" | N/A | `POST …/reactivation` (200) y "Habitación 409 disponible" / "Ya puede recibir reservas y estancias." con Estado "Disponible" y "Volver al inventario" | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Identificador de baja inválido o no reconocido | Intentar reactivar enviando un `decommissionId` con formato erróneo o que no corresponde a la baja | Formato no UUID | Mensaje de error: "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Habitación no se encuentra inactiva | Intentar acceder a la reactivación de una habitación que ya está disponible | Hab. en `Available` | La pantalla muestra advertencia: "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." e impide continuar | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Habitación que no está Inactiva | Abrir a mano la reactivación de la 409 ya disponible | 409 | Según la SPEC (FR-006): "No se puede marcar como disponible la habitación 409" / "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." | [ ] Fail | 13-11-2026: la página muestra "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." (hallazgo H2) |
+| 2 | Habitación inexistente | Abrir a mano la reactivación con un UUID que no existe | `b0000000-…-999` | "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consultar datos de baja vigente | `GET {BASE_URL}/api/rooms/{roomId}/decommission`<br>Headers: (sin X-User obligatorio) | `roomId` hab. 104 (`Inactive`) | HTTP 200 OK con JSON `RoomDecommissionInfoDto` conteniendo motivo y fecha de la baja | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Reactivar habitación exitosamente | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"decommissionId": "7d6c5b4a-3e2f-4a1b-9c8d-7e6f5a4b3c2d"}` | `roomId` hab. 104 e id de baja vigente | HTTP 200 OK con JSON `ReactivationResultDto` conteniendo `roomId`, `roomNumber`, `status: "Available"`, `alreadyReactivated: false` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de X-User en reactivación | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: (sin X-User)<br>Body: `{"decommissionId": "7d6c5b4a-3e2f-4a1b-9c8d-7e6f5a4b3c2d"}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error reactivar habitación no inactiva | `POST {BASE_URL}/api/rooms/{roomId}/reactivation`<br>Headers: `X-User: admin`<br>Body: `{"decommissionId": "b0000000-0000-0000-0000-000000000999"}` | Hab. en `Available` con baja ajena | HTTP 409 Conflict, `errorCode: "ROOM_INVALID_STATE"`, mensaje: "La habitación no está Inactiva (estado actual: Disponible); no es posible marcarla como disponible." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Reintento idempotente de reactivación | Repetir `POST {BASE_URL}/api/rooms/{roomId}/reactivation` con el mismo `decommissionId` de la baja ya revertida | Hab. recién reactivada | HTTP 200 OK con JSON conteniendo `status: "Available"` y `alreadyReactivated: true` sin duplicar periodos en historial | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Consulta de habitación reactivada en inventario | `GET {BASE_URL}/api/rooms/inventory/{roomId}` | Hab. reactivada | HTTP 200 OK con `status: "Available"` y `reservedByReservationRef: null` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Consultar la baja vigente | `GET {BASE_URL}/api/rooms/{id de la 408}/decommission` | 408 Inactiva | 200 con la habitación, `decommissionId`, fecha, motivo y detalle | [x] Pass | 13-11-2026: comprobado |
+| 2 | Sin usuario | `POST {BASE_URL}/api/rooms/{id}/reactivation` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Baja no reconocida | `decommissionId` `abc`, ausente o de otra baja | Uno por consulta | 400 `VALIDATION_ERROR`, "No se pudo identificar la baja de la habitación. Vuelve a abrir la confirmación.", `details.field` `decommissionId` | [x] Pass | 13-11-2026: comprobado |
+| 4 | Reactivar | `POST …/reactivation` con el `decommissionId` vigente | 408 | 200 con `status` `Available` y `alreadyReactivated` false | [x] Pass | 13-11-2026: comprobado |
+| 5 | Repetir | El mismo `POST` otra vez | 408 | 200 con `alreadyReactivated` true (sin otro cambio de estado) | [x] Pass | 13-11-2026: comprobado |
+| 6 | Habitación inexistente | `POST {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/reactivation` | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
+| 7 | Baja de una habitación no inactiva | `GET {BASE_URL}/api/rooms/{id de la 105}/decommission` | 105 Disponible | 409 `ROOM_INVALID_STATE`, "La habitación no está Inactiva (estado actual: Disponible); no es posible marcarla como disponible." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección E — Mensajería
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Liberación por cancelación REMOVED desde RabbitMQ | Publicar mensaje en `hospitua.events` hacia `m1.reservas.diarias.queue` con routing key `reserva.lista-del-dia.actualizacion` y `action: "REMOVED"` | Cancelación de reserva para hab. 103 | La habitación 103 transiciona de `Reserved` a `Available`, blanquea `reservedByReservationRef` y cierra el periodo en `room_state_history` | [x] Pass | 2026-11-13: Verificado con broker local RabbitMQ y Dead-Letter Exchange |
+| 1 | Liberación por cancelación | Con la 408 y la 409 Reservadas por `RES-TC-02`, publicar `reserva.lista-del-dia.actualizacion` con `updateType` `REMOVED` y `reservationRef` `RES-TC-02` | `RES-TC-02` | Las dos pasan de Reservada a Disponible; el historial registra "Marcar habitación como disponible" con Responsable "Sistema"; la reserva sale de Llegadas | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Cancelación de reserva con habitación ya ocupada: si llega un REMOVED para una reserva que ya completó check-in (`Occupied`), el estado de la habitación no se altera y se audita el evento como conflicto.
-* **EC-002 (Interfaz)** : Refresco inmediato en inventario: la reactivación actualiza de inmediato la vista del administrador sin dejar badges inconsistentes de inactividad.
+* **EC-001** : Fin de limpieza sin reserva para hoy: la habitación pasa de En limpieza a Disponible (comprobado en TC-011).
+* **EC-002 (API)** : Tras reactivar, `GET …/decommission` responde 409 porque la habitación ya no está Inactiva.
 
 #### Defect Severity Reference
 
@@ -92,8 +93,15 @@ Este caso de prueba verifica los flujos que retornan una habitación al estado A
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba el botón "Reactivar" en el inventario (es "Marcar como disponible"), un "diálogo" de confirmación, "Volver al inicio", `reservedByReservationRef` en el inventario y el campo `action` en el mensaje; usaba la 104 y la 103, que son datos del equipo | Pasos reescritos; se usan la 408 y la 409 |
+| H2 | Plataforma (M) | `ReactivationPage.tsx` muestra "Habitación no encontrada" para cualquier error de `GET …/decommission`. Para una habitación que no está Inactiva el backend responde 409 `ROOM_INVALID_STATE`, así que el aviso "No se puede marcar como disponible…" (FR-006) nunca aparece | Propuesta: en la rama de error, si el código es `ROOM_INVALID_STATE`, mostrar ese aviso con `details.currentStatus`. No se cambió la plataforma |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 15 | 15 | 0 | 0 | APROBADO |
+| 16 | 15 | 1 | 0 | RECHAZADO |

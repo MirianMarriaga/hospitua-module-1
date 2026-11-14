@@ -14,7 +14,7 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la gestión integral de cuentas de usuario del personal hotelero (`/administracion/personal`), abarcando el registro de cuentas (`POST /api/staff`), consulta paginada (`GET /api/staff`), edición de perfil (`PATCH /api/staff/{username}`), desactivación lógica (`POST /api/staff/{username}/deactivation`), y el inicio de sesión (`POST /api/auth/login`) asegurando que una cuenta desactivada recibe exactamente el mismo código y mensaje de error que unas credenciales incorrectas (HTTP 401 `INVALID_CREDENTIALS`, "Usuario o contraseña incorrectos.").
+Este caso de prueba verifica la gestión de las cuentas del personal desde `/administracion/personal` (`/api/staff`): la lista con búsqueda y filtros, el registro, la edición (el usuario no se puede cambiar), la desactivación con su diálogo, los rechazos (usuario repetido, cuenta propia, cuenta desactivada, edición simultánea) y que una cuenta desactivada ya no pueda iniciar sesión ni actuar en la API.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
@@ -27,15 +27,16 @@ Este caso de prueba verifica la gestión integral de cuentas de usuario del pers
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot, frontend React y base de datos PostgreSQL activos. Las pantallas `/administracion/personal`, `/administracion/personal/nuevo` y `/administracion/personal/:username/editar` se encuentran implementadas.
+* Las cuentas no se borran: las de prueba quedan desactivadas (en la ejecución: `tc.personal` por pantalla y `tc.personal2` por API).
+* La regla "única cuenta activa de Administración" no se puede provocar en la plataforma sin desactivar a los administradores reales del equipo (hay 3 activos).
 
 ##### Dependencies & Assumptions
-* Requiere sesión activa con rol Administrador para mutaciones.
+* La cuenta `admin` existe (usuario repetido). `jlopez` ya existe en la plataforma: no usarlo como cuenta nueva.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Cuenta administradora principal activa (`admin`).
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Administrador (`admin`); ver credenciales de pruebas del equipo.
+* **Initial State** : los usuarios `tc.personal` y `tc.personal2` no existen.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : una cuenta de Administración (en la ejecución: `cabo`).
 
 --------------------------------------------------------------------------------
 
@@ -44,55 +45,54 @@ Este caso de prueba verifica la gestión integral de cuentas de usuario del pers
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como Administrador | Navegar a `/login` e ingresar credenciales de Administrador | Usuario: `admin` | Redirige al inventario en `/administracion/inventario` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Navegar a gestión de personal | En el menú lateral o superior, hacer clic en "Personal" | Menú "Personal" | Carga el listado de colaboradores en `/administracion/personal` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como Administrador | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Administración | Abre `/administracion/inventario`; el menú lateral muestra "Inventario" y "Personal" | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
+| 2 | Abrir Personal | Pulsar "Personal" | N/A | Abre `/administracion/personal` con "Registra, edita o desactiva las cuentas con las que el personal inicia sesión.", el botón "Registrar personal", los filtros Buscar, Área y Estado y las columnas Usuario, Nombre, Área, Estado y Acciones | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualizar lista de colaboradores | En `/administracion/personal`, inspeccionar la tabla de cuentas | Cuentas existentes | Se despliegan filas con: Usuario, Nombre completo, Área (ADMINISTRACION, RECEPCION, LIMPIEZA, MANTENIMIENTO, GERENCIA), Estado (Activa/Desactivada) y Acciones | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Abrir formulario de nueva cuenta | En `/administracion/personal`, hacer clic en el botón "Nuevo colaborador" | Botón "Nuevo colaborador" | Navega a `/administracion/personal/nuevo` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Registrar nuevo colaborador | Diligenciar formulario:<br>- Nombre completo: "Juan López"<br>- Usuario: "jlopez"<br>- Área: "LIMPIEZA"<br>- Contraseña: "Password123*"<br>Hacer clic en "Registrar cuenta" | Datos válidos | Se envía `POST /api/staff`, se crea la cuenta activa y redirige a `/administracion/personal` con mensaje: "Cuenta jlopez registrada exitosamente." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Editar cuenta existente | En la lista de personal, pulsar "Editar" en la fila de "jlopez" | Cuenta "jlopez" | Navega a `/administracion/personal/jlopez/editar` con datos precargados y campo de contraseña opcional | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 5 | Guardar cambios en colaborador | Modificar el Nombre completo a "Juan Carlos López" y pulsar "Guardar cambios" | Nuevo nombre | Se actualiza el perfil vía `PATCH /api/staff/jlopez` y redirige al listado con notificación: "Cuenta jlopez actualizada exitosamente." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 6 | Desactivar cuenta de personal | En la fila de "jlopez", hacer clic en "Desactivar" y confirmar el diálogo "¿Desactivar la cuenta de Juan Carlos López?" | Confirmación modal | Se envía `POST /api/staff/jlopez/deactivation`, la cuenta pasa a estado inactivo (badge "Desactivada") | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Buscar y filtrar | Escribir en "Buscar"; revisar las opciones de Área y Estado | `tc.` | La dirección pasa a `?query=tc.` y solo quedan las cuentas que coinciden; Área: Todas, Recepción, Administración, Gerencia, Limpieza, Mantenimiento; Estado: Todos, Activa, Desactivada | [x] Pass | 13-11-2026: comprobado |
+| 2 | Registrar una cuenta | "Registrar personal", llenar y pulsar "Registrar personal" | Usuario `tc.personal`; contraseña de 8+ caracteres; "Prueba Personal"; Limpieza | Se envía `POST /api/staff` (201) y aparece "Cuenta de Prueba Personal registrada" / "Ya puede iniciar sesión con su usuario y contraseña." con Usuario, Nombre, Área, Estado "Activa" y los botones "Registrar otra persona" y "Volver al personal" | [x] Pass | 13-11-2026: comprobado |
+| 3 | Abrir la edición | En la fila de `tc.personal` pulsar "Editar" | N/A | Abre `/administracion/personal/tc.personal/editar` con "El usuario no se puede cambiar, porque identifica a la persona en el historial.", el Usuario no editable, "Contraseña nueva" opcional, Nombre completo y Área precargados | [x] Pass | 13-11-2026: comprobado |
+| 4 | Guardar cambios | Cambiar el nombre y pulsar "Guardar cambios" | "Prueba Personal Editada" | `PATCH /api/staff/tc.personal` (200) y "Cuenta de Prueba Personal Editada actualizada" / "Los cambios ya están guardados." con los datos y "Volver al personal" | [x] Pass | 13-11-2026: comprobado |
+| 5 | Desactivar una cuenta | En la fila de `tc.personal` pulsar "Desactivar" y luego "Desactivar cuenta" | N/A | El diálogo dice "¿Desactivar la cuenta de {nombre}?", "Revisa los datos de la cuenta antes de confirmar.", "La persona no podrá iniciar sesión. La cuenta no se borra: el historial seguirá mostrando su nombre." con los datos y "Cancelar" / "Desactivar cuenta". Al confirmar, la fila queda "Desactivada" y sin acciones ("—") | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Campos obligatorios vacíos | Dejar campos en blanco al registrar personal | Formulario vacío | Mensaje de validación: "Completa los campos obligatorios: {campos}." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Formato de usuario inválido | Ingresar usuario con tildes o menos de 3 caracteres (ej. "pe") | Usuario "pe" | Mensaje de validación: "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Contraseña con longitud menor a 8 caracteres | Ingresar contraseña "12345" | Contraseña corta | Mensaje de validación: "La contraseña debe tener al menos 8 caracteres." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Contraseña de más de 72 bytes | Ingresar contraseña de más de 72 caracteres | Contraseña excesiva | Mensaje de validación: "La contraseña admite máximo 72 caracteres." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 5 | Área no permitida | Seleccionar valor no admitido | Área inválida | Mensaje de validación: "Selecciona un área válida." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 6 | Nombre de usuario duplicado | Intentar registrar con usuario "admin" | Usuario existente | Mensaje de conflicto: "Ya existe una cuenta con el usuario admin." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 7 | Auto-desactivación del propio usuario | Intentar presionar "Desactivar" sobre la fila del usuario actualmente conectado (`admin`) | Propia cuenta | El botón se encuentra deshabilitado en pantalla o alerta: "No puedes desactivar tu propia cuenta." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 8 | Desactivación del único administrador | Intentar desactivar al único administrador activo del sistema | Último administrador | Mensaje de rechazo: "No se puede desactivar: es la única cuenta activa de Administración." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 9 | Cambio de área del único administrador | Intentar cambiar el área del único administrador a otra área | Cambio de área | Mensaje de rechazo: "No se puede cambiar el área: es la única cuenta activa de Administración." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 10 | Edición de cuenta desactivada | Intentar abrir formulario de edición para una cuenta inactiva | Cuenta desactivada | Mensaje de rechazo: "La cuenta está desactivada; no se puede editar." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 11 | Concurrencia en edición de personal | Guardar cambios con versión desactualizada | Versión obsoleta | Mensaje de conflicto: "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Formulario vacío | Pulsar "Registrar personal" sin llenar nada | N/A | "Ingresa el usuario.", "Ingresa la contraseña.", "Ingresa el nombre completo." y "Selecciona el área." | [x] Pass | 13-11-2026: comprobado |
+| 2 | Usuario y contraseña inválidos | Usuario con tilde; contraseña corta | `pé`; `12345` | "El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, punto o guion bajo." y "La contraseña debe tener al menos 8 caracteres." | [x] Pass | 13-11-2026: comprobado |
+| 3 | Contraseña de más de 72 bytes | 37 letras "ñ" (74 bytes) | N/A | "La contraseña admite máximo 72 caracteres." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Usuario repetido | Registrar con el usuario `admin` | `admin` | El backend responde 409 y el campo muestra "Ya existe una cuenta con el usuario admin." | [x] Pass | 13-11-2026: comprobado |
+| 5 | Desactivar la cuenta propia | En la fila propia pulsar "Desactivar" y confirmar | Cuenta en sesión | El botón está habilitado; al confirmar, el diálogo muestra "No puedes desactivar tu propia cuenta." y ofrece "Cerrar" | [x] Pass | 13-11-2026: comprobado (409 `CANNOT_DEACTIVATE_SELF`) |
+| 6 | Única cuenta de Administración | Desactivar o cambiar de área a la única cuenta activa de Administración | Último administrador | "No se puede desactivar: es la única cuenta activa de Administración." | N/C | No comprobable en la plataforma sin desactivar a los administradores del equipo |
+| 7 | Editar una cuenta desactivada | Abrir a mano `/administracion/personal/tc.personal/editar` | Cuenta desactivada | "No se puede editar la cuenta tc.personal" / "La cuenta está desactivada; no se puede editar." y "Volver al personal" | [x] Pass | 13-11-2026: comprobado |
+| 8 | Edición simultánea | Abrir la edición en dos pestañas; guardar en la segunda y luego en la primera | Nombres distintos | "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." con "Cargar los datos actuales" | [x] Pass | 13-11-2026: comprobado |
+| 9 | Cuenta inexistente | Abrir a mano `/administracion/personal/nadie.tc/editar` | N/A | "Cuenta no encontrada" / "No existe ninguna cuenta con ese usuario." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Creación exitosa de cuenta | `POST {BASE_URL}/api/staff`<br>Headers: `X-User: admin`, `Content-Type: application/json`<br>Body: `{"username": "jlopez", "fullName": "Juan López", "area": "LIMPIEZA", "password": "Password123*"}` | Datos válidos | HTTP 201 Created con JSON conteniendo `username: "jlopez"`, `fullName`, `area: "LIMPIEZA"`, `active: true` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Consulta general de cuentas | `GET {BASE_URL}/api/staff?page=1&size=10`<br>Headers: (sin X-User obligatorio) | Paginación estándar | HTTP 200 OK con JSON `PagedResultDto<StaffAccountDto>` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Consulta individual con versión | `GET {BASE_URL}/api/staff/jlopez`<br>Headers: (sin X-User obligatorio) | Usuario existente | HTTP 200 OK con datos de la cuenta y atributo `version` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Actualización de perfil | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 0, "fullName": "Juan Carlos López", "area": "LIMPIEZA"}` | Versión válida | HTTP 200 OK con cuenta actualizada y versión incrementada | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Desactivación lógica de cuenta | `POST {BASE_URL}/api/staff/jlopez/deactivation`<br>Headers: `X-User: admin` | Cuenta activa | HTTP 200 OK con `{ "username": "jlopez", "active": false }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 6 | Intento de login con cuenta desactivada | `POST {BASE_URL}/api/auth/login`<br>Content-Type: application/json<br>Body: `{"username": "jlopez", "password": "Password123*"}` | Cuenta desactivada | HTTP 401 Unauthorized, `errorCode: "INVALID_CREDENTIALS"`, mensaje idéntico a contraseña incorrecta: "Usuario o contraseña incorrectos." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 7 | Error por falta de X-User en mutaciones | `POST {BASE_URL}/api/staff`<br>Headers: (sin X-User)<br>Body: `{"username": "test", ...}` | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 8 | Error usuario duplicado | `POST {BASE_URL}/api/staff`<br>Headers: `X-User: admin`<br>Body: `{"username": "admin", ...}` | Usuario "admin" | HTTP 409 Conflict, `errorCode: "USERNAME_ALREADY_EXISTS"`, mensaje: "Ya existe una cuenta con el usuario admin." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 9 | Error auto-desactivación | `POST {BASE_URL}/api/staff/admin/deactivation`<br>Headers: `X-User: admin` | Propia cuenta | HTTP 409 Conflict, `errorCode: "CANNOT_DEACTIVATE_SELF"`, mensaje: "No puedes desactivar tu propia cuenta." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 10 | Error último administrador | `POST {BASE_URL}/api/staff/admin/deactivation`<br>Headers: `X-User: otro_admin` (si fuera el único) | Último admin | HTTP 409 Conflict, `errorCode: "LAST_ADMINISTRATOR"`, mensaje: "No se puede desactivar: es la única cuenta activa de Administración." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 11 | Error cuenta desactivada no editable | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 1, "fullName": "Otro"}` | Cuenta ya inactiva | HTTP 409 Conflict, `errorCode: "ACCOUNT_INACTIVE"`, mensaje: "La cuenta está desactivada; no se puede editar." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 12 | Error colisión concurrente en cuenta | `PATCH {BASE_URL}/api/staff/jlopez`<br>Headers: `X-User: admin`<br>Body: `{"version": 99, "fullName": "Otro"}` | Versión inválida | HTTP 409 Conflict, `errorCode: "CONCURRENT_UPDATE"`, mensaje: "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Crear una cuenta | `POST {BASE_URL}/api/staff`, `X-User` de Administración, body `{"username":"tc.personal2","fullName":"Prueba Personal API","area":"LIMPIEZA","password":"…"}` | N/A | 201 con `username`, `fullName`, `area` y `active` true (sin contraseña) | [x] Pass | 13-11-2026: comprobado |
+| 2 | Listar y consultar | `GET {BASE_URL}/api/staff?page=1&size=10`; `GET {BASE_URL}/api/staff/tc.personal2` | N/A | 200; la consulta individual trae además `version` | [x] Pass | 13-11-2026: comprobado |
+| 3 | Editar | `PATCH {BASE_URL}/api/staff/tc.personal2` con `{"version":0,"fullName":"…","area":"LIMPIEZA"}` | N/A | 200 con los datos nuevos y `version` 1 | [x] Pass | 13-11-2026: comprobado |
+| 4 | Sin usuario | `POST {BASE_URL}/api/staff` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 5 | Usuario repetido | `POST` con `"username":"admin"` | N/A | 409 `USERNAME_ALREADY_EXISTS`, "Ya existe una cuenta con el usuario admin." | [x] Pass | 13-11-2026: comprobado |
+| 6 | Área inexistente | `POST` con `"area":"COCINA"` | N/A | 400 `VALIDATION_ERROR`, "Selecciona un área válida.", `details.field` `area` | [x] Pass | 13-11-2026: comprobado |
+| 7 | Versión desactualizada | `PATCH` con `"version":99` | N/A | 409 `CONCURRENT_UPDATE`, "La información de la cuenta ya fue actualizada por otro usuario. Recarga para ver los datos actuales." | [x] Pass | 13-11-2026: comprobado |
+| 8 | Desactivar la cuenta propia | `POST {BASE_URL}/api/staff/{propio}/deactivation` con el mismo `X-User` | N/A | 409 `CANNOT_DEACTIVATE_SELF`, "No puedes desactivar tu propia cuenta." | [x] Pass | 13-11-2026: comprobado |
+| 9 | Desactivar | `POST {BASE_URL}/api/staff/tc.personal2/deactivation` | N/A | 200 con `active` false; repetirlo da 409 `ACCOUNT_INACTIVE`, "La cuenta ya está desactivada." | [x] Pass | 13-11-2026: comprobado |
+| 10 | Editar una desactivada | `PATCH {BASE_URL}/api/staff/tc.personal2` | N/A | 409 `ACCOUNT_INACTIVE`, "La cuenta está desactivada; no se puede editar." | [x] Pass | 13-11-2026: comprobado |
+| 11 | Iniciar sesión desactivada | `POST {BASE_URL}/api/auth/login` con la cuenta desactivada y su contraseña | N/A | 401 `INVALID_CREDENTIALS`, "Usuario o contraseña incorrectos." (el mismo de una contraseña errada) | [x] Pass | 13-11-2026: comprobado |
+| 12 | Actuar con una cuenta desactivada | `POST {BASE_URL}/api/rooms` con `X-User: tc.personal2` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
+| 13 | Cuenta inexistente | `GET {BASE_URL}/api/staff/nadie.tc` | N/A | 404 `STAFF_NOT_FOUND`, "No se encontró la cuenta." | [x] Pass | 13-11-2026: comprobado |
+| 14 | Último administrador | Desactivar la única cuenta activa de Administración | N/A | 409 `LAST_ADMINISTRATOR` | N/C | No comprobable en la plataforma (hay 3 administradores activos) |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (Interfaz)** : Deshabilitación defensiva en la fila del propio usuario: la interfaz comprueba la sesión activa y desactiva el botón "Desactivar" para el usuario que tiene la sesión abierta.
-* **EC-002 (API)** : Intento de inicio de sesión con cuenta desactivada: verificar que tras desactivar una cuenta, la llamada a `POST /api/auth/login` con sus credenciales correctas rechaza el acceso con HTTP 401 Unauthorized (`INVALID_CREDENTIALS`) con el mensaje genérico `"Usuario o contraseña incorrectos."`.
+* **EC-001 (API)** : La contraseña nunca viaja en las respuestas.
+* **EC-002 (Interfaz)** : "Guardar cambios" sin modificar nada igual envía el `PATCH` y muestra "Cuenta de … actualizada" (la edición de habitaciones, en cambio, avisa "No has modificado ningún dato."; hallazgo H3).
 
 #### Defect Severity Reference
 
@@ -104,8 +104,16 @@ Este caso de prueba verifica la gestión integral de cuentas de usuario del pers
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba "Nuevo colaborador", "Registrar cuenta", los avisos "Cuenta jlopez registrada exitosamente." / "actualizada exitosamente." con regreso al listado, áreas en mayúsculas en la tabla, "Completa los campos obligatorios: {campos}." y el botón "Desactivar" deshabilitado en la fila propia. En la plataforma hay confirmaciones propias, los mensajes van por campo y la fila propia sí permite intentar la desactivación (el rechazo llega del backend) | Pasos reescritos con lo que muestra la página |
+| H2 | Documento | La versión anterior usaba `jlopez` como cuenta nueva, pero ya existe en la plataforma (Jorge Lopez, Mantenimiento); el paso habría fallado con 409 | Se usan `tc.personal` y `tc.personal2` |
+| H3 | Plataforma (S) | Al guardar una cuenta sin cambios se envía el `PATCH` y se informa "actualizada", a diferencia de la edición de habitaciones | Propuesta: avisar "No has modificado ningún dato." como en habitaciones. No se cambió la plataforma |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 31 | 31 | 0 | 0 | APROBADO |
+| 30 | 28 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) con observaciones H3 |

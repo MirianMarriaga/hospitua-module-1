@@ -14,28 +14,28 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la carga y visualización del Panel de Mantenimiento (`GET /api/maintenance/panel`, ruta `/mantenimiento`), asegurando la presentación unificada de habitaciones inhabilitadas (`DisabledForRepairs`) y con bloqueo técnico (`TechnicalBlock`), la detección de tarea activa para redirección a `/mantenimiento/tarea` y los botones de acción operativa.
+Este caso de prueba verifica el panel de mantenimiento (`/mantenimiento`, `GET /api/maintenance/panel`): el conteo de habitaciones Inhabilitadas por reparaciones, En bloqueo técnico (con las vencidas) y Con mantenimiento programado; la tabla dividida en "Requieren intervención" y "Demás habitaciones" con sus acciones ("Ver informe", "Programar mantenimiento", "Iniciar reparaciones", "Reportar daño"); la búsqueda por número; los informes de daño y de mantenimiento; y el envío directo a la tarea activa.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación del Panel de Mantenimiento | Specification Document | [documentos/SPEC/spec-consultar-panel-mantenimiento.md](../SPEC/spec-consultar-panel-mantenimiento.md) |
-| Plan de Implementación del Panel de Mantenimiento | Plan Document | [documentos/PLAN/plan-consultar-panel-mantenimiento.md](../PLAN/plan-consultar-panel-mantenimiento.md) |
+| Especificación de Consultar Panel de Mantenimiento | Specification Document | [documentos/SPEC/spec-consultar-panel-mantenimiento.md](../SPEC/spec-consultar-panel-mantenimiento.md) |
+| Plan de Implementación de Consultar Panel de Mantenimiento | Plan Document | [documentos/PLAN/plan-consultar-panel-mantenimiento.md](../PLAN/plan-consultar-panel-mantenimiento.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot y frontend React en funcionamiento. La pantalla `/mantenimiento` está completamente desarrollada en React.
+* El panel vacío y el error de conexión no se pueden provocar en la plataforma publicada.
 
 ##### Dependencies & Assumptions
-* Existencia de habitaciones en `DisabledForRepairs` o `TechnicalBlock`.
+* TC-013 dejó la 407 y la 409 Inhabilitadas por reparaciones. Las 201 y 202 (datos del equipo) estaban en Bloqueo técnico; solo se consultaron.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en `DisabledForRepairs`, habitación 105 con bloqueo técnico `TechnicalBlock`.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Mantenimiento (`mtorres`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 y 409 Inhabilitadas por reparaciones; `tc.mant1` sin tarea activa.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : dos cuentas de Mantenimiento (en la ejecución: `tc.mant1` y `tc.mant2`).
 
 --------------------------------------------------------------------------------
 
@@ -44,35 +44,37 @@ Este caso de prueba verifica la carga y visualización del Panel de Mantenimient
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de mantenimiento | Navegar a `/login`, ingresar credenciales | Usuario: `mtorres` | Redirige automáticamente a `/mantenimiento` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Verificar panel activo | Comprobar encabezado y lista de intervenciones | Ruta `/mantenimiento` | Se despliega el Panel de Mantenimiento con la lista de habitaciones a intervenir | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como mantenimiento | Ir a `/login`, usuario y contraseña, "Ingresar" | `tc.mant1` | Abre `/mantenimiento`: "Panel de mantenimiento", "Bienvenido, {nombre}", "Reparaciones y mantenimientos programados" | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualizar habitaciones en lista | Revisar la tabla de habitaciones que requieren atención técnica | Habitaciones 101 y 105 | Muestra número de habitación, tipo, piso, estado actual, origen del reporte y botón de acción | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar acción para daño reportado | Ubicar la habitación 101 (`DisabledForRepairs`) | Habitación 101 | Se muestra el botón "Iniciar reparaciones" y el botón "Ver detalle del daño" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Visualizar acción para bloqueo técnico | Ubicar la habitación 105 (`TechnicalBlock`) | Habitación 105 | Se muestra el botón "Iniciar reparaciones" y el botón "Ver informe" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Redirección con tarea activa | Iniciar sesión teniendo ya una reparación en curso | Tarea activa en base de datos | El sistema detecta `activeTask != null` y redirige a `/mantenimiento/tarea` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Conteo | Revisar las tarjetas superiores | N/A | "Inhabilitadas por reparaciones", "En bloqueo técnico · {n} vencido" y "Con mantenimiento programado" | [x] Pass | 13-11-2026: comprobado (2, 2 con 1 vencido, 0) |
+| 2 | Tabla | Revisar la sección "Habitaciones" | N/A | "La lista se actualiza sola cada minuto"; columnas Hab., Tipo, Estado, Mantenimiento programado ("Sin programar" o "dd-mm-aaaa a dd-mm-aaaa") y Acciones; grupos "Requieren intervención" (inhabilitadas y en bloqueo técnico, con "(vencido)" cuando pasó la fecha estimada) y "Demás habitaciones" | [x] Pass | 13-11-2026: comprobado |
+| 3 | Acciones por estado | Revisar los botones | 407, 201, 102, 109 | Inhabilitada: "Ver informe", "Programar mantenimiento", "Iniciar reparaciones"; Bloqueo técnico: las mismas; Disponible: "Reportar daño" y "Programar mantenimiento"; Ocupada, Reservada o Pendiente de limpieza: solo "Programar mantenimiento" | [x] Pass | 13-11-2026: comprobado |
+| 4 | Informe de daño | Pulsar "Ver informe" en la 407 | 407 | "Reporte de daño · Habitación 407" con Qué se dañó, Reportado por y Fecha y hora | [x] Pass | 13-11-2026: comprobado |
+| 5 | Informe de mantenimiento | Pulsar "Ver informe" en una habitación en bloqueo técnico | 201 | "Mantenimiento · Habitación 201" / "Mantenimiento programado o en curso de la habitación." con Motivo, Programado por, Fechas, Programado el y Situación "En curso" | [x] Pass | 13-11-2026: comprobado |
+| 6 | Buscar por número | Escribir en "Buscar habitación por número…" | `409` | Solo queda la fila de la 409 | [x] Pass | 13-11-2026: comprobado |
+| 7 | Envío a la tarea activa | Con una reparación iniciada (TC-014), abrir `/mantenimiento` | N/A | Abre `/mantenimiento/tarea` | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualización cuando no hay averías | Ingresar al panel con todas las habitaciones disponibles o limpias | Sin averías | La tabla presenta estado vacío: "No hay habitaciones pendientes de reparación." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Error de conexión al cargar panel | Cargar `/mantenimiento` con el backend detenido | Backend caído | Mensaje de error en pantalla: "No fue posible cargar el panel de mantenimiento. Intenta de nuevo." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Búsqueda sin coincidencias | Buscar un número que no existe | `999` | "No se encontró la habitación 999" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Error de conexión | Abrir el panel con el backend detenido | N/A | Aviso de error con el texto común de red | N/C | No comprobable sin detener el servidor publicado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Carga exitosa del panel (sin tarea activa) | `GET {BASE_URL}/api/maintenance/panel`<br>Headers: `X-User: mtorres` | Usuario sin tarea activa | HTTP 200 OK con JSON `MaintenancePanelDto` `{ "activeTask": null, "pendingRooms": [...] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Carga de panel con tarea activa | `GET {BASE_URL}/api/maintenance/panel`<br>Headers: `X-User: mtorres` | Usuario con tarea abierta | HTTP 200 OK con `{ "activeTask": { "taskId": "...", "roomId": "..." }, "pendingRooms": [] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de X-User | `GET {BASE_URL}/api/maintenance/panel`<br>Headers: (sin X-User) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Panel sin tarea activa | `GET {BASE_URL}/api/maintenance/panel` con `X-User` | `tc.mant1` | 200 con `rooms` (estado, `overdue`, `hasOpenTask` y el mantenimiento programado cuando lo hay); sin `activeTask` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Panel con tarea activa | El mismo `GET` con la 409 en reparación | `tc.mant1` | 200 con `activeTask` (`taskId`, `startDateTime`, `room` con `hasOpenTask` true) y `rooms` vacío | [x] Pass | 13-11-2026: comprobado |
+| 3 | Sin usuario | `GET {BASE_URL}/api/maintenance/panel` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED`, "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (Interfaz)** : Refresco reactivo: cuando otro técnico toma una habitación averiada, al recargar el panel la habitación desaparece de la lista de pendientes evitando duplicidades de intervención.
-* **EC-002 (API)** : Ausencia de permisos por rol: el sistema valida la existencia y actividad de la cuenta mediante `X-User` sin rechazar por roles por área (`FORBIDDEN_AREA` no existe en la arquitectura actual).
+* **EC-001** : El panel de mantenimiento muestra todas las habitaciones activas (no solo las que requieren intervención), porque desde él se programan mantenimientos.
+* **EC-002 (API)** : No hay permisos por área: la cuenta solo debe existir y estar activa (regla base 14 del plan).
 
 #### Defect Severity Reference
 
@@ -84,8 +86,15 @@ Este caso de prueba verifica la carga y visualización del Panel de Mantenimient
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba columnas de piso y "origen del reporte", el botón "Ver detalle del daño" (es "Ver informe"), "No hay habitaciones pendientes de reparación." y "No fue posible cargar el panel de mantenimiento. Intenta de nuevo."; en la API, `pendingRooms` y `activeTask: null` (el campo es `rooms` y `activeTask` no viaja sin tarea) | Pasos reescritos con lo que muestra la página y lo que responde la API |
+| H2 | Documento | La versión anterior no describía el conteo, los grupos de la tabla ni la búsqueda | Se agregan esos pasos |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 11 | 11 | 0 | 0 | APROBADO |
+| 13 | 12 | 0 | 1 | APROBADO PARCIAL (pasos no comprobables en la plataforma) |

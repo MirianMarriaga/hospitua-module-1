@@ -14,28 +14,28 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica el endpoint de integración Módulo 2 → Módulo 1 (`GET /api/rooms/{roomId}/maintenances?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`), el cual entrega la disponibilidad de una habitación física frente a mantenimientos para una estadía y la lista de conflictos (`conflicts: [{ maintenanceStart, maintenanceEnd }]`), sin requerir encabezado X-User y sin mutar datos en el sistema.
+Este caso de prueba verifica la consulta de mantenimientos de una habitación en un rango de fechas (`GET /api/rooms/{roomId}/maintenances?startDate=…&endDate=…`), que usan Módulo 2 antes de vender noches y "Programar mantenimiento" antes de programar: disponibilidad, cruces con su inicio y fin, exclusión del día de salida, evaluación desde hoy cuando el rango empieza antes, y rechazos de fechas inválidas. En pantalla, la información se ve en "Ver informe" del panel de mantenimiento y en el aviso de solapamiento al programar.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación de Consultar Mantenimientos | Specification Document | [documentos/SPEC/spec-consultar-informacion-mantenimientos.md](../SPEC/spec-consultar-informacion-mantenimientos.md) |
-| Plan de Implementación de Consultar Mantenimientos | Plan Document | [documentos/PLAN/plan-consultar-informacion-mantenimientos.md](../PLAN/plan-consultar-informacion-mantenimientos.md) |
+| Especificación de Consultar Información de Mantenimientos | Specification Document | [documentos/SPEC/spec-consultar-informacion-mantenimientos.md](../SPEC/spec-consultar-informacion-mantenimientos.md) |
+| Plan de Implementación de Consultar Información de Mantenimientos | Plan Document | [documentos/PLAN/plan-consultar-informacion-mantenimientos.md](../PLAN/plan-consultar-informacion-mantenimientos.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Endpoint consumido primordialmente por Módulo 2 y validadores de programación. <!-- PENDIENTE: Vista de calendario o cuadrícula dedicada independiente fuera del diálogo de programación y panel de mantenimiento -->
+* No hay una pantalla propia de consulta: es un servicio para Módulo 2 y para "Programar mantenimiento".
 
 ##### Dependencies & Assumptions
-* Base de datos PostgreSQL con informes de mantenimiento y bloqueos técnicos cargados.
+* TC-015 programó en la 409 un mantenimiento del 20-11-2026 al 22-11-2026. La 201 (dato del equipo) tenía un bloqueo del 13-11-2026 al 13-11-2026; solo se consultó.
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 con informe de daño registrado. Habitación 105 con bloqueo técnico programado del 2026-11-20 al 2026-11-23.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Mantenimiento (`mtorres`), Gerencia (`gerente`).
+* **Initial State** : 409 con el mantenimiento del 20-11-2026 al 22-11-2026.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : Mantenimiento (`tc.mant1`) para los pasos de pantalla; la API no pide `X-User`.
 
 --------------------------------------------------------------------------------
 
@@ -44,36 +44,39 @@ Este caso de prueba verifica el endpoint de integración Módulo 2 → Módulo 1
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como mantenimiento | Navegar a `/login` e ingresar credenciales | Usuario: `mtorres` | Redirige al panel `/mantenimiento` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar ventana de mantenimiento | En `/mantenimiento`, pulsar "Ver informe" en hab. 105 o abrir el diálogo modal `ScheduleTechnicalBlockDialog` | Habitación 105 | <!-- PENDIENTE: Vista de calendario o cuadrícula dedicada independiente fuera del diálogo de programación y panel de mantenimiento --> Se despliega el detalle de mantenimientos programados para la habitación | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Visualizar en historial de gerencia | Ingresar como gerente a `/gerencia/historial` y filtrar por hab. 105 | Habitación 105 | Se listan las transiciones asociadas a bloqueos técnicos | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como mantenimiento | Ir a `/login`, usuario y contraseña, "Ingresar" | `tc.mant1` | Abre `/mantenimiento` | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consultar habitación sin mantenimientos | En el diálogo de programación, seleccionar fechas del 2026-12-01 al 2026-12-05 para hab. 101 | Fechas libres | Se indica que la habitación se encuentra libre de intervenciones técnicas en ese rango | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Consultar habitación con mantenimiento activo | Consultar hab. 105 en el rango del 2026-11-20 al 2026-11-23 | Fechas con bloqueo | Se presenta alerta de solapamiento indicando el rango del bloqueo programado | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Mantenimiento en la tabla | Revisar la fila de la 409 | 409 | Columna "Mantenimiento programado": "20-11-2026 a 22-11-2026" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Detalle | Pulsar "Ver informe" en la 409 | 409 | "Mantenimiento · Habitación 409" con Motivo, Programado por, Fechas "20-11-2026 a 22-11-2026", Programado el y Situación "Programado" | [x] Pass | 13-11-2026: comprobado |
+| 3 | Cruce al programar | Programar en la 409 del 21-11-2026 al 23-11-2026 | 409 | "Ya hay un mantenimiento programado o en curso del 20-11-2026 al 22-11-2026. Elige otras fechas." | [x] Pass | 13-11-2026: comprobado (TC-015, Sección C, paso 8) |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Rango de fechas invertido | Ingresar fecha de fin anterior a la fecha de inicio | Fechas invertidas | Mensaje de validación: "La fecha inicial no puede ser posterior a la fecha final." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Rango superior a 365 días | Ingresar un rango superior a 1 año en los filtros de búsqueda | Rango > 365 días | Mensaje de error: "El rango de consulta no puede superar 365 días." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Fechas inválidas al programar | Ver TC-015, Sección C, pasos 1 a 6 | N/A | Los mensajes de cada regla de fechas | [x] Pass | 13-11-2026: comprobado en TC-015 |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de habitación disponible (sin cruces) | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/maintenances?startDate=2026-12-01&endDate=2026-12-05`<br>Headers: (sin X-User obligatorio) | Hab. 101, fechas libres | HTTP 200 OK con JSON `{ "roomId": "a0000000-0000-0000-0000-000000000101", "available": true, "conflicts": [] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Consulta de habitación con cruces de mantenimiento | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000105/maintenances?startDate=2026-11-19&endDate=2026-11-22` | Hab. 105, rango solapado | HTTP 200 OK con JSON `{ "roomId": "...", "available": false, "conflicts": [{"maintenanceStart": "2026-11-20", "maintenanceEnd": "2026-11-23"}] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por formato de fecha inválido | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/maintenances?startDate=2026-12-10&endDate=fecha-invalida` | Fecha no AAAA-MM-DD | HTTP 400 Bad Request, `errorCode: "VALIDATION_ERROR"`, mensaje: "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD)." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 4 | Error por fecha fin anterior a inicio | `GET {BASE_URL}/api/rooms/a0000000-0000-0000-0000-000000000101/maintenances?startDate=2026-12-10&endDate=2026-12-01` | Fechas invertidas | HTTP 400 Bad Request, `errorCode: "INVALID_DATE_RANGE"`, mensaje: "La fecha "Desde" no puede ser posterior a "Hasta"." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 5 | Error por habitación inexistente | `GET {BASE_URL}/api/rooms/b0000000-0000-0000-0000-000000000999/maintenances?startDate=2026-11-10&endDate=2026-11-15` | UUID inexistente | HTTP 404 Not Found, `errorCode: "ROOM_NOT_FOUND"`, mensaje: "No se encontró ninguna habitación con ese identificador." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Sin cruces | `GET {BASE_URL}/api/rooms/{id de la 409}/maintenances?startDate=2026-12-01&endDate=2026-12-05` | N/A | 200 con `roomId`, `available` true y `conflicts` vacío | [x] Pass | 13-11-2026: comprobado |
+| 2 | Con cruce | `…?startDate=2026-11-19&endDate=2026-11-22` | N/A | 200 con `available` false y `conflicts` `[{"maintenanceStart":"2026-11-20","maintenanceEnd":"2026-11-22"}]` (sin motivo ni responsable) | [x] Pass | 13-11-2026: comprobado |
+| 3 | Mismo día | `…?startDate=2026-11-22&endDate=2026-11-22` | N/A | 200 con `available` false (se evalúa ese día) | [x] Pass | 13-11-2026: comprobado |
+| 4 | Día de salida excluido | `…?startDate=2026-11-18&endDate=2026-11-20` | N/A | 200 con `available` true: el 20 es la salida y no se evalúa | [x] Pass | 13-11-2026: comprobado |
+| 5 | Rango que empieza antes de hoy | `GET …/{id de la 201}/maintenances?startDate=2026-11-10&endDate=2026-11-14` | 201 | 200 evaluado desde hoy: `available` false con el bloqueo del 13-11-2026 | [x] Pass | 13-11-2026: comprobado |
+| 6 | Rango que termina antes de hoy | `…?startDate=2026-11-01&endDate=2026-11-10` | N/A | 400 `INVALID_DATE_RANGE`, "El rango consultado termina antes de hoy.", `details.rule` `RANGE_IN_PAST` | [x] Pass | 13-11-2026: comprobado |
+| 7 | Fechas invertidas | `…?startDate=2026-12-10&endDate=2026-12-01` | N/A | 400 `INVALID_DATE_RANGE`, "La fecha de fin no puede ser anterior a la fecha de inicio.", `details.rule` `END_BEFORE_START` | [x] Pass | 13-11-2026: comprobado |
+| 8 | Formato o fecha inexistente | `endDate=fecha-invalida`; `startDate=2027-02-31`; sin parámetros | N/A | 400 `VALIDATION_ERROR`, "La habitación y las fechas deben tener un formato válido (fechas AAAA-MM-DD).", con `details.fields` | [x] Pass | 13-11-2026: comprobado |
+| 9 | Habitación inexistente | `roomId` `b0000000-0000-0000-0000-000000000999` | N/A | 404 `ROOM_NOT_FOUND`, "No se encontró la habitación." | [x] Pass | 13-11-2026: comprobado |
+| 10 | Rango largo | `…?startDate=2026-12-01&endDate=2027-12-05` | N/A | 200: la consulta no aplica los límites de 90 y 365 días de la programación | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (API)** : Salida el mismo día de llegada (`startDate == endDate`): la consulta evalúa la disponibilidad para ese único día inclusivo respondiendo HTTP 200 OK.
-* **EC-002 (API)** : Exclusión de la fecha de salida: la fecha `endDate` de la estadía no se considera ocupada (el último día evaluado es `endDate - 1 día` salvo que sea el mismo día de llegada).
+* **EC-001** : Los mantenimientos terminados (`Completed`) o caducados (`Expired`) no generan cruces.
+* **EC-002** : La disponibilidad solo considera mantenimientos; no evalúa reservas, ocupación ni bajas.
 
 #### Defect Severity Reference
 
@@ -85,8 +88,15 @@ Este caso de prueba verifica el endpoint de integración Módulo 2 → Módulo 1
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior esperaba un límite de consulta de 365 días ("El rango de consulta no puede superar 365 días.") que la especificación descarta, "La fecha inicial no puede ser posterior a la fecha final.", "La fecha "Desde" no puede ser posterior a "Hasta"." y "No se encontró ninguna habitación con ese identificador."; también una vista de consulta en el diálogo de programación y en el historial de Gerencia que no existe | Pasos reescritos con los textos y las reglas reales |
+| H2 | Documento | La versión anterior no probaba el día de salida excluido ni el rango que empieza antes de hoy | Se agregan esos pasos |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 12 | 12 | 0 | 0 | APROBADO |
+| 15 | 15 | 0 | 0 | APROBADO |

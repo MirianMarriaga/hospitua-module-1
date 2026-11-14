@@ -14,28 +14,29 @@
 #### Objectives & Context
 
 ##### Test Objectives
-Este caso de prueba verifica la carga y visualización del Panel de Limpieza (`GET /api/cleaning/panel`, ruta `/limpieza`), asegurando la presentación de habitaciones en estado PendingCleaning, la detección de la tarea activa del usuario para redirección automática a `/limpieza/tarea`, y los filtros por piso y estado sin comprobaciones de roles por área.
+Este caso de prueba verifica el panel de limpieza (`/limpieza`, `GET /api/cleaning/panel`): el conteo de habitaciones Pendientes de limpieza y Disponibles, la tabla con número, tipo, estado, última limpieza y acciones ("Iniciar limpieza" en las dos, "Reportar daño" solo en las Disponibles), la búsqueda por número y el envío directo a la tarea activa cuando el miembro ya está limpiando una habitación.
 
 ##### Document References
 | Reference Name | Type of Reference | Document Location / Link |
 | ------ | ------ | ------ |
-| Especificación del Panel de Limpieza | Specification Document | [documentos/SPEC/spec-consultar-panel-limpieza.md](../SPEC/spec-consultar-panel-limpieza.md) |
-| Plan de Implementación del Panel de Limpieza | Plan Document | [documentos/PLAN/plan-consultar-panel-limpieza.md](../PLAN/plan-consultar-panel-limpieza.md) |
+| Especificación de Consultar Panel de Limpieza | Specification Document | [documentos/SPEC/spec-consultar-panel-limpieza.md](../SPEC/spec-consultar-panel-limpieza.md) |
+| Plan de Implementación de Consultar Panel de Limpieza | Plan Document | [documentos/PLAN/plan-consultar-panel-limpieza.md](../PLAN/plan-consultar-panel-limpieza.md) |
 
 --------------------------------------------------------------------------------
 
 #### Prerequisites & Environment
 
 ##### Test Case Limitations
-* Requiere servicios backend Spring Boot y frontend React activos.
+* El error de conexión (backend caído) no se puede provocar en la plataforma publicada sin detener el servidor.
+* El panel no tiene filtro por piso ni botón de recarga: se actualiza solo cada minuto y la búsqueda es por número de habitación.
 
 ##### Dependencies & Assumptions
-* Base de datos con habitaciones en diversos estados de aseo.
+* TC-005 dejó la 407 Pendiente de limpieza (check-out de `RES-TC-01`).
 
 ##### Preconditions & Default Setup
-* **Initial State** : Habitación 101 en `PendingCleaning`, Habitación 201 en `PendingCleaning`.
-* **Environment** : Sandbox / Pruebas; endpoints invocados contra `{BASE_URL}`.
-* **Test Accounts** : Personal de Limpieza (`limpiador1`); ver credenciales de pruebas del equipo.
+* **Initial State** : 407 Pendiente de limpieza; 408 y 409 Disponibles; el miembro de limpieza sin tarea activa.
+* **Environment** : https://gestionophospitua.tech (`{BASE_URL}` = `https://gestionophospitua.tech`).
+* **Test Accounts** : dos cuentas de Limpieza (en la ejecución: `tc.limpieza1` y `tc.limpieza2`).
 
 --------------------------------------------------------------------------------
 
@@ -44,37 +45,38 @@ Este caso de prueba verifica la carga y visualización del Panel de Limpieza (`G
 ##### Sección A — Cómo llegar a la pantalla (interfaz)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Iniciar sesión como personal de limpieza | Navegar a `/login` e ingresar credenciales | Usuario: `limpiador1` | Redirige al Panel de Limpieza en `/limpieza` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Visualizar estructura del panel | Comprobar encabezado, filtros y lista de habitaciones | Ruta `/limpieza` | Se despliega el panel con la lista de habitaciones pendientes de aseo | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Iniciar sesión como personal de limpieza | Ir a `/login`, usuario y contraseña, "Ingresar" | Cuenta de Limpieza sin tarea activa | Abre `/limpieza`: "Panel de limpieza", "Bienvenido, {nombre}", "Habitaciones por limpiar y disponibles" | [x] Pass | 13-11-2026: comprobado en gestionophospitua.tech |
 
 ##### Sección B — Flujo principal en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualizar lista de habitaciones pendientes | Revisar las tarjetas de habitaciones en `/limpieza` | Habitaciones 101 y 201 | Cada tarjeta muestra número de habitación, tipo, piso y botón "Iniciar limpieza" | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Filtrar por piso | Seleccionar filtro de piso "Piso 1" | Filtro: Piso 1 | La lista se actualiza mostrando únicamente la habitación 101 | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Limpiar filtro | Seleccionar opción "Todos los pisos" | Todos los pisos | La lista vuelve a mostrar las habitaciones de todos los pisos | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 4 | Redirección con tarea activa | Iniciar sesión teniendo ya una tarea de limpieza abierta | Tarea activa en base de datos | El sistema detecta `activeTask != null` y redirige de inmediato a `/limpieza/tarea` | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 5 | Actualizar panel manualmente | Hacer clic en el botón de recarga del panel | Acción de recarga | Se refrescan los datos de las habitaciones pendientes desde el servidor | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Conteo por estado | Revisar las tarjetas superiores | N/A | "Pendientes de limpieza" y "Disponibles" con su número | [x] Pass | 13-11-2026: comprobado (2 y 11) |
+| 2 | Tabla de habitaciones | Revisar la sección "Habitaciones" | N/A | "La lista se actualiza sola cada minuto"; columnas Hab., Tipo, Estado, Última limpieza y Acciones; primero las Pendientes de limpieza y luego las Disponibles; "Sin registro" cuando no hay limpieza anterior | [x] Pass | 13-11-2026: comprobado |
+| 3 | Acciones por estado | Revisar los botones de cada fila | 407 y 408 | 407 (Pendiente de limpieza): solo "Iniciar limpieza"; 408 (Disponible): "Reportar daño" e "Iniciar limpieza" | [x] Pass | 13-11-2026: comprobado |
+| 4 | Buscar por número | Escribir en "Buscar habitación por número…" | `407` | Solo queda la fila de la 407 | [x] Pass | 13-11-2026: comprobado |
+| 5 | Envío a la tarea activa | Con una limpieza iniciada (TC-010), abrir `/limpieza` | N/A | Abre `/limpieza/tarea` | [x] Pass | 13-11-2026: comprobado |
+| 6 | Habitación tomada no aparece | Con la 407 En limpieza por `tc.limpieza1`, abrir el panel con `tc.limpieza2` | 407 | La 407 no aparece en el panel del otro miembro | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Visualización cuando no hay habitaciones pendientes | Cargar el panel cuando todas las habitaciones están limpias | Sin pendientes | Se muestra el estado vacío amigable: "No hay habitaciones pendientes de limpieza." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 2 | Error de conexión al cargar panel | Cargar `/limpieza` con backend detenido | Backend caído | Mensaje de error en pantalla: "No fue posible cargar el panel de limpieza. Intenta de nuevo." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
-| 3 | Sesión expirada | Cargar el panel sin sesión activa o con token vencido | Sin sesión | Mensaje de alerta: "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 2026-11-13: Verificado con suites Vitest y navegación frontend |
+| 1 | Búsqueda sin coincidencias | Buscar un número que no está en el panel | `999` | "No se encontró la habitación 999" | [x] Pass | 13-11-2026: comprobado |
+| 2 | Panel vacío | Abrir el panel sin habitaciones Pendientes ni Disponibles | N/A | "No hay habitaciones pendientes de limpieza ni disponibles" | N/C | No comprobable: el inventario publicado siempre tiene habitaciones disponibles (texto revisado en `CleaningPanelPage.tsx`) |
+| 3 | Error de conexión | Abrir el panel con el backend detenido | N/A | Aviso de error con el texto común de red | N/C | No comprobable sin detener el servidor publicado |
 
 ##### Sección D — Pruebas de API (backend)
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Consulta de panel exitosa (sin tarea activa) | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador1` | Usuario sin tarea | HTTP 200 OK con JSON `CleaningPanelDto` `{ "activeTask": null, "pendingRooms": [...] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 2 | Consulta de panel con tarea activa | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: `X-User: limpiador1` | Usuario con tarea abierta | HTTP 200 OK con `{ "activeTask": { "taskId": "...", "roomId": "..." }, "pendingRooms": [] }` | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
-| 3 | Error por falta de encabezado X-User | `GET {BASE_URL}/api/cleaning/panel`<br>Headers: (sin X-User) | Sin usuario | HTTP 400 Bad Request, `errorCode: "CURRENT_USER_REQUIRED"`, mensaje: "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 2026-11-13: Verificado contra backend local Spring Boot |
+| 1 | Panel sin tarea activa | `GET {BASE_URL}/api/cleaning/panel` con `X-User` | `tc.limpieza1` | 200 con `rooms` (`roomId`, `roomNumber`, `categoryRoom`, `status`, `lastCleaningDateTime` si existe); sin `activeTask` | [x] Pass | 13-11-2026: comprobado |
+| 2 | Panel con tarea activa | El mismo `GET` con la 407 En limpieza | `tc.limpieza1` | 200 con `activeTask` (`taskId`, `startDateTime`, `room` con `status` `InCleaning`) y `rooms` vacío | [x] Pass | 13-11-2026: comprobado |
+| 3 | Sin usuario | `GET {BASE_URL}/api/cleaning/panel` sin `X-User` | N/A | 400 `CURRENT_USER_REQUIRED`, "Tu sesión terminó. Inicia sesión de nuevo." | [x] Pass | 13-11-2026: comprobado |
+| 4 | Usuario inexistente | `X-User: noexiste` | N/A | 400 `CURRENT_USER_REQUIRED` | [x] Pass | 13-11-2026: comprobado |
 
 --------------------------------------------------------------------------------
 
 ##### Edge Cases & Boundary Conditions
-* **EC-001 (Interfaz)** : Refresco reactivo: cuando otro camarero toma una habitación, al actualizar el panel la habitación desaparece de la lista de pendientes evitando colisiones visuales.
-* **EC-002 (API)** : Usuario inexistente o desactivado en X-User: responde HTTP 400 `CURRENT_USER_REQUIRED` obligando a reiniciar sesión.
+* **EC-001** : La búsqueda se hace en el navegador sobre la lista recibida (no hay parámetro de búsqueda en la API).
+* **EC-002** : Las habitaciones En limpieza, Ocupadas, Reservadas, Inactivas o fuera de servicio no aparecen en el panel.
 
 #### Defect Severity Reference
 
@@ -86,8 +88,15 @@ Este caso de prueba verifica la carga y visualización del Panel de Limpieza (`G
 
 --------------------------------------------------------------------------------
 
+#### Hallazgos de la revisión (13-11-2026)
+
+| ID | Tipo | Hallazgo | Corrección |
+| :---: | ------ | ------ | ------ |
+| H1 | Documento | La versión anterior describía tarjetas con piso, un filtro "Piso 1" / "Todos los pisos" y un botón de recarga que no existen; esperaba "No hay habitaciones pendientes de limpieza." y "No fue posible cargar el panel de limpieza. Intenta de nuevo."; y en la API un campo `pendingRooms` y `activeTask: null` (el campo es `rooms` y `activeTask` no viaja cuando no hay tarea) | Pasos reescritos con lo que muestra la página y lo que responde la API |
+| H2 | Documento | La versión anterior marcaba como aprobados el panel vacío y el error de conexión, que no se pueden provocar en la plataforma | Quedan como no comprobables |
+
 #### Resumen de Ejecución
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 13 | 13 | 0 | 0 | APROBADO |
+| 14 | 12 | 0 | 2 | APROBADO PARCIAL (pasos no comprobables en la plataforma) |
