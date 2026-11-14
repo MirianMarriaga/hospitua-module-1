@@ -58,7 +58,7 @@ Este caso de prueba verifica las tres formas de dejar una habitación Disponible
 ##### Sección C — Errores y validaciones en pantalla
 | Step # | Step Description | Path & Action | Test Data | Expected Results | Pass/Fail | Comments |
 | :---: | ------ | ------ | ------ | ------ | :---: | ------ |
-| 1 | Habitación que no está Inactiva | Abrir a mano la reactivación de la 409 ya disponible | 409 | Según la SPEC (FR-006): "No se puede marcar como disponible la habitación 409" / "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." | [ ] Fail | 13-11-2026: la página muestra "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." |
+| 1 | Habitación que no está Inactiva | Abrir a mano la reactivación de la 409 ya disponible | 409 | Según la SPEC (FR-006): "No se puede marcar como disponible la habitación 409" / "La habitación está en estado Disponible. Solo se pueden reactivar habitaciones inactivas." | [x] Pass | 13-11-2026: comprobado con la 409 Reservada ("La habitación está en estado Reservada…") tras el arreglo F22 (PR #28, desplegado en la versión `1761e01`); antes la página mostraba "Habitación no encontrada" |
 | 2 | Habitación inexistente | Abrir a mano la reactivación con un UUID que no existe | `b0000000-…-999` | "Habitación no encontrada" / "No existe ninguna habitación con ese identificador." | [x] Pass | 13-11-2026: comprobado |
 
 ##### Sección D — Pruebas de API (backend)
@@ -97,4 +97,4 @@ Este caso de prueba verifica las tres formas de dejar una habitación Disponible
 
 | Total Pasos | Pasos Exitosos (Pass) | Pasos Fallidos (Fail) | Pasos No Verificados | Estado General |
 | :---: | :---: | :---: | :---: | :---: |
-| 16 | 15 | 1 | 0 | RECHAZADO |
+| 16 | 16 | 0 | 0 | APROBADO |
