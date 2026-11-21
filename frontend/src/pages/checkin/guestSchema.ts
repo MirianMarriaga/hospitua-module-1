@@ -112,8 +112,8 @@ export function holderGuest(holder: CheckInHolder): GuestValues {
   return {
     firstName: holder.firstName,
     lastName: holder.lastName,
-    documentType: holder.documentType,
-    documentNumber: holder.documentNumber,
+    documentType: holder.documentType ?? 'CC',
+    documentNumber: holder.documentNumber ?? '',
     nationality: holder.nationality || COLOMBIA,
     birthDate: '',
     originPlace: '',

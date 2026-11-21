@@ -163,6 +163,9 @@ hospitua:
     base-url: ${MODULE2_BASE_URL}
   module3:
     base-url: ${MODULE3_BASE_URL}
+  # Las colas m2.habitacion.* las declara Módulo 2 con sus argumentos (PartnerQueuesConfig).
+  messaging:
+    declare-partner-queues: ${DECLARE_PARTNER_QUEUES:false}
   bootstrap:
     admin:
       username: ${BOOTSTRAP_ADMIN_USERNAME}

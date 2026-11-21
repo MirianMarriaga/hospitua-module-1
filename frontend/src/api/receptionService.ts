@@ -12,7 +12,7 @@ export interface ArrivalRoom {
   categoryRoom: string;
   titularFirstName: string;
   titularLastName: string;
-  titularDocumentNumber: string;
+  titularDocumentNumber?: string;
   startDate: string;
   endDate: string;
   nights: number;

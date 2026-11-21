@@ -87,6 +87,27 @@ describe('CheckInPage', () => {
     expect(await screen.findByText('1. Información de la reserva')).toBeInTheDocument();
   });
 
+  it('Booking sin documento: muestra "No registrado" y deja escribir el documento del titular', async () => {
+    vi.mocked(validateCheckIn).mockResolvedValue({
+      ...VALIDATION,
+      source: 'BOOKING',
+      holder: { firstName: 'María', lastName: 'González' },
+    });
+    renderWithProviders(<CheckInPage />, { route: ROUTE, path: '/check-in' });
+
+    expect(await screen.findByText('No registrado')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await screen.findByText(/2\. Datos de huéspedes/);
+
+    const first = guestBlock(1);
+    expect(within(first).getByLabelText('Nombres')).toHaveAttribute('readonly');
+    const document = within(first).getByLabelText('Número de documento');
+    expect(document).toHaveValue('');
+    expect(document).not.toHaveAttribute('readonly');
+    await userEvent.type(document, 'AB123456');
+    expect(document).toHaveValue('AB123456');
+  });
+
   it('Paso 2: valida la fecha de nacimiento y los datos migratorios de extranjeros', async () => {
     await goToGuests();
     setDate(guestBlock(1), '2999-01-01');

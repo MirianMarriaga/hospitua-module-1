@@ -1,12 +1,13 @@
 import { apiRequest } from '@/api/apiClient';
 import type { DocumentType, RoomStatus } from '@/api/types';
 
+/** Titular de la reserva. Las reservas de Booking pueden no traer documento ni nacionalidad. */
 export interface CheckInHolder {
   firstName: string;
   lastName: string;
-  documentType: DocumentType;
-  documentNumber: string;
-  nationality: string;
+  documentType?: DocumentType;
+  documentNumber?: string;
+  nationality?: string;
 }
 
 export interface CheckInValidation {

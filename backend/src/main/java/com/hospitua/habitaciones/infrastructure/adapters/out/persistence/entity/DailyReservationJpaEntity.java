@@ -32,13 +32,13 @@ public class DailyReservationJpaEntity {
     @Column(name = "guest_last_name", length = 100, nullable = false)
     private String guestLastName;
 
-    @Column(name = "guest_document_type", length = 20, nullable = false)
+    @Column(name = "guest_document_type", length = 20)
     private String guestDocumentType;
 
-    @Column(name = "guest_document_number", length = 50, nullable = false)
+    @Column(name = "guest_document_number", length = 50)
     private String guestDocumentNumber;
 
-    @Column(name = "guest_nationality", length = 100, nullable = false)
+    @Column(name = "guest_nationality", length = 100)
     private String guestNationality;
 
     @Column(name = "source", length = 50, nullable = false)

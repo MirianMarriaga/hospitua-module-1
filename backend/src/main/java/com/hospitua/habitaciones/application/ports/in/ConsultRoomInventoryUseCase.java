@@ -22,6 +22,9 @@ public interface ConsultRoomInventoryUseCase {
     /** Habitaciones vendibles de la categoría para Módulo 2, sin las {@code Inactive} y sin paginar (FR-010). */
     List<Module2RoomDto> listSellableByCategory(RoomCategory categoryRoom);
 
+    /** Todas las habitaciones vendibles para Módulo 2, de cualquier categoría, sin las {@code Inactive}. */
+    List<Module2RoomDto> listSellable();
+
     /**
      * Habitación vendible para Módulo 2; lanza {@code RoomNotFoundException} si no existe o está {@code Inactive}, sin
      * distinguir los dos casos (FR-011).

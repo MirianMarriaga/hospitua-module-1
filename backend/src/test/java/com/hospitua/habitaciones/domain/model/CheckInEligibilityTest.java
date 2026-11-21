@@ -178,6 +178,57 @@ class CheckInEligibilityTest {
                 .isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("Booking sin documento: el huésped marcado como titular aporta su documento a la estadía")
+    void withoutHolderDocument_markedGuestIsHolder() {
+        CheckInEligibility eligibility = CheckInEligibility.verify(
+                REF, ROOM_ID, reservationWithoutDocument(), room(RoomStatus.Reserved, REF), false, TODAY);
+        List<CheckInGuest> guests = List.of(guest("TI", "456", false), guest("PAS", "X99", true));
+
+        eligibility.verifyGuests(guests);
+
+        assertThat(eligibility.holderDocumentNumber(guests)).isEqualTo("X99");
+    }
+
+    @Test
+    @DisplayName("Booking sin documento y sin titular marcado es 400 INVALID_GUEST_DATA en isReservationGuest")
+    void withoutHolderDocument_requiresMarkedHolder() {
+        CheckInEligibility eligibility = CheckInEligibility.verify(
+                REF, ROOM_ID, reservationWithoutDocument(), room(RoomStatus.Reserved, REF), false, TODAY);
+
+        assertThatThrownBy(() -> eligibility.verifyGuests(List.of(guest("CC", "1", false), guest("CC", "2", false))))
+                .isInstanceOf(InvalidGuestDataException.class)
+                .extracting(e -> ((InvalidGuestDataException) e).details())
+                .isEqualTo(Map.of("field", "isReservationGuest", "guestIndex", 0));
+    }
+
+    @Test
+    @DisplayName("Con documento en la reserva, la estadía guarda ese documento aunque el titular no se aloje")
+    void withHolderDocument_keepsReservationDocument() {
+        CheckInEligibility eligibility = eligibleReservation();
+        List<CheckInGuest> guests = List.of(guest("CC", "777", false), guest("TI", "456", false));
+
+        eligibility.verifyGuests(guests);
+
+        assertThat(eligibility.holderDocumentNumber(guests)).isEqualTo("123");
+    }
+
+    private static DailyReservation reservationWithoutDocument() {
+        return new DailyReservation(
+                REF,
+                "Ana",
+                "Pérez",
+                null,
+                null,
+                null,
+                "BOOKING",
+                TODAY,
+                TODAY.plusDays(2),
+                2,
+                OffsetDateTime.parse("2026-10-08T15:42:10-05:00"),
+                List.of(RESERVATION_ROOM));
+    }
+
     private static CheckInEligibility eligibleReservation() {
         return CheckInEligibility.verify(
                 REF, ROOM_ID, reservation(TODAY), room(RoomStatus.Reserved, REF), false, TODAY);
