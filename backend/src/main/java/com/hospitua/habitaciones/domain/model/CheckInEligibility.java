@@ -97,6 +97,10 @@ public record CheckInEligibility(DailyReservation reservation, DailyReservationR
             }
             holderSeen = true;
         }
+        if (!holderSeen && !reservation.hasHolderDocument()) {
+            throw new InvalidGuestDataException(
+                    0, "isReservationGuest", "Marca al titular: la reserva no trae su documento.");
+        }
         if (guests.size() > room.getMaxCapacity()) {
             throw new RoomCapacityExceededException(room.getMaxCapacity(), guests.size());
         }
@@ -113,7 +117,26 @@ public record CheckInEligibility(DailyReservation reservation, DailyReservationR
         }
     }
 
+    /**
+     * Documento del titular para la estadía: el de la reserva o, si la reserva no lo trae (Booking), el del huésped
+     * marcado como titular. Se llama después de {@link #verifyGuests(List)}.
+     */
+    public String holderDocumentNumber(List<CheckInGuest> guests) {
+        if (reservation.hasHolderDocument()) {
+            return reservation.guestDocumentNumber();
+        }
+        return guests.stream()
+                .filter(CheckInGuest::reservationGuest)
+                .findFirst()
+                .map(CheckInGuest::documentNumber)
+                .orElseThrow();
+    }
+
+    /** Sin documento en la reserva (Booking), el titular es el huésped que la recepción marque como tal. */
     private boolean isHolder(CheckInGuest guest) {
+        if (!reservation.hasHolderDocument()) {
+            return true;
+        }
         return guest.documentType().equalsIgnoreCase(reservation.guestDocumentType())
                 && guest.documentNumber().equalsIgnoreCase(reservation.guestDocumentNumber());
     }

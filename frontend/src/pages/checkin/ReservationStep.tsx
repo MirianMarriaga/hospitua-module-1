@@ -35,7 +35,9 @@ export function ReservationStep({ reservationRef, roomId, onContinue }: Reservat
               {validation.data.holder.firstName} {validation.data.holder.lastName}
             </InfoItem>
             <InfoItem label="Documento">
-              {validation.data.holder.documentType} {validation.data.holder.documentNumber}
+              {validation.data.holder.documentNumber
+                ? `${validation.data.holder.documentType} ${validation.data.holder.documentNumber}`
+                : 'No registrado'}
             </InfoItem>
             <InfoItem label="Fechas">
               {formatDate(validation.data.startDate)} – {formatDate(validation.data.endDate)} (

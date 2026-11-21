@@ -237,6 +237,7 @@ ArchUnit), tareas marcadas `[x]` en su `plan-*.md`, commit convencional en espa�
 | L41 | `fix(backend): tarea activa con nombre propio por panel e inicio de la reparación` | Ver "Tarea activa en el contrato" abajo. |
 | L42 | `feat(backend): ordenar el historial de estados por fecha de inicio o de fin` | Ver "Orden del historial" abajo. |
 | L43 | `feat(backend): llaves de integración X-Internal-Key con Módulo 3` | Ver "Llaves de integración" abajo. |
+| L44 | `feat(m1): integración con Módulo 2 real (colas, habitaciones sin categoría y Booking sin documento)` | Ver "Integración con Módulo 2" abajo. |
 
 **Fuera de estos lotes (opcional, a pedido):** pruebas `@Tag("performance")` de cada plan y todo el frontend (el frontend
 tiene su propio plan, `FASES_IMPLEMENTACION_FRONTEND.md`).
@@ -348,3 +349,23 @@ Módulo 2) quedaron públicas en internet al desplegar, y Módulo 3 pide una lla
   `RestClientTimeoutWireMockTest` (la cabecera viaja solo si está configurada).
 - Despliegue (`~/hospitua-despliegue`): `MODULO3_KEY_ENTRANTE` (generada) y `MODULO3_KEY_SALIENTE` (la de Módulo 3) en el
   `.env`, pasadas al backend en `docker-compose.yml`.
+
+### Integración con Módulo 2 (L44, agregado el 20-11-2026)
+
+Acordado con Módulo 2 el 20-11-2026 al pasar de su simulador a su backend real (Render).
+
+- **Sus colas las declara Módulo 2.** `m2.habitacion.{checkin,checkout,mantenimiento,inventario}.queue` llevan
+  dead-letter hacia sus `.dlq`; declararlas aquí sin esos argumentos haría fallar su declaración
+  (PRECONDITION_FAILED). `PartnerQueuesConfig` las declara solo si `hospitua.messaging.declare-partner-queues` es
+  `true` (por defecto en dev y test); en `prod` es `false` (`DECLARE_PARTNER_QUEUES`). Las constantes siguen en
+  `RabbitConfig`. `hospitua.events` lo sigue declarando este backend: Módulo 2 solo comprueba que existe.
+- **`GET /api/rooms` sin `categoryRoom`:** todas las vendibles (sin `Inactive`), en orden natural de número;
+  con `categoryRoom`, igual que antes; sin resultados, `[]`. Contrato OpenAPI regenerado (`required: false`).
+- **Reservas de Booking sin documento ni nacionalidad del titular:** `V6` deja esas columnas de
+  `daily_reservation` sin `NOT NULL`; un texto vacío cuenta como ausente. En el check-in, si la reserva no trae
+  documento, la recepción debe marcar al titular (si no, 400 `INVALID_GUEST_DATA` en `isReservationGuest`) y
+  su documento pasa a la estadía y al evento `facturacion.checkout`. El frontend muestra "No registrado" y deja
+  escribir el documento y la nacionalidad en el bloque del titular.
+- **Pruebas:** `PartnerQueuesConfigTest`, `CheckInEligibilityTest` (3 nuevas),
+  `DailyReservationRabbitListenerIntegrationTest` (Booking sin documento), `RoomControllerTest`,
+  `RoomInventoryQueryServiceTest`, `Module2RoomInventoryContractTest` y `CheckInPage.test.tsx`.

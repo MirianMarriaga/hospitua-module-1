@@ -39,6 +39,9 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
   });
   const nationality = useWatch({ control: form.control, name: `guests.${index}.nationality` });
   const locked = isHolderBlock && isReservationGuest;
+  // Booking puede no traer documento ni nacionalidad: la recepción los escribe en el bloque del titular
+  const documentLocked = locked && Boolean(holder.documentNumber);
+  const nationalityLocked = locked && Boolean(holder.nationality);
   const foreigner = isForeigner(nationality ?? '');
 
   function toggleHolder(checked: boolean) {
@@ -116,7 +119,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
                   ref={field.ref}
-                  disabled={locked}
+                  disabled={documentLocked}
                   options={DOCUMENT_TYPES.map((type) => ({
                     value: type,
                     label: `${type} — ${DOCUMENT_TYPE_LABELS[type]}`,
@@ -134,7 +137,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
             <FormItem>
               <FormLabel>Número de documento</FormLabel>
               <FormControl>
-                <Input readOnly={locked} {...field} />
+                <Input readOnly={documentLocked} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -151,7 +154,7 @@ export function GuestBlock({ index, holder }: GuestBlockProps) {
                   value={field.value}
                   onBlur={field.onBlur}
                   ref={field.ref}
-                  disabled={locked}
+                  disabled={nationalityLocked}
                   onValueChange={(newCountry) => {
                     field.onChange(newCountry);
                     if (newCountry === 'Colombia') {

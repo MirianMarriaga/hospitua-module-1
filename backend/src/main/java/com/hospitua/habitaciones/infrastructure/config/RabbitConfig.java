@@ -28,7 +28,12 @@ public class RabbitConfig {
     public static final String EVENTS_EXCHANGE = "hospitua.events";
     public static final String EVENTS_DLX = "hospitua.events.dlx";
 
+    /**
+     * Colas de Módulo 2. Las declara Módulo 2 al conectarse, con sus argumentos; este backend solo las declara en
+     * desarrollo y pruebas ({@link PartnerQueuesConfig}).
+     */
     public static final String CHECKIN_QUEUE = "m2.habitacion.checkin.queue";
+
     public static final String CHECKOUT_QUEUE = "m2.habitacion.checkout.queue";
     public static final String MAINTENANCE_QUEUE = "m2.habitacion.mantenimiento.queue";
 
@@ -62,36 +67,6 @@ public class RabbitConfig {
     @Bean
     public Binding dailyReservationsDlqBinding(Queue dailyReservationsDlq, DirectExchange deadLetterExchange) {
         return BindingBuilder.bind(dailyReservationsDlq).to(deadLetterExchange).with(DAILY_RESERVATIONS_DLQ);
-    }
-
-    @Bean
-    public Queue checkInQueue() {
-        return QueueBuilder.durable(CHECKIN_QUEUE).build();
-    }
-
-    @Bean
-    public Binding checkInBinding(Queue checkInQueue, TopicExchange eventsExchange) {
-        return BindingBuilder.bind(checkInQueue).to(eventsExchange).with(ROUTING_KEY_CHECKIN);
-    }
-
-    @Bean
-    public Queue checkOutQueue() {
-        return QueueBuilder.durable(CHECKOUT_QUEUE).build();
-    }
-
-    @Bean
-    public Binding checkOutBinding(Queue checkOutQueue, TopicExchange eventsExchange) {
-        return BindingBuilder.bind(checkOutQueue).to(eventsExchange).with(ROUTING_KEY_CHECKOUT);
-    }
-
-    @Bean
-    public Queue maintenanceQueue() {
-        return QueueBuilder.durable(MAINTENANCE_QUEUE).build();
-    }
-
-    @Bean
-    public Binding maintenanceBinding(Queue maintenanceQueue, TopicExchange eventsExchange) {
-        return BindingBuilder.bind(maintenanceQueue).to(eventsExchange).with(ROUTING_KEY_MAINTENANCE);
     }
 
     @Bean

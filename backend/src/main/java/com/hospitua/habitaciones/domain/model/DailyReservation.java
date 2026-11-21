@@ -9,7 +9,8 @@ import java.util.Objects;
 /**
  * Reserva de la copia local del día (plan-consultar-reservas.md). La recibe Módulo 2 por la cola diaria; la clave es
  * {@code reservationRef}. No guarda noches: se calculan con {@link #nights()}. {@code updatedAt} es informativo; el
- * orden de los cambios lo decide el {@code sequenceNumber} del mensaje.
+ * orden de los cambios lo decide el {@code sequenceNumber} del mensaje. El documento y la nacionalidad del titular
+ * pueden faltar (reservas de Booking, acordado con Módulo 2 el 20-11-2026): ver {@link #hasHolderDocument()}.
  */
 public record DailyReservation(
         String reservationRef,
@@ -29,9 +30,6 @@ public record DailyReservation(
         Objects.requireNonNull(reservationRef, "La referencia de la reserva no puede ser nula");
         Objects.requireNonNull(guestFirstName, "El nombre del titular no puede ser nulo");
         Objects.requireNonNull(guestLastName, "El apellido del titular no puede ser nulo");
-        Objects.requireNonNull(guestDocumentType, "El tipo de documento del titular no puede ser nulo");
-        Objects.requireNonNull(guestDocumentNumber, "El documento del titular no puede ser nulo");
-        Objects.requireNonNull(guestNationality, "La nacionalidad del titular no puede ser nula");
         Objects.requireNonNull(source, "El origen de la reserva no puede ser nulo");
         Objects.requireNonNull(startDate, "La fecha de llegada no puede ser nula");
         Objects.requireNonNull(endDate, "La fecha de salida no puede ser nula");
@@ -42,5 +40,10 @@ public record DailyReservation(
     /** Noches de la reserva ({@code endDate - startDate}), calculadas sin persistirlas. */
     public long nights() {
         return ChronoUnit.DAYS.between(startDate, endDate);
+    }
+
+    /** {@code true} si la reserva trae el tipo y el número de documento del titular. */
+    public boolean hasHolderDocument() {
+        return guestDocumentType != null && guestDocumentNumber != null;
     }
 }

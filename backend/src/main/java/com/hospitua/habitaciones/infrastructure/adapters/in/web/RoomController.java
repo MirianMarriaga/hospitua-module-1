@@ -117,10 +117,15 @@ public class RoomController {
         return consultRoomInventoryUseCase.getById(roomId);
     }
 
-    /** Módulo 2: habitaciones vendibles de la categoría, sin paginar; nunca incluye las Inactive (FR-010). */
+    /**
+     * Módulo 2: habitaciones vendibles, sin paginar; nunca incluye las Inactive (FR-010). Sin {@code categoryRoom},
+     * las de todas las categorías (lo pidió Módulo 2 el 20-11-2026); sin resultados, {@code []}.
+     */
     @GetMapping
-    public List<Module2RoomDto> sellableByCategory(@RequestParam RoomCategory categoryRoom) {
-        return consultRoomInventoryUseCase.listSellableByCategory(categoryRoom);
+    public List<Module2RoomDto> sellableByCategory(@RequestParam(required = false) RoomCategory categoryRoom) {
+        return categoryRoom == null
+                ? consultRoomInventoryUseCase.listSellable()
+                : consultRoomInventoryUseCase.listSellableByCategory(categoryRoom);
     }
 
     /** Módulo 2: una habitación vendible; 404 ROOM_NOT_FOUND si no existe o está Inactive (FR-011). */

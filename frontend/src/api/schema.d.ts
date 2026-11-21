@@ -1171,8 +1171,8 @@ export interface operations {
     };
     sellableByCategory: {
         parameters: {
-            query: {
-                categoryRoom: "SENCILLA" | "DOBLE" | "SUITE" | "BOUTIQUE";
+            query?: {
+                categoryRoom?: "SENCILLA" | "DOBLE" | "SUITE" | "BOUTIQUE";
             };
             header?: never;
             path?: never;

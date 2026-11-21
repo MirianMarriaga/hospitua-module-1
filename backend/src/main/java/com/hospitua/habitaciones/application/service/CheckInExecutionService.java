@@ -82,7 +82,7 @@ public class CheckInExecutionService implements RegisterCheckInUseCase {
                 reservation.endDate(),
                 reservation.guestFirstName(),
                 reservation.guestLastName(),
-                reservation.guestDocumentNumber(),
+                eligibility.holderDocumentNumber(guests),
                 0));
         List<RoomGuest> roomGuests =
                 guests.stream().map(guest -> toRoomGuest(stay.getId(), guest)).toList();

@@ -62,11 +62,20 @@ class Module2RoomInventoryContractTest {
     }
 
     @Test
-    @DisplayName("T009: sin categoryRoom o con una categoría inválida responde 400 VALIDATION_ERROR")
-    void listByCategory_invalidCategory_returns400() throws Exception {
+    @DisplayName("Sin categoryRoom trae las vendibles de todas las categorías, sin la 104 Inactive")
+    void listAll_withoutCategory_excludesInactive() throws Exception {
         mockMvc.perform(get("/api/rooms"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", not(hasItem(INACTIVE_DOBLE_ID))))
+                .andExpect(jsonPath("$[*].id", hasItem(AVAILABLE_DOBLE_ID)))
+                .andExpect(jsonPath("$[*].categoryRoom", hasItem("SUITE")))
+                .andExpect(jsonPath("$[*].categoryRoom", hasItem("DOBLE")))
+                .andExpect(jsonPath("$[0].status").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("T009: con una categoría inválida responde 400 VALIDATION_ERROR")
+    void listByCategory_invalidCategory_returns400() throws Exception {
         mockMvc.perform(get("/api/rooms").param("categoryRoom", "PENTHOUSE"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));

@@ -318,18 +318,27 @@ class RoomControllerTest {
                 .andExpect(content().json("[]"));
     }
 
-    @ParameterizedTest(name = "categoryRoom = {0}")
-    @CsvSource(
-            nullValues = "null",
-            value = {"null", "PENTHOUSE", "doble"})
-    @DisplayName("Módulo 2: sin categoryRoom o con una categoría inválida responde 400 VALIDATION_ERROR")
-    void sellableByCategory_invalidCategory_returns400(String categoryRoom) throws Exception {
-        var request = get("/api/rooms");
-        if (categoryRoom != null) {
-            request = request.param("categoryRoom", categoryRoom);
-        }
+    @Test
+    @DisplayName("Módulo 2: sin categoryRoom responde todas las vendibles, sin filtrar por categoría")
+    void sellable_withoutCategory_listsAllSellable() throws Exception {
+        when(consultRoomInventoryUseCase.listSellable())
+                .thenReturn(List.of(
+                        new Module2RoomDto(ROOM_ID, "201", RoomCategory.DOBLE, 2),
+                        new Module2RoomDto(UUID.randomUUID(), "301", RoomCategory.SUITE, 4)));
 
-        mockMvc.perform(request)
+        mockMvc.perform(get("/api/rooms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[1].categoryRoom").value("SUITE"));
+
+        verify(consultRoomInventoryUseCase, never()).listSellableByCategory(any());
+    }
+
+    @ParameterizedTest(name = "categoryRoom = {0}")
+    @CsvSource({"PENTHOUSE", "doble"})
+    @DisplayName("Módulo 2: con una categoría inválida responde 400 VALIDATION_ERROR")
+    void sellableByCategory_invalidCategory_returns400(String categoryRoom) throws Exception {
+        mockMvc.perform(get("/api/rooms").param("categoryRoom", categoryRoom))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details.field").value("categoryRoom"));

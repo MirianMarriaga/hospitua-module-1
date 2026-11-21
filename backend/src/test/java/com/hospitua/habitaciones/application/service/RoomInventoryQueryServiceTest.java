@@ -82,6 +82,18 @@ class RoomInventoryQueryServiceTest {
     }
 
     @Test
+    @DisplayName("listSellable pide al repositorio todas las que no están Inactive, en su orden")
+    void listSellable_excludesInactiveFromRepository() {
+        Room first = room("101", RoomStatus.Available, 0);
+        Room second = room("201", RoomStatus.Occupied, 3);
+        when(roomRepository.findByStatusNot(RoomStatus.Inactive)).thenReturn(List.of(first, second));
+
+        assertThat(service.listSellable())
+                .extracting(Module2RoomDto::roomNumber)
+                .containsExactly("101", "201");
+    }
+
+    @Test
     @DisplayName(
             "FR-011: getSellableById lanza ROOM_NOT_FOUND si el repositorio no la devuelve (inexistente o Inactive)")
     void getSellableById_missingOrInactive_throwsNotFound() {

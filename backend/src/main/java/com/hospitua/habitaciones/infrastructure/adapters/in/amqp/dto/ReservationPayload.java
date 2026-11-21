@@ -39,9 +39,9 @@ public record ReservationPayload(
                 required(reservationRef, "reservationRef"),
                 required(titular.firstName(), "guest.firstName"),
                 required(titular.lastName(), "guest.lastName"),
-                required(titular.documentType(), "guest.documentType"),
-                required(titular.documentNumber(), "guest.documentNumber"),
-                required(titular.nationality(), "guest.nationality"),
+                blankToNull(titular.documentType()),
+                blankToNull(titular.documentNumber()),
+                blankToNull(titular.nationality()),
                 required(source, "source"),
                 required(startDate, "startDate"),
                 required(endDate, "endDate"),
@@ -67,4 +67,9 @@ public record ReservationPayload(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record GuestPayload(
             String firstName, String lastName, String documentType, String documentNumber, String nationality) {}
+
+    /** Booking puede no traer documento ni nacionalidad: un texto vacío cuenta como ausente. */
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
 }

@@ -8,6 +8,7 @@ import com.hospitua.habitaciones.application.ports.in.ConsultRoomInventoryUseCas
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
 import com.hospitua.habitaciones.domain.exception.RoomNotFoundException;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
+import com.hospitua.habitaciones.domain.model.RoomStatus;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,14 @@ public class RoomInventoryQueryService implements ConsultRoomInventoryUseCase {
     @Transactional(readOnly = true)
     public List<Module2RoomDto> listSellableByCategory(RoomCategory categoryRoom) {
         return roomRepository.findSellableByCategory(categoryRoom).stream()
+                .map(Module2RoomDto::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Module2RoomDto> listSellable() {
+        return roomRepository.findByStatusNot(RoomStatus.Inactive).stream()
                 .map(Module2RoomDto::from)
                 .toList();
     }

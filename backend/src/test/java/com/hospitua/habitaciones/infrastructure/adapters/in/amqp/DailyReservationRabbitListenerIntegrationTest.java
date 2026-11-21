@@ -7,6 +7,7 @@ import com.hospitua.habitaciones.TestcontainersConfiguration;
 import com.hospitua.habitaciones.application.event.DailyReservationListIngestedEvent;
 import com.hospitua.habitaciones.application.ports.out.DailyReservationRepositoryPort;
 import com.hospitua.habitaciones.application.ports.out.RoomRepositoryPort;
+import com.hospitua.habitaciones.domain.model.DailyReservation;
 import com.hospitua.habitaciones.domain.model.Room;
 import com.hospitua.habitaciones.domain.model.RoomCategory;
 import com.hospitua.habitaciones.domain.model.RoomStatus;
@@ -227,6 +228,26 @@ class DailyReservationRabbitListenerIntegrationTest {
         assertThat(reservationRepository.isMessageLogged(lateId)).isTrue();
         assertThat(reservationRepository.findByReservationRef(ref)).isPresent();
         assertReservedBy(room, ref);
+    }
+
+    @Test
+    @DisplayName("Booking: una reserva sin documento ni nacionalidad del titular se guarda y aparta la habitación")
+    void bookingWithoutHolderDocument_isApplied() {
+        Room room = room(RoomStatus.Available);
+        String ref = ref();
+        Map<String, Object> reservation = reservation(ref, day, room);
+        guest(reservation).put("documentType", null);
+        guest(reservation).put("documentNumber", null);
+        guest(reservation).put("nationality", "");
+
+        send(
+                RabbitConfig.ROUTING_KEY_DAILY_UPDATE,
+                update(UUID.randomUUID().toString(), 2, "ADDED", ref, day, reservation));
+
+        await().atMost(WAIT).untilAsserted(() -> assertReservedBy(room, ref));
+        DailyReservation saved = reservationRepository.findByReservationRef(ref).orElseThrow();
+        assertThat(saved.hasHolderDocument()).isFalse();
+        assertThat(saved.guestNationality()).isNull();
     }
 
     @Test
