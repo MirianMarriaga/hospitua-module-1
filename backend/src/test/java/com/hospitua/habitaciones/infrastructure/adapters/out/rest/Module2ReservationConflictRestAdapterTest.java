@@ -217,7 +217,7 @@ class Module2ReservationConflictRestAdapterTest {
     }
 
     private static Module2ReservationConflictRestAdapter adapterFor(String baseUrl) {
-        Module2Properties properties = new Module2Properties(baseUrl, Duration.ofSeconds(1), Duration.ofSeconds(2));
+        Module2Properties properties = new Module2Properties(baseUrl, Duration.ofSeconds(1), Duration.ofSeconds(2), "");
         return new Module2ReservationConflictRestAdapter(new RestClientConfig().module2RestClient(properties));
     }
 }

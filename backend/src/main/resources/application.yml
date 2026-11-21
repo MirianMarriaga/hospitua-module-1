@@ -30,6 +30,22 @@ hospitua:
   module3:
     connect-timeout: 1s
     read-timeout: 3s
+    # Llave que Módulo 3 le dio a Módulo 1 para consultar sus liquidaciones; vacía, no se envía.
+    internal-key: ${MODULE3_INTERNAL_KEY:}
+  # Llaves de los módulos que consultan a Módulo 1 (plan de integración, Fase 1), en la cabecera X-Internal-Key.
+  # Un cliente sin llave deja sus rutas abiertas; se activa al poner su variable de entorno en el despliegue.
+  integration:
+    clients:
+      module2:
+        key: ${INTEGRATION_MODULE2_KEY:}
+        routes:
+          - GET /api/rooms
+          - GET /api/rooms/{roomId}
+          - GET /api/rooms/{roomId}/maintenances
+      module3:
+        key: ${INTEGRATION_MODULE3_KEY:}
+        routes:
+          - GET /api/rooms/{roomId}/base-rate
   outbox:
     max-retries: 10
   maintenance:

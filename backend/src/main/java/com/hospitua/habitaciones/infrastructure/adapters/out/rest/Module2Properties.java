@@ -8,11 +8,13 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * Propiedades {@code hospitua.module2.*} hacia Módulo 2 (Reservas), con los timeouts de la regla 5. Sin URL la
- * aplicación no arranca.
+ * aplicación no arranca. {@code internalKey} es la llave de integración que Módulo 2 le dio a Módulo 1 (cabecera
+ * {@code X-Internal-Key}); vacía, no se envía.
  */
 @Validated
 @ConfigurationProperties("hospitua.module2")
 public record Module2Properties(
         @NotBlank String baseUrl,
         @DefaultValue("1s") Duration connectTimeout,
-        @DefaultValue("2s") Duration readTimeout) {}
+        @DefaultValue("2s") Duration readTimeout,
+        @DefaultValue("") String internalKey) {}

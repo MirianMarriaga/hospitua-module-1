@@ -1,7 +1,10 @@
 package com.hospitua.habitaciones.infrastructure.config;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,10 +36,12 @@ class RestClientTimeoutWireMockTest {
         String wireMockUrl = "http://localhost:" + wireMockServer.port();
         RestClientConfig config = new RestClientConfig();
 
-        Module2Properties m2Props = new Module2Properties(wireMockUrl, Duration.ofSeconds(1), Duration.ofSeconds(2));
+        Module2Properties m2Props =
+                new Module2Properties(wireMockUrl, Duration.ofSeconds(1), Duration.ofSeconds(2), "");
         module2Client = config.module2RestClient(m2Props);
 
-        Module3Properties m3Props = new Module3Properties(wireMockUrl, Duration.ofSeconds(1), Duration.ofSeconds(3));
+        Module3Properties m3Props =
+                new Module3Properties(wireMockUrl, Duration.ofSeconds(1), Duration.ofSeconds(3), "");
         module3Client = config.module3RestClient(m3Props);
     }
 
@@ -103,5 +108,29 @@ class RestClientTimeoutWireMockTest {
                         .retrieve()
                         .body(String.class))
                 .isInstanceOf(ResourceAccessException.class);
+    }
+
+    @Test
+    @DisplayName(
+            "Con llave de integración configurada, el cliente la envía en X-Internal-Key; sin ella, no envía la cabecera")
+    void internalKeyHeaderOnlyWhenConfigured() {
+        String url = "http://localhost:" + wireMockServer.port();
+        wireMockServer.stubFor(
+                get(urlEqualTo("/api/settlements/llave")).willReturn(aResponse().withStatus(200)));
+        RestClient withKey = new RestClientConfig()
+                .module3RestClient(
+                        new Module3Properties(url, Duration.ofSeconds(1), Duration.ofSeconds(3), "llave-m3"));
+
+        withKey.get().uri("/api/settlements/llave").retrieve().toBodilessEntity();
+        module3Client.get().uri("/api/settlements/llave").retrieve().toBodilessEntity();
+
+        wireMockServer.verify(
+                1,
+                getRequestedFor(urlEqualTo("/api/settlements/llave"))
+                        .withHeader(IntegrationProperties.KEY_HEADER, equalTo("llave-m3")));
+        wireMockServer.verify(
+                1,
+                getRequestedFor(urlEqualTo("/api/settlements/llave"))
+                        .withHeader(IntegrationProperties.KEY_HEADER, absent()));
     }
 }
