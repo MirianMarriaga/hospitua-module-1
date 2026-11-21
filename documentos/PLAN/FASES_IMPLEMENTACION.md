@@ -236,6 +236,7 @@ ArchUnit), tareas marcadas `[x]` en su `plan-*.md`, commit convencional en espa�
 | L40 | `build(backend): contrato OpenAPI con springdoc` | Ver "Contrato OpenAPI" abajo. |
 | L41 | `fix(backend): tarea activa con nombre propio por panel e inicio de la reparación` | Ver "Tarea activa en el contrato" abajo. |
 | L42 | `feat(backend): ordenar el historial de estados por fecha de inicio o de fin` | Ver "Orden del historial" abajo. |
+| L43 | `feat(backend): llaves de integración X-Internal-Key con Módulo 3` | Ver "Llaves de integración" abajo. |
 
 **Fuera de estos lotes (opcional, a pedido):** pruebas `@Tag("performance")` de cada plan y todo el frontend (el frontend
 tiene su propio plan, `FASES_IMPLEMENTACION_FRONTEND.md`).
@@ -322,3 +323,28 @@ ascendente. Ordenar en el frontend solo reordenaría la página visible, no todo
 - Contrato regenerado (`sort` y `direction` en la consulta) y `schema.d.ts` con `npm run api:types`.
 - SPEC: FR-009 y escenario 5 nuevos en `spec-consultar-historial-de-estados.md`. Plan: parámetros, error 400 y tareas
   T016–T018 (`T018` es el frontend, F21 del plan de fases del frontend).
+
+### Llaves de integración (L43, agregado el 20-11-2026)
+
+Pedido por el usuario el 18-11-2026 (conexión segura con Módulo 2 y Módulo 3, ambos en Render); plan completo en
+`~/Documentos/PLAN_INTEGRACION_MODULOS.md` (Fases 1 y 2). Cabecera `X-Internal-Key`, propuesta por Módulo 3 y aceptada
+por Módulo 2, con una llave por módulo que llama.
+
+**Problema**: las rutas que consultan los otros módulos (tarifa base para Módulo 3; habitaciones y mantenimientos para
+Módulo 2) quedaron públicas en internet al desplegar, y Módulo 3 pide una llave a quien consulta su liquidación.
+
+**L43** (Módulo 3, y Módulo 2 configurado: sus tres consultas exigen su llave cuando se ponga `INTEGRATION_MODULE2_KEY`):
+- Entrada: `IntegrationProperties` (`hospitua.integration.clients`, por cliente su llave y sus rutas como
+  `"GET /api/rooms/{roomId}/base-rate"`) e `IntegrationKeyInterceptor`, registrado en `WebConfig` sobre `/api/**`.
+  Compara el método y el patrón de la ruta del controller, así que el frontend no se ve afectado; la llave se compara en
+  tiempo constante y no va al log. Sin llave o con una incorrecta: `401 INTEGRATION_UNAUTHORIZED` (nuevo en `DomainError`,
+  `IntegrationUnauthorizedException`), por `GlobalExceptionHandler` como el resto. Un cliente sin llave deja sus rutas
+  abiertas: la exigencia se activa poniendo `INTEGRATION_MODULE3_KEY` en el despliegue.
+- Salida: `Module2Properties` y `Module3Properties` con `internalKey` opcional (`MODULE3_INTERNAL_KEY`);
+  `RestClientConfig` la envía en `X-Internal-Key` solo si está configurada.
+- Sin Spring Security (regla 14). El contrato OpenAPI no cambia.
+- Pruebas: `IntegrationKeyInterceptorTest` (llave correcta, ausente, incorrecta o de otro cliente, rutas abiertas y
+  cliente sin llave), `IntegrationKeyIntegrationTest` (aplicación completa con las variables de entorno de los dos módulos) y
+  `RestClientTimeoutWireMockTest` (la cabecera viaja solo si está configurada).
+- Despliegue (`~/hospitua-despliegue`): `MODULO3_KEY_ENTRANTE` (generada) y `MODULO3_KEY_SALIENTE` (la de Módulo 3) en el
+  `.env`, pasadas al backend en `docker-compose.yml`.

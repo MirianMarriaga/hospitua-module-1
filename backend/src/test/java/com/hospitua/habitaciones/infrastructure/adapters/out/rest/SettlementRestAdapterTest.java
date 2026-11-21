@@ -279,6 +279,6 @@ class SettlementRestAdapterTest {
 
     private static SettlementRestAdapter adapterFor(String baseUrl, Duration readTimeout) {
         return new SettlementRestAdapter(new RestClientConfig()
-                .module3RestClient(new Module3Properties(baseUrl, Duration.ofSeconds(1), readTimeout)));
+                .module3RestClient(new Module3Properties(baseUrl, Duration.ofSeconds(1), readTimeout, "")));
     }
 }

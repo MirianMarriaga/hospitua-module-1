@@ -138,7 +138,7 @@ class SettlementCircuitBreakerIntegrationTest {
         RestClient module3RestClient() {
             return new RestClientConfig()
                     .module3RestClient(new Module3Properties(
-                            "http://localhost:" + MODULE3.port(), Duration.ofSeconds(1), Duration.ofSeconds(3)));
+                            "http://localhost:" + MODULE3.port(), Duration.ofSeconds(1), Duration.ofSeconds(3), ""));
         }
     }
 }
