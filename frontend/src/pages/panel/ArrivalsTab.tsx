@@ -70,7 +70,9 @@ function ArrivalRow({ group, room, showGroupColumn }: ArrivalRowProps) {
         <div className="font-semibold text-text-hi">
           {room.titularFirstName} {room.titularLastName}
         </div>
-        <div className="mt-0.5 text-[13px] text-text-lo">{room.titularDocumentNumber ?? 'Documento no registrado'}</div>
+        <div className="mt-0.5 text-[13px] text-text-lo">
+          {room.titularDocumentNumber ?? 'Documento no registrado'}
+        </div>
       </TableCell>
       <TableCell className="text-text-hi">{formatNights(room.nights)}</TableCell>
       <TableCell className="tabular-nums text-text-hi">{room.guestCount}</TableCell>
